@@ -1,0 +1,35 @@
+<Page
+    x:Class="Client.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <StackPanel Padding="20" Spacing="20">
+        <TextBlock Text="Paramètres" FontSize="24" FontWeight="Bold"/>
+        <StackPanel Orientation="Horizontal" Padding="20" Spacing="20">
+            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Appearance_Click">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Apparence" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Personnalisation" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="User_Click">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Utilisateur" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Raccourcis" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Exam_Click">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Examens" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Personnalisation" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+        <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="System_Click">
+            <StackPanel Spacing="5">
+                <TextBlock Text="Système" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Options" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+    </StackPanel>
+</Page>
