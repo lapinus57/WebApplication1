@@ -1,20 +1,43 @@
+using System;
+using System.Text.RegularExpressions;
+
 namespace Client.Helpers
 {
     public static class PatientStringHelper
     {
-        public static void ExtractInfoFromInput(string input, out string title, out string lastName, out string firstName)
+        public static void ExtractInfoFromInput(string inputText, out string patientTitle, out string patientLastName, out string patientFirstName)
         {
-            title = string.Empty;
-            lastName = string.Empty;
-            firstName = string.Empty;
-            if (string.IsNullOrWhiteSpace(input))
-                return;
+            patientTitle = string.Empty;
+            patientLastName = string.Empty;
+            patientFirstName = string.Empty;
 
-            var parts = input.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length > 0)
-                lastName = parts[0];
-            if (parts.Length > 1)
-                firstName = parts[1];
+            try
+            {
+                string patternTitleName = @"^(?i)(Mr\.?|Mlle|Mademoiselle|Mme|Monsieur|Madame|Enfant)?\s*(?<name>[\p{L}'\-\s]+?)(?:\s+n[eé]e\s+[\p{L}'\-\s]+)?\s+(?<firstName>[\p{L}'-]+)";
+
+                var matchTitleName = Regex.Match(inputText ?? string.Empty, patternTitleName);
+
+                if (matchTitleName.Success)
+                {
+                    string titre = matchTitleName.Groups[1].Value;
+                    string nom = matchTitleName.Groups["name"].Value;
+                    string prenom = matchTitleName.Groups["firstName"].Value;
+
+                    patientLastName = nom.ToUpperInvariant();
+                    patientTitle = string.IsNullOrWhiteSpace(titre) ? string.Empty : titre;
+
+                    if (!string.IsNullOrEmpty(prenom))
+                    {
+                        patientFirstName = char.ToUpper(prenom[0]) + prenom.Substring(1).ToLowerInvariant();
+                    }
+                }
+            }
+            catch
+            {
+                patientTitle = string.Empty;
+                patientLastName = string.Empty;
+                patientFirstName = string.Empty;
+            }
         }
     }
 }

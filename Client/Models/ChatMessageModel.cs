@@ -4,11 +4,15 @@ namespace Client.Models
 {
     public class ChatMessageModel
     {
-        public string Avatar { get; set; } = string.Empty;
-        public string Header { get; set; } = string.Empty;
+        public string Sender { get; set; } = string.Empty;
+        public string Destinataire { get; set; } = string.Empty;
+        public string Room { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
-        public string IrcHeader { get; set; } = string.Empty;
+        public string Avatar { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
-        public string TimeFormatted => Timestamp.ToString("HH:mm");
+
+        public string TimeFormatted => Timestamp.ToString("dd/MM/yy HH:mm");
+        public string Header => $"{Sender} ({Room}) :";
+        public string IrcHeader => $"[{Timestamp:dd/MM/yy HH:mm}] <{Sender} ({Room})> <{Destinataire}> : {Content}";
     }
 }
