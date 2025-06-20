@@ -8,8 +8,33 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Title="Client">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
 
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <Button x:Name="myButton" Click="myButton_Click">Click Me</Button>
-    </StackPanel>
+    <Grid Background="White">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid x:Name="AppTitleBar" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" Height="48" Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="LeftPaddingColumn" Width="0"/>
+                <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
+                <ColumnDefinition x:Name="TitleColumn" Width="Auto"/>
+                <ColumnDefinition x:Name="LeftDragColumn" Width="*"/>
+                <ColumnDefinition x:Name="AccountColumn" Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Image x:Name="TitleBarIcon" Source="/Assets/Square150x150Logo.scale-200.png" Grid.Column="1" Width="32" Height="32" Margin="8,0,4,0"/>
+            <TextBlock x:Name="TitleBarTextBlock" Text="App title" FontSize="16" VerticalAlignment="Center" Grid.Column="2" />
+            <PersonPicture x:Name="PersonPic" Grid.Column="4" Height="32" Margin="0,0,150,0" />
+        </Grid>
+        <NavigationView x:Name="nvSample" Grid.Row="1" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Icon="LeaveChat" Content="Chat" Tag="ChatPage" />
+                <NavigationViewItem Icon="People" Content="Historique" Tag="HistoryPage" />
+            </NavigationView.MenuItems>
+            <Frame x:Name="contentFrame" />
+        </NavigationView>
+    </Grid>
 </Window>
