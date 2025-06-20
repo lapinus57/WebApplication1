@@ -1,15 +1,130 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
+using Newtonsoft.Json;
 
 namespace Client.Models
 {
-    public class ExamOption
+    public class ExamOption : INotifyPropertyChanged
     {
-        public string Name { get; set; } = string.Empty;
-        public string Floor { get; set; } = string.Empty;
+        private int _index;
+        private string _name = string.Empty;
+        private string _color = string.Empty;
+        private string _codeMSG = string.Empty;
+        private string _annotation = string.Empty;
+        private string _floor = string.Empty;
+
+        public int Index
+        {
+            get => _index;
+            set
+            {
+                if (_index != value)
+                {
+                    _index = value;
+                    OnPropertyChanged(nameof(Index));
+                }
+            }
+        }
+
+        public string Name
+        {
+            get => _name;
+            set
+            {
+                if (_name != value)
+                {
+                    _name = value;
+                    OnPropertyChanged(nameof(Name));
+                }
+            }
+        }
+
+        public string Color
+        {
+            get => _color;
+            set
+            {
+                if (_color != value)
+                {
+                    _color = value;
+                    OnPropertyChanged(nameof(Color));
+                }
+            }
+        }
+
+        public string CodeMSG
+        {
+            get => _codeMSG;
+            set
+            {
+                if (_codeMSG != value)
+                {
+                    _codeMSG = value;
+                    OnPropertyChanged(nameof(CodeMSG));
+                }
+            }
+        }
+
+        public string Annotation
+        {
+            get => _annotation;
+            set
+            {
+                if (_annotation != value)
+                {
+                    _annotation = value;
+                    OnPropertyChanged(nameof(Annotation));
+                }
+            }
+        }
+
+        public string Floor
+        {
+            get => _floor;
+            set
+            {
+                if (_floor != value)
+                {
+                    _floor = value;
+                    OnPropertyChanged(nameof(Floor));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged(string propertyName) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+        public static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "Assets", "exam_options.json");
 
         public static ObservableCollection<ExamOption> Load()
         {
+            try
+            {
+                if (File.Exists(FilePath))
+                {
+                    var json = File.ReadAllText(FilePath);
+                    return JsonConvert.DeserializeObject<ObservableCollection<ExamOption>>(json)
+                           ?? new ObservableCollection<ExamOption>();
+                }
+            }
+            catch
+            {
+            }
             return new ObservableCollection<ExamOption>();
+        }
+
+        public static void Save(ObservableCollection<ExamOption> options)
+        {
+            try
+            {
+                var json = JsonConvert.SerializeObject(options, Formatting.Indented);
+                File.WriteAllText(FilePath, json);
+            }
+            catch
+            {
+            }
         }
     }
 }

@@ -2,18 +2,11 @@ namespace Client.Models
 {
     public class Result<T>
     {
-        public bool Success { get; }
-        public T? Value { get; }
-        public string Error { get; }
+        public bool Success { get; init; }
+        public T? Value { get; init; }
+        public string? Error { get; init; }
 
-        private Result(bool success, T? value, string error)
-        {
-            Success = success;
-            Value = value;
-            Error = error;
-        }
-
-        public static Result<T> Ok(T value) => new Result<T>(true, value, string.Empty);
-        public static Result<T> Fail(string error) => new Result<T>(false, default, error);
+        public static Result<T> Ok(T value) => new() { Success = true, Value = value };
+        public static Result<T> Fail(string message) => new() { Success = false, Error = message };
     }
 }

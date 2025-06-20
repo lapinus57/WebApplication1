@@ -1,24 +1,83 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using Client.Models;
 
 namespace Client.Helpers
 {
     public static class AppSettings
     {
-        private static readonly Dictionary<string, object> _values = new();
-        public static string Get(string key, string defaultValue)
+        private static readonly string filePath =
+            Path.Combine(AppContext.BaseDirectory, "settings.json");
+
+        private static Dictionary<string, JsonElement> _settings = new();
+        public static UserInfo? CurrentSelectedUser { get; set; }
+
+        static AppSettings()
         {
-            if (_values.TryGetValue(key, out var value))
+            try
             {
-                return value?.ToString() ?? defaultValue;
+                if (File.Exists(filePath))
+                {
+                    var json = File.ReadAllText(filePath);
+                    _settings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)
+                                ?? new();
+                }
             }
-            return defaultValue;
+            catch
+            {
+                _settings = new();
+            }
         }
 
-        public static void Set(string key, object value)
+        public static string Get(string key, string defaultValue = "")
         {
-            _values[key] = value;
+            return _settings.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString() ?? defaultValue
+                : defaultValue;
         }
 
-        public static Client.Models.UserInfo? CurrentSelectedUser { get; set; }
+        public static T GetObject<T>(string key) where T : new()
+        {
+            try
+            {
+                if (_settings.TryGetValue(key, out var value))
+                {
+                    return value.Deserialize<T>() ?? new T();
+                }
+            }
+            catch { }
+            return new T();
+        }
+
+        public static void Set(string key, string value)
+        {
+            _settings[key] = JsonDocument.Parse($"\"{value}\"").RootElement;
+            Save();
+        }
+
+        public static void SetObject<T>(string key, T value)
+        {
+            var json = JsonSerializer.Serialize(value);
+            _settings[key] = JsonDocument.Parse(json).RootElement;
+            Save();
+        }
+
+        private static void Save()
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                File.WriteAllText(filePath, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Sauvegarde échouée : {ex.Message}");
+            }
+        }
     }
 }
