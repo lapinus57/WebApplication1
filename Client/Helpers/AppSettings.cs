@@ -8,21 +8,44 @@ namespace Client.Helpers
 {
     public static class AppSettings
     {
-        private static readonly string filePath =
-            Path.Combine(AppContext.BaseDirectory, "settings.json");
-
         private static Dictionary<string, JsonElement> _settings = new();
-        public static UserInfo? CurrentSelectedUser { get; set; }
+
+        private static string FilePath =>
+            Path.Combine(AppContext.BaseDirectory,
+                $"{(CurrentSelectedUser?.Username ?? "default")}_settings.json");
+
+        private static UserInfo? _currentUser;
+        public static UserInfo? CurrentSelectedUser
+        {
+            get => _currentUser;
+            set
+            {
+                if (_currentUser?.Username != value?.Username)
+                {
+                    _currentUser = value;
+                    Load();
+                }
+            }
+        }
 
         static AppSettings()
         {
+            Load();
+        }
+
+        private static void Load()
+        {
             try
             {
-                if (File.Exists(filePath))
+                if (File.Exists(FilePath))
                 {
-                    var json = File.ReadAllText(filePath);
+                    var json = File.ReadAllText(FilePath);
                     _settings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)
                                 ?? new();
+                }
+                else
+                {
+                    _settings = new();
                 }
             }
             catch
@@ -72,7 +95,7 @@ namespace Client.Helpers
                 {
                     WriteIndented = true
                 });
-                File.WriteAllText(filePath, json);
+                File.WriteAllText(FilePath, json);
             }
             catch (Exception ex)
             {

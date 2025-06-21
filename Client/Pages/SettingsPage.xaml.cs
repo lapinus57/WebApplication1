@@ -17,6 +17,7 @@ namespace Client.Pages
 
         private void User_Click(object sender, RoutedEventArgs e)
         {
+            Frame.Navigate(typeof(UserSettingsPage));
         }
 
         private void System_Click(object sender, RoutedEventArgs e)
@@ -25,6 +26,7 @@ namespace Client.Pages
 
         private void Exam_Click(object sender, RoutedEventArgs e)
         {
+            Frame.Navigate(typeof(ExamRoomPage));
         }
     }
 }

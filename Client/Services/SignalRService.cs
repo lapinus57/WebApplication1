@@ -29,6 +29,8 @@ namespace Client.Services
 
         public event Action<ChatMessageModel>? OnMessageReceived;
         public event Action<Patient>? OnNewPatient;
+        public event Action<IEnumerable<ExamOption>>? ExamOptionsUpdated;
+        public event Action<IEnumerable<string>>? RoomsUpdated;
 
         private static readonly JsonSerializerSettings CamelCaseSettings = new()
         {
@@ -133,6 +135,16 @@ namespace Client.Services
             Connection.On<Patient>("NewPatient", patient =>
             {
                 OnNewPatient?.Invoke(patient);
+            });
+
+            Connection.On<IEnumerable<ExamOption>>("ExamOptionsUpdated", opts =>
+            {
+                ExamOptionsUpdated?.Invoke(opts);
+            });
+
+            Connection.On<IEnumerable<string>>("RoomsUpdated", rooms =>
+            {
+                RoomsUpdated?.Invoke(rooms);
             });
 
             try
