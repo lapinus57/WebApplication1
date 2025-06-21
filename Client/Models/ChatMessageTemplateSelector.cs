@@ -13,12 +13,6 @@ namespace Client.Models
         public string MyUsername { get; set; } = string.Empty;
         public DataTemplate? IrcTemplate { get; set; }
 
-        public enum ChatStyle
-        {
-            Modern,
-            OldSchool
-        }
-
         public ChatStyle DisplayMode { get; set; } = ChatStyle.Modern;
 
         protected override DataTemplate? SelectTemplateCore(object item)
