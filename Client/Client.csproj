@@ -13,9 +13,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Content Remove="Assets\earth.png" />
-    <Content Remove="Assets\EyeChat.png" />
-    <Content Remove="Assets\secrétaria.png" />
+	  <Content Include="Assets\earth.png" />
+	  <Content Include="Assets\EyeChat.png" />
+	  <Content Include="Assets\secrétaria.png"/>
   </ItemGroup>
 
   <ItemGroup>
