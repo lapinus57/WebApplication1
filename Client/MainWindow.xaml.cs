@@ -36,5 +36,21 @@ namespace Client
                 }
             }
         }
+        public Pages.ChatPage ShowChatPage()
+        {
+            var chatItem = nvSample.MenuItems.OfType<NavigationViewItem>()
+                .FirstOrDefault(item => (string)item.Tag == "ChatPage");
+            if (chatItem != null)
+            {
+                nvSample.SelectedItem = chatItem;
+            }
+
+            if (contentFrame.CurrentSourcePageType != typeof(Pages.ChatPage))
+            {
+                contentFrame.Navigate(typeof(Pages.ChatPage));
+            }
+
+            return contentFrame.Content as Pages.ChatPage;
+        }
     }
 }

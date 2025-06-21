@@ -73,7 +73,10 @@ namespace Client.Pages
                 Send_Click(sender, e);
             }
         }
-
+        public void FocusInputBox()
+        {
+            InputBox.Focus(FocusState.Programmatic);
+        }
         private void LoadMore_Click(object sender, RoutedEventArgs e)
         {
             // Placeholder
