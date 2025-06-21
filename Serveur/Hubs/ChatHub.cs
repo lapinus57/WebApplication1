@@ -89,7 +89,7 @@ namespace ChatServeur
                     {
                         ConnectionId = string.Empty,
                         Username = "Secrétariat",
-                        Avatar = "ms-appx:///Assets/secrétaria.png",
+                        Avatar = "ms-appx:///Assets/secretaria.png",
                         Room = string.Empty,
                         DisplayName = "Secrétariat",
                         IsOnline = true,

@@ -15,7 +15,7 @@
   <ItemGroup>
 	  <Content Include="Assets\earth.png" />
 	  <Content Include="Assets\EyeChat.png" />
-	  <Content Include="Assets\secrétaria.png"/>
+	  <Content Include="Assets\secretaria.png"/>
   </ItemGroup>
 
   <ItemGroup>

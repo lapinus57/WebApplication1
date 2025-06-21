@@ -1,4 +1,4 @@
-<Page
+﻿<Page
     x:Class="Client.Pages.ChatPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -37,19 +37,35 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
-
+        
+        <!-- 📥 Placeholder pour charger plus de messages -->
         <DataTemplate x:Key="LoadMoreTemplate" x:DataType="data:LoadMorePlaceholder">
-            <Button Content="Load more" Click="LoadMore_Click" HorizontalAlignment="Center" Margin="10"/>
+            <Button Content="📥 Charger plus de messages"
+            Click="LoadMore_Click"
+            HorizontalAlignment="Center"
+            Margin="10"/>
         </DataTemplate>
 
+        <!-- 📭 Placeholder vide -->
         <DataTemplate x:Key="EmptyTemplate" x:DataType="data:EmptyPlaceholder">
-            <TextBlock Text="{x:Bind Message}" HorizontalAlignment="Center" FontStyle="Italic" Foreground="Gray" Margin="10"/>
+            <TextBlock Text="{x:Bind Message}"
+               HorizontalAlignment="Center"
+               FontStyle="Italic"
+               Foreground="Gray"
+               Margin="10"/>
         </DataTemplate>
 
+        <!-- 📩 Message IRC -->
         <DataTemplate x:Key="IrcMessageTemplate" x:DataType="data:ChatMessageModel">
-            <TextBlock FontFamily="Consolas" TextWrapping="Wrap" MaxWidth="1000" Text="{x:Bind IrcHeader}"/>
+            <TextBlock FontFamily="Consolas"
+               FontSize="{ThemeResource MessageFontSize}"
+               HorizontalAlignment="Left"
+                       TextWrapping="Wrap"
+                       MaxWidth="1000"
+               Text="{x:Bind IrcHeader}">
+            </TextBlock>
         </DataTemplate>
-
+        
         <data:ChatMessageTemplateSelector x:Key="MessageTemplateSelector"
             MyUsername="Moi"
             MyMessageTemplate="{StaticResource MyMessageTemplate}"
