@@ -2,6 +2,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Linq;
+using Microsoft.UI.Windowing;
+using WinRT.Interop;
+using Windows.UI;
+using Microsoft.UI;
 
 namespace Client
 {
@@ -10,6 +14,15 @@ namespace Client
         public MainWindow()
         {
             this.InitializeComponent();
+            // Use the custom AppTitleBar element as the window title bar
+            this.ExtendsContentIntoTitleBar = true;
+            this.SetTitleBar(AppTitleBar);
+
+            // Hide default title bar button backgrounds for seamless look
+            var hwnd = WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+            var appWindow = AppWindow.GetFromWindowId(windowId);
+            var titleBar = appWindow.TitleBar;
             nvSample.SelectedItem = nvSample.MenuItems.OfType<NavigationViewItem>()
                 .FirstOrDefault(item => (string)item.Tag == "ChatPage");
             contentFrame.Navigate(typeof(Pages.ChatPage));

@@ -9,5 +9,10 @@ namespace Client.Models
         public string DisplayName { get; set; } = string.Empty;
         public bool IsOnline { get; set; }
         public string Note { get; set; } = string.Empty;
+        /// <summary>
+        /// Convenience property returning <see cref="DisplayName"/> if set or
+        /// <see cref="Username"/> otherwise.
+        /// </summary>
+        public string Name => string.IsNullOrWhiteSpace(DisplayName) ? Username : DisplayName;
     }
 }
