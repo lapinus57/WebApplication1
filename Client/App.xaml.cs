@@ -7,7 +7,7 @@ namespace Client
     public partial class App : Application
     {
         public static SignalRService ChatService { get; } = new SignalRService();
-
+        public static Window? MainWindow { get; private set; }
         public App()
         {
             this.InitializeComponent();
@@ -16,6 +16,7 @@ namespace Client
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             m_window = new MainWindow();
+            MainWindow = m_window;
             m_window.Activate();
         }
 
