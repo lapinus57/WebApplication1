@@ -11,13 +11,13 @@
             <StackPanel HorizontalAlignment="Left">
                 <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="400">
                     <Border.Background>
-                        <SolidColorBrush Color="LightGray"/>
+                        <SolidColorBrush Color="{ThemeResource OtherMessageColor}"/>
                     </Border.Background>
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                         <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
-                            <TextBlock Text="{x:Bind Header}" FontWeight="Bold"/>
-                            <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap"/>
+                            <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}"/>
+                            <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}"/>
                             <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right"/>
                         </StackPanel>
                     </StackPanel>
@@ -26,13 +26,13 @@
         </DataTemplate>
 
         <DataTemplate x:Key="MyMessageTemplate" x:DataType="data:ChatMessageModel">
-            <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="LightBlue">
+            <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{ThemeResource MyMessageColor}">
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                     <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
-                        <TextBlock Text="{x:Bind Header}" FontWeight="Bold"/>
-                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" MaxWidth="500" HorizontalAlignment="Left"/>
-                        <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right"/>
+                        <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
+                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" MaxWidth="500" HorizontalAlignment="Left" Foreground="{ThemeResource TextMyMessageColor}"/>
+                        <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextMyMessageColor}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
