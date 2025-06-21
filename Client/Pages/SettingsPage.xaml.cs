@@ -12,6 +12,7 @@ namespace Client.Pages
 
         private void Appearance_Click(object sender, RoutedEventArgs e)
         {
+            Frame.Navigate(typeof(AppearanceSettingsPage));
         }
 
         private void User_Click(object sender, RoutedEventArgs e)

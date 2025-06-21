@@ -10,7 +10,20 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
+            <!-- Default theme resources -->
+            <SolidColorBrush x:Key="TitleBarColor" Color="#FF0078D7" />
+            <SolidColorBrush x:Key="TextTitleBarColor" Color="#FF000000" />
+            <SolidColorBrush x:Key="NavigationViewColor" Color="#FFE6F1FF" />
+            <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#FF000000" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="#FF000000" />
+            <SolidColorBrush x:Key="NavigationViewItemIconForeground" Color="#FF000000" />
+            <SolidColorBrush x:Key="NavigationViewItemIconForegroundSelected" Color="#FF000000" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="NavigationViewItemIconForegroundPointerOver" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="MyMessageColor" Color="#FFCCE5FF" />
+            <SolidColorBrush x:Key="TextMyMessageColor" Color="#FF000000" />
+            <SolidColorBrush x:Key="OtherMessageColor" Color="#FFD9F2DC" />
+            <x:Double x:Key="MessageFontSize">14</x:Double>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
