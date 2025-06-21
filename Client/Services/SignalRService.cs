@@ -49,12 +49,20 @@ namespace Client.Services
 
             Connection.Closed += async (error) =>
             {
-                AppNotification notification = new AppNotificationBuilder()
-                .AddText("Serveur erreur")
-                .AddText("Explore interactive samples and discover the power of modern Windows UI.")
-                .BuildNotification();
+                try
+                {
+                    AppNotification notification = new AppNotificationBuilder()
+                        .AddText("Serveur erreur")
+                        .AddText("Explore interactive samples and discover the power of modern Windows UI.")
+                        .BuildNotification();
 
-                AppNotificationManager.Default.Show(notification);
+                    AppNotificationManager.Default.Show(notification);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"❌ Toast error: {ex.Message}");
+                }
+
                 await Task.Delay(3000);
             };
 
@@ -134,12 +142,19 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                AppNotification notification = new AppNotificationBuilder()
-               .AddText("Eyechat")
-               .AddText($"Erreur de connexion au serveur SignalR {ex.Message}")
-               .BuildNotification();
+                try
+                {
+                    AppNotification notification = new AppNotificationBuilder()
+                        .AddText("Eyechat")
+                        .AddText($"Erreur de connexion au serveur SignalR {ex.Message}")
+                        .BuildNotification();
 
-                AppNotificationManager.Default.Show(notification);
+                    AppNotificationManager.Default.Show(notification);
+                }
+                catch (Exception toastEx)
+                {
+                    Debug.WriteLine($"❌ Toast error: {toastEx.Message}");
+                }
             }
             
         }
