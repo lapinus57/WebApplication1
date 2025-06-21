@@ -135,7 +135,7 @@ namespace ChatServeur
                 var membres = GetGroupMembers("Secrétariat");
                 foreach (var user in membres)
                 {
-                    await Clients.Caller.SendAsync("ReceiveMessage", sender, room, user, content, avatar, timestamp);
+                    //await Clients.Caller.SendAsync("ReceiveMessage", sender, room, user, content, avatar, timestamp);
                 }
             }
             else if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionId))
