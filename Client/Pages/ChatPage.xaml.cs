@@ -81,5 +81,9 @@ namespace Client.Pages
         {
             // Placeholder
         }
+        private void UsersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Placeholder for selection changed logic
+        }
     }
 }
