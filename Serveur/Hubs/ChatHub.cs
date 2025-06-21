@@ -233,7 +233,7 @@ namespace ChatServeur
                 .ToListAsync();
         }
 
-        public async Task SaveExamOptions(object options)
+        public async Task SaveExamOptions(IEnumerable<ExamOption> options)
         {
             var json = JsonSerializer.Serialize(options);
             var config = await _db.ServerConfigs.FirstOrDefaultAsync();
