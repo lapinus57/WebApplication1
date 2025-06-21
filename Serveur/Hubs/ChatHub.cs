@@ -245,6 +245,7 @@ namespace ChatServeur
 
             config.ExamOptionsJson = json;
             await _db.SaveChangesAsync();
+            await Clients.All.SendAsync("ExamOptionsUpdated", options);
         }
 
         public async Task SaveRooms(IEnumerable<string> rooms)
@@ -258,6 +259,37 @@ namespace ChatServeur
             }
             config.RoomsJson = json;
             await _db.SaveChangesAsync();
+            await Clients.All.SendAsync("RoomsUpdated", rooms);
+        }
+
+        public async Task<List<ExamOption>> GetExamOptions()
+        {
+            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            if (config == null || string.IsNullOrEmpty(config.ExamOptionsJson))
+                return new List<ExamOption>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<ExamOption>>(config.ExamOptionsJson) ?? new List<ExamOption>();
+            }
+            catch
+            {
+                return new List<ExamOption>();
+            }
+        }
+
+        public async Task<List<string>> GetRooms()
+        {
+            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            if (config == null || string.IsNullOrEmpty(config.RoomsJson))
+                return new List<string>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(config.RoomsJson) ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
     }
 }
