@@ -58,6 +58,11 @@ namespace Client.Pages
             var style = AppSettings.Get("ChatDisplayStyle", "Modern");
             ApplyChatStyle(style == "OldSchool" ? ChatStyle.OldSchool : ChatStyle.Modern);
 
+            if (_service.Connection == null || _service.Connection.State != HubConnectionState.Connected)
+            {
+                await _service.InitializeAsync();
+            }
+
             TryRestoreUserSelection();
             await WaitForConnectionReady();
 
@@ -304,7 +309,7 @@ namespace Client.Pages
         {
             BuildRooms();
         }
-
+        
         private void BuildRooms()
         {
             RoomsWithAll.Clear();
@@ -329,9 +334,6 @@ namespace Client.Pages
             foreach (var item in toRemove)
                 collection.Remove(item);
         }
-        private void UsersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            // Placeholder for selection changed logic
-        }
+        
     }
 }

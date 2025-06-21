@@ -37,7 +37,7 @@ namespace Client.Services
 
         public Task InitializeAsync()
         {
-            return ConnectAsync("Moi", string.Empty, "RDC");
+            return ConnectAsync("Moi", @"E:\benoit.png", "RDC");
         }
 
         public async Task ConnectAsync(string username, string avatar, string room)
