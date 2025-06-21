@@ -97,12 +97,15 @@ namespace Client.Models
         private void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
-        public static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "Assets", "exam_options.json");
-
+        public static readonly string FilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EyeChat",
+            "exam_options.json");
         public static ObservableCollection<ExamOption> Load()
         {
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 if (File.Exists(FilePath))
                 {
                     var json = File.ReadAllText(FilePath);
@@ -120,6 +123,7 @@ namespace Client.Models
         {
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 var json = JsonConvert.SerializeObject(options, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }

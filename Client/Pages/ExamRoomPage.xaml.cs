@@ -165,7 +165,7 @@ namespace Client.Pages
         }
         private async void ExamRoomPage_Loaded(object sender, RoutedEventArgs e)
         {
-            App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
+            //App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
             App.ChatService.RoomsUpdated += ChatService_RoomsUpdated;
             await SyncWithServerAsync();
         }

@@ -11,7 +11,8 @@ namespace Client.Helpers
         private static Dictionary<string, JsonElement> _settings = new();
 
         private static string FilePath =>
-            Path.Combine(AppContext.BaseDirectory,
+              Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EyeChat",
                 $"{(CurrentSelectedUser?.Username ?? "default")}_settings.json");
 
         private static UserInfo? _currentUser;
@@ -37,6 +38,7 @@ namespace Client.Helpers
         {
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 if (File.Exists(FilePath))
                 {
                     var json = File.ReadAllText(FilePath);
@@ -91,6 +93,7 @@ namespace Client.Helpers
         {
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
                 {
                     WriteIndented = true

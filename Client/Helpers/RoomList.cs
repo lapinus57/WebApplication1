@@ -8,12 +8,14 @@ namespace Client.Helpers
     public static class RoomList
     {
         public static readonly string FilePath =
-            Path.Combine(AppContext.BaseDirectory, "Assets", "rooms.json");
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EyeChat", "rooms.json");
 
         public static ObservableCollection<string> Load()
         {
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 if (File.Exists(FilePath))
                 {
                     var json = File.ReadAllText(FilePath);
@@ -31,6 +33,7 @@ namespace Client.Helpers
         {
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 var json = JsonConvert.SerializeObject(rooms, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }
