@@ -22,6 +22,7 @@ namespace Client.Pages
         public ObservableCollection<string> Rooms { get; } = RoomList.Load();
 
         private bool _syncing;
+        private bool _hasChanges;
 
         public ExamRoomPage()
         {
@@ -35,10 +36,17 @@ namespace Client.Pages
             this.Unloaded += ExamRoomPage_Unloaded;
         }
 
-        private void ExamRoomPage_Unloaded(object sender, RoutedEventArgs e)
+        private async void ExamRoomPage_Unloaded(object sender, RoutedEventArgs e)
         {
             App.ChatService.ExamOptionsUpdated -= ChatService_ExamOptionsUpdated;
             App.ChatService.RoomsUpdated -= ChatService_RoomsUpdated;
+
+            if (_hasChanges)
+            {
+                await TrySendExamOptionsAsync();
+                await TrySendRoomsAsync();
+                _hasChanges = false;
+            }
         }
 
         private void DeleteExam_Click(object sender, RoutedEventArgs e)
@@ -95,14 +103,31 @@ namespace Client.Pages
             }
         }
 
-        private async void Option_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private async Task TrySendRoomsAsync()
         {
-            if (_syncing) return;
-            ExamOption.Save(Options);
-            await TrySendExamOptionsAsync();
+            try
+            {
+                if (App.ChatService.Connection != null &&
+                    App.ChatService.Connection.State == HubConnectionState.Connected)
+                {
+                    Debug.WriteLine($"Envoi {Rooms.Count} salles");
+                    await App.ChatService.SendRoomsAsync(Rooms);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur synchro salles : {ex.Message}");
+            }
         }
 
-        private async void Options_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        private void Option_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (_syncing) return;
+            _hasChanges = true;
+            ExamOption.Save(Options);
+        }
+
+        private void Options_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (_syncing) return;
             int index = 1;
@@ -121,27 +146,15 @@ namespace Client.Pages
                     opt.PropertyChanged -= Option_PropertyChanged;
             }
 
+            _hasChanges = true;
             ExamOption.Save(Options);
-            await TrySendExamOptionsAsync();
         }
 
-        private async void Rooms_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        private void Rooms_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             if (_syncing) return;
+            _hasChanges = true;
             RoomList.Save(Rooms);
-            try
-            {
-                if (App.ChatService.Connection != null &&
-                    App.ChatService.Connection.State == HubConnectionState.Connected)
-                {
-                    Debug.WriteLine($"Envoi {Rooms.Count} salles");
-                    await App.ChatService.SendRoomsAsync(Rooms);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Erreur synchro salles : {ex.Message}");
-            }
         }
         private void Back_Click(object sender, RoutedEventArgs e)
         {
