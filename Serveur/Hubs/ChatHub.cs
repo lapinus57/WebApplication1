@@ -108,8 +108,10 @@ namespace ChatServeur
             }
         }
 
+
         public async Task SendMessage(string sender, string room, string destinataire, string content, string avatar, DateTime timestamp)
         {
+            timestamp = DateTime.Now;
             var message = new ChatMessage
             {
                 Sender = sender,
@@ -135,7 +137,7 @@ namespace ChatServeur
                 var membres = GetGroupMembers("Secrétariat");
                 foreach (var user in membres)
                 {
-                    //await Clients.Caller.SendAsync("ReceiveMessage", sender, room, user, content, avatar, timestamp);
+                    await Clients.Caller.SendAsync("ReceiveMessage", sender, room, user, content, avatar, timestamp);
                 }
             }
             else if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionId))
