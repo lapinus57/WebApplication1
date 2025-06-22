@@ -66,25 +66,26 @@ namespace Client.Pages
             TryRestoreUserSelection();
             await WaitForConnectionReady();
 
-            Messages.Clear();
-            Messages.Add(new LoadMorePlaceholder());
-
-            var cachedMessages = await _service.LoadTodayMessagesFromDiskAsync();
-            if (cachedMessages.Any())
+            if (!_service.IsHistoryLoaded && !Messages.OfType<ChatMessageModel>().Any())
             {
+                Messages.Clear();
+                Messages.Add(new LoadMorePlaceholder());
+
+                var cachedMessages = await _service.LoadTodayMessagesFromDiskAsync();
                 foreach (var msg in cachedMessages)
                     Messages.Add(msg);
-                ScrollToLastMessage();
-            }
 
-            var result = await _service.LoadTodayMessagesAsync("Moi");
-            if (result.Success)
-            {
-                Messages.RemoveWhere<ChatMessageModel>();
-                foreach (var msg in result.Value)
-                    Messages.Add(msg);
+                var result = await _service.LoadTodayMessagesAsync("Moi");
+                if (result.Success)
+                {
+                    foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
+                        Messages.Remove(item);
+                    foreach (var msg in result.Value)
+                        Messages.Add(msg);
 
-                await _service.SaveTodayMessagesToDiskAsync();
+                    await _service.SaveTodayMessagesToDiskAsync();
+                }
+
                 ScrollToLastMessage();
             }
 
