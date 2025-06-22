@@ -61,7 +61,13 @@ namespace Client.Pages
             Options.Add(new ExamOption
             {
                 Index = Options.Count + 1,
-                Color = "yellow"
+                Color = "#FF0000", // Default color red
+                Name = "Nouvel examen",
+                CodeMSG = "examen",
+                Annotation = string.Empty,
+                Floor = "tes"
+
+
             });
         }
         private void ColorPicker_ColorChanged(ColorPicker sender, ColorChangedEventArgs args)
@@ -134,19 +140,6 @@ namespace Client.Pages
             foreach (var opt in Options)
                 opt.Index = index++;
 
-            if (e.NewItems != null)
-            {
-                foreach (ExamOption opt in e.NewItems)
-                    opt.PropertyChanged += Option_PropertyChanged;
-            }
-
-            if (e.OldItems != null)
-            {
-                foreach (ExamOption opt in e.OldItems)
-                    opt.PropertyChanged -= Option_PropertyChanged;
-            }
-
-            _hasChanges = true;
             ExamOption.Save(Options);
         }
 
@@ -165,7 +158,7 @@ namespace Client.Pages
         }
         private async void ExamRoomPage_Loaded(object sender, RoutedEventArgs e)
         {
-            //App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
+            App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
             App.ChatService.RoomsUpdated += ChatService_RoomsUpdated;
             await SyncWithServerAsync();
         }
