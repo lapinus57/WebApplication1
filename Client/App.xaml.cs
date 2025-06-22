@@ -17,6 +17,10 @@ namespace Client
         {
             m_window = new MainWindow();
             MainWindow = m_window;
+
+            ChatService.Dispatcher = m_window.DispatcherQueue;
+            _ = ChatService.InitializeAsync();
+
             m_window.Activate();
         }
 

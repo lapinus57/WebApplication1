@@ -28,6 +28,11 @@ namespace Client.Services
         public ObservableCollection<Patient> Patients { get; } = new();
         public ObservableCollection<object> Messages { get; } = new();
 
+        private bool _initialized;
+        private bool _historyLoaded;
+
+        public bool IsHistoryLoaded => _historyLoaded;
+
         public string ServerAddress { get; set; } = "http://localhost:5000";
 
         public SignalRService()
@@ -46,9 +51,33 @@ namespace Client.Services
             ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
         };
 
-        public Task InitializeAsync()
+        public async Task InitializeAsync()
         {
-            return ConnectAsync("Moi", @"E:\benoit.png", "RDC");
+            if (_initialized)
+                return;
+
+            _initialized = true;
+
+            await ConnectAsync("Moi", @"E:\benoit.png", "RDC");
+
+            Messages.Clear();
+            Messages.Add(new LoadMorePlaceholder());
+
+            var cached = await LoadTodayMessagesFromDiskAsync();
+            foreach (var msg in cached)
+                Messages.Add(msg);
+
+            var result = await LoadTodayMessagesAsync("Moi");
+            if (result.Success)
+            {
+                foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
+                    Messages.Remove(item);
+                foreach (var msg in result.Value)
+                    Messages.Add(msg);
+
+                _historyLoaded = true;
+                await SaveTodayMessagesToDiskAsync();
+            }
         }
 
         public async Task ConnectAsync(string username, string avatar, string room)
@@ -134,23 +163,25 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<string, string,string, string, string, DateTime>("ReceiveMessage", (user, room, destinataire, msg, avatar, time) =>
+            Connection.On<string, string, string, string, string, DateTime>("ReceiveMessage", (user, room, destinataire, msg, avatar, time) =>
             {
-                Dispatcher?.TryEnqueue(() =>
+                var chat = new ChatMessageModel
                 {
-                    var chat = new ChatMessageModel
-                    {
-                        Sender = user,
-                        Destinataire = destinataire,
-                        Room = room,
-                        Content = msg,
-                        Timestamp = time,
-                        Avatar  = avatar
-                    };
-                    Debug.WriteLine($"✅ Message reçu de {user} dans la salle {room} : {msg} ({time})");
+                    Sender = user,
+                    Destinataire = destinataire,
+                    Room = room,
+                    Content = msg,
+                    Timestamp = time,
+                    Avatar = avatar
+                };
+
+                Debug.WriteLine($"✅ Message reçu de {user} dans la salle {room} : {msg} ({time})");
+
+                Dispatcher?.TryEnqueue(async () =>
+                {
+                    Messages.Add(chat);
                     OnMessageReceived?.Invoke(chat);
-
-
+                    await SaveTodayMessagesToDiskAsync();
                 });
             });
 

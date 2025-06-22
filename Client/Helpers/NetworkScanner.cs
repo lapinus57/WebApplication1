@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Client.Helpers
@@ -31,27 +32,40 @@ namespace Client.Helpers
             }
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
-            using var ping = new Ping();
+
             foreach (var baseIp in networks.Distinct())
             {
                 var bytes = baseIp.GetAddressBytes();
-                for (int i = 1; i < 255; i++)
+                var ips = Enumerable.Range(1, 254)
+                                    .Select(i => $"{bytes[0]}.{bytes[1]}.{bytes[2]}.{i}")
+                                    .ToList();
+
+                string? found = null;
+
+                await Parallel.ForEachAsync(ips, new ParallelOptions { MaxDegreeOfParallelism = 32 }, async (ip, ct) =>
                 {
-                    var ip = $"{bytes[0]}.{bytes[1]}.{bytes[2]}.{i}";
+                    if (found != null)
+                        return;
+
                     try
                     {
-                        var reply = await ping.SendPingAsync(ip, 500);
+                        using var ping = new Ping();
+                        var reply = await ping.SendPingAsync(ip, 200);
                         if (reply.Status != IPStatus.Success)
-                            continue;
+                            return;
+
                         var url = $"http://{ip}:{port}/";
-                        using var response = await http.GetAsync(url);
+                        using var response = await http.GetAsync(url, ct);
                         if (response.IsSuccessStatusCode)
-                            return $"http://{ip}:{port}";
+                            Interlocked.CompareExchange(ref found, $"http://{ip}:{port}", null);
                     }
                     catch
                     {
                     }
-                }
+                });
+
+                if (found != null)
+                    return found;
             }
             return null;
         }
