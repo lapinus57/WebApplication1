@@ -5,7 +5,7 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <StackPanel Padding="20" Spacing="20">
         <TextBlock Text="Paramètres" FontSize="24" FontWeight="Bold"/>
-        <StackPanel Orientation="Horizontal" Padding="20" Spacing="20">
+        <StackPanel Orientation="Horizontal" Padding="0" Spacing="20">
             <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Appearance_Click">
                 <StackPanel Spacing="5">
                     <TextBlock Text="Apparence" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
@@ -25,17 +25,20 @@
                 </StackPanel>
             </Button>
         </StackPanel>
-        <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="System_Click">
-            <StackPanel Spacing="5">
-                <TextBlock Text="Système" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Options" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Button>
-        <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Connection_Click">
-            <StackPanel Spacing="5">
-                <TextBlock Text="Connexions" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Serveur" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Button>
+        <StackPanel Orientation="Horizontal" Padding="0" Spacing="20">
+            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="System_Click">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Système" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Options" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Connection_Click">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Connexions" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Serveur" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+        
     </StackPanel>
 </Page>
