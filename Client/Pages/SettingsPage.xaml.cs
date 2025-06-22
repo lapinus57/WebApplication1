@@ -28,5 +28,10 @@ namespace Client.Pages
         {
             Frame.Navigate(typeof(ExamRoomPage));
         }
+
+        private void Connection_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(ConnectionPage));
+        }
     }
 }

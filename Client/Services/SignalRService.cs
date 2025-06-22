@@ -1,4 +1,5 @@
 using Client.Models;
+using Client.Helpers;
 using Microsoft.AspNetCore.SignalR.Client;
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,14 @@ namespace Client.Services
         public ObservableCollection<UserInfo> ConnectedUsers { get; } = new();
         public ObservableCollection<Patient> Patients { get; } = new();
         public ObservableCollection<object> Messages { get; } = new();
+
+        public string ServerAddress { get; set; } = "http://localhost:5000";
+
+        public SignalRService()
+        {
+            var cfg = ConnectionConfig.Load();
+            ServerAddress = cfg.ServerAddress;
+        }
 
         public event Action<ChatMessageModel>? OnMessageReceived;
         public event Action<Patient>? OnNewPatient;
@@ -58,7 +67,7 @@ namespace Client.Services
             }
 
             Connection = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5000/chatHub")
+                .WithUrl($"{ServerAddress}/chatHub")
                 .WithAutomaticReconnect()
                 .Build();
 
