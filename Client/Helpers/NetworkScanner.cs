@@ -31,6 +31,7 @@ namespace Client.Helpers
             }
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            using var ping = new Ping();
             foreach (var baseIp in networks.Distinct())
             {
                 var bytes = baseIp.GetAddressBytes();
@@ -39,6 +40,9 @@ namespace Client.Helpers
                     var ip = $"{bytes[0]}.{bytes[1]}.{bytes[2]}.{i}";
                     try
                     {
+                        var reply = await ping.SendPingAsync(ip, 500);
+                        if (reply.Status != IPStatus.Success)
+                            continue;
                         var url = $"http://{ip}:{port}/";
                         using var response = await http.GetAsync(url);
                         if (response.IsSuccessStatusCode)
