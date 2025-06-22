@@ -328,6 +328,21 @@ namespace Client.Services
             }
         }
 
+        public async Task SendExamOptionsSilentAsync(IEnumerable<ExamOption> options)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+                throw new InvalidOperationException("Connexion SignalR non établie.");
+
+            try
+            {
+                await Connection.InvokeAsync("SaveExamOptionsSilent", options);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur envoi examens silencieux : {ex.Message}");
+            }
+        }
+
         public async Task SendRoomsAsync(IEnumerable<string> rooms)
         {
             if (Connection is null || Connection.State != HubConnectionState.Connected)
@@ -340,6 +355,21 @@ namespace Client.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"Erreur envoi salles : {ex.Message}");
+            }
+        }
+
+        public async Task SendRoomsSilentAsync(IEnumerable<string> rooms)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+                throw new InvalidOperationException("Connexion SignalR non établie.");
+
+            try
+            {
+                await Connection.InvokeAsync("SaveRoomsSilent", rooms);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur envoi salles silencieux : {ex.Message}");
             }
         }
         public async Task<List<ExamOption>> GetExamOptionsAsync()

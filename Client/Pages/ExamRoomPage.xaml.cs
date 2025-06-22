@@ -40,13 +40,6 @@ namespace Client.Pages
         {
             App.ChatService.ExamOptionsUpdated -= ChatService_ExamOptionsUpdated;
             App.ChatService.RoomsUpdated -= ChatService_RoomsUpdated;
-
-            if (_hasChanges)
-            {
-                await TrySendExamOptionsAsync();
-                await TrySendRoomsAsync();
-                _hasChanges = false;
-            }
         }
 
         private void DeleteExam_Click(object sender, RoutedEventArgs e)
@@ -86,6 +79,16 @@ namespace Client.Pages
             {
                 Rooms.Remove(room);
             }
+        }
+
+        private async void LoadServer_Click(object sender, RoutedEventArgs e)
+        {
+            await LoadConfigFromServerAsync();
+        }
+
+        private async void SendServer_Click(object sender, RoutedEventArgs e)
+        {
+            await SendConfigToServerAsync();
         }
         private async Task TrySendExamOptionsAsync()
         {
@@ -163,24 +166,22 @@ namespace Client.Pages
                 Frame.GoBack();
             }
         }
-        private async void ExamRoomPage_Loaded(object sender, RoutedEventArgs e)
+        private void ExamRoomPage_Loaded(object sender, RoutedEventArgs e)
         {
-            //App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
-            App.ChatService.RoomsUpdated += ChatService_RoomsUpdated;
-            await SyncWithServerAsync();
+            // Synchronisation manuelle uniquement
         }
 
         private void ChatService_ExamOptionsUpdated(IEnumerable<ExamOption> obj)
         {
-            _ = DispatcherQueue.TryEnqueue(async () => await SyncWithServerAsync());
+            // plus de synchronisation automatique
         }
 
         private void ChatService_RoomsUpdated(IEnumerable<string> obj)
         {
-            _ = DispatcherQueue.TryEnqueue(async () => await SyncWithServerAsync());
+            // plus de synchronisation automatique
         }
 
-        private async Task SyncWithServerAsync()
+        private async Task LoadConfigFromServerAsync()
         {
             if (App.ChatService.Connection == null ||
                 App.ChatService.Connection.State != HubConnectionState.Connected)
@@ -191,47 +192,51 @@ namespace Client.Pages
             var serverOptions = await App.ChatService.GetExamOptionsAsync();
             if (serverOptions.Any())
             {
-                if (!AreExamOptionsEqual(serverOptions, Options))
+                BackupFile(ExamOption.FilePath);
+                Options.CollectionChanged -= Options_CollectionChanged;
+                foreach (var o in Options)
+                    o.PropertyChanged -= Option_PropertyChanged;
+                Options.Clear();
+                foreach (var opt in serverOptions.OrderBy(o => o.Index))
                 {
-                    BackupFile(ExamOption.FilePath);
-                    Options.CollectionChanged -= Options_CollectionChanged;
-                    foreach (var o in Options)
-                        o.PropertyChanged -= Option_PropertyChanged;
-                    Options.Clear();
-                    foreach (var opt in serverOptions.OrderBy(o => o.Index))
-                    {
-                        Options.Add(opt);
-                        opt.PropertyChanged += Option_PropertyChanged;
-                    }
-                    Options.CollectionChanged += Options_CollectionChanged;
-                    ExamOption.Save(Options);
+                    Options.Add(opt);
+                    opt.PropertyChanged += Option_PropertyChanged;
                 }
-            }
-            else if (Options.Any())
-            {
-                await App.ChatService.SendExamOptionsAsync(Options);
+                Options.CollectionChanged += Options_CollectionChanged;
+                ExamOption.Save(Options);
             }
 
             var serverRooms = await App.ChatService.GetRoomsAsync();
             if (serverRooms.Any())
             {
-                if (!serverRooms.SequenceEqual(Rooms))
-                {
-                    BackupFile(RoomList.FilePath);
-                    Rooms.CollectionChanged -= Rooms_CollectionChanged;
-                    Rooms.Clear();
-                    foreach (var r in serverRooms)
-                        Rooms.Add(r);
-                    Rooms.CollectionChanged += Rooms_CollectionChanged;
-                    RoomList.Save(Rooms);
-                }
-            }
-            else if (Rooms.Any())
-            {
-                await App.ChatService.SendRoomsAsync(Rooms);
+                BackupFile(RoomList.FilePath);
+                Rooms.CollectionChanged -= Rooms_CollectionChanged;
+                Rooms.Clear();
+                foreach (var r in serverRooms)
+                    Rooms.Add(r);
+                Rooms.CollectionChanged += Rooms_CollectionChanged;
+                RoomList.Save(Rooms);
             }
 
             _syncing = false;
+        }
+
+        private async Task SendConfigToServerAsync()
+        {
+            try
+            {
+                if (App.ChatService.Connection != null &&
+                    App.ChatService.Connection.State == HubConnectionState.Connected)
+                {
+                    await App.ChatService.SendExamOptionsSilentAsync(Options);
+                    await App.ChatService.SendRoomsSilentAsync(Rooms);
+                    _hasChanges = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur envoi configuration : {ex.Message}");
+            }
         }
 
         private static void BackupFile(string path)
