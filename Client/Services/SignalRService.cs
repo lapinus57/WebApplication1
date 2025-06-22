@@ -58,6 +58,14 @@ namespace Client.Services
 
             _initialized = true;
 
+            var cachedUsers = await LoadUsersFromDiskAsync();
+            foreach (var user in cachedUsers)
+            {
+                user.IsOnline = false;
+                user.Room = "Hors ligne";
+                ConnectedUsers.Add(user);
+            }
+
             await ConnectAsync("Benoit", @"E:\benoit.png", "RDC");
 
             Messages.Clear();
@@ -116,25 +124,38 @@ namespace Client.Services
                     Debug.WriteLine($"❌ Toast error: {ex.Message}");
                 }
 
+                foreach (var u in ConnectedUsers)
+                {
+                    u.IsOnline = false;
+                    u.Room = "Hors ligne";
+                }
+                await SaveUsersToDiskAsync();
                 await Task.Delay(3000);
             };
 
             Connection.On<UserInfo>("UserConnected", user =>
             {
-                Dispatcher?.TryEnqueue(() =>
+                Dispatcher?.TryEnqueue(async () =>
                 {
-                    if (!ConnectedUsers.Any(u => u.Username == user.Username))
+                    var existing = ConnectedUsers.FirstOrDefault(u => u.Username == user.Username);
+                    if (existing != null)
+                    {
+                        var index = ConnectedUsers.IndexOf(existing);
+                        ConnectedUsers[index] = user;
+                    }
+                    else
                     {
                         ConnectedUsers.Add(user);
-                        Debug.WriteLine($"✅ User connecté : {user.Username}");
                     }
+                    Debug.WriteLine($"✅ User connecté : {user.Username}");
+                    await SaveUsersToDiskAsync();
                 });
             });
 
 
             Connection.On<List<UserInfo>>("UserListUpdated", users =>
             {
-                Dispatcher?.TryEnqueue(() =>
+                Dispatcher?.TryEnqueue(async () =>
                 {
                     ConnectedUsers.Clear();
 
@@ -143,6 +164,8 @@ namespace Client.Services
                         ConnectedUsers.Add(user);
                         Debug.WriteLine($"✅ User list ajoutée : {user.Username} ({user.Room})");
                     }
+
+                    await SaveUsersToDiskAsync();
                 });
             });
 
@@ -365,6 +388,38 @@ namespace Client.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"Erreur sauvegarde cache local : {ex.Message}");
+            }
+        }
+
+        public async Task<List<UserInfo>> LoadUsersFromDiskAsync()
+        {
+            try
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", "users.json");
+                if (File.Exists(path))
+                {
+                    var json = await File.ReadAllTextAsync(path);
+                    return JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur lecture users cache : {ex.Message}");
+            }
+            return new();
+        }
+
+        public async Task SaveUsersToDiskAsync()
+        {
+            try
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", "users.json");
+                var json = JsonConvert.SerializeObject(ConnectedUsers.ToList(), Formatting.Indented);
+                await File.WriteAllTextAsync(path, json);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur sauvegarde users cache : {ex.Message}");
             }
         }
         public async Task SendExamOptionsAsync(IEnumerable<ExamOption> options)

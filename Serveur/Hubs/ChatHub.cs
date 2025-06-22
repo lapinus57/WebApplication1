@@ -9,7 +9,32 @@ namespace ChatServeur
     {
         private static readonly Dictionary<string, UserInfo> ConnectedUsers = new();
         private static readonly Dictionary<string, string> _userToConnectionId = new();
+        private static readonly Dictionary<string, UserInfo> AllUsers = new();
         private static readonly Dictionary<string, HashSet<string>> GroupMembers = new();
+
+        private static readonly List<UserInfo> BaseUsers = new()
+        {
+            new UserInfo
+            {
+                ConnectionId = string.Empty,
+                Username = "A Tous",
+                Avatar = "ms-appx:///Assets/earth.png",
+                Room = string.Empty,
+                DisplayName = "A Tous",
+                IsOnline = true,
+                Note = string.Empty
+            },
+            new UserInfo
+            {
+                ConnectionId = string.Empty,
+                Username = "Secrétariat",
+                Avatar = "ms-appx:///Assets/secretaria.png",
+                Room = string.Empty,
+                DisplayName = "Secrétariat",
+                IsOnline = true,
+                Note = string.Empty
+            }
+        };
 
         private readonly ChatDbContext _db;
 
@@ -27,8 +52,15 @@ namespace ChatServeur
         {
             if (ConnectedUsers.Remove(Context.ConnectionId, out var user))
             {
+                user.IsOnline = false;
+                user.Room = "Hors ligne";
+                AllUsers[user.Username] = user;
+
                 await Clients.All.SendAsync("UserDisconnected", user.Username);
-                await Clients.All.SendAsync("UserListUpdated", ConnectedUsers.Values);
+
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                await Clients.All.SendAsync("UserListUpdated", userList);
+
                 _userToConnectionId.Remove(user.Username);
 
                 foreach (var group in GroupMembers.Keys)
@@ -59,6 +91,7 @@ namespace ChatServeur
 
                 ConnectedUsers[Context.ConnectionId] = user;
                 _userToConnectionId[username] = Context.ConnectionId;
+                AllUsers[username] = user;
 
                 await Groups.AddToGroupAsync(Context.ConnectionId, "A Tous");
                 if (!GroupMembers.ContainsKey("A Tous"))
@@ -79,31 +112,8 @@ namespace ChatServeur
                 }
 
                 await Clients.All.SendAsync("UserConnected", user);
-                var baseUsers = new List<UserInfo>
-                {
-                    new UserInfo
-                    {
-                        ConnectionId = string.Empty,
-                        Username = "A Tous",
-                        Avatar = "ms-appx:///Assets/earth.png",
-                        Room = string.Empty,
-                        DisplayName = "A Tous",
-                        IsOnline = true,
-                        Note = string.Empty
-                    },
-                    new UserInfo
-                    {
-                        ConnectionId = string.Empty,
-                        Username = "Secrétariat",
-                        Avatar = "ms-appx:///Assets/secretaria.png",
-                        Room = string.Empty,
-                        DisplayName = "Secrétariat",
-                        IsOnline = true,
-                        Note = string.Empty
-                    }
-                };
 
-                var userList = baseUsers.Concat(ConnectedUsers.Values).ToList();
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
 
                 await Clients.All.SendAsync("UserListUpdated", userList);
             }
