@@ -100,9 +100,21 @@ namespace Client.Pages
         {
             DispatcherQueue.TryEnqueue(async () =>
             {
-                Messages.Add(chat);
-                ScrollToLastMessage();
-                await _service.SaveTodayMessagesToDiskAsync();
+                // Avoid adding a duplicate message if one with the same
+                // sender, recipient, content and timestamp already exists
+                var existing = Messages
+                    .OfType<ChatMessageModel>()
+                    .Any(m => m.Sender == chat.Sender &&
+                              m.Destinataire == chat.Destinataire &&
+                              m.Content == chat.Content &&
+                              m.Timestamp == chat.Timestamp);
+
+                if (!existing)
+                {
+                    Messages.Add(chat);
+                    ScrollToLastMessage();
+                    await _service.SaveTodayMessagesToDiskAsync();
+                }
             });
         }
 
