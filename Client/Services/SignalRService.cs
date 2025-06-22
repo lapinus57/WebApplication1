@@ -58,7 +58,7 @@ namespace Client.Services
 
             _initialized = true;
 
-            await ConnectAsync("Moi", @"E:\benoit.png", "RDC");
+            await ConnectAsync("Benoit", @"E:\benoit.png", "RDC");
 
             Messages.Clear();
             Messages.Add(new LoadMorePlaceholder());
@@ -67,7 +67,7 @@ namespace Client.Services
             foreach (var msg in cached)
                 Messages.Add(msg);
 
-            var result = await LoadTodayMessagesAsync("Moi");
+            var result = await LoadTodayMessagesAsync("Benoit");
             if (result.Success)
             {
                 foreach (var item in Messages.OfType<ChatMessageModel>().ToList())

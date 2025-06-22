@@ -23,6 +23,7 @@
             <SolidColorBrush x:Key="MyMessageColor" Color="#FFCCE5FF" />
             <SolidColorBrush x:Key="TextMyMessageColor" Color="#FF000000" />
             <SolidColorBrush x:Key="OtherMessageColor" Color="#FFD9F2DC" />
+            <SolidColorBrush x:Key="AccentColor" Color="Red" />
             <x:Double x:Key="MessageFontSize">14</x:Double>
         </ResourceDictionary>
     </Application.Resources>

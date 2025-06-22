@@ -11,7 +11,7 @@
     <Window.SystemBackdrop>
         <MicaBackdrop />
     </Window.SystemBackdrop>
-
+    
     <Grid Background="White">
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
@@ -29,7 +29,7 @@
             <TextBlock x:Name="TitleBarTextBlock" Text="App title" FontSize="16" VerticalAlignment="Center" Grid.Column="2" />
             <PersonPicture x:Name="PersonPic" Grid.Column="4" Height="32" Margin="0,0,150,0" />
         </Grid>
-        <NavigationView x:Name="nvSample" Grid.Row="1" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged">
+        <NavigationView x:Name="nvSample" Grid.Row="1" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged" IsBackEnabled="False">
             <NavigationView.MenuItems>
                 <NavigationViewItem Icon="LeaveChat" Content="Chat" Tag="ChatPage" />
                 <NavigationViewItem Icon="People" Content="Historique" Tag="HistoryPage" />

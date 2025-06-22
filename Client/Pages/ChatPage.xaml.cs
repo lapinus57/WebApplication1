@@ -75,7 +75,7 @@ namespace Client.Pages
                 foreach (var msg in cachedMessages)
                     Messages.Add(msg);
 
-                var result = await _service.LoadTodayMessagesAsync("Moi");
+                var result = await _service.LoadTodayMessagesAsync("Benoit");
                 if (result.Success)
                 {
                     foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
@@ -158,7 +158,7 @@ namespace Client.Pages
             {
                 if (user != null)
                 {
-                    await _service.SendMessage("Moi", "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
+                    await _service.SendMessage("Benoit", "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
                     Debug.WriteLine($"📤 Message envoyé à {user.Username}: {text}");
                     InputBox.Text = string.Empty;
                 }
@@ -176,7 +176,7 @@ namespace Client.Pages
 
         private async Task LoadHistoryAsync(string withUser)
         {
-            var username = "Moi";
+            var username = "Benoit";
 
             try
             {
