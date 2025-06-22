@@ -61,6 +61,9 @@ namespace ChatServeur
                 _userToConnectionId[username] = Context.ConnectionId;
 
                 await Groups.AddToGroupAsync(Context.ConnectionId, "A Tous");
+                if (!GroupMembers.ContainsKey("A Tous"))
+                    GroupMembers["A Tous"] = new HashSet<string>();
+                GroupMembers["A Tous"].Add(username);
 
                 var groups = await _db.GroupMemberships
                     .Where(g => g.Username == username)
@@ -70,6 +73,9 @@ namespace ChatServeur
                 foreach (var group in groups)
                 {
                     await Groups.AddToGroupAsync(Context.ConnectionId, group);
+                    if (!GroupMembers.ContainsKey(group))
+                        GroupMembers[group] = new HashSet<string>();
+                    GroupMembers[group].Add(username);
                 }
 
                 await Clients.All.SendAsync("UserConnected", user);
@@ -110,6 +116,7 @@ namespace ChatServeur
 
         public async Task SendMessage(string sender, string room, string destinataire, string content, string avatar, DateTime timestamp)
         {
+            timestamp = DateTime.Now;
             var message = new ChatMessage
             {
                 Sender = sender,
@@ -130,21 +137,21 @@ namespace ChatServeur
             else if (destinataire == "Secrétariat")
             {
                 await Clients.Group("Secrétariat").SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
-                await Clients.Caller.SendAsync("ReceiveMessage", sender, room, "Secrétariat", content, avatar, timestamp);
 
-                var membres = GetGroupMembers("Secrétariat");
-                foreach (var user in membres)
+                if (!GroupMembers.TryGetValue("Secrétariat", out var membres) || !membres.Contains(sender))
                 {
-                    //await Clients.Caller.SendAsync("ReceiveMessage", sender, room, user, content, avatar, timestamp);
+                    await Clients.Caller.SendAsync("ReceiveMessage", sender, room, "Secrétariat", content, avatar, timestamp);
                 }
             }
             else if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionId))
             {
-                await Clients.Client(targetConnectionId).SendAsync("ReceiveMessage", sender, room, content, avatar, timestamp);
+                await Clients.Client(targetConnectionId).SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Caller.SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
             }
             else
             {
-                await Clients.Group(destinataire).SendAsync("ReceiveMessage", sender, room, content, avatar, timestamp);
+                await Clients.Group(destinataire).SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Caller.SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
             }
         }
 
@@ -178,6 +185,9 @@ namespace ChatServeur
                 await _db.SaveChangesAsync();
 
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+                if (!GroupMembers.ContainsKey(groupName))
+                    GroupMembers[groupName] = new HashSet<string>();
+                GroupMembers[groupName].Add(username);
                 return "created";
             }
             else
@@ -190,6 +200,9 @@ namespace ChatServeur
 
                     await _db.SaveChangesAsync();
                     await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+                    if (!GroupMembers.ContainsKey(groupName))
+                        GroupMembers[groupName] = new HashSet<string>();
+                    GroupMembers[groupName].Add(username);
                     return "joined";
                 }
                 else

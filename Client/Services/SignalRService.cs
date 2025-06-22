@@ -171,11 +171,11 @@ namespace Client.Services
             
         }
 
-        public async Task SendMessage(string destinataire, string username, string roomname, string message, string avatar, DateTime timemessage)
+        public async Task SendMessage(string sender, string roomname, string destinataire, string message, string avatar, DateTime timemessage)
         {
             if (Connection is null || Connection.State != HubConnectionState.Connected)
                 throw new InvalidOperationException("Connexion SignalR non établie.");
-            await Connection.InvokeAsync("SendMessage", destinataire, username, roomname, message,avatar, timemessage);
+            await Connection.InvokeAsync("SendMessage", sender, roomname, destinataire, message, avatar, timemessage);
 
         }
 
