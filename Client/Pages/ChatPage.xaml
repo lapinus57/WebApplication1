@@ -87,7 +87,42 @@
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
         <!-- Style pour les utilisateurs -->
-        <Style x:Key="UserListItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource CompactItemStyle}" />
+        <Style x:Key="UserListItemStyle"
+               TargetType="ListViewItem"
+               BasedOn="{StaticResource CompactItemStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border x:Name="RootBorder" Background="Transparent">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="{ThemeResource SystemControlHighlightBaseLowBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="{ThemeResource SystemControlHighlightAccentBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOverSelected">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="{ThemeResource SystemControlHighlightAccentBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter
+                                Padding="{TemplateBinding Padding}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- Menu contextuel des utilisateurs -->
         <MenuFlyout x:Key="UserContextMenu">

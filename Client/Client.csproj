@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -15,7 +15,7 @@
   <ItemGroup>
 	  <Content Include="Assets\earth.png" />
 	  <Content Include="Assets\EyeChat.png" />
-	  <Content Include="Assets\secretaria.png"/>
+	  <Content Include="Assets\secretaria.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -64,5 +64,17 @@
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <PackageCertificateThumbprint>6CE002E3425FBF5FF43209D015175A964FD83406</PackageCertificateThumbprint>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxPackageDir>E:\dialoguev2\WebApplication1\Client\bin\x64\Package\net8.0-windows10.0.19041.0\win-x64\AppPackages\</AppxPackageDir>
+    <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
+    <GenerateTestArtifacts>True</GenerateTestArtifacts>
+    <AppxBundle>Never</AppxBundle>
+    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+    <SignAssembly>False</SignAssembly>
+    <DefaultLanguage>fr-FR</DefaultLanguage>
   </PropertyGroup>
 </Project>

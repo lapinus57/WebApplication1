@@ -146,6 +146,7 @@ namespace Client.Pages
                 if (user != null)
                 {
                     await _service.SendMessage("Moi", "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
+                    Debug.WriteLine($"📤 Message envoyé à {user.Username}: {text}");
                     InputBox.Text = string.Empty;
                 }
             }

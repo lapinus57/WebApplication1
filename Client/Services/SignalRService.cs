@@ -285,7 +285,7 @@ namespace Client.Services
         {
             try
             {
-                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), $"chat_{DateTime.Today:yyyyMMdd}.json");
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", $"chat_{DateTime.Today:yyyyMMdd}.json");
                 if (File.Exists(path))
                 {
                     var json = await File.ReadAllTextAsync(path);
@@ -304,7 +304,7 @@ namespace Client.Services
             try
             {
                 var messages = Messages.OfType<ChatMessageModel>().ToList();
-                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), $"chat_{DateTime.Today:yyyyMMdd}.json");
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", $"chat_{DateTime.Today:yyyyMMdd}.json");
                 var json = JsonConvert.SerializeObject(messages, Formatting.Indented);
                 await File.WriteAllTextAsync(path, json);
             }
