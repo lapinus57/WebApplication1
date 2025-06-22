@@ -44,6 +44,19 @@ namespace Client.Services
 
         public async Task ConnectAsync(string username, string avatar, string room)
         {
+            if (Connection != null)
+            {
+                try
+                {
+                    await Connection.StopAsync();
+                    await Connection.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"❌ Error disposing previous connection: {ex.Message}");
+                }
+            }
+
             Connection = new HubConnectionBuilder()
                 .WithUrl("http://localhost:5000/chatHub")
                 .WithAutomaticReconnect()
@@ -125,6 +138,7 @@ namespace Client.Services
                         Timestamp = time,
                         Avatar  = avatar
                     };
+                    Debug.WriteLine($"✅ Message reçu de {user} dans la salle {room} : {msg} ({time})");
                     OnMessageReceived?.Invoke(chat);
 
 
