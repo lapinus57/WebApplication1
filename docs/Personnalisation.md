@@ -1,0 +1,91 @@
+# Personnalisation de l'application
+
+Cette page décrit les principaux éléments personnalisables de l'application **EyeChat** côté client et côté serveur.
+
+## Couleurs de l'interface
+
+Le client permet de personnaliser les couleurs de la barre de titre, du menu de navigation, ainsi que les couleurs des bulles de messages. Ces valeurs sont sauvegardées localement dans un fichier *settings.json* lié à l'utilisateur courant et sont appliquées via `AppSettings.SetObject("Colors", ...)`.
+
+Les propriétés concernées se trouvent dans `AppColorSettings` :
+
+```csharp
+public class AppColorSettings
+{
+    public string TitleBarColor { get; set; } = "#FF0078D7";
+    public string TextTitleBarColor { get; set; } = "#FF000000";
+    public string NavigationViewColor { get; set; } = "#FFE6F1FF";
+    public string TextNavigationViewColor { get; set; } = "#FF000000";
+    public string MyMessageColor { get; set; } = "#FFCCE5FF";
+    public string TextMyMessageColor { get; set; } = "#FF000000";
+    public string OtherMessageColor { get; set; } = "#FFD9F2DC";
+}
+```
+【F:Client/Models/AppColorSettings.cs†L1-L14】
+
+Ces paramètres sont modifiables dans la page `AppearanceSettingsPage` où des sélecteurs de couleurs permettent de choisir la teinte voulue.
+
+## Raccourcis clavier
+
+Les touches **F5** à **F8** permettent de coller du texte prédéfini selon le contexte (Réfraction, Lentilles, Pathologies, Orthoptie). Les combinaisons **Ctrl+F9** à **Ctrl+F12** et **Shift+F9** à **Shift+F12** déclenchent l'ouverture d'une fiche patient correspondant à un examen.
+
+Les valeurs sont stockées et chargées par `SettingsViewModel` via `AppSettings`. Exemple :
+
+```csharp
+public string ShortcutF5Refraction
+{
+    get => _shortcutF5Refraction;
+    set { if (_shortcutF5Refraction != value) { _shortcutF5Refraction = value; OnPropertyChanged(nameof(ShortcutF5Refraction)); Set("ShortcutF5Refraction", value); } }
+}
+```
+【F:Client/ViewModel/SettingsViewModel.cs†L12-L74】
+
+## Liste des examens et salles
+
+La page `ExamRoomPage` permet de gérer la liste des examens médicaux disponibles et les salles associées. Chaque examen possède un nom, une couleur, un code clavier et une annotation. Les données sont sauvegardées dans `exam_options.json` via `ExamOption.Save` et dans `rooms.json` via `RoomList.Save` :
+
+```csharp
+public static readonly string FilePath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "EyeChat",
+    "exam_options.json");
+```
+【F:Client/Models/ExamOption.cs†L63-L68】
+
+```csharp
+public static readonly string FilePath =
+    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "EyeChat", "rooms.json");
+```
+【F:Client/Helpers/RoomList.cs†L9-L13】
+
+La configuration peut être envoyée au serveur ou chargée depuis celui‑ci via `SendExamOptionsAsync`, `SendRoomsAsync`, `GetExamOptionsAsync` et `GetRoomsAsync` du service SignalR.
+
+## Style d'affichage du chat
+
+L'utilisateur peut choisir entre un affichage "old school" (type IRC) ou "moderne". Ce choix est enregistré dans les paramètres (`ChatDisplayStyle`) et déclenche `DisplayStyleChanged` qui applique le style sur la page de chat :
+
+```csharp
+public bool IsOldSchoolMode
+{
+    get => _isOldSchoolMode;
+    set
+    {
+        if (_isOldSchoolMode != value)
+        {
+            _isOldSchoolMode = value;
+            OnPropertyChanged(nameof(IsOldSchoolMode));
+            AppSettings.Set("ChatDisplayStyle", value ? "OldSchool" : "Modern");
+            DisplayStyleChanged?.Invoke(value ? ChatStyle.OldSchool : ChatStyle.Modern);
+        }
+    }
+}
+```
+【F:Client/ViewModel/SettingsViewModel.cs†L10-L36】
+
+## Autres réglages
+
+* Taille de la police des messages (`MessageFontSize`).
+* Adresse du serveur SignalR (chargée au démarrage dans `SignalRService`).
+* Mémorisation de l'utilisateur sélectionné pour l'envoi des messages (`AppSettings.CurrentSelectedUser`).
+
+Ces paramètres sont tous stockés localement afin d'être conservés entre les sessions de l'application.
