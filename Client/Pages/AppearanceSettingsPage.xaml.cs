@@ -33,6 +33,17 @@ namespace Client.Pages
                 mb.Color = ColorUtils.FromHex(currentSettings.MyMessageColor);
             if (FindName("OtherBubblePicker") is ColorPicker ob)
                 ob.Color = ColorUtils.FromHex(currentSettings.OtherMessageColor);
+            if (FindName("AccentDark1Picker") is ColorPicker ad)
+                ad.Color = ColorUtils.FromHex(currentSettings.SystemAccentColorDark1);
+            if (FindName("BackgroundCombo") is ComboBox bg)
+            {
+                bg.SelectedIndex = currentSettings.AppBackgroundColor.ToUpper() switch
+                {
+                    "#FF000000" => 1,
+                    "#FF808080" => 2,
+                    _ => 0
+                };
+            }
         }
 
         private void TitleBarColor_Changed(ColorPicker sender, ColorChangedEventArgs args)
@@ -87,7 +98,8 @@ namespace Client.Pages
         private void OtherMessageColor_Changed(ColorPicker sender, ColorChangedEventArgs args)
         {
             currentSettings.OtherMessageColor = ColorUtils.ToHex(args.NewColor);
-            var otherColor = ColorUtils.FromHex(currentSettings.OtherMessageColor);
+            var textColor = ColorUtils.GetContrastingTextColor(args.NewColor);
+            currentSettings.TextOtherMessageColor = ColorUtils.ToHex(textColor);
             AppSettings.SetObject("Colors", currentSettings);
             if (App.MainWindow.Content is FrameworkElement root)
             {
@@ -95,6 +107,37 @@ namespace Client.Pages
                 var nav = (NavigationView)root.FindName("nvSample");
                 var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
                 OtherMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.OtherMessageColor));
+                ApplyColors(currentSettings, titleBar, nav, titleText);
+            }
+        }
+
+        private void BackgroundCombo_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (BackgroundCombo.SelectedItem is ComboBoxItem item && item.Tag is string hex)
+            {
+                currentSettings.AppBackgroundColor = hex;
+                var textColor = ColorUtils.GetContrastingTextColor(ColorUtils.FromHex(hex));
+                currentSettings.TextAppBackgroundColor = ColorUtils.ToHex(textColor);
+                AppSettings.SetObject("Colors", currentSettings);
+                if (App.MainWindow.Content is FrameworkElement root)
+                {
+                    var titleBar = (Grid)root.FindName("AppTitleBar");
+                    var nav = (NavigationView)root.FindName("nvSample");
+                    var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
+                    ApplyColors(currentSettings, titleBar, nav, titleText);
+                }
+            }
+        }
+
+        private void AccentDark1Color_Changed(ColorPicker sender, ColorChangedEventArgs args)
+        {
+            currentSettings.SystemAccentColorDark1 = ColorUtils.ToHex(args.NewColor);
+            AppSettings.SetObject("Colors", currentSettings);
+            if (App.MainWindow.Content is FrameworkElement root)
+            {
+                var titleBar = (Grid)root.FindName("AppTitleBar");
+                var nav = (NavigationView)root.FindName("nvSample");
+                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
                 ApplyColors(currentSettings, titleBar, nav, titleText);
             }
         }
@@ -121,6 +164,10 @@ namespace Client.Pages
             var myColor = ColorUtils.FromHex(colors.MyMessageColor);
             var textMyColor = ColorUtils.FromHex(colors.TextMyMessageColor);
             var otherColor = ColorUtils.FromHex(colors.OtherMessageColor);
+            var textOtherColor = ColorUtils.FromHex(colors.TextOtherMessageColor);
+            var backgroundColor = ColorUtils.FromHex(colors.AppBackgroundColor);
+            var textBackgroundColor = ColorUtils.FromHex(colors.TextAppBackgroundColor);
+            var accentDark1 = ColorUtils.FromHex(colors.SystemAccentColorDark1);
 
             UpdateResourceBrush("TitleBarColor", titleColor);
             UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
@@ -136,6 +183,10 @@ namespace Client.Pages
             UpdateResourceBrush("NavigationViewItemForegroundPointerOver", pointerNavColor);
             UpdateResourceBrush("NavigationViewItemIconForegroundPointerOver", pointerNavColor);
             UpdateResourceBrush("OtherMessageColor", otherColor);
+            UpdateResourceBrush("TextOtherMessageColor", textOtherColor);
+            UpdateResourceBrush("ApplicationPageBackgroundThemeBrush", backgroundColor);
+            UpdateResourceBrush("TextAppBackgroundColor", textBackgroundColor);
+            UpdateResourceBrush("SystemAccentColorDark1", accentDark1);
 
             titleBar?.DispatcherQueue.TryEnqueue(() => titleBar.Background = new SolidColorBrush(titleColor));
             nav?.DispatcherQueue.TryEnqueue(() =>
