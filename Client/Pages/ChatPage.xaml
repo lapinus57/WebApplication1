@@ -9,10 +9,7 @@
     <Page.Resources>
         <DataTemplate x:Key="OtherMessageTemplate" x:DataType="data:ChatMessageModel">
             <StackPanel HorizontalAlignment="Left">
-                <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="400">
-                    <Border.Background>
-                        <SolidColorBrush Color="{ThemeResource OtherMessageColor}"/>
-                    </Border.Background>
+                <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{ThemeResource OtherMessageColor}">
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                         <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">

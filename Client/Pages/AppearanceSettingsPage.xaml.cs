@@ -87,7 +87,7 @@ namespace Client.Pages
         private void OtherMessageColor_Changed(ColorPicker sender, ColorChangedEventArgs args)
         {
             currentSettings.OtherMessageColor = ColorUtils.ToHex(args.NewColor);
-            var otherColor = ColorUtils.FromHex(currentSettings.OtherMessageColor);
+            var othertextColor = ColorUtils.FromHex(currentSettings.OtherMessageColor);
             AppSettings.SetObject("Colors", currentSettings);
             if (App.MainWindow.Content is FrameworkElement root)
             {
