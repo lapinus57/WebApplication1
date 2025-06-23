@@ -298,7 +298,7 @@ namespace Client.Pages
             MessagesList.UpdateLayout();
         }
 
-        private async void ScrollToLastMessage()
+        public async void ScrollToLastMessage()
         {
             await Task.Delay(100);
 

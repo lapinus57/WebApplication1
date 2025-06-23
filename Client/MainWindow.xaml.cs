@@ -6,11 +6,16 @@ using Microsoft.UI.Windowing;
 using WinRT.Interop;
 using Windows.UI;
 using Microsoft.UI;
+using Client.Helpers;
 
 namespace Client
 {
     public sealed partial class MainWindow : Window
     {
+        public bool IsTopMost { get; private set; }
+
+        public bool IsChatPageActive => contentFrame.CurrentSourcePageType == typeof(Pages.ChatPage);
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -64,6 +69,20 @@ namespace Client
             }
 
             return contentFrame.Content as Pages.ChatPage;
+        }
+
+        public void SetTopMost(bool topMost, bool activate = false)
+        {
+            WindowHelper.SetTopMost(this, topMost, activate);
+            IsTopMost = topMost;
+        }
+
+        public void ScrollMessagesToEnd()
+        {
+            if (contentFrame.Content is Pages.ChatPage chat)
+            {
+                chat.ScrollToLastMessage();
+            }
         }
     }
 }
