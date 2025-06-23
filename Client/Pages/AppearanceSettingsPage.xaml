@@ -27,6 +27,15 @@
                         <TextBlock Text="{x:Bind ViewModelSettings.MessageFontSize}" Margin="5,0,0,0"/>
                     </StackPanel>
 
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="Fond de l'application" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="BackgroundCombo" Width="120" SelectionChanged="BackgroundCombo_Changed">
+                            <ComboBoxItem Content="Blanc" Tag="#FFFFFFFF" />
+                            <ComboBoxItem Content="Noir" Tag="#FF000000" />
+                            <ComboBoxItem Content="Gris" Tag="#FF808080" />
+                        </ComboBox>
+                    </StackPanel>
+
                     <StackPanel Padding="20" Spacing="10">
                         <TextBlock Text="Aperçu : cliquez sur une zone pour choisir la couleur"/>
                         <Canvas Height="300">
@@ -63,6 +72,7 @@
                                 </Button.Flyout>
                             </Button>
                         </Canvas>
+                        <ColorPicker x:Name="AccentDark1Picker"  ColorChanged="AccentDark1Color_Changed"/>
                         <Button Content="Sauvegarder" Click="SaveSettings_Click"/>
                     </StackPanel>
                 </StackPanel>
