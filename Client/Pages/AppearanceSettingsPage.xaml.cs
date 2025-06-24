@@ -207,13 +207,18 @@ namespace Client.Pages
 
         private static void UpdateResourceBrush(string key, Windows.UI.Color color)
         {
-            if (Application.Current.Resources[key] is SolidColorBrush brush)
+            var resources = Application.Current.Resources;
+            if (resources[key] is SolidColorBrush brush)
             {
                 brush.Color = color;
             }
+            else if (resources[key] is Windows.UI.Color)
+            {
+                resources[key] = color;
+            }
             else
             {
-                Application.Current.Resources[key] = new SolidColorBrush(color);
+                resources[key] = new SolidColorBrush(color);
             }
         }
 

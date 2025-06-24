@@ -28,7 +28,7 @@
             <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="TextAppBackgroundColor" Color="#FF000000" />
 
-            <SolidColorBrush x:Key="SystemAccentColorDark1" Color="CadetBlue" />
+            <Color x:Key="SystemAccentColorDark1">CadetBlue</Color>
             <SolidColorBrush x:Key="AccentColor" Color="Red" />
             <x:Double x:Key="MessageFontSize">14</x:Double>
         </ResourceDictionary>
