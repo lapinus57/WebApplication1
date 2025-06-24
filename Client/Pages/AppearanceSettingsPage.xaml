@@ -39,7 +39,7 @@
                     <StackPanel Padding="20" Spacing="10">
                         <TextBlock Text="Aperçu : cliquez sur une zone pour choisir la couleur"/>
                         <Canvas Height="300">
-                            <Image Source="/Assets/Appchat.png" Width="00" />
+                            <Image Source="/Assets/Appchat.png" Width="600" />
                             <Button x:Name="TitleBarZone" Width="600" Height="20" Background="{ThemeResource TitleBarColor}" Canvas.Left="0" Canvas.Top="0">
                                 <Button.Flyout>
                                     <Flyout>

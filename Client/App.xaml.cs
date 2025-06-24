@@ -5,6 +5,7 @@ using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 using Client.Models;
 using Client.Helpers;
+using Client.Pages;
 
 namespace Client
 {
@@ -21,6 +22,8 @@ namespace Client
         {
             m_window = new MainWindow();
             MainWindow = m_window;
+
+            ApplySavedColors();
 
             ChatService.Dispatcher = m_window.DispatcherQueue;
             ChatService.OnMessageReceived += ChatService_OnMessageReceived;
@@ -85,6 +88,18 @@ namespace Client
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Toast error: {ex.Message}");
+            }
+        }
+
+        private void ApplySavedColors()
+        {
+            var colors = AppSettings.GetObject<AppColorSettings>("Colors");
+            if (m_window?.Content is FrameworkElement root)
+            {
+                var titleBar = (Grid)root.FindName("AppTitleBar");
+                var nav = (NavigationView)root.FindName("nvSample");
+                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
+                AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
             }
         }
 
