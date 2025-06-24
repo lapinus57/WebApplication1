@@ -133,6 +133,7 @@ namespace Client.Pages
         {
             currentSettings.SystemAccentColorDark1 = ColorUtils.ToHex(args.NewColor);
             AppSettings.SetObject("Colors", currentSettings);
+            UpdateResourceBrush("SystemAccentColorDark1", args.NewColor);
             if (App.MainWindow.Content is FrameworkElement root)
             {
                 var titleBar = (Grid)root.FindName("AppTitleBar");
