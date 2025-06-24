@@ -24,7 +24,7 @@
             <SolidColorBrush x:Key="TextMyMessageColor" Color="#FF000000" />
             <SolidColorBrush x:Key="OtherMessageColor" Color="#FFD9F2DC" />
             <SolidColorBrush x:Key="TextOtherMessageColor" Color="#FF000000" />
-
+            <SolidColorBrush x:Key="PivotHeaderForeground" Color="Red" />
             <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="TextAppBackgroundColor" Color="#FF000000" />
 

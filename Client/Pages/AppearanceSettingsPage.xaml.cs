@@ -188,6 +188,7 @@ namespace Client.Pages
             UpdateResourceBrush("ApplicationPageBackgroundThemeBrush", backgroundColor);
             UpdateResourceBrush("TextAppBackgroundColor", textBackgroundColor);
             UpdateResourceBrush("SystemAccentColorDark1", accentDark1);
+            UpdateResourceBrush("PivotHeaderForeground", textNavColor);
 
             titleBar?.DispatcherQueue.TryEnqueue(() => titleBar.Background = new SolidColorBrush(titleColor));
             nav?.DispatcherQueue.TryEnqueue(() =>

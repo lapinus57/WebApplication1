@@ -131,6 +131,10 @@
                 <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
             </StackPanel>
         </DataTemplate>
+        
+        <Style TargetType="PivotItem">
+            <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
+        </Style>
     </Page.Resources>
 
     <Grid Padding="10" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
