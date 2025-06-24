@@ -24,6 +24,8 @@ public class AppColorSettings
 
 Ces paramètres sont modifiables dans la page `AppearanceSettingsPage` où des sélecteurs de couleurs permettent de choisir la teinte voulue.
 
+Depuis cette version, la ressource `SystemAccentColorDark1` est fournie sous la forme d'un `Color` afin que l'accentuation fonctionne correctement même lorsque le fond de l'application est sombre.
+
 ## Raccourcis clavier
 
 Les touches **F5** à **F8** permettent de coller du texte prédéfini selon le contexte (Réfraction, Lentilles, Pathologies, Orthoptie). Les combinaisons **Ctrl+F9** à **Ctrl+F12** et **Shift+F9** à **Shift+F12** déclenchent l'ouverture d'une fiche patient correspondant à un examen.
