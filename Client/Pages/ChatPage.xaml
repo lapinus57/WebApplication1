@@ -135,6 +135,40 @@
         <Style TargetType="PivotItem">
             <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
         </Style>
+        <!-- Style pour afficher un trait coloré sous l'onglet sélectionné -->
+        <Style x:Key="PivotHeaderItemStyle" TargetType="PivotHeaderItem">
+            <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PivotHeaderItem">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver" />
+                                    <VisualState x:Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Target="Underline.Visibility" Value="Visible" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter
+                                x:Name="ContentPresenter"
+                                Content="{TemplateBinding Content}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                            <Rectangle x:Name="Underline"
+                                       Height="2"
+                                       Fill="{ThemeResource AccentColor}"
+                                       HorizontalAlignment="Stretch"
+                                       VerticalAlignment="Bottom"
+                                       Visibility="Collapsed" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Page.Resources>
 
     <Grid Padding="10" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
@@ -148,7 +182,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Pivot x:Name="RoomsPivot" Grid.Column="0" Grid.RowSpan="2" />
+        <Pivot x:Name="RoomsPivot" Grid.Column="0" Grid.RowSpan="2" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}"/>
 
         <ListView x:Name="UsersList"
                   Grid.Column="2"
