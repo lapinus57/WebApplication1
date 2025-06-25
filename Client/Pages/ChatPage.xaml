@@ -138,14 +138,27 @@
         <!-- Style pour afficher un trait coloré sous l'onglet sélectionné -->
         <Style x:Key="PivotHeaderItemStyle" TargetType="PivotHeaderItem">
             <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
+            <Setter Property="Margin" Value="8,0" />
+            <Setter Property="Padding" Value="12,8" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="PivotHeaderItem">
                         <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition Height="2"/>
+                            </Grid.RowDefinitions>
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
                                     <VisualState x:Name="Normal" />
                                     <VisualState x:Name="PointerOver" />
+                                </VisualStateGroup>
+                                <VisualStateGroup x:Name="SelectionStates">
+                                    <VisualState x:Name="Unselected">
+                                        <VisualState.Setters>
+                                            <Setter Target="Underline.Visibility" Value="Collapsed" />
+                                        </VisualState.Setters>
+                                    </VisualState>
                                     <VisualState x:Name="Selected">
                                         <VisualState.Setters>
                                             <Setter Target="Underline.Visibility" Value="Visible" />
@@ -156,9 +169,10 @@
                             <ContentPresenter
                                 x:Name="ContentPresenter"
                                 Content="{TemplateBinding Content}"
+                                Foreground="Aquamarine"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
-                            <Rectangle x:Name="Underline"
+                            <Rectangle x:Name="Underline" Grid.Row="1"
                                        Height="2"
                                        Fill="{ThemeResource AccentColor}"
                                        HorizontalAlignment="Stretch"
@@ -182,7 +196,15 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Pivot x:Name="RoomsPivot" Grid.Column="0" Grid.RowSpan="2" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}"/>
+        <Pivot x:Name="RoomsPivot"
+               Grid.Column="0"
+               Grid.RowSpan="2"
+               ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}">
+            <Pivot.Resources>
+                <Style TargetType="PivotHeaderItem"
+                       BasedOn="{StaticResource PivotHeaderItemStyle}" />
+            </Pivot.Resources>
+        </Pivot>
 
         <ListView x:Name="UsersList"
                   Grid.Column="2"
