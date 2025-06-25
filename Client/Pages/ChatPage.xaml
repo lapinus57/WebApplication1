@@ -137,7 +137,7 @@
         </Style>
 
         <!-- Style pour afficher un trait coloré sous l'onglet sélectionné -->
-        <Style x:Key="UnderlinePivotHeaderItemStyle" TargetType="PivotHeaderItem">
+        <Style x:Key="PivotHeaderItemStyle" TargetType="PivotHeaderItem">
             <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -185,8 +185,7 @@
 
         <Pivot x:Name="RoomsPivot"
                Grid.Column="0"
-               Grid.RowSpan="2"
-               HeaderItemContainerStyle="{StaticResource UnderlinePivotHeaderItemStyle}" />
+               Grid.RowSpan="2" />
 
         <ListView x:Name="UsersList"
                   Grid.Column="2"
