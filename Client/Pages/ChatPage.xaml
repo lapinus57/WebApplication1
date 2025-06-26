@@ -169,7 +169,8 @@
                             <ContentPresenter
                                 x:Name="ContentPresenter"
                                 Content="{TemplateBinding Content}"
-                                Foreground="Aquamarine"
+                                Foreground="{ThemeResource TextAppBackgroundColor}"
+                                FontWeight="Bold"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
                             <Rectangle x:Name="Underline" Grid.Row="1"
