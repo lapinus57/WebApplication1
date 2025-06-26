@@ -38,17 +38,23 @@
         <!-- 📥 Placeholder pour charger plus de messages -->
         <DataTemplate x:Key="LoadMoreTemplate" x:DataType="data:LoadMorePlaceholder">
             <Button Content="📥 Charger plus de messages"
+                    
             Click="LoadMore_Click"
             HorizontalAlignment="Center"
+            Foreground="{ThemeResource TextAppBackgroundColor}"
+            Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+             BorderBrush="{ThemeResource AccentColor}"
+             BorderThickness="1" 
             Margin="10"/>
         </DataTemplate>
 
+        
         <!-- 📭 Placeholder vide -->
         <DataTemplate x:Key="EmptyTemplate" x:DataType="data:EmptyPlaceholder">
             <TextBlock Text="{x:Bind Message}"
                HorizontalAlignment="Center"
                FontStyle="Italic"
-               Foreground="Gray"
+               Foreground="{ThemeResource TextAppBackgroundColor}"
                Margin="10"/>
         </DataTemplate>
 
@@ -71,6 +77,8 @@
             LoadMoreTemplate="{StaticResource LoadMoreTemplate}"
             EmptyTemplate="{StaticResource EmptyTemplate}" />
 
+        
+
         <Style x:Key="CompactItemStyle" TargetType="ListViewItem">
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0"/>
@@ -87,6 +95,7 @@
         <Style x:Key="UserListItemStyle"
                TargetType="ListViewItem"
                BasedOn="{StaticResource CompactItemStyle}">
+            <Setter Property="Foreground" Value="{ThemeResource TextAppBackgroundColor}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListViewItem">
@@ -114,7 +123,8 @@
                             <ContentPresenter
                                 Padding="{TemplateBinding Padding}"
                                 HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                Foreground="{TemplateBinding Foreground}" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -231,6 +241,11 @@
 
         <ListView x:Name="MessagesList" Grid.Column="1" ItemTemplateSelector="{StaticResource MessageTemplateSelector}" SelectionMode="None"/>
 
-        <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown"/>
+        <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown"
+                 Foreground="{ThemeResource TextAppBackgroundColor}"
+Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+ BorderBrush="{ThemeResource AccentColor}"
+                 FocusVisualPrimaryBrush="Black"
+                 />
     </Grid>
 </Page>
