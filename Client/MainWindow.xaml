@@ -12,7 +12,49 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
     
+   
+
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.Resources>
+            <Style x:Key="NavItemStyle" TargetType="NavigationViewItem">
+                <Setter Property="Margin" Value="0,2"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="NavigationViewItem">
+                            <Grid Background="{TemplateBinding Background}" Margin="{TemplateBinding Margin}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="24" />
+                                </Grid.ColumnDefinitions>
+                                <Rectangle x:Name="AccentBar" Fill="{ThemeResource AccentColor}" Width="2" Visibility="Collapsed" />
+                                <Grid x:Name="IconGrid" Grid.Column="1" Width="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <ContentPresenter x:Name="IconPresenter" Content="{TemplateBinding Icon}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="SelectionStates">
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Target="AccentBar.Visibility" Value="Collapsed" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Unselected">
+                                            <VisualState.Setters>
+                                                <Setter Target="AccentBar.Visibility" Value="Collapsed" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Selected">
+                                            <VisualState.Setters>
+                                                <Setter Target="AccentBar.Visibility" Value="Visible" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
@@ -29,10 +71,10 @@
             <TextBlock x:Name="TitleBarTextBlock" Text="EyeChat" FontSize="16" VerticalAlignment="Center" Grid.Column="2" />
             <PersonPicture x:Name="PersonPic" Grid.Column="4" Height="32" Margin="0,0,150,0" />
         </Grid>
-        <NavigationView x:Name="nvSample" Grid.Row="1" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged" IsBackEnabled="False">
+        <NavigationView x:Name="nvSample" Grid.Row="1" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged" IsBackEnabled="False" MenuItemContainerStyle="{StaticResource NavItemStyle}">
             <NavigationView.MenuItems>
-                <NavigationViewItem Icon="LeaveChat" Content="Chat" Tag="ChatPage" />
-                <NavigationViewItem Icon="People" Content="Historique" Tag="HistoryPage" />
+                <NavigationViewItem Content="Chat" Tag="ChatPage" Icon="LeaveChat" />
+                <NavigationViewItem Content="Historique" Tag="HistoryPage" Icon="People" />
             </NavigationView.MenuItems>
             <Frame x:Name="contentFrame" />
         </NavigationView>

@@ -99,13 +99,18 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListViewItem">
-                        <Border x:Name="RootBorder" Background="Transparent">
+                        <Border x:Name="RootBorder" Background="Transparent" CornerRadius="5" BorderBrush="{ThemeResource AccentColor}" BorderThickness="1">
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.BorderThickness" Value="0"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
                                     <VisualState x:Name="PointerOver">
                                         <VisualState.Setters>
                                             <Setter Target="RootBorder.Background" Value="{ThemeResource SystemControlHighlightBaseLowBrush}" />
+                                            <Setter Target="RootBorder.BorderThickness" Value="0"/>
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Selected">
