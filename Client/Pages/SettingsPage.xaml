@@ -4,38 +4,38 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <StackPanel Padding="20" Spacing="20">
-        <TextBlock Text="Paramètres" FontSize="24" FontWeight="Bold"/>
+        <TextBlock Text="Paramètres" FontSize="24" FontWeight="Bold"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
         <StackPanel Orientation="Horizontal" Padding="0" Spacing="20">
-            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Appearance_Click">
+            <Button Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Appearance_Click" BorderBrush="{ThemeResource TextAppBackgroundColor}">
                 <StackPanel Spacing="5">
-                    <TextBlock Text="Apparence" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Personnalisation" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Apparence" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
+                    <TextBlock Text="Personnalisation" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
                 </StackPanel>
             </Button>
-            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="User_Click">
+            <Button Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" CornerRadius="8" Padding="20" Width="300" Height="120" Click="User_Click" BorderBrush="{ThemeResource TextAppBackgroundColor}">
                 <StackPanel Spacing="5">
-                    <TextBlock Text="Utilisateur" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Raccourcis" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Utilisateur" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
+                    <TextBlock Text="Raccourcis" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
                 </StackPanel>
             </Button>
-            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Exam_Click">
+            <Button Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Exam_Click" BorderBrush="{ThemeResource TextAppBackgroundColor}">
                 <StackPanel Spacing="5">
-                    <TextBlock Text="Examens" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Personnalisation" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Examens" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
+                    <TextBlock Text="Personnalisation" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
                 </StackPanel>
             </Button>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Padding="0" Spacing="20">
-            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="System_Click">
+            <Button Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" CornerRadius="8" Padding="20" Width="300" Height="120" Click="System_Click" BorderBrush="{ThemeResource TextAppBackgroundColor}">
                 <StackPanel Spacing="5">
-                    <TextBlock Text="Système" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Options" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Système" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
+                    <TextBlock Text="Options" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
                 </StackPanel>
             </Button>
-            <Button Background="White" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Connection_Click">
+            <Button Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" CornerRadius="8" Padding="20" Width="300" Height="120" Click="Connection_Click" BorderBrush="{ThemeResource TextAppBackgroundColor}">
                 <StackPanel Spacing="5">
-                    <TextBlock Text="Connexions" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Serveur" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Connexions" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
+                    <TextBlock Text="Serveur" HorizontalAlignment="Center"  Foreground="{ThemeResource TextAppBackgroundColor}"/>
                 </StackPanel>
             </Button>
         </StackPanel>

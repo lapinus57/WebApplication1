@@ -241,11 +241,29 @@
 
         <ListView x:Name="MessagesList" Grid.Column="1" ItemTemplateSelector="{StaticResource MessageTemplateSelector}" SelectionMode="None"/>
 
+
         <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown"
-                 Foreground="{ThemeResource TextAppBackgroundColor}"
-Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
- BorderBrush="{ThemeResource AccentColor}"
-                 FocusVisualPrimaryBrush="Black"
-                 />
+         Foreground="{ThemeResource TextAppBackgroundColor}"
+         Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+         BorderBrush="{ThemeResource AccentColor}" 
+    FocusVisualPrimaryBrush="Black"
+         PlaceholderForeground="Gray"
+         Translation="0,0,4">
+            <TextBox.Resources>
+                <SolidColorBrush x:Key="TextControlBackgroundFocused"
+                        Color="{Binding Color, Source={StaticResource ApplicationPageBackgroundThemeBrush}}" />
+                <SolidColorBrush x:Key="TextControlForegroundFocused"
+                        Color="{Binding Color, Source={StaticResource TextAppBackgroundColor}}" />
+                <SolidColorBrush x:Key="TextControlBorderBrushFocused"
+                        Color="{Binding Color, Source={StaticResource AccentColor}}" />
+                <SolidColorBrush x:Key="TextControlBackgroundPointerOver"
+                        Color="{Binding Color, Source={StaticResource ApplicationPageBackgroundThemeBrush}}" />
+                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver"
+                        Color="{Binding Color, Source={StaticResource AccentColor}}" />
+            </TextBox.Resources>
+            <TextBox.Shadow>
+                <ThemeShadow/>
+            </TextBox.Shadow>
+        </TextBox>
     </Grid>
 </Page>
