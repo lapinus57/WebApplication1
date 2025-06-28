@@ -22,12 +22,6 @@ namespace Client
             m_window = new MainWindow();
             MainWindow = m_window;
 
-            var theme = AppSettings.Get("AppTheme", "Dark");
-            if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
-            {
-                RequestedTheme = appTheme;
-            }
-
             ChatService.Dispatcher = m_window.DispatcherQueue;
             ChatService.OnMessageReceived += ChatService_OnMessageReceived;
             _ = ChatService.InitializeAsync();
