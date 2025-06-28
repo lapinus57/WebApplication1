@@ -71,12 +71,39 @@ namespace Client.Pages
             AppSettings.SetObject("Colors", currentSettings);
             if (App.MainWindow.Content is FrameworkElement root)
             {
-                var titleBar = (Grid)root.FindName("AppTitleBar");
                 var nav = (NavigationView)root.FindName("nvSample");
-                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
                 NavZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.NavigationViewColor));
-                ApplyColors(currentSettings, titleBar, nav, titleText);
+                ApplyNavigationColors(currentSettings, nav);
             }
+        }
+
+        private static void ApplyNavigationColors(AppColorSettings colors, NavigationView? nav = null)
+        {
+            var navColor = ColorUtils.FromHex(colors.NavigationViewColor);
+            var textNavColor = ColorUtils.FromHex(colors.TextNavigationViewColor);
+            var pointerNavColor = ColorUtils.GetContrastingTextColor(textNavColor);
+
+            UpdateResourceBrush("NavigationViewColor", navColor);
+            UpdateResourceBrush("NavigationViewItemForeground", textNavColor);
+            UpdateResourceBrush("NavigationViewItemForegroundSelected", textNavColor);
+            UpdateResourceBrush("NavigationViewItemIconForeground", textNavColor);
+            UpdateResourceBrush("NavigationViewItemIconForegroundSelected", textNavColor);
+            UpdateResourceBrush("NavigationViewItemForegroundPointerOver", pointerNavColor);
+            UpdateResourceBrush("NavigationViewItemIconForegroundPointerOver", pointerNavColor);
+            UpdateResourceBrush("PivotHeaderForeground", textNavColor);
+
+            nav?.DispatcherQueue.TryEnqueue(() =>
+            {
+                nav.Background = new SolidColorBrush(navColor);
+                foreach (var item in nav.MenuItems.OfType<NavigationViewItem>())
+                {
+                    item.Foreground = new SolidColorBrush(textNavColor);
+                }
+                if (nav.SettingsItem is NavigationViewItem settingsItem)
+                {
+                    settingsItem.Foreground = new SolidColorBrush(textNavColor);
+                }
+            });
         }
 
         private void MyMessageColor_Changed(ColorPicker sender, ColorChangedEventArgs args)
@@ -151,7 +178,6 @@ namespace Client.Pages
             var textColorTitleBar = ColorUtils.FromHex(colors.TextTitleBarColor);
             var navColor = ColorUtils.FromHex(colors.NavigationViewColor);
             var textNavColor = ColorUtils.FromHex(colors.TextNavigationViewColor);
-            var pointerNavColor = ColorUtils.GetContrastingTextColor(textNavColor);
             var myColor = ColorUtils.FromHex(colors.MyMessageColor);
             var textMyColor = ColorUtils.FromHex(colors.TextMyMessageColor);
             var otherColor = ColorUtils.FromHex(colors.OtherMessageColor);
@@ -160,35 +186,17 @@ namespace Client.Pages
 
             UpdateResourceBrush("TitleBarColor", titleColor);
             UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
-            UpdateResourceBrush("NavigationViewColor", navColor);
             UpdateResourceBrush("SystemAccentColor", titleColor);
             UpdateResourceBrush("SystemAccentColorLight3", navColor);
             UpdateResourceBrush("MyMessageColor", myColor);
             UpdateResourceBrush("TextMyMessageColor", textMyColor);
-            UpdateResourceBrush("NavigationViewItemForeground", textNavColor);
-            UpdateResourceBrush("NavigationViewItemForegroundSelected", textNavColor);
-            UpdateResourceBrush("NavigationViewItemIconForeground", textNavColor);
-            UpdateResourceBrush("NavigationViewItemIconForegroundSelected", textNavColor);
-            UpdateResourceBrush("NavigationViewItemForegroundPointerOver", pointerNavColor);
-            UpdateResourceBrush("NavigationViewItemIconForegroundPointerOver", pointerNavColor);
             UpdateResourceBrush("OtherMessageColor", otherColor);
             UpdateResourceBrush("TextOtherMessageColor", textOtherColor);
             UpdateResourceBrush("SystemAccentColorDark1", accentDark1);
-            UpdateResourceBrush("PivotHeaderForeground", textNavColor);
+
+            ApplyNavigationColors(colors, nav);
 
             titleBar?.DispatcherQueue.TryEnqueue(() => titleBar.Background = new SolidColorBrush(titleColor));
-            nav?.DispatcherQueue.TryEnqueue(() =>
-            {
-                nav.Background = new SolidColorBrush(navColor);
-                foreach (var item in nav.MenuItems.OfType<NavigationViewItem>())
-                {
-                    item.Foreground = new SolidColorBrush(textNavColor);
-                }
-                if (nav.SettingsItem is NavigationViewItem settingsItem)
-                {
-                    settingsItem.Foreground = new SolidColorBrush(textNavColor);
-                }
-            });
 
             titleTextBlock?.DispatcherQueue.TryEnqueue(() => titleTextBlock.Foreground = new SolidColorBrush(textColorTitleBar));
         }
