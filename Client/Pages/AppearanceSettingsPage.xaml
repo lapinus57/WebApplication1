@@ -14,7 +14,10 @@
             <Border Background="White" CornerRadius="8" Padding="20" >
                 <StackPanel Spacing="10">
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
+                        <Grid>
+                            <Border Background="{ThemeResource TextAppBackgroundColor}" CornerRadius="4" Margin="2,2,0,0" />
+                            <Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left" />
+                        </Grid>
                         <TextBlock Text="Apparence" FontSize="18" FontWeight="Bold"/>
                     </StackPanel>
 
@@ -40,40 +43,55 @@
                         <TextBlock Text="Aperçu : cliquez sur une zone pour choisir la couleur"/>
                         <Canvas Height="300">
                             <Image Source="/Assets/Appchat.png" Width="00" />
-                            <Button x:Name="TitleBarZone" Width="600" Height="20" Background="{ThemeResource TitleBarColor}" Canvas.Left="0" Canvas.Top="0">
-                                <Button.Flyout>
-                                    <Flyout>
-                                        <ColorPicker x:Name="TitleBarPicker" ColorChanged="TitleBarColor_Changed"/>
-                                    </Flyout>
-                                </Button.Flyout>
-                            </Button>
+                            <Grid Canvas.Left="0" Canvas.Top="0">
+                                <Border Background="{ThemeResource TextAppBackgroundColor}" Width="600" Height="20" Margin="2,2,0,0" />
+                                <Button x:Name="TitleBarZone" Width="600" Height="20" Background="{ThemeResource TitleBarColor}">
+                                    <Button.Flyout>
+                                        <Flyout>
+                                            <ColorPicker x:Name="TitleBarPicker" ColorChanged="TitleBarColor_Changed"/>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
 
-                            <Button x:Name="NavZone" Width="20" Height="280" Background="{ThemeResource NavigationViewColor}" Canvas.Left="0" Canvas.Top="19">
-                                <Button.Flyout>
-                                    <Flyout>
-                                        <ColorPicker x:Name="NavPicker" ColorChanged="NavColor_Changed"/>
-                                    </Flyout>
-                                </Button.Flyout>
-                            </Button>
+                            <Grid Canvas.Left="0" Canvas.Top="19">
+                                <Border Background="{ThemeResource TextAppBackgroundColor}" Width="20" Height="280" Margin="2,2,0,0" />
+                                <Button x:Name="NavZone" Width="20" Height="280" Background="{ThemeResource NavigationViewColor}">
+                                    <Button.Flyout>
+                                        <Flyout>
+                                            <ColorPicker x:Name="NavPicker" ColorChanged="NavColor_Changed"/>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
 
-                            <Button x:Name="MyMessageZone" Width="150" Height="40" Background="{ThemeResource MyMessageColor}" Canvas.Left="330" Canvas.Top="60">
-                                <Button.Flyout>
-                                    <Flyout>
-                                        <ColorPicker x:Name="MyBubblePicker" ColorChanged="MyMessageColor_Changed"/>
-                                    </Flyout>
-                                </Button.Flyout>
-                            </Button>
+                            <Grid Canvas.Left="330" Canvas.Top="60">
+                                <Border Background="{ThemeResource TextAppBackgroundColor}" Width="150" Height="40" Margin="2,2,0,0" />
+                                <Button x:Name="MyMessageZone" Width="150" Height="40" Background="{ThemeResource MyMessageColor}">
+                                    <Button.Flyout>
+                                        <Flyout>
+                                            <ColorPicker x:Name="MyBubblePicker" ColorChanged="MyMessageColor_Changed"/>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
 
-                            <Button x:Name="OtherMessageZone" Width="150" Height="40" Background="{ThemeResource OtherMessageColor}" Canvas.Left="160" Canvas.Top="110">
-                                <Button.Flyout>
-                                    <Flyout>
-                                        <ColorPicker x:Name="OtherBubblePicker" ColorChanged="OtherMessageColor_Changed"/>
-                                    </Flyout>
-                                </Button.Flyout>
-                            </Button>
+                            <Grid Canvas.Left="160" Canvas.Top="110">
+                                <Border Background="{ThemeResource TextAppBackgroundColor}" Width="150" Height="40" Margin="2,2,0,0" />
+                                <Button x:Name="OtherMessageZone" Width="150" Height="40" Background="{ThemeResource OtherMessageColor}">
+                                    <Button.Flyout>
+                                        <Flyout>
+                                            <ColorPicker x:Name="OtherBubblePicker" ColorChanged="OtherMessageColor_Changed"/>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
                         </Canvas>
                         <ColorPicker x:Name="AccentDark1Picker"  ColorChanged="AccentDark1Color_Changed"/>
-                        <Button Content="Sauvegarder" Click="SaveSettings_Click"/>
+                        <Grid>
+                            <Border Background="{ThemeResource TextAppBackgroundColor}" CornerRadius="4" Margin="2,2,0,0" />
+                            <Button Content="Sauvegarder" Click="SaveSettings_Click" />
+                        </Grid>
                     </StackPanel>
                 </StackPanel>
             </Border>
