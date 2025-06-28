@@ -23,7 +23,7 @@
                         <ControlTemplate TargetType="NavigationViewItem">
                             <Grid Background="{TemplateBinding Background}" Margin="{TemplateBinding Margin}">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="24" />
                                 </Grid.ColumnDefinitions>
                                 <Rectangle x:Name="AccentBar" Fill="{ThemeResource AccentColor}" Width="2" Visibility="Collapsed" />
