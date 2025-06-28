@@ -31,6 +31,7 @@ namespace Client
             nvSample.SelectedItem = nvSample.MenuItems.OfType<NavigationViewItem>()
                 .FirstOrDefault(item => (string)item.Tag == "ChatPage");
             contentFrame.Navigate(typeof(Pages.ChatPage));
+           
         }
 
         private void nvSample_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

@@ -62,7 +62,7 @@ namespace Client.Pages
             {
                 await _service.InitializeAsync();
             }
-
+            
             TryRestoreUserSelection();
             await WaitForConnectionReady();
 

@@ -5,6 +5,7 @@ using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 using Client.Models;
 using Client.Helpers;
+using Microsoft.UI.Xaml.Controls;
 
 namespace Client
 {
@@ -25,7 +26,15 @@ namespace Client
             var theme = AppSettings.Get("AppTheme", "Dark");
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
-                RequestedTheme = appTheme;
+                //RequestedTheme = appTheme;
+
+                if (m_window.Content is FrameworkElement root)
+                {
+                    root.RequestedTheme =
+                        appTheme == ApplicationTheme.Dark ?
+                        ElementTheme.Dark :
+                        ElementTheme.Light;
+                }
             }
 
             ChatService.Dispatcher = m_window.DispatcherQueue;

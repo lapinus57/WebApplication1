@@ -201,7 +201,7 @@
         </Style>
     </Page.Resources>
 
-    <Grid Padding="10" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid Padding="10" >
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="400"/>
             <ColumnDefinition Width="*"/>

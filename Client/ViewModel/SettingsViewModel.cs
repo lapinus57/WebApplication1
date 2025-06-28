@@ -284,7 +284,15 @@ namespace Client.ViewModel
         {
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
-                Application.Current.RequestedTheme = appTheme;
+                //Application.Current.RequestedTheme = appTheme;
+
+                if (App.MainWindow?.Content is FrameworkElement root)
+                {
+                    root.RequestedTheme =
+                        appTheme == ApplicationTheme.Dark ?
+                        ElementTheme.Dark :
+                        ElementTheme.Light;
+                }
             }
         }
 
