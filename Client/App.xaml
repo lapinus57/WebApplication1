@@ -25,12 +25,21 @@
             <SolidColorBrush x:Key="OtherMessageColor" Color="#FFD9F2DC" />
             <SolidColorBrush x:Key="TextOtherMessageColor" Color="#FF000000" />
             <SolidColorBrush x:Key="PivotHeaderForeground" Color="Red" />
-            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#FFFFFFFF" />
-            <SolidColorBrush x:Key="TextAppBackgroundColor" Color="#FF000000" />
+            
 
             <Color x:Key="SystemAccentColorDark1">CadetBlue</Color>
             <SolidColorBrush x:Key="AccentColor" Color="Red" />
             <x:Double x:Key="MessageFontSize">14</x:Double>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="White" />
+                    <SolidColorBrush x:Key="TextAppBackgroundColor" Color="Black" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="Black" />
+                    <SolidColorBrush x:Key="TextAppBackgroundColor" Color="White" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
