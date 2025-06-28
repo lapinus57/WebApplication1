@@ -6,8 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Client.ViewModel"
-    mc:Ignorable="d"
-    RequestedTheme="Dark">
+    mc:Ignorable="d">
 
     <ScrollViewer>
         <StackPanel Padding="20" Spacing="20">
@@ -31,11 +30,10 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock Text="Fond de l'application" VerticalAlignment="Center"/>
-                        <ComboBox x:Name="BackgroundCombo" Width="120" SelectionChanged="BackgroundCombo_Changed">
-                            <ComboBoxItem Content="Blanc" Tag="#FFFFFFFF" />
-                            <ComboBoxItem Content="Noir" Tag="#FF000000" />
-                            <ComboBoxItem Content="Gris" Tag="#FF808080" />
+                        <TextBlock Text="Thème" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="ThemeCombo" Width="120" SelectionChanged="ThemeCombo_Changed">
+                            <ComboBoxItem Content="Clair" Tag="Light" />
+                            <ComboBoxItem Content="Sombre" Tag="Dark" />
                         </ComboBox>
                     </StackPanel>
 

@@ -22,6 +22,28 @@ public class AppColorSettings
 ```
 【F:Client/Models/AppColorSettings.cs†L1-L14】
 
+Le thème clair ou sombre est mémorisé séparément via `SettingsViewModel.AppTheme`. Cette
+propriété met à jour `Application.Current.RequestedTheme` pour appliquer le thème
+à toute l'application :
+
+```csharp
+public string AppTheme
+{
+    get => _appTheme;
+    set
+    {
+        if (_appTheme != value)
+        {
+            _appTheme = value;
+            OnPropertyChanged(nameof(AppTheme));
+            AppSettings.Set("AppTheme", value);
+            ApplyTheme(value);
+        }
+    }
+}
+```
+【F:Client/ViewModel/SettingsViewModel.cs†L76-L89】
+
 Ces paramètres sont modifiables dans la page `AppearanceSettingsPage` où des sélecteurs de couleurs permettent de choisir la teinte voulue.
 
 Depuis cette version, la ressource `SystemAccentColorDark1` est fournie sous la forme d'un `Color` afin que l'accentuation fonctionne correctement même lorsque le fond de l'application est sombre.
