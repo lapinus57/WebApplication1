@@ -10,6 +10,7 @@ namespace Client.ViewModel
     {
         private bool _isOldSchoolMode;
         private double _messageFontSize = 14;
+        private string _appTheme = "Dark";
         private string _shortcutF5Refraction = string.Empty;
         private string _shortcutF5Lentilles = string.Empty;
         private string _shortcutF5Pathologies = string.Empty;
@@ -68,6 +69,21 @@ namespace Client.ViewModel
                     OnPropertyChanged(nameof(MessageFontSize));
                     AppSettings.Set("MessageFontSize", value.ToString());
                     Application.Current.Resources["MessageFontSize"] = value;
+                }
+            }
+        }
+
+        public string AppTheme
+        {
+            get => _appTheme;
+            set
+            {
+                if (_appTheme != value)
+                {
+                    _appTheme = value;
+                    OnPropertyChanged(nameof(AppTheme));
+                    AppSettings.Set("AppTheme", value);
+                    ApplyTheme(value);
                 }
             }
         }
@@ -227,6 +243,8 @@ namespace Client.ViewModel
             {
                 _messageFontSize = size;
             }
+            _appTheme = AppSettings.Get("AppTheme", "Dark");
+            ApplyTheme(_appTheme);
 
             _shortcutF5Refraction = Get("ShortcutF5Refraction");
             _shortcutF5Lentilles = Get("ShortcutF5Lentilles");
@@ -260,6 +278,14 @@ namespace Client.ViewModel
             // update resources with loaded values
             Application.Current.Resources["MessageFontSize"] = _messageFontSize;
             OnPropertyChanged(string.Empty);
+        }
+
+        private static void ApplyTheme(string theme)
+        {
+            if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
+            {
+                Application.Current.RequestedTheme = appTheme;
+            }
         }
 
         private void OnPropertyChanged(string propertyName)

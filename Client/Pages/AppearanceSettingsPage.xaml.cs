@@ -35,13 +35,13 @@ namespace Client.Pages
                 ob.Color = ColorUtils.FromHex(currentSettings.OtherMessageColor);
             if (FindName("AccentDark1Picker") is ColorPicker ad)
                 ad.Color = ColorUtils.FromHex(currentSettings.SystemAccentColorDark1);
-            if (FindName("BackgroundCombo") is ComboBox bg)
+            if (FindName("ThemeCombo") is ComboBox theme)
             {
-                bg.SelectedIndex = currentSettings.AppBackgroundColor.ToUpper() switch
+                theme.SelectedIndex = ViewModelSettings.AppTheme switch
                 {
-                    "#FF000000" => 1,
-                    "#FF808080" => 2,
-                    _ => 0
+                    "Light" => 0,
+                    "Dark" => 1,
+                    _ => 1
                 };
             }
         }
@@ -111,21 +111,11 @@ namespace Client.Pages
             }
         }
 
-        private void BackgroundCombo_Changed(object sender, SelectionChangedEventArgs e)
+        private void ThemeCombo_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (BackgroundCombo.SelectedItem is ComboBoxItem item && item.Tag is string hex)
+            if (ThemeCombo.SelectedItem is ComboBoxItem item && item.Tag is string theme)
             {
-                currentSettings.AppBackgroundColor = hex;
-                var textColor = ColorUtils.GetContrastingTextColor(ColorUtils.FromHex(hex));
-                currentSettings.TextAppBackgroundColor = ColorUtils.ToHex(textColor);
-                AppSettings.SetObject("Colors", currentSettings);
-                if (App.MainWindow.Content is FrameworkElement root)
-                {
-                    var titleBar = (Grid)root.FindName("AppTitleBar");
-                    var nav = (NavigationView)root.FindName("nvSample");
-                    var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
-                    ApplyColors(currentSettings, titleBar, nav, titleText);
-                }
+                ViewModelSettings.AppTheme = theme;
             }
         }
 
@@ -166,8 +156,6 @@ namespace Client.Pages
             var textMyColor = ColorUtils.FromHex(colors.TextMyMessageColor);
             var otherColor = ColorUtils.FromHex(colors.OtherMessageColor);
             var textOtherColor = ColorUtils.FromHex(colors.TextOtherMessageColor);
-            var backgroundColor = ColorUtils.FromHex(colors.AppBackgroundColor);
-            var textBackgroundColor = ColorUtils.FromHex(colors.TextAppBackgroundColor);
             var accentDark1 = ColorUtils.FromHex(colors.SystemAccentColorDark1);
 
             UpdateResourceBrush("TitleBarColor", titleColor);
@@ -185,8 +173,6 @@ namespace Client.Pages
             UpdateResourceBrush("NavigationViewItemIconForegroundPointerOver", pointerNavColor);
             UpdateResourceBrush("OtherMessageColor", otherColor);
             UpdateResourceBrush("TextOtherMessageColor", textOtherColor);
-            UpdateResourceBrush("ApplicationPageBackgroundThemeBrush", backgroundColor);
-            UpdateResourceBrush("TextAppBackgroundColor", textBackgroundColor);
             UpdateResourceBrush("SystemAccentColorDark1", accentDark1);
             UpdateResourceBrush("PivotHeaderForeground", textNavColor);
 
