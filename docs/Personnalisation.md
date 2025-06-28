@@ -22,7 +22,9 @@ public class AppColorSettings
 ```
 【F:Client/Models/AppColorSettings.cs†L1-L14】
 
+
 Le thème clair ou sombre est mémorisé séparément via `SettingsViewModel.AppTheme`. Cette
+
 propriété met à jour `Application.Current.RequestedTheme` pour appliquer le thème
 à toute l'application :
 
@@ -38,6 +40,7 @@ public string AppTheme
             OnPropertyChanged(nameof(AppTheme));
             AppSettings.Set("AppTheme", value);
             ApplyTheme(value);
+
         }
     }
 }
