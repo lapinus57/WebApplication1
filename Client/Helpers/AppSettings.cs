@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using Client.Models;
+using Client;
 
 namespace Client.Helpers
 {
@@ -13,7 +14,7 @@ namespace Client.Helpers
         private static string FilePath =>
               Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat",
-                $"{(CurrentSelectedUser?.Username ?? "default")}_settings.json");
+                $"{(CurrentSelectedUser?.Username ?? App.UserName)}_settings.json");
 
         private static UserInfo? _currentUser;
         public static UserInfo? CurrentSelectedUser

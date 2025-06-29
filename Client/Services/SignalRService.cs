@@ -1,5 +1,6 @@
 using Client.Models;
 using Client.Helpers;
+using Client;
 using Microsoft.AspNetCore.SignalR.Client;
 using System;
 using System.Collections.Generic;
@@ -69,7 +70,7 @@ namespace Client.Services
                 ConnectedUsers.Add(user);
             }
 
-            await ConnectAsync("Benoit", @"E:\benoit.png", RoomName);
+            await ConnectAsync(App.UserName, @"E:\benoit.png", RoomName);
 
             Messages.Clear();
             Messages.Add(new LoadMorePlaceholder());
@@ -78,7 +79,7 @@ namespace Client.Services
             foreach (var msg in cached)
                 Messages.Add(msg);
 
-            var result = await LoadTodayMessagesAsync("Benoit");
+            var result = await LoadTodayMessagesAsync(App.UserName);
             if (result.Success)
             {
                 foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
