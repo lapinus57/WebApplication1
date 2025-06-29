@@ -257,6 +257,18 @@ namespace ChatServeur
                 .ToListAsync();
         }
 
+        public async Task SetRoomName(string roomName)
+        {
+            if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
+            {
+                user.Room = roomName;
+                AllUsers[user.Username] = user;
+
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                await Clients.All.SendAsync("UserListUpdated", userList);
+            }
+        }
+
         public async Task SaveExamOptions(IEnumerable<ExamOption> options)
         {
             var json = JsonSerializer.Serialize(options);

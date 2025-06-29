@@ -23,10 +23,11 @@ namespace Client.Pages
                 Frame.GoBack();
         }
 
-        private void Save_Click(object sender, RoutedEventArgs e)
+        private async void Save_Click(object sender, RoutedEventArgs e)
         {
             MachineConfig.Save(new MachineConfig { RoomName = RoomName });
             App.ChatService.RoomName = RoomName;
+            await App.ChatService.UpdateRoomNameAsync(RoomName);
         }
     }
 }

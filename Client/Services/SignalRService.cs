@@ -521,5 +521,20 @@ namespace Client.Services
                 return new List<string>();
             }
         }
+        public async Task UpdateRoomNameAsync(string roomName)
+        {
+            RoomName = roomName;
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("SetRoomName", roomName);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur mise à jour nom de salle : {ex.Message}");
+                }
+            }
+        }
     }
 }
