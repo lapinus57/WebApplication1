@@ -26,27 +26,38 @@ namespace Client
             var theme = AppSettings.Get("AppTheme", "Dark");
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
-                //RequestedTheme = appTheme;
-
-                if (m_window.Content is FrameworkElement root)
+                if (m_window.Content is FrameworkElement rootElement)
                 {
-                    root.RequestedTheme =
-                        appTheme == ApplicationTheme.Dark ?
-                        ElementTheme.Dark :
-                        ElementTheme.Light;
+                    rootElement.RequestedTheme = appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
                 }
             }
 
             ChatService.Dispatcher = m_window.DispatcherQueue;
             ChatService.OnMessageReceived += ChatService_OnMessageReceived;
+            // Register handler once the window root has loaded so XamlRoot is valid
+            if (m_window.Content is FrameworkElement windowRoot)
+            {
+                windowRoot.Loaded += MainWindow_Loaded;
+            }
+            // Show the window immediately
+            m_window.Activate();
+        }
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement root)
+                return;
+
+            root.Loaded -= MainWindow_Loaded;
+
             var machine = MachineConfig.Load();
+
             if (string.IsNullOrWhiteSpace(machine.RoomName))
             {
                 var dialog = new ContentDialog
                 {
                     Title = "Nom de la salle",
                     PrimaryButtonText = "Valider",
-                    XamlRoot = m_window.Content.XamlRoot
+                    XamlRoot = root.XamlRoot
                 };
 
                 var box = new TextBox();
@@ -59,11 +70,13 @@ namespace Client
                 }
             }
 
-            ChatService.RoomName = machine.RoomName;
-            _ = ChatService.InitializeAsync();
-
-            m_window.Activate();
+            if (!string.IsNullOrWhiteSpace(machine.RoomName))
+            {
+                ChatService.RoomName = machine.RoomName;
+                _ = ChatService.InitializeAsync();
+            }
         }
+
 
         private void ChatService_OnMessageReceived(ChatMessageModel chat)
         {

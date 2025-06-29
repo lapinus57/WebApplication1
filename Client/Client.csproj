@@ -16,9 +16,6 @@
     <None Remove="Pages\SystemPage.xaml" />
   </ItemGroup>
   <ItemGroup>
-    <Page Remove="Pages\SystemPage.xaml" />
-  </ItemGroup>
-  <ItemGroup>
 	  <Content Include="Assets\earth.png" />
 	  <Content Include="Assets\EyeChat.png" />
 	  <Content Include="Assets\secretaria.png" />
@@ -32,12 +29,6 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Pages\SystemPage.xaml">
-      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -59,6 +50,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Pages\SystemPage.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </Page>
   </ItemGroup>
 
   <!--
