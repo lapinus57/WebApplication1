@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Client.Models;
 using Client.Services;
 using Client.Helpers;
+using Client;
 
 namespace Client.Pages
 {
@@ -55,6 +56,9 @@ namespace Client.Pages
 
         private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
         {
+            if (Resources["MessageTemplateSelector"] is ChatMessageTemplateSelector sel)
+                sel.MyUsername = App.UserName;
+
             var style = AppSettings.Get("ChatDisplayStyle", "Modern");
             ApplyChatStyle(style == "OldSchool" ? ChatStyle.OldSchool : ChatStyle.Modern);
 
@@ -75,7 +79,7 @@ namespace Client.Pages
                 foreach (var msg in cachedMessages)
                     Messages.Add(msg);
 
-                var result = await _service.LoadTodayMessagesAsync("Benoit");
+                var result = await _service.LoadTodayMessagesAsync(App.UserName);
                 if (result.Success)
                 {
                     foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
@@ -158,7 +162,7 @@ namespace Client.Pages
             {
                 if (user != null)
                 {
-                    await _service.SendMessage("Benoit", "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
+                    await _service.SendMessage(App.UserName, "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
                     Debug.WriteLine($"📤 Message envoyé à {user.Username}: {text}");
                     InputBox.Text = string.Empty;
                 }
@@ -176,7 +180,7 @@ namespace Client.Pages
 
         private async Task LoadHistoryAsync(string withUser)
         {
-            var username = "Benoit";
+            var username = App.UserName;
 
             try
             {
@@ -254,7 +258,7 @@ namespace Client.Pages
                 _currentDate = _currentDate.AddDays(-1);
                 tryCount++;
 
-                var result = await _service.LoadMessagesForDateAsync("Moi", _currentDate);
+                var result = await _service.LoadMessagesForDateAsync(App.UserName, _currentDate);
 
                 if (result.Success && result.Value.Any())
                 {

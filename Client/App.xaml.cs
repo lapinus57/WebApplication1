@@ -6,6 +6,7 @@ using Microsoft.Windows.AppNotifications.Builder;
 using Client.Models;
 using Client.Helpers;
 using Microsoft.UI.Xaml.Controls;
+using System.IO;
 
 namespace Client
 {
@@ -13,6 +14,7 @@ namespace Client
     {
         public static SignalRService ChatService { get; } = new SignalRService();
         public static Window? MainWindow { get; private set; }
+        public static string UserName { get; set; } = string.Empty;
         public App()
         {
             this.InitializeComponent();
@@ -68,6 +70,43 @@ namespace Client
                     machine.RoomName = box.Text.Trim();
                     MachineConfig.Save(machine);
                 }
+            }
+
+            var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+            Directory.CreateDirectory(appFolder);
+            var settingsFiles = Directory.GetFiles(appFolder, "*_settings.json");
+
+            if (settingsFiles.Length == 0)
+            {
+                var userDialog = new ContentDialog
+                {
+                    Title = "Nom d'utilisateur",
+                    PrimaryButtonText = "Valider",
+                    XamlRoot = root.XamlRoot
+                };
+
+                var userBox = new TextBox();
+                userDialog.Content = userBox;
+                var userResult = await userDialog.ShowAsync();
+                if (userResult == ContentDialogResult.Primary)
+                {
+                    var username = userBox.Text.Trim();
+                    App.UserName = username;
+                    AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
+
+                    if (string.IsNullOrWhiteSpace(machine.DefaultUser))
+                        machine.DefaultUser = username;
+                    machine.LastUser = username;
+                    MachineConfig.Save(machine);
+                }
+            }
+            else
+            {
+                var username = !string.IsNullOrWhiteSpace(machine.LastUser)
+                    ? machine.LastUser
+                    : Path.GetFileNameWithoutExtension(settingsFiles[0]).Replace("_settings", "");
+                App.UserName = username;
+                AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
             }
 
             if (!string.IsNullOrWhiteSpace(machine.RoomName))
