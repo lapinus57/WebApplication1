@@ -76,7 +76,7 @@
                 <NavigationViewItem Content="Chat" Tag="ChatPage" Icon="LeaveChat" />
                 <NavigationViewItem Content="Historique" Tag="HistoryPage" Icon="People" />
             </NavigationView.MenuItems>
-            <Frame x:Name="contentFrame" />
+            <Frame x:Name="contentFrame" Padding="-2" />
         </NavigationView>
     </Grid>
 </Window>

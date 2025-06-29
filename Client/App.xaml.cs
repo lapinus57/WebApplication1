@@ -18,7 +18,7 @@ namespace Client
             this.InitializeComponent();
         }
 
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        protected async override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             m_window = new MainWindow();
             MainWindow = m_window;
@@ -39,6 +39,27 @@ namespace Client
 
             ChatService.Dispatcher = m_window.DispatcherQueue;
             ChatService.OnMessageReceived += ChatService_OnMessageReceived;
+            var machine = MachineConfig.Load();
+            if (string.IsNullOrWhiteSpace(machine.RoomName))
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Nom de la salle",
+                    PrimaryButtonText = "Valider",
+                    XamlRoot = m_window.Content.XamlRoot
+                };
+
+                var box = new TextBox();
+                dialog.Content = box;
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    machine.RoomName = box.Text.Trim();
+                    MachineConfig.Save(machine);
+                }
+            }
+
+            ChatService.RoomName = machine.RoomName;
             _ = ChatService.InitializeAsync();
 
             m_window.Activate();

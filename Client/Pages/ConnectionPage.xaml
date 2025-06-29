@@ -7,7 +7,7 @@
         <StackPanel Padding="20" Spacing="20">
             <Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
             <TextBlock Text="Connexion" FontSize="24" FontWeight="Bold"/>
-            <Border Background="White" CornerRadius="8" Padding="20">
+            <Border CornerRadius="8" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="Adresse du serveur"/>
                     <TextBox x:Name="AddressBox" Text="{x:Bind ServerAddress, Mode=TwoWay}"/>

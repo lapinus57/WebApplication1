@@ -27,6 +27,7 @@ namespace Client.Services
         public ObservableCollection<UserInfo> ConnectedUsers { get; } = new();
         public ObservableCollection<Patient> Patients { get; } = new();
         public ObservableCollection<object> Messages { get; } = new();
+        public string RoomName { get; set; } = string.Empty;
 
         private bool _initialized;
         private bool _historyLoaded;
@@ -39,6 +40,8 @@ namespace Client.Services
         {
             var cfg = ConnectionConfig.Load();
             ServerAddress = cfg.ServerAddress;
+            var machine = MachineConfig.Load();
+            RoomName = machine.RoomName;
         }
 
         public event Action<ChatMessageModel>? OnMessageReceived;
@@ -66,7 +69,7 @@ namespace Client.Services
                 ConnectedUsers.Add(user);
             }
 
-            await ConnectAsync("Benoit", @"E:\benoit.png", "RDC");
+            await ConnectAsync("Benoit", @"E:\benoit.png", RoomName);
 
             Messages.Clear();
             Messages.Add(new LoadMorePlaceholder());

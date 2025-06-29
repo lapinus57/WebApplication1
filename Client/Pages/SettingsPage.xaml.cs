@@ -22,6 +22,7 @@ namespace Client.Pages
 
         private void System_Click(object sender, RoutedEventArgs e)
         {
+            Frame.Navigate(typeof(SystemPage));
         }
 
         private void Exam_Click(object sender, RoutedEventArgs e)
