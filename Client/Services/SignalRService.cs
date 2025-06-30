@@ -90,6 +90,11 @@ namespace Client.Services
                 _historyLoaded = true;
                 await SaveTodayMessagesToDiskAsync();
             }
+
+            var patients = await GetPatientsAsync();
+            Patients.Clear();
+            foreach (var p in patients)
+                Patients.Add(p);
         }
 
         public async Task ConnectAsync(string username, string avatar, string room)
@@ -215,7 +220,11 @@ namespace Client.Services
 
             Connection.On<Patient>("NewPatient", patient =>
             {
-                OnNewPatient?.Invoke(patient);
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    Patients.Add(patient);
+                    OnNewPatient?.Invoke(patient);
+                });
             });
 
             Connection.On<IEnumerable<ExamOption>>("ExamOptionsUpdated", opts =>
@@ -520,6 +529,25 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur récupération salles : {ex.Message}");
                 return new List<string>();
+            }
+        }
+
+        public async Task<List<Patient>> GetPatientsAsync()
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return new List<Patient>();
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<List<Patient>>("GetPatients");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération patients : {ex.Message}");
+                return new List<Patient>();
             }
         }
         public async Task UpdateRoomNameAsync(string roomName)

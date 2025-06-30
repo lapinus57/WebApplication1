@@ -354,5 +354,21 @@ namespace ChatServeur
                 return new List<string>();
             }
         }
+
+        public async Task DeclarePatient(Patient patient)
+        {
+            _db.Patients.Add(patient);
+            await _db.SaveChangesAsync();
+            await Clients.All.SendAsync("NewPatient", patient);
+        }
+
+        public async Task<List<Patient>> GetPatients()
+        {
+            var today = DateTime.Today;
+            return await _db.Patients
+                .Where(p => p.HoldTime.Date == today)
+                .OrderBy(p => p.HoldTime)
+                .ToListAsync();
+        }
     }
 }

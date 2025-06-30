@@ -143,6 +143,15 @@
                 <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
             </StackPanel>
         </DataTemplate>
+
+        <!-- Template d'affichage d'un patient dans les onglets des salles -->
+        <DataTemplate x:Key="PatientItemTemplate" x:DataType="data:Patient">
+            <StackPanel Orientation="Horizontal" Spacing="4" Padding="4">
+                <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
+                <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
+                <TextBlock Text="{x:Bind FirstName}"/>
+            </StackPanel>
+        </DataTemplate>
         
         <Style TargetType="PivotItem">
             <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
