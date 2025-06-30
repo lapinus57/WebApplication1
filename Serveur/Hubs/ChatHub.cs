@@ -138,8 +138,8 @@ namespace ChatServeur
                 Timestamp = timestamp
             };
 
-            //_db.Messages.Add(message);
-            //await _db.SaveChangesAsync();
+            _db.Messages.Add(message);
+            await _db.SaveChangesAsync();
 
             if (destinataire == "A Tous")
             {

@@ -183,7 +183,7 @@ namespace Client.Services
                 Title = "Ajout d'un patient",
                 PrimaryButtonText = "Valider",
                 CloseButtonText = "Annuler",
-                XamlRoot = App.MainWindow.Content.XamlRoot
+                XamlRoot = App.MainWindow.Content.XamlRoot,
             };
 
             var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
@@ -239,7 +239,41 @@ namespace Client.Services
 
             dialog.Content = grid;
 
-            await dialog.ShowAsync();
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                var inputName = nameBox.Text.Trim();
+                PatientStringHelper.ExtractInfoFromInput(inputName,
+                    out var titleBox, out var lastNameBox, out var firstNameBox);
+
+                var selectedExam = examCombo.SelectedValue as string ?? string.Empty;
+                var opt = options.FirstOrDefault(o => o.Name == selectedExam);
+
+                var patient = new Patient
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Colors = opt?.Color ?? string.Empty,
+                    Title = titleBox,
+                    LastName = lastNameBox,
+                    FirstName = firstNameBox,
+                    Exams = $"{selectedExam} {(eyeCombo.SelectedItem as ComboBoxItem)?.Content as string}".Trim(),
+                    Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim(),
+                    Position = floorCombo.SelectedItem as string ?? string.Empty,
+                    HoldTime = DateTime.Now,
+                    Examinator = App.UserName,
+                    OperatorName = Environment.UserName
+                };
+
+                try
+                {
+                    await App.ChatService.DeclarePatient(patient);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
+                }
+            }
         }
 
         private static void AddLabeledControl(Grid grid, int row, string label, UIElement control)

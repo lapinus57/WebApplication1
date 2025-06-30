@@ -15,6 +15,7 @@ namespace Client
         public static SignalRService ChatService { get; } = new SignalRService();
         public static Window? MainWindow { get; private set; }
         public static string UserName { get; set; } = string.Empty;
+        public static HotKeyService HotKeys { get; } = new HotKeyService();
         public App()
         {
             this.InitializeComponent();
@@ -24,6 +25,7 @@ namespace Client
         {
             m_window = new MainWindow();
             MainWindow = m_window;
+            HotKeys.Start();
 
             var theme = AppSettings.Get("AppTheme", "Dark");
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
@@ -33,7 +35,7 @@ namespace Client
                     rootElement.RequestedTheme = appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
                 }
             }
-
+            m_window.Closed += (_, __) => HotKeys.Dispose();
             ChatService.Dispatcher = m_window.DispatcherQueue;
             ChatService.OnMessageReceived += ChatService_OnMessageReceived;
             // Register handler once the window root has loaded so XamlRoot is valid
