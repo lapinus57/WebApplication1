@@ -97,19 +97,23 @@ namespace Client
                     if (string.IsNullOrWhiteSpace(machine.DefaultUser))
                         machine.DefaultUser = username;
                     machine.LastUser = username;
+                    machine.ConnectLastUser = false; 
                     MachineConfig.Save(machine);
                 }
             }
             else
             {
-                var username = !string.IsNullOrWhiteSpace(machine.LastUser)
-                    ? machine.LastUser
-                    : Path.GetFileNameWithoutExtension(settingsFiles[0]).Replace("_settings", "");
+                var username = machine.ConnectLastUser
+                   ? machine.LastUser
+                   : machine.DefaultUser;
+                if (string.IsNullOrWhiteSpace(username))
+                    username = Path.GetFileNameWithoutExtension(settingsFiles[0]).Replace("_settings", "");
+
                 App.UserName = username;
                 AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
             }
 
-            if (!string.IsNullOrWhiteSpace(machine.RoomName))
+            if (!string.IsNullOrWhiteSpace(machine.RoomName) )
             {
                 ChatService.RoomName = machine.RoomName;
                 _ = ChatService.InitializeAsync();
