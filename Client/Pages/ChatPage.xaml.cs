@@ -345,8 +345,8 @@ namespace Client.Pages
             foreach (var room in RoomsWithAll)
             {
                 var list = new ListView { SelectionMode = ListViewSelectionMode.None };
-                if (Resources["PatientItemTemplate"] is DataTemplate template)
-                    list.ItemTemplate = template;
+                if (Resources["PatientTemplateSelector"] is DataTemplateSelector selector)
+                    list.ItemTemplateSelector = selector;
                 list.ItemsSource = GetPatientsForRoom(room).ToList();
                 var item = new PivotItem { Header = room, Content = list };
                 RoomsPivot.Items.Add(item);
@@ -385,6 +385,9 @@ namespace Client.Pages
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
             {
                 var newValue = !patient.IsTaken;
+                patient.IsTaken = newValue;
+                patient.PickUpTime = newValue ? DateTime.Now : null;
+                UpdatePatientViews();
                 await _service.SetPatientTakenAsync(patient.Id, newValue);
             }
         }

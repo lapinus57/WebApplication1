@@ -379,6 +379,7 @@ namespace ChatServeur
             if (patient != null)
             {
                 patient.IsTaken = isTaken;
+                patient.PickUpTime = isTaken ? DateTime.Now : null;
                 _db.Patients.Update(patient);
                 await _db.SaveChangesAsync();
                 await Clients.All.SendAsync("PatientUpdated", patient);

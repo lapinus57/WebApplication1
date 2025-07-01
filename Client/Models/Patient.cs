@@ -21,6 +21,7 @@ namespace Client.Models
         public bool IsTaken { get; set; }
 
         public string HoldTimeFormatted => HoldTime.ToString("HH:mm");
+        public string? PickUpTimeFormatted => PickUpTime?.ToString("HH:mm");
 
         public string ToggleExamLabel => IsTaken
             ? $"Annuler {Exams} de {FirstName} {LastName}"
