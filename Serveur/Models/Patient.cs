@@ -1,6 +1,4 @@
-using System;
-
-namespace Client.Models
+﻿namespace ChatServeur
 {
     public class Patient
     {
@@ -18,7 +16,5 @@ namespace Client.Models
         public string Examinator { get; set; } = string.Empty;
         public string OperatorName { get; set; } = string.Empty;
         public bool IsTaken { get; set; }
-
-        public string HoldTimeFormatted => HoldTime.ToString("HH:mm");
     }
 }

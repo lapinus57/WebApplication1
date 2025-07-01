@@ -35,6 +35,7 @@ namespace Client.Pages
 
             BuildRooms();
             Rooms.CollectionChanged += Rooms_CollectionChanged;
+            Patients.CollectionChanged += Patients_CollectionChanged;
 
             UsersList.ItemsSource = ConnectedUsers;
             MessagesList.ItemsSource = Messages;
@@ -52,6 +53,7 @@ namespace Client.Pages
         {
             _service.OnMessageReceived -= OnMessageReceived;
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
+            Patients.CollectionChanged -= Patients_CollectionChanged;
         }
 
         private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
@@ -66,7 +68,7 @@ namespace Client.Pages
             {
                 await _service.InitializeAsync();
             }
-            
+
             TryRestoreUserSelection();
             await WaitForConnectionReady();
 
@@ -327,7 +329,7 @@ namespace Client.Pages
         {
             BuildRooms();
         }
-        
+
         private void BuildRooms()
         {
             RoomsWithAll.Clear();
@@ -338,9 +340,38 @@ namespace Client.Pages
             RoomsPivot.Items.Clear();
             foreach (var room in RoomsWithAll)
             {
-                var item = new PivotItem { Header = room, Content = new TextBlock { Text = room, Margin = new Thickness(10) } };
+                var list = new ListView { SelectionMode = ListViewSelectionMode.None };
+                if (Resources["PatientItemTemplate"] is DataTemplate template)
+                    list.ItemTemplate = template;
+                list.ItemsSource = GetPatientsForRoom(room).ToList();
+                var item = new PivotItem { Header = room, Content = list };
                 RoomsPivot.Items.Add(item);
             }
+
+            UpdatePatientViews();
+        }
+
+        private void Patients_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            DispatcherQueue.TryEnqueue(UpdatePatientViews);
+        }
+
+        private void UpdatePatientViews()
+        {
+            foreach (var pi in RoomsPivot.Items.OfType<PivotItem>())
+            {
+                if (pi.Content is ListView lv && pi.Header is string room)
+                {
+                    lv.ItemsSource = GetPatientsForRoom(room).ToList();
+                }
+            }
+        }
+
+        private IEnumerable<Patient> GetPatientsForRoom(string room)
+        {
+            return room == "Toutes"
+                ? Patients.OrderBy(p => p.HoldTime)
+                : Patients.Where(p => p.Position == room).OrderBy(p => p.HoldTime);
         }
     }
 
@@ -352,6 +383,6 @@ namespace Client.Pages
             foreach (var item in toRemove)
                 collection.Remove(item);
         }
-        
+
     }
 }
