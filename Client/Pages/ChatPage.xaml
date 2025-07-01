@@ -148,19 +148,36 @@
 
         <!-- Template d'affichage d'un patient dans les onglets des salles -->
         <DataTemplate x:Key="PatientItemTemplate" x:DataType="data:Patient">
-            <Border Background="{x:Bind Colors}">
-                <StackPanel Orientation="Vertical">
-                    <StackPanel Orientation="Horizontal" Spacing="4" Padding="0">
+            <Border Background="{x:Bind Colors}" Margin="0,4" >
+                <Grid Padding="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Première ligne : Titre, Nom, Prénom -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
-                        <TextBlock Text="{x:Bind LastName}" Margin="4,0" />
+                        <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
                         <TextBlock Text="{x:Bind FirstName}" />
-                        <TextBlock Text="{x:Bind Examinator}" HorizontalAlignment="Right" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal"  Spacing="4" Padding="0">
-                        <TextBlock Text="{x:Bind Exams}" FontWeight="Bold" HorizontalTextAlignment="Left"/>
-                        <TextBlock Text="{x:Bind HoldTimeFormatted}" FontWeight="Bold" HorizontalAlignment="Right"/>
-                    </StackPanel>
-                </StackPanel>
+
+                    <!-- Examinator à droite de la première ligne -->
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                       Text="{x:Bind Examinator}"
+                       HorizontalAlignment="Right"/>
+
+                    <!-- Deuxième ligne : examens et heure -->
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                       Text="{x:Bind Exams}" FontWeight="Bold"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1"
+                       Text="{x:Bind HoldTimeFormatted}"
+                       FontWeight="Bold" HorizontalAlignment="Right"/>
+                </Grid>
             </Border>
         </DataTemplate>
 

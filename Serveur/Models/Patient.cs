@@ -8,6 +8,7 @@
         public string LastName { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string Exams { get; set; } = string.Empty;
+        public string Eye { get; set; } = string.Empty;
         public string Annotation { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
         public DateTime HoldTime { get; set; }

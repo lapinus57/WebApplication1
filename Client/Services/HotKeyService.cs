@@ -257,12 +257,13 @@ namespace Client.Services
                     Title = titleBox,
                     LastName = lastNameBox,
                     FirstName = firstNameBox,
-                    Exams = $"{selectedExam} {(eyeCombo.SelectedItem as ComboBoxItem)?.Content as string}".Trim(),
+                    Exams = selectedExam,
+                    Eye = (eyeCombo.SelectedItem as ComboBoxItem)?.Content as string ?? string.Empty,
                     Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim(),
                     Position = floorCombo.SelectedItem as string ?? string.Empty,
                     HoldTime = DateTime.Now,
-                    Examinator = App.UserName,
-                    OperatorName = Environment.UserName
+                    Examinator = App.UserName
+                   
                 };
 
                 try
