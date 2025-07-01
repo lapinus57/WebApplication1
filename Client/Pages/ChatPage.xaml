@@ -146,8 +146,8 @@
 
         <!-- Template d'affichage d'un patient dans les onglets des salles -->
 
-        <!-- Template d'affichage d'un patient dans les onglets des salles -->
-        <DataTemplate x:Key="PatientItemTemplate" x:DataType="data:Patient">
+        <!-- Template d'affichage d'un patient non pris en charge -->
+        <DataTemplate x:Key="PatientDefaultTemplate" x:DataType="data:Patient">
             <Border Background="{x:Bind Colors}" Margin="0,4">
                 <Border.ContextFlyout>
                     <MenuFlyout>
@@ -186,6 +186,41 @@
                 </Grid>
             </Border>
         </DataTemplate>
+
+        <!-- Template d'affichage d'un patient déjà pris en charge -->
+        <DataTemplate x:Key="PatientTakenTemplate" x:DataType="data:Patient">
+            <Border Background="Gray" Margin="0,4">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
+                        <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
+                <Grid Padding="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
+                        <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
+                        <TextBlock Text="{x:Bind FirstName}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                               Text="{x:Bind PickUpTimeFormatted}"
+                               HorizontalAlignment="Right"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <data:PatientTemplateSelector x:Key="PatientTemplateSelector"
+                                      DefaultTemplate="{StaticResource PatientDefaultTemplate}"
+                                      TakenTemplate="{StaticResource PatientTakenTemplate}" />
 
         <Style TargetType="PivotItem">
             <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
