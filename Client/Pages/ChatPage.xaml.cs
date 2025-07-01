@@ -45,6 +45,8 @@ namespace Client.Pages
             _service.ConnectedUsers.CollectionChanged += (_, _) => DispatcherQueue.TryEnqueue(TryRestoreUserSelection);
 
             _service.OnMessageReceived += OnMessageReceived;
+            _service.OnPatientRemoved += Service_OnPatientRemoved;
+            _service.OnPatientUpdated += Service_OnPatientUpdated;
             Loaded += ChatPage_Loaded;
             Unloaded += ChatPage_Unloaded;
         }
@@ -52,6 +54,8 @@ namespace Client.Pages
         private void ChatPage_Unloaded(object sender, RoutedEventArgs e)
         {
             _service.OnMessageReceived -= OnMessageReceived;
+            _service.OnPatientRemoved -= Service_OnPatientRemoved;
+            _service.OnPatientUpdated -= Service_OnPatientUpdated;
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
             Patients.CollectionChanged -= Patients_CollectionChanged;
         }
@@ -365,6 +369,38 @@ namespace Client.Pages
                     lv.ItemsSource = GetPatientsForRoom(room).ToList();
                 }
             }
+        }
+
+        private async void DeletePatient_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                Patients.Remove(patient);
+                await _service.RemovePatientAsync(patient.Id);
+            }
+        }
+
+        private async void TogglePatientTaken_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var newValue = !patient.IsTaken;
+                await _service.SetPatientTakenAsync(patient.Id, newValue);
+            }
+        }
+
+        private void Service_OnPatientRemoved(string id)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                var p = Patients.FirstOrDefault(x => x.Id == id);
+                if (p != null) Patients.Remove(p);
+            });
+        }
+
+        private void Service_OnPatientUpdated(Patient patient)
+        {
+            DispatcherQueue.TryEnqueue(UpdatePatientViews);
         }
 
         private IEnumerable<Patient> GetPatientsForRoom(string room)
