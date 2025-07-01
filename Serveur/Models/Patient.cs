@@ -17,5 +17,9 @@
         public string Examinator { get; set; } = string.Empty;
         public string OperatorName { get; set; } = string.Empty;
         public bool IsTaken { get; set; }
+
+        public string ToggleExamLabel => IsTaken
+            ? $"Annuler {Exams} de {FirstName} {LastName}"
+            : $"Faire passer {Exams} de {FirstName} {LastName}";
     }
 }

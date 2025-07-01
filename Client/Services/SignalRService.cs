@@ -47,6 +47,8 @@ namespace Client.Services
 
         public event Action<ChatMessageModel>? OnMessageReceived;
         public event Action<Patient>? OnNewPatient;
+        public event Action<string>? OnPatientRemoved;
+        public event Action<Patient>? OnPatientUpdated;
         public event Action<IEnumerable<ExamOption>>? ExamOptionsUpdated;
         public event Action<IEnumerable<string>>? RoomsUpdated;
 
@@ -226,6 +228,35 @@ namespace Client.Services
                 });
             });
 
+            Connection.On<string>("PatientRemoved", id =>
+            {
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    var existing = Patients.FirstOrDefault(p => p.Id == id);
+                    if (existing != null)
+                        Patients.Remove(existing);
+                    OnPatientRemoved?.Invoke(id);
+                });
+            });
+
+            Connection.On<Patient>("PatientUpdated", patient =>
+            {
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    var existing = Patients.FirstOrDefault(p => p.Id == patient.Id);
+                    if (existing != null)
+                    {
+                        var index = Patients.IndexOf(existing);
+                        Patients[index] = patient;
+                    }
+                    else
+                    {
+                        Patients.Add(patient);
+                    }
+                    OnPatientUpdated?.Invoke(patient);
+                });
+            });
+
             Connection.On<IEnumerable<ExamOption>>("ExamOptionsUpdated", opts =>
             {
                 ExamOptionsUpdated?.Invoke(opts);
@@ -369,6 +400,18 @@ namespace Client.Services
         public async Task DeclarePatient(Patient p)
         {
             await Connection.InvokeAsync("DeclarePatient", p);
+        }
+
+        public async Task RemovePatientAsync(string id)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+                await Connection.InvokeAsync("RemovePatient", id);
+        }
+
+        public async Task SetPatientTakenAsync(string id, bool isTaken)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+                await Connection.InvokeAsync("UpdatePatientIsTaken", id, isTaken);
         }
         public async Task<List<ChatMessageModel>> LoadTodayMessagesFromDiskAsync()
         {

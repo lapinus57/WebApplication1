@@ -362,6 +362,29 @@ namespace ChatServeur
             await Clients.All.SendAsync("NewPatient", patient);
         }
 
+        public async Task RemovePatient(string id)
+        {
+            var patient = await _db.Patients.FindAsync(id);
+            if (patient != null)
+            {
+                _db.Patients.Remove(patient);
+                await _db.SaveChangesAsync();
+                await Clients.All.SendAsync("PatientRemoved", id);
+            }
+        }
+
+        public async Task UpdatePatientIsTaken(string id, bool isTaken)
+        {
+            var patient = await _db.Patients.FindAsync(id);
+            if (patient != null)
+            {
+                patient.IsTaken = isTaken;
+                _db.Patients.Update(patient);
+                await _db.SaveChangesAsync();
+                await Clients.All.SendAsync("PatientUpdated", patient);
+            }
+        }
+
         public async Task<List<Patient>> GetPatients()
         {
             var today = DateTime.Today;

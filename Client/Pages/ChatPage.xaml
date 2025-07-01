@@ -148,7 +148,13 @@
 
         <!-- Template d'affichage d'un patient dans les onglets des salles -->
         <DataTemplate x:Key="PatientItemTemplate" x:DataType="data:Patient">
-            <Border Background="{x:Bind Colors}" Margin="0,4" >
+            <Border Background="{x:Bind Colors}" Margin="0,4">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
+                        <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
                 <Grid Padding="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
