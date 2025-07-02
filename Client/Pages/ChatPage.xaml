@@ -148,11 +148,11 @@
 
         <!-- Template d'affichage d'un patient non pris en charge -->
         <DataTemplate x:Key="PatientDefaultTemplate" x:DataType="data:Patient">
-            <Border Background="{x:Bind Colors}" Margin="0,4">
+            <Border Background="{x:Bind Colors}" CornerRadius="10" Margin="0,4">
                 <Border.ContextFlyout>
                     <MenuFlyout>
-                    <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
-                    <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
                     <MenuFlyoutSubItem Text="Modification temps">
                         <MenuFlyoutItem Text="Mettre en premier" Tag="{x:Bind}" Click="MovePatientFirst_Click" />
                         <MenuFlyoutItem Text="Monter d'un cran" Tag="{x:Bind}" Click="MovePatientUp_Click" />
@@ -194,16 +194,12 @@
 
         <!-- Template d'affichage d'un patient déjà pris en charge -->
         <DataTemplate x:Key="PatientTakenTemplate" x:DataType="data:Patient">
-            <Border Background="Gray" Margin="0,4">
+            <Border Background="Gray" CornerRadius="10" Margin="0,4">
                 <Border.ContextFlyout>
                     <MenuFlyout>
+                        <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
                     <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
-                    <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
-                    <MenuFlyoutSubItem Text="Modification temps">
-                        <MenuFlyoutItem Text="Mettre en premier" Tag="{x:Bind}" Click="MovePatientFirst_Click" />
-                        <MenuFlyoutItem Text="Monter d'un cran" Tag="{x:Bind}" Click="MovePatientUp_Click" />
-                        <MenuFlyoutItem Text="Descendre d'un cran" Tag="{x:Bind}" Click="MovePatientDown_Click" />
-                    </MenuFlyoutSubItem>
+                    
                 </MenuFlyout>
                 </Border.ContextFlyout>
                 <Grid Padding="4">

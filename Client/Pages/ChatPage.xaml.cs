@@ -409,12 +409,27 @@ namespace Client.Pages
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
             {
-                var lastTaken = Patients.Where(p => p.IsTaken).OrderBy(p => p.HoldTime).LastOrDefault();
-                var firstWaiting = Patients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).FirstOrDefault();
-                if (lastTaken != null && firstWaiting != null)
+                var lastTaken = Patients.Where(p => p.IsTaken)
+                    .OrderBy(p => p.HoldTime)
+                    .LastOrDefault();
+                var firstWaiting = Patients.Where(p => !p.IsTaken)
+                    .OrderBy(p => p.HoldTime)
+                    .FirstOrDefault();
+
+                if (firstWaiting != null)
                 {
-                    var avgTicks = (lastTaken.HoldTime.Ticks + firstWaiting.HoldTime.Ticks) / 2;
-                    var newTime = new DateTime(avgTicks);
+                    DateTime newTime;
+
+                    if (lastTaken != null)
+                    {
+                        var avgTicks = (lastTaken.HoldTime.Ticks + firstWaiting.HoldTime.Ticks) / 2;
+                        newTime = new DateTime(avgTicks);
+                    }
+                    else
+                    {
+                        newTime = firstWaiting.HoldTime.AddSeconds(-1);
+                    }
+
                     patient.HoldTime = newTime;
                     UpdatePatientViews();
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
