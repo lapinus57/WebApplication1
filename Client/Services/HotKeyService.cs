@@ -262,7 +262,7 @@ namespace Client.Services
                     Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim(),
                     Position = floorCombo.SelectedItem as string ?? string.Empty,
                     HoldTime = DateTime.Now,
-                    Examinator = App.UserName
+                    Examinator = App.UserName,
                    
                 };
 
