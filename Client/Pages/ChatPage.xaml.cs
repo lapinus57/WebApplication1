@@ -375,8 +375,21 @@ namespace Client.Pages
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
             {
-                Patients.Remove(patient);
-                await _service.RemovePatientAsync(patient.Id);
+                var dialog = new ContentDialog
+                {
+                    Title = "Confirmation",
+                    Content = "Supprimer ce patient ?",
+                    PrimaryButtonText = "Oui",
+                    CloseButtonText = "Non",
+                    XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    Patients.Remove(patient);
+                    await _service.RemovePatientAsync(patient.Id);
+                }
             }
         }
 
@@ -389,6 +402,61 @@ namespace Client.Pages
                 patient.PickUpTime = newValue ? DateTime.Now : null;
                 UpdatePatientViews();
                 await _service.SetPatientTakenAsync(patient.Id, newValue);
+            }
+        }
+
+        private async void MovePatientFirst_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var lastTaken = Patients.Where(p => p.IsTaken).OrderBy(p => p.HoldTime).LastOrDefault();
+                var firstWaiting = Patients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).FirstOrDefault();
+                if (lastTaken != null && firstWaiting != null)
+                {
+                    var avgTicks = (lastTaken.HoldTime.Ticks + firstWaiting.HoldTime.Ticks) / 2;
+                    var newTime = new DateTime(avgTicks);
+                    patient.HoldTime = newTime;
+                    UpdatePatientViews();
+                    await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
+                }
+            }
+        }
+
+        private async void MovePatientUp_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var list = Patients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).ToList();
+                var index = list.IndexOf(patient);
+                if (index > 0)
+                {
+                    var h1 = list[Math.Max(index - 1, 0)].HoldTime;
+                    var h2 = list[Math.Max(index - 2, 0)].HoldTime;
+                    var avgTicks = (h1.Ticks + h2.Ticks) / 2;
+                    var newTime = new DateTime(avgTicks);
+                    patient.HoldTime = newTime;
+                    UpdatePatientViews();
+                    await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
+                }
+            }
+        }
+
+        private async void MovePatientDown_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var list = Patients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).ToList();
+                var index = list.IndexOf(patient);
+                if (index >= 0 && index < list.Count - 1)
+                {
+                    var h1 = list[Math.Min(index + 1, list.Count - 1)].HoldTime;
+                    var h2 = list[Math.Min(index + 2, list.Count - 1)].HoldTime;
+                    var avgTicks = (h1.Ticks + h2.Ticks) / 2;
+                    var newTime = new DateTime(avgTicks);
+                    patient.HoldTime = newTime;
+                    UpdatePatientViews();
+                    await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
+                }
             }
         }
 
