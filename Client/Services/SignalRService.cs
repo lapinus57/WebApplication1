@@ -413,6 +413,12 @@ namespace Client.Services
             if (Connection != null && Connection.State == HubConnectionState.Connected)
                 await Connection.InvokeAsync("UpdatePatientIsTaken", id, isTaken);
         }
+
+        public async Task UpdatePatientHoldTimeAsync(string id, DateTime newTime)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+                await Connection.InvokeAsync("UpdatePatientHoldTime", id, newTime);
+        }
         public async Task<List<ChatMessageModel>> LoadTodayMessagesFromDiskAsync()
         {
             try

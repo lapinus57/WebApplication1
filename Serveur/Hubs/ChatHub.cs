@@ -386,6 +386,18 @@ namespace ChatServeur
             }
         }
 
+        public async Task UpdatePatientHoldTime(string id, DateTime newTime)
+        {
+            var patient = await _db.Patients.FindAsync(id);
+            if (patient != null)
+            {
+                patient.HoldTime = newTime;
+                _db.Patients.Update(patient);
+                await _db.SaveChangesAsync();
+                await Clients.All.SendAsync("PatientUpdated", patient);
+            }
+        }
+
         public async Task<List<Patient>> GetPatients()
         {
             var today = DateTime.Today;
