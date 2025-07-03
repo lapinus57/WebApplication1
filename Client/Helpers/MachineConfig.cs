@@ -10,6 +10,10 @@ namespace Client.Helpers
         public string DefaultUser { get; set; } = string.Empty;
         public string LastUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
+        /// <summary>
+        /// Show the patient time modification menu in the chat page.
+        /// </summary>
+        public bool ShowTimeModification { get; set; }
 
         public static string FilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:data="using:Client.Models"
     Width="auto"
-    xmlns:local="using:Client.Pages">
+    xmlns:local="using:Client.Pages"
+     x:Name="PageRoot">
 
     <Page.Resources>
         <DataTemplate x:Key="OtherMessageTemplate" x:DataType="data:ChatMessageModel">
@@ -153,7 +154,7 @@
                     <MenuFlyout>
                         <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
-                    <MenuFlyoutSubItem Text="Modification temps">
+                        <MenuFlyoutSubItem Text="Modification temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
                         <MenuFlyoutItem Text="Mettre en premier" Tag="{x:Bind}" Click="MovePatientFirst_Click" />
                         <MenuFlyoutItem Text="Monter d'un cran" Tag="{x:Bind}" Click="MovePatientUp_Click" />
                         <MenuFlyoutItem Text="Descendre d'un cran" Tag="{x:Bind}" Click="MovePatientDown_Click" />

@@ -7,12 +7,14 @@ namespace Client.Pages
     public sealed partial class SystemPage : Page
     {
         public string RoomName { get; set; } = string.Empty;
+        public bool ShowTimeModification { get; set; }
 
         public SystemPage()
         {
 
             this.InitializeComponent();
             var cfg = MachineConfig.Load();
+            ShowTimeModification = cfg.ShowTimeModification;
             RoomName = cfg.RoomName;
             DataContext = this;
         }
@@ -25,7 +27,10 @@ namespace Client.Pages
 
         private async void Save_Click(object sender, RoutedEventArgs e)
         {
-            MachineConfig.Save(new MachineConfig { RoomName = RoomName });
+            var cfg = MachineConfig.Load();
+            cfg.RoomName = RoomName;
+            cfg.ShowTimeModification = ShowTimeModification;
+            MachineConfig.Save(cfg);
             App.ChatService.RoomName = RoomName;
             await App.ChatService.UpdateRoomNameAsync(RoomName);
         }

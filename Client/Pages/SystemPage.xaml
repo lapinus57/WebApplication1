@@ -11,6 +11,7 @@
 				<StackPanel Spacing="10">
 					<TextBlock Text="Nom de la salle"/>
 					<TextBox x:Name="RoomBox" Text="{x:Bind RoomName, Mode=TwoWay}"/>
+					<ToggleSwitch x:Name="TimeModSwitch" Header="Afficher la modification du temps" IsOn="{x:Bind ShowTimeModification, Mode=TwoWay}"/>
 					<Button Content="Sauvegarder" Click="Save_Click" HorizontalAlignment="Left"/>
 				</StackPanel>
 			</Border>

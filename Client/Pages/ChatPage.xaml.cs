@@ -26,11 +26,14 @@ namespace Client.Pages
         private ObservableCollection<string> RoomsWithAll { get; } = new();
 
         private DateTime _currentDate = DateTime.Today;
-
+        public bool ShowTimeModification { get; private set; }
+        public Visibility TimeModificationVisibility => ShowTimeModification ? Visibility.Visible : Visibility.Collapsed;
         public ChatPage()
         {
             InitializeComponent();
             _service = App.ChatService;
+            var cfg = MachineConfig.Load();
+            ShowTimeModification = cfg.ShowTimeModification;
             DataContext = this;
 
             BuildRooms();
@@ -168,7 +171,7 @@ namespace Client.Pages
             {
                 if (user != null)
                 {
-                    await _service.SendMessage(App.UserName, "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
+                    await _service.SendMessage(App.UserName, _service.RoomName, user.Username, text, @"E:\benoit.png", DateTime.Now);
                     Debug.WriteLine($"📤 Message envoyé à {user.Username}: {text}");
                     InputBox.Text = string.Empty;
                 }
