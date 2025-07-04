@@ -23,6 +23,7 @@ namespace Client.Models
         public string Examinator { get; set; } = string.Empty;
         public string OperatorName { get; set; } = string.Empty;
         public bool IsTaken { get; set; }
+        public bool IsArchived { get; set; }
 
         public string HoldTimeFormatted => HoldTime.ToString("HH:mm");
         public string? PickUpTimeFormatted => PickUpTime?.ToString("HH:mm");

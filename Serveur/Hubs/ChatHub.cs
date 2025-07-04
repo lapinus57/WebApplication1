@@ -401,6 +401,7 @@ namespace ChatServeur
 
         public async Task DeclarePatient(Patient patient)
         {
+            patient.IsArchived = false;
             _db.Patients.Add(patient);
             await _db.SaveChangesAsync();
             await Clients.All.SendAsync("NewPatient", patient);
@@ -446,9 +447,31 @@ namespace ChatServeur
         {
             var today = DateTime.Today;
             return await _db.Patients
-                .Where(p => p.HoldTime.Date == today)
+                .Where(p => p.HoldTime.Date == today && !p.IsArchived)
                 .OrderBy(p => p.HoldTime)
                 .ToListAsync();
+        }
+
+        public async Task<List<Patient>> GetArchivedPatients()
+        {
+            return await _db.Patients
+                .Where(p => p.IsArchived)
+                .OrderBy(p => p.HoldTime)
+                .ToListAsync();
+        }
+
+        public async Task ArchiveTakenPatients()
+        {
+            var patients = await _db.Patients.Where(p => p.IsTaken && !p.IsArchived).ToListAsync();
+            if (patients.Any())
+            {
+                foreach (var p in patients)
+                    p.IsArchived = true;
+                _db.Patients.UpdateRange(patients);
+                await _db.SaveChangesAsync();
+                foreach (var p in patients)
+                    await Clients.All.SendAsync("PatientUpdated", p);
+            }
         }
     }
 }

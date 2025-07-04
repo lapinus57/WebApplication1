@@ -412,10 +412,10 @@ namespace Client.Pages
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
             {
-                var lastTaken = Patients.Where(p => p.IsTaken)
+                var lastTaken = Patients.Where(p => p.IsTaken && !p.IsArchived)
                     .OrderBy(p => p.HoldTime)
                     .LastOrDefault();
-                var firstWaiting = Patients.Where(p => !p.IsTaken)
+                var firstWaiting = Patients.Where(p => !p.IsTaken && !p.IsArchived)
                     .OrderBy(p => p.HoldTime)
                     .FirstOrDefault();
 
@@ -444,7 +444,7 @@ namespace Client.Pages
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
             {
-                var list = Patients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).ToList();
+                var list = Patients.Where(p => !p.IsTaken && !p.IsArchived).OrderBy(p => p.HoldTime).ToList();
                 var index = list.IndexOf(patient);
                 if (index > 0)
                 {
@@ -463,7 +463,7 @@ namespace Client.Pages
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
             {
-                var list = Patients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).ToList();
+                var list = Patients.Where(p => !p.IsTaken && !p.IsArchived).OrderBy(p => p.HoldTime).ToList();
                 var index = list.IndexOf(patient);
                 if (index >= 0 && index < list.Count - 1)
                 {
@@ -476,6 +476,11 @@ namespace Client.Pages
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
                 }
             }
+        }
+
+        private async void ArchivePatients_Click(object sender, RoutedEventArgs e)
+        {
+            await _service.ArchiveTakenPatientsAsync();
         }
 
         private void Service_OnPatientRemoved(string id)
@@ -495,8 +500,8 @@ namespace Client.Pages
         private IEnumerable<Patient> GetPatientsForRoom(string room)
         {
             IEnumerable<Patient> query = room == "Toutes"
-              ? Patients
-              : Patients.Where(p => p.Position == room);
+              ? Patients.Where(p => !p.IsArchived)
+              : Patients.Where(p => p.Position == room && !p.IsArchived);
 
             return query
                 .OrderByDescending(p => p.IsTaken)
