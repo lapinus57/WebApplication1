@@ -272,7 +272,7 @@ namespace ChatServeur
         public async Task SaveExamOptions(IEnumerable<ExamOption> options)
         {
             var json = JsonSerializer.Serialize(options);
-            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            var config = await _db.ServerConfigs.SingleOrDefaultAsync();
             if (config == null)
             {
                 config = new ServerConfig();
@@ -281,13 +281,35 @@ namespace ChatServeur
 
             config.ExamOptionsJson = json;
             await _db.SaveChangesAsync();
+
+            // Update patients colors according to new exam options
+            var opts = options.ToList();
+            var patients = await _db.Patients.ToListAsync();
+            var changed = new List<Patient>();
+            foreach (var p in patients)
+            {
+                var opt = opts.SingleOrDefault(o => o.Name == p.Exams);
+                if (opt != null && p.Colors != opt.Color)
+                {
+                    p.Colors = opt.Color;
+                    changed.Add(p);
+                }
+            }
+
+            if (changed.Any())
+            {
+                _db.Patients.UpdateRange(changed);
+                await _db.SaveChangesAsync();
+                foreach (var c in changed)
+                    await Clients.All.SendAsync("PatientUpdated", c);
+            }
             //await Clients.All.SendAsync("ExamOptionsUpdated", options);
         }
 
         public async Task SaveExamOptionsSilent(IEnumerable<ExamOption> options)
         {
             var json = JsonSerializer.Serialize(options);
-            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            var config = await _db.ServerConfigs.SingleOrDefaultAsync();
             if (config == null)
             {
                 config = new ServerConfig();
@@ -296,12 +318,34 @@ namespace ChatServeur
 
             config.ExamOptionsJson = json;
             await _db.SaveChangesAsync();
+            // Apply new colors to existing patients without notification
+            var opts = options.ToList();
+            var patients = await _db.Patients.ToListAsync();
+            var changed = new List<Patient>();
+            foreach (var p in patients)
+            {
+                var opt = opts.SingleOrDefault(o => o.Name == p.Exams);
+                if (opt != null && p.Colors != opt.Color)
+                {
+                    p.Colors = opt.Color;
+                    changed.Add(p);
+                }
+            }
+
+            if (changed.Any())
+            {
+                _db.Patients.UpdateRange(changed);
+                await _db.SaveChangesAsync();
+                foreach (var c in changed)
+                    await Clients.All.SendAsync("PatientUpdated", c);
+                // No broadcast in silent mode
+            }
         }
 
         public async Task SaveRooms(IEnumerable<string> rooms)
         {
             var json = JsonSerializer.Serialize(rooms);
-            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            var config = await _db.ServerConfigs.SingleOrDefaultAsync();
             if (config == null)
             {
                 config = new ServerConfig();
@@ -315,7 +359,7 @@ namespace ChatServeur
         public async Task SaveRoomsSilent(IEnumerable<string> rooms)
         {
             var json = JsonSerializer.Serialize(rooms);
-            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            var config = await _db.ServerConfigs.SingleOrDefaultAsync();
             if (config == null)
             {
                 config = new ServerConfig();
@@ -327,7 +371,7 @@ namespace ChatServeur
 
         public async Task<List<ExamOption>> GetExamOptions()
         {
-            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            var config = await _db.ServerConfigs.SingleOrDefaultAsync();
             if (config == null || string.IsNullOrEmpty(config.ExamOptionsJson))
                 return new List<ExamOption>();
             try
@@ -342,7 +386,7 @@ namespace ChatServeur
 
         public async Task<List<string>> GetRooms()
         {
-            var config = await _db.ServerConfigs.FirstOrDefaultAsync();
+            var config = await _db.ServerConfigs.SingleOrDefaultAsync();
             if (config == null || string.IsNullOrEmpty(config.RoomsJson))
                 return new List<string>();
             try
