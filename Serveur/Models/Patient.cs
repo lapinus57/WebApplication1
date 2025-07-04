@@ -4,6 +4,7 @@
     {
         public string Id { get; set; } = string.Empty;
         public string Colors { get; set; } = string.Empty;
+        public string ForegroundColor => ColorHelpers.GetForeground(Colors);
         public string Title { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;

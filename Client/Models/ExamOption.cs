@@ -50,9 +50,15 @@ namespace Client.Models
                 {
                     _color = value;
                     OnPropertyChanged(nameof(Color));
+                    OnPropertyChanged(nameof(ForegroundColor));
                 }
             }
         }
+        public string ForegroundColor =>
+            ColorUtils.ToHex(
+                ColorUtils.GetContrastingTextColor(
+                    ColorUtils.FromHex(_color)));
+
 
         public string CodeMSG
         {

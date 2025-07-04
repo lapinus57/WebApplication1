@@ -7,6 +7,10 @@ namespace Client.Models
         public string Id { get; set; } = string.Empty;
         public string Colors { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
+        public string ForegroundColor =>
+           ColorUtils.ToHex(
+               ColorUtils.GetContrastingTextColor(
+                   ColorUtils.FromHex(Colors)));
         public string LastName { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string Exams { get; set; } = string.Empty;

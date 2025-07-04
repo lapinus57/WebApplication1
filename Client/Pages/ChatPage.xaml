@@ -173,21 +173,21 @@
 
                     <!-- Première ligne : Titre, Nom, Prénom -->
                     <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
-                        <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
-                        <TextBlock Text="{x:Bind FirstName}" />
+                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind LastName}" Margin="4,0" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind FirstName}" Foreground="{x:Bind ForegroundColor}"/>
                     </StackPanel>
 
                     <!-- Examinator à droite de la première ligne -->
                     <TextBlock Grid.Row="0" Grid.Column="1"
-                       Text="{x:Bind Examinator}"
+                       Text="{x:Bind Examinator}" Foreground="{x:Bind ForegroundColor}"
                        HorizontalAlignment="Right"/>
 
                     <!-- Deuxième ligne : examens et heure -->
                     <TextBlock Grid.Row="1" Grid.Column="0"
-                       Text="{x:Bind Exams}" FontWeight="Bold"/>
+                       Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
                     <TextBlock Grid.Row="1" Grid.Column="1"
-                       Text="{x:Bind HoldTimeFormatted}"
+                       Text="{x:Bind HoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}"
                        FontWeight="Bold" HorizontalAlignment="Right"/>
                 </Grid>
             </Border>
