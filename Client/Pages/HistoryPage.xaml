@@ -1,5 +1,6 @@
 <Page
     x:Class="Client.Pages.HistoryPage"
+    x:Name="PageRoot"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:data="using:Client.Models">
@@ -11,6 +12,11 @@
                     <MenuFlyout>
                         <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
+                        <MenuFlyoutSubItem Text="Modification temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
+                            <MenuFlyoutItem Text="Mettre en premier" Tag="{x:Bind}" Click="MovePatientFirst_Click" />
+                            <MenuFlyoutItem Text="Monter d'un cran" Tag="{x:Bind}" Click="MovePatientUp_Click" />
+                            <MenuFlyoutItem Text="Descendre d'un cran" Tag="{x:Bind}" Click="MovePatientDown_Click" />
+                        </MenuFlyoutSubItem>
                     </MenuFlyout>
                 </Border.ContextFlyout>
                 <Grid Padding="4">
@@ -183,6 +189,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -205,5 +212,10 @@
                 <Style TargetType="PivotHeaderItem" BasedOn="{StaticResource PivotHeaderItemStyle}" />
             </Pivot.Resources>
         </Pivot>
+
+        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+            <Button Content="Archiver" Click="ArchivePatients_Click"/>
+            <Button Content="Désarchiver" Click="UnarchivePatients_Click"/>
+        </StackPanel>
     </Grid>
 </Page>
