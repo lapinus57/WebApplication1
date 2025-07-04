@@ -20,10 +20,15 @@ namespace Client.Pages
         private ObservableCollection<string> RoomsWithAll { get; } = new();
         private readonly SignalRService _service;
 
+        public bool ShowTimeModification { get; private set; }
+        public Visibility TimeModificationVisibility => ShowTimeModification ? Visibility.Visible : Visibility.Collapsed;
+
         public HistoryPage()
         {
             this.InitializeComponent();
             _service = App.ChatService;
+            var cfg = MachineConfig.Load();
+            ShowTimeModification = cfg.ShowTimeModification;
             DataContext = this;
             Loaded += HistoryPage_Loaded;
             Rooms.CollectionChanged += Rooms_CollectionChanged;
@@ -144,6 +149,88 @@ namespace Client.Pages
                     await _service.RemovePatientAsync(patient.Id);
                 }
             }
+        }
+
+        private async void MovePatientFirst_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var lastTaken = NonArchivedPatients.Where(p => p.IsTaken)
+                    .OrderBy(p => p.HoldTime)
+                    .LastOrDefault();
+                var firstWaiting = NonArchivedPatients.Where(p => !p.IsTaken)
+                    .OrderBy(p => p.HoldTime)
+                    .FirstOrDefault();
+
+                if (firstWaiting != null)
+                {
+                    DateTime newTime;
+
+                    if (lastTaken != null)
+                    {
+                        var avgTicks = (lastTaken.HoldTime.Ticks + firstWaiting.HoldTime.Ticks) / 2;
+                        newTime = new DateTime(avgTicks);
+                    }
+                    else
+                    {
+                        newTime = firstWaiting.HoldTime.AddSeconds(-1);
+                    }
+
+                    patient.HoldTime = newTime;
+                    BuildRooms();
+                    await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
+                }
+            }
+        }
+
+        private async void MovePatientUp_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var list = NonArchivedPatients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).ToList();
+                var index = list.IndexOf(patient);
+                if (index > 0)
+                {
+                    var h1 = list[Math.Max(index - 1, 0)].HoldTime;
+                    var h2 = list[Math.Max(index - 2, 0)].HoldTime;
+                    var avgTicks = (h1.Ticks + h2.Ticks) / 2;
+                    var newTime = new DateTime(avgTicks);
+                    patient.HoldTime = newTime;
+                    BuildRooms();
+                    await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
+                }
+            }
+        }
+
+        private async void MovePatientDown_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var list = NonArchivedPatients.Where(p => !p.IsTaken).OrderBy(p => p.HoldTime).ToList();
+                var index = list.IndexOf(patient);
+                if (index >= 0 && index < list.Count - 1)
+                {
+                    var h1 = list[Math.Min(index + 1, list.Count - 1)].HoldTime;
+                    var h2 = list[Math.Min(index + 2, list.Count - 1)].HoldTime;
+                    var avgTicks = (h1.Ticks + h2.Ticks) / 2;
+                    var newTime = new DateTime(avgTicks);
+                    patient.HoldTime = newTime;
+                    BuildRooms();
+                    await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
+                }
+            }
+        }
+
+        private async void ArchivePatients_Click(object sender, RoutedEventArgs e)
+        {
+            await _service.ArchiveTakenPatientsAsync();
+            await LoadPatientsAsync();
+        }
+
+        private async void UnarchivePatients_Click(object sender, RoutedEventArgs e)
+        {
+            await _service.UnarchiveAllPatientsAsync();
+            await LoadPatientsAsync();
         }
     }
 }
