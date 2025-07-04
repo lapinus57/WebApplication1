@@ -329,7 +329,10 @@
         <ListView x:Name="MessagesList" Grid.Column="1" ItemTemplateSelector="{StaticResource MessageTemplateSelector}" SelectionMode="None"/>
 
 
-        <Button Grid.Column="0" Grid.Row="1" Content="Archiver" Click="ArchivePatients_Click" Margin="0,0,10,0"/>
+        <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Spacing="8">
+            <Button Content="Archiver" Click="ArchivePatients_Click"/>
+            <Button Content="Désarchiver" Click="UnarchivePatients_Click"/>
+        </StackPanel>
 
         <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown"
          

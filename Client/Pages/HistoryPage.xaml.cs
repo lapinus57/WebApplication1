@@ -1,12 +1,14 @@
 using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Client.Models;
 using Client.Services;
 using Client.Helpers;
 using Microsoft.UI.Xaml;
+using System;
 
 namespace Client.Pages
 {
@@ -64,13 +66,15 @@ namespace Client.Pages
             foreach (var room in RoomsWithAll)
             {
                 var list1 = new ListView { SelectionMode = ListViewSelectionMode.None };
-                list1.ItemTemplate = (DataTemplate)Resources["PatientItemTemplate"];
+                if (Resources["PatientTemplateSelector"] is DataTemplateSelector selector1)
+                    list1.ItemTemplateSelector = selector1;
                 list1.ItemsSource = GetPatientsForRoom(NonArchivedPatients, room).ToList();
                 var item1 = new PivotItem { Header = room, Content = list1 };
                 NotArchivedPivot.Items.Add(item1);
 
                 var list2 = new ListView { SelectionMode = ListViewSelectionMode.None };
-                list2.ItemTemplate = (DataTemplate)Resources["PatientItemTemplate"];
+                if (Resources["ArchivedPatientTemplateSelector"] is DataTemplateSelector selector2)
+                    list2.ItemTemplateSelector = selector2;
                 list2.ItemsSource = GetPatientsForRoom(ArchivedPatients, room).ToList();
                 var item2 = new PivotItem { Header = room, Content = list2 };
                 ArchivedPivot.Items.Add(item2);
@@ -94,6 +98,41 @@ namespace Client.Pages
         private async void Refresh_Click(object sender, RoutedEventArgs e)
         {
             await LoadPatientsAsync();
+        }
+        private async void UnarchivePatient_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                patient.IsArchived = false;
+                ArchivedPatients.Remove(patient);
+                NonArchivedPatients.Add(patient);
+                BuildRooms();
+                await _service.UnarchivePatientAsync(patient.Id);
+            }
+        }
+
+        private async void DeletePatient_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Confirmation",
+                    Content = "Supprimer ce patient ?",
+                    PrimaryButtonText = "Oui",
+                    CloseButtonText = "Non",
+                    XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    ArchivedPatients.Remove(patient);
+                    NonArchivedPatients.Remove(patient);
+                    BuildRooms();
+                    await _service.RemovePatientAsync(patient.Id);
+                }
+            }
         }
     }
 }

@@ -630,6 +630,20 @@ namespace Client.Services
                 }
             }
         }
+        public async Task UnarchiveAllPatientsAsync()
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("UnarchiveAllPatients");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur désarchivage patients : {ex.Message}");
+                }
+            }
+        }
 
         public async Task<List<Patient>> GetArchivedPatientsAsync()
         {
@@ -647,6 +661,21 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur récupération archives : {ex.Message}");
                 return new List<Patient>();
+            }
+        }
+
+        public async Task UnarchivePatientAsync(string id)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("UnarchivePatient", id);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur désarchivage patient : {ex.Message}");
+                }
             }
         }
     }

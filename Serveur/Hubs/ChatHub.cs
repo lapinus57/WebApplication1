@@ -473,5 +473,31 @@ namespace ChatServeur
                     await Clients.All.SendAsync("PatientUpdated", p);
             }
         }
+
+        public async Task UnarchiveAllPatients()
+        {
+            var patients = await _db.Patients.Where(p => p.IsArchived).ToListAsync();
+            if (patients.Any())
+            {
+                foreach (var p in patients)
+                    p.IsArchived = false;
+                _db.Patients.UpdateRange(patients);
+                await _db.SaveChangesAsync();
+                foreach (var p in patients)
+                    await Clients.All.SendAsync("PatientUpdated", p);
+            }
+        }
+
+        public async Task UnarchivePatient(string id)
+        {
+            var patient = await _db.Patients.FindAsync(id);
+            if (patient != null)
+            {
+                patient.IsArchived = false;
+                _db.Patients.Update(patient);
+                await _db.SaveChangesAsync();
+                await Clients.All.SendAsync("PatientUpdated", patient);
+            }
+        }
     }
 }

@@ -4,14 +4,114 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:data="using:Client.Models">
     <Page.Resources>
-        <DataTemplate x:Key="PatientItemTemplate" x:DataType="data:Patient">
-            <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
-                <TextBlock Text="{x:Bind HoldTimeFormatted}" Width="60"/>
-                <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
-                <TextBlock Text="{x:Bind FirstName}" Margin="4,0"/>
-                <TextBlock Text="{x:Bind Exams}" Margin="4,0"/>
-            </StackPanel>
+        <!-- Templates pour les patients non archivés -->
+        <DataTemplate x:Key="PatientDefaultTemplate" x:DataType="data:Patient">
+            <Border Background="{x:Bind Colors}" CornerRadius="10" Margin="0,4">
+                <Grid Padding="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind LastName}" Margin="4,0" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind FirstName}" Foreground="{x:Bind ForegroundColor}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind Examinator}" Foreground="{x:Bind ForegroundColor}" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind HoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}" FontWeight="Bold" HorizontalAlignment="Right"/>
+                </Grid>
+            </Border>
         </DataTemplate>
+
+        <DataTemplate x:Key="PatientTakenTemplate" x:DataType="data:Patient">
+            <Border Background="Gray" CornerRadius="10" Margin="0,4">
+                <Grid Padding="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
+                        <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
+                        <TextBlock Text="{x:Bind FirstName}" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind PickUpTimeFormatted}" HorizontalAlignment="Right"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- Templates pour les patients archivés -->
+        <DataTemplate x:Key="ArchivedPatientDefaultTemplate" x:DataType="data:Patient">
+            <Border Background="{x:Bind Colors}" CornerRadius="10" Margin="0,4">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Désarchiver" Tag="{x:Bind}" Click="UnarchivePatient_Click" />
+                        <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
+                <Grid Padding="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind LastName}" Margin="4,0" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind FirstName}" Foreground="{x:Bind ForegroundColor}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind Examinator}" Foreground="{x:Bind ForegroundColor}" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind HoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}" FontWeight="Bold" HorizontalAlignment="Right"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ArchivedPatientTakenTemplate" x:DataType="data:Patient">
+            <Border Background="Gray" CornerRadius="10" Margin="0,4">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Désarchiver" Tag="{x:Bind}" Click="UnarchivePatient_Click" />
+                        <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
+                <Grid Padding="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
+                        <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
+                        <TextBlock Text="{x:Bind FirstName}" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind PickUpTimeFormatted}" HorizontalAlignment="Right"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <data:PatientTemplateSelector x:Key="PatientTemplateSelector"
+                                      DefaultTemplate="{StaticResource PatientDefaultTemplate}"
+                                      TakenTemplate="{StaticResource PatientTakenTemplate}" />
+
+        <data:PatientTemplateSelector x:Key="ArchivedPatientTemplateSelector"
+                                      DefaultTemplate="{StaticResource ArchivedPatientDefaultTemplate}"
+                                      TakenTemplate="{StaticResource ArchivedPatientTakenTemplate}" />
+
 
         <Style TargetType="PivotItem">
             <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
@@ -69,6 +169,7 @@
     <Grid Padding="10" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -78,13 +179,16 @@
 
         <Button Content="Rafraîchir" HorizontalAlignment="Left" Click="Refresh_Click" Grid.ColumnSpan="2"/>
 
-        <Pivot x:Name="NotArchivedPivot" Grid.Row="1" Grid.Column="0" SelectionChanged="Pivot_SelectionChanged" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}">
+        <TextBlock Text="En cours" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" Margin="0,4"/>
+        <TextBlock Text="Archivé" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" Margin="0,4"/>
+
+        <Pivot x:Name="NotArchivedPivot" Grid.Row="2" Grid.Column="0" SelectionChanged="Pivot_SelectionChanged" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}">
             <Pivot.Resources>
                 <Style TargetType="PivotHeaderItem" BasedOn="{StaticResource PivotHeaderItemStyle}" />
             </Pivot.Resources>
         </Pivot>
 
-        <Pivot x:Name="ArchivedPivot" Grid.Row="1" Grid.Column="1" SelectionChanged="Pivot_SelectionChanged" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}">
+        <Pivot x:Name="ArchivedPivot" Grid.Row="2" Grid.Column="1" SelectionChanged="Pivot_SelectionChanged" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}">
             <Pivot.Resources>
                 <Style TargetType="PivotHeaderItem" BasedOn="{StaticResource PivotHeaderItemStyle}" />
             </Pivot.Resources>

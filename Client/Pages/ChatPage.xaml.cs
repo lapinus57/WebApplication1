@@ -483,6 +483,12 @@ namespace Client.Pages
             await _service.ArchiveTakenPatientsAsync();
         }
 
+        private async void UnarchivePatients_Click(object sender, RoutedEventArgs e)
+        {
+            await _service.UnarchiveAllPatientsAsync();
+        }
+
+
         private void Service_OnPatientRemoved(string id)
         {
             DispatcherQueue.TryEnqueue(() =>
