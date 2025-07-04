@@ -615,5 +615,39 @@ namespace Client.Services
                 }
             }
         }
+
+        public async Task ArchiveTakenPatientsAsync()
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("ArchiveTakenPatients");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur archivage patients : {ex.Message}");
+                }
+            }
+        }
+
+        public async Task<List<Patient>> GetArchivedPatientsAsync()
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return new List<Patient>();
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<List<Patient>>("GetArchivedPatients");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération archives : {ex.Message}");
+                return new List<Patient>();
+            }
+        }
     }
 }

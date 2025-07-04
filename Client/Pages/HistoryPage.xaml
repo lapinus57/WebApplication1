@@ -1,8 +1,93 @@
 <Page
     x:Class="Client.Pages.HistoryPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <TextBlock Text="History" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:data="using:Client.Models">
+    <Page.Resources>
+        <DataTemplate x:Key="PatientItemTemplate" x:DataType="data:Patient">
+            <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
+                <TextBlock Text="{x:Bind HoldTimeFormatted}" Width="60"/>
+                <TextBlock Text="{x:Bind LastName}" Margin="4,0"/>
+                <TextBlock Text="{x:Bind FirstName}" Margin="4,0"/>
+                <TextBlock Text="{x:Bind Exams}" Margin="4,0"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <Style TargetType="PivotItem">
+            <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
+        </Style>
+        <Style x:Key="PivotHeaderItemStyle" TargetType="PivotHeaderItem">
+            <Setter Property="Foreground" Value="{ThemeResource PivotHeaderForeground}" />
+            <Setter Property="Margin" Value="8,0" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PivotHeaderItem">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition Height="2" />
+                            </Grid.RowDefinitions>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver" />
+                                </VisualStateGroup>
+                                <VisualStateGroup x:Name="SelectionStates">
+                                    <VisualState x:Name="Unselected">
+                                        <VisualState.Setters>
+                                            <Setter Target="Underline.Visibility" Value="Collapsed" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Target="Underline.Visibility" Value="Visible" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter
+                                x:Name="ContentPresenter"
+                                Content="{TemplateBinding Content}"
+                                Foreground="{ThemeResource TextAppBackgroundColor}"
+                                FontWeight="Bold"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                            <Rectangle x:Name="Underline" Grid.Row="1"
+                                       Height="2"
+                                       Fill="{ThemeResource AccentColor}"
+                                       HorizontalAlignment="Stretch"
+                                       VerticalAlignment="Bottom"
+                                       Visibility="Collapsed" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Grid Padding="10" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Button Content="Rafraîchir" HorizontalAlignment="Left" Click="Refresh_Click" Grid.ColumnSpan="2"/>
+
+        <Pivot x:Name="NotArchivedPivot" Grid.Row="1" Grid.Column="0" SelectionChanged="Pivot_SelectionChanged" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}">
+            <Pivot.Resources>
+                <Style TargetType="PivotHeaderItem" BasedOn="{StaticResource PivotHeaderItemStyle}" />
+            </Pivot.Resources>
+        </Pivot>
+
+        <Pivot x:Name="ArchivedPivot" Grid.Row="1" Grid.Column="1" SelectionChanged="Pivot_SelectionChanged" ItemContainerStyle="{StaticResource PivotTitleContentControlStyle}">
+            <Pivot.Resources>
+                <Style TargetType="PivotHeaderItem" BasedOn="{StaticResource PivotHeaderItemStyle}" />
+            </Pivot.Resources>
+        </Pivot>
     </Grid>
 </Page>
