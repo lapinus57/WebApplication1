@@ -7,6 +7,12 @@
         <!-- Templates pour les patients non archivés -->
         <DataTemplate x:Key="PatientDefaultTemplate" x:DataType="data:Patient">
             <Border Background="{x:Bind Colors}" CornerRadius="10" Margin="0,4">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
                 <Grid Padding="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -30,6 +36,12 @@
 
         <DataTemplate x:Key="PatientTakenTemplate" x:DataType="data:Patient">
             <Border Background="Gray" CornerRadius="10" Margin="0,4">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
                 <Grid Padding="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

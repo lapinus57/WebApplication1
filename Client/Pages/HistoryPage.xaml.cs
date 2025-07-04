@@ -54,6 +54,17 @@ namespace Client.Pages
             BuildRooms();
         }
 
+        private async void TogglePatientTaken_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                var newValue = !patient.IsTaken;
+                patient.IsTaken = newValue;
+                patient.PickUpTime = newValue ? DateTime.Now : null;
+                BuildRooms();
+                await _service.SetPatientTakenAsync(patient.Id, newValue);
+            }
+        }
         private void BuildRooms()
         {
             RoomsWithAll.Clear();
