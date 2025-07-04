@@ -494,9 +494,13 @@ namespace Client.Pages
 
         private IEnumerable<Patient> GetPatientsForRoom(string room)
         {
-            return room == "Toutes"
-                ? Patients.OrderBy(p => p.HoldTime)
-                : Patients.Where(p => p.Position == room).OrderBy(p => p.HoldTime);
+            IEnumerable<Patient> query = room == "Toutes"
+              ? Patients
+              : Patients.Where(p => p.Position == room);
+
+            return query
+                .OrderByDescending(p => p.IsTaken)
+                .ThenBy(p => p.HoldTime);
         }
     }
 
