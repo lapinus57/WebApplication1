@@ -28,6 +28,7 @@ namespace Client.Pages
 
         private DateTime _currentDate = DateTime.Today;
         private FrameworkElement? _currentMessageTarget;
+        private bool _ignoreSelectionChanged;
         public bool ShowTimeModification { get; private set; }
         public Visibility TimeModificationVisibility => ShowTimeModification ? Visibility.Visible : Visibility.Collapsed;
         public ChatPage()
@@ -137,10 +138,13 @@ namespace Client.Pages
         private void TryRestoreUserSelection()
         {
             if (ConnectedUsers.Count == 0) return;
+            var target = App.LastUserChanged ?? AppSettings.CurrentSelectedUser;
+            if (target != null && target.Username == App.UserName)
+                target = null;
 
-            if (AppSettings.CurrentSelectedUser != null)
+            if (target != null)
             {
-                var found = ConnectedUsers.FirstOrDefault(u => u.Username == AppSettings.CurrentSelectedUser.Username);
+                var found = ConnectedUsers.FirstOrDefault(u => u.Username == target.Username);
                 if (found != null)
                 {
                     UsersList.SelectedItem = found;
@@ -153,13 +157,26 @@ namespace Client.Pages
             {
                 UsersList.SelectedItem = defaultUser;
                 AppSettings.CurrentSelectedUser = defaultUser;
+                App.LastUserChanged = defaultUser;
             }
         }
 
         private void UsersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_ignoreSelectionChanged)
+                return;
+
             if (UsersList.SelectedItem is UserInfo selected)
             {
+                if (selected.Username == App.UserName)
+                {
+                    _ignoreSelectionChanged = true;
+                    UsersList.SelectedItem = App.LastUserChanged ?? AppSettings.CurrentSelectedUser;
+                    _ignoreSelectionChanged = false;
+                    return;
+                }
+
+                App.LastUserChanged = selected;
                 AppSettings.CurrentSelectedUser = selected;
                 InputBox.Focus(FocusState.Programmatic);
             }
