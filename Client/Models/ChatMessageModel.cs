@@ -13,6 +13,15 @@ namespace Client.Models
 
         public string TimeFormatted => Timestamp.ToString("dd/MM/yy HH:mm");
         public string Header => $"{Sender} ({Room}) :";
-        public string IrcHeader => $"[{Timestamp:dd/MM/yy HH:mm}] <{Sender} ({Room})> <{Destinataire}> : {Content}";
+        /// <summary>
+        /// Timestamp formatted depending on the current day. If the message was
+        /// sent today, only the time is displayed, otherwise the full date and
+        /// time are returned.
+        /// </summary>
+        public string IrcTimestamp => Timestamp.Date == DateTime.Today
+            ? Timestamp.ToString("HH:mm")
+            : Timestamp.ToString("dd/MM/yy HH:mm");
+
+        public string IrcHeader => $"[{IrcTimestamp}] <{Sender} ({Room})> <{Destinataire}> : {Content}";
     }
 }
