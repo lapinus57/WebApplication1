@@ -62,7 +62,8 @@
                FontSize="{ThemeResource MessageFontSize}"
                HorizontalAlignment="Left"
                        TextWrapping="Wrap"
-                       MaxWidth="1000">
+                       MaxWidth="1000"
+                        IsTextSelectionEnabled="True">
                 <Run Text="[" Foreground="DarkViolet" /><Run Text="{x:Bind IrcTimestamp}" Foreground="DarkViolet" /><Run Text="]"  Foreground="DarkViolet" />
                 <Run Text="&lt;"/><Run Text="{x:Bind Sender}" /><Run Text="(" /><Run Text="{x:Bind Room}" /><Run Text=")&gt;" />
                 <Run Text="&lt;"/><Run Text="{x:Bind Destinataire}" /><Run Text="&gt;" />
