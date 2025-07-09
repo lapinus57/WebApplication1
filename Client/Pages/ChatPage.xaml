@@ -8,14 +8,19 @@
      x:Name="PageRoot">
 
     <Page.Resources>
+        <MenuFlyout x:Key="MessageContextMenu" Opened="MessageContextMenu_Opened">
+            <MenuFlyoutItem Text="Copier la sélection" Click="CopySelection_Click" />
+            <MenuFlyoutItem Text="Tout sélectionner" Click="SelectAll_Click" />
+            <MenuFlyoutItem Text="Supprimer" Click="DeleteMessage_Click" />
+        </MenuFlyout>
         <DataTemplate x:Key="OtherMessageTemplate" x:DataType="data:ChatMessageModel">
             <StackPanel HorizontalAlignment="Left">
-                <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{ThemeResource OtherMessageColor}">
+                <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{ThemeResource OtherMessageColor}" ContextFlyout="{StaticResource MessageContextMenu}">
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                         <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
                             <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
-                            <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                            <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}" IsTextSelectionEnabled="True"/>
                             <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextOtherMessageColor}"/>
                         </StackPanel>
                     </StackPanel>
@@ -24,12 +29,12 @@
         </DataTemplate>
 
         <DataTemplate x:Key="MyMessageTemplate" x:DataType="data:ChatMessageModel">
-            <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{ThemeResource MyMessageColor}">
+            <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{ThemeResource MyMessageColor}" ContextFlyout="{StaticResource MessageContextMenu}">
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                     <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
                         <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
-                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" MaxWidth="500" HorizontalAlignment="Left" Foreground="{ThemeResource TextMyMessageColor}"/>
+                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" MaxWidth="500" HorizontalAlignment="Left" Foreground="{ThemeResource TextMyMessageColor}" IsTextSelectionEnabled="True"/>
                         <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextMyMessageColor}"/>
                     </StackPanel>
                 </StackPanel>
@@ -61,8 +66,10 @@
             <TextBlock FontFamily="Consolas"
                FontSize="{ThemeResource MessageFontSize}"
                HorizontalAlignment="Left"
-                       TextWrapping="Wrap"
-                       MaxWidth="1000">
+               TextWrapping="Wrap"
+               MaxWidth="1000"
+               IsTextSelectionEnabled="True"
+               ContextFlyout="{StaticResource MessageContextMenu}">
                 <Run Text="[" Foreground="DarkViolet" /><Run Text="{x:Bind IrcTimestamp}" Foreground="DarkViolet" /><Run Text="]"  Foreground="DarkViolet" />
                 <Run Text="&lt;"/><Run Text="{x:Bind Sender}" /><Run Text="(" /><Run Text="{x:Bind Room}" /><Run Text=")&gt;" />
                 <Run Text="&lt;"/><Run Text="{x:Bind Destinataire}" /><Run Text="&gt;" />

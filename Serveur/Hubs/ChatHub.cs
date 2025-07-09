@@ -135,7 +135,8 @@ namespace ChatServeur
                 Room = room,
                 Content = content,
                 Avatar = avatar,
-                Timestamp = timestamp
+                Timestamp = timestamp,
+                IsDeleted = false
             };
 
             _db.Messages.Add(message);
@@ -143,26 +144,26 @@ namespace ChatServeur
 
             if (destinataire == "A Tous")
             {
-                await Clients.All.SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
+                await Clients.All.SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
             }
             else if (destinataire == "Secrétariat")
             {
-                await Clients.Group("Secrétariat").SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Group("Secrétariat").SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
 
                 if (!GroupMembers.TryGetValue("Secrétariat", out var membres) || !membres.Contains(sender))
                 {
-                    await Clients.Caller.SendAsync("ReceiveMessage", sender, room, "Secrétariat", content, avatar, timestamp);
+                    await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, "Secrétariat", content, avatar, timestamp);
                 }
             }
             else if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionId))
             {
-                await Clients.Client(targetConnectionId).SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
-                await Clients.Caller.SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Client(targetConnectionId).SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
             }
             else
             {
-                await Clients.Group(destinataire).SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
-                await Clients.Caller.SendAsync("ReceiveMessage", sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Group(destinataire).SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
             }
         }
 
@@ -242,7 +243,9 @@ namespace ChatServeur
             var today = DateTime.Today;
 
             return await _db.Messages
-                .Where(m => (m.Sender == username || m.Destinataire == username || m.Destinataire == "A Tous") && m.Timestamp.Date == today)
+                .Where(m => !m.IsDeleted &&
+                            (m.Sender == username || m.Destinataire == username || m.Destinataire == "A Tous") &&
+                            m.Timestamp.Date == today)
                 .OrderBy(m => m.Timestamp)
                 .ToListAsync();
         }
@@ -252,9 +255,23 @@ namespace ChatServeur
             var day = date.Date;
 
             return await _db.Messages
-                .Where(m => (m.Sender == username || m.Destinataire == username || m.Destinataire == "A Tous") && m.Timestamp.Date == day)
+                .Where(m => !m.IsDeleted &&
+                            (m.Sender == username || m.Destinataire == username || m.Destinataire == "A Tous") &&
+                            m.Timestamp.Date == day)
                 .OrderBy(m => m.Timestamp)
                 .ToListAsync();
+        }
+
+        public async Task DeleteMessage(int id)
+        {
+            var message = await _db.Messages.FindAsync(id);
+            if (message != null)
+            {
+                message.IsDeleted = true;
+                _db.Messages.Update(message);
+                await _db.SaveChangesAsync();
+                await Clients.All.SendAsync("MessageDeleted", id);
+            }
         }
 
         public async Task SetRoomName(string roomName)
