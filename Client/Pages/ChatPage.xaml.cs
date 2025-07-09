@@ -14,6 +14,7 @@ using Client.Services;
 using Client.Helpers;
 using Client;
 using Windows.ApplicationModel.DataTransfer;
+using Microsoft.UI.Xaml.Documents;
 
 namespace Client.Pages
 {
@@ -541,9 +542,24 @@ namespace Client.Pages
 
         private void CopySelection_Click(object sender, RoutedEventArgs e)
         {
+            string? text = null;
             if (_currentMessageTarget is TextBlock tb)
             {
-                var text = string.IsNullOrEmpty(tb.SelectedText) ? tb.Text : tb.SelectedText;
+                text = string.IsNullOrEmpty(tb.SelectedText) ? tb.Text : tb.SelectedText;
+            }
+            else if (_currentMessageTarget is RichTextBlock rtb)
+            {
+                text = rtb.Selection.Text;
+                if (string.IsNullOrEmpty(text))
+                {
+                    rtb.SelectAll();
+                    text = rtb.Selection.Text;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                text = text.Replace("\r", string.Empty).Replace("\n", " ");
                 var data = new DataPackage();
                 data.SetText(text);
                 Clipboard.SetContent(data);
@@ -555,6 +571,10 @@ namespace Client.Pages
             if (_currentMessageTarget is TextBlock tb)
             {
                 tb.SelectAll();
+            }
+            else if (_currentMessageTarget is RichTextBlock rtb)
+            {
+                rtb.SelectAll();
             }
         }
 
@@ -576,5 +596,4 @@ namespace Client.Pages
             foreach (var item in toRemove)
                 collection.Remove(item);
         }
-
     }}
