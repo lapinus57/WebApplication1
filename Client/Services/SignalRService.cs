@@ -196,10 +196,11 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<string, string, string, string, string, DateTime>("ReceiveMessage", (user, room, destinataire, msg, avatar, time) =>
+            Connection.On<int, string, string, string, string, string, DateTime>("ReceiveMessage", (id, user, room, destinataire, msg, avatar, time) =>
             {
                 var chat = new ChatMessageModel
                 {
+                    Id = id,
                     Sender = user,
                     Destinataire = destinataire,
                     Room = room,
@@ -215,6 +216,16 @@ namespace Client.Services
                     Messages.Add(chat);
                     OnMessageReceived?.Invoke(chat);
                     await SaveTodayMessagesToDiskAsync();
+                });
+            });
+
+            Connection.On<int>("MessageDeleted", id =>
+            {
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    var message = Messages.OfType<ChatMessageModel>().FirstOrDefault(m => m.Id == id);
+                    if (message != null)
+                        Messages.Remove(message);
                 });
             });
 
@@ -314,12 +325,14 @@ namespace Client.Services
 
                 var messages = raw.Select(m => new ChatMessageModel
                 {
+                    Id = m.Id,
                     Sender = m.Sender,
                     Destinataire = m.Destinataire,
                     Room = m.Room,
                     Content = m.Content,
                     Avatar = m.Avatar,
-                    Timestamp = m.Timestamp
+                    Timestamp = m.Timestamp,
+                    IsDeleted = m.IsDeleted
                 }).ToList();
 
                 return Result<List<ChatMessageModel>>.Ok(messages);
@@ -343,12 +356,14 @@ namespace Client.Services
                 return Result<List<ChatMessageModel>>.Ok(
                     raw.Select(m => new ChatMessageModel
                     {
+                        Id = m.Id,
                         Sender = m.Sender,
                         Destinataire = m.Destinataire,
                         Room = m.Room,
                         Content = m.Content,
                         Avatar = m.Avatar,
-                        Timestamp = m.Timestamp
+                        Timestamp = m.Timestamp,
+                        IsDeleted = m.IsDeleted
                     }).ToList()
                 );
             }
@@ -418,6 +433,12 @@ namespace Client.Services
         {
             if (Connection != null && Connection.State == HubConnectionState.Connected)
                 await Connection.InvokeAsync("UpdatePatientHoldTime", id, newTime);
+        }
+
+        public async Task DeleteMessageAsync(int id)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+                await Connection.InvokeAsync("DeleteMessage", id);
         }
         public async Task<List<ChatMessageModel>> LoadTodayMessagesFromDiskAsync()
         {

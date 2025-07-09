@@ -34,6 +34,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
     db.Database.EnsureCreated();
     EnsureArchivedColumn(db);
+    EnsureIsDeletedColumn(db);
     if (!db.ServerConfigs.Any())
     {
         db.ServerConfigs.Add(new ServerConfig());
@@ -63,6 +64,37 @@ void EnsureArchivedColumn(ChatDbContext db)
         if (!exists)
         {
             cmd.CommandText = "ALTER TABLE Patients ADD COLUMN IsArchived INTEGER NOT NULL DEFAULT 0";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+void EnsureIsDeletedColumn(ChatDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info('Messages')";
+        using var reader = cmd.ExecuteReader();
+        bool exists = false;
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), "IsDeleted", StringComparison.OrdinalIgnoreCase))
+            {
+                exists = true;
+                break;
+            }
+        }
+        reader.Close();
+        if (!exists)
+        {
+            cmd.CommandText = "ALTER TABLE Messages ADD COLUMN IsDeleted INTEGER NOT NULL DEFAULT 0";
             cmd.ExecuteNonQuery();
         }
     }

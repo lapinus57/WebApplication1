@@ -13,6 +13,7 @@ using Client.Models;
 using Client.Services;
 using Client.Helpers;
 using Client;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Client.Pages
 {
@@ -26,6 +27,7 @@ namespace Client.Pages
         private ObservableCollection<string> RoomsWithAll { get; } = new();
 
         private DateTime _currentDate = DateTime.Today;
+        private FrameworkElement? _currentMessageTarget;
         public bool ShowTimeModification { get; private set; }
         public Visibility TimeModificationVisibility => ShowTimeModification ? Visibility.Visible : Visibility.Collapsed;
         public ChatPage()
@@ -513,6 +515,40 @@ namespace Client.Pages
                 .OrderByDescending(p => p.IsTaken)
                 .ThenBy(p => p.HoldTime);
         }
+
+        private void MessageContextMenu_Opened(object sender, object e)
+        {
+            if (sender is MenuFlyout menu)
+                _currentMessageTarget = menu.Target as FrameworkElement;
+        }
+
+        private void CopySelection_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentMessageTarget is TextBlock tb)
+            {
+                var text = string.IsNullOrEmpty(tb.SelectedText) ? tb.Text : tb.SelectedText;
+                var data = new DataPackage();
+                data.SetText(text);
+                Clipboard.SetContent(data);
+            }
+        }
+
+        private void SelectAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentMessageTarget is TextBlock tb)
+            {
+                tb.SelectAll();
+            }
+        }
+
+        private async void DeleteMessage_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentMessageTarget?.DataContext is ChatMessageModel msg)
+            {
+                Messages.Remove(msg);
+                await _service.DeleteMessageAsync(msg.Id);
+            }
+        }
     }
 
     public static class ObservableCollectionExtensions
@@ -524,5 +560,4 @@ namespace Client.Pages
                 collection.Remove(item);
         }
 
-    }
-}
+    }}
