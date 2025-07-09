@@ -15,6 +15,7 @@ namespace Client
         public static SignalRService ChatService { get; } = new SignalRService();
         public static Window? MainWindow { get; private set; }
         public static string UserName { get; set; } = string.Empty;
+        public static UserInfo? LastUserChanged { get; set; }
         public static HotKeyService HotKeys { get; } = new HotKeyService();
         public App()
         {
