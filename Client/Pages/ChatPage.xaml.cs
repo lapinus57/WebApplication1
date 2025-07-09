@@ -137,10 +137,10 @@ namespace Client.Pages
         private void TryRestoreUserSelection()
         {
             if (ConnectedUsers.Count == 0) return;
-
-            if (AppSettings.CurrentSelectedUser != null)
+            var target = App.LastUserChanged ?? AppSettings.CurrentSelectedUser;
+            if (target != null)
             {
-                var found = ConnectedUsers.FirstOrDefault(u => u.Username == AppSettings.CurrentSelectedUser.Username);
+                var found = ConnectedUsers.FirstOrDefault(u => u.Username == target.Username);
                 if (found != null)
                 {
                     UsersList.SelectedItem = found;
@@ -153,6 +153,7 @@ namespace Client.Pages
             {
                 UsersList.SelectedItem = defaultUser;
                 AppSettings.CurrentSelectedUser = defaultUser;
+                App.LastUserChanged = defaultUser;
             }
         }
 
@@ -160,6 +161,7 @@ namespace Client.Pages
         {
             if (UsersList.SelectedItem is UserInfo selected)
             {
+                App.LastUserChanged = selected;
                 AppSettings.CurrentSelectedUser = selected;
                 InputBox.Focus(FocusState.Programmatic);
             }

@@ -67,6 +67,8 @@ namespace Client.Services
             var cachedUsers = await LoadUsersFromDiskAsync();
             foreach (var user in cachedUsers)
             {
+                if (user.Username == App.UserName)
+                    continue;
                 user.IsOnline = false;
                 user.Room = "Hors ligne";
                 ConnectedUsers.Add(user);
@@ -147,6 +149,8 @@ namespace Client.Services
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
+                    if (user.Username == App.UserName)
+                        return;
                     var existing = ConnectedUsers.FirstOrDefault(u => u.Username == user.Username);
                     if (existing != null)
                     {
@@ -171,6 +175,8 @@ namespace Client.Services
 
                     foreach (var user in users)
                     {
+                        if (user.Username == App.UserName)
+                            continue;
                         ConnectedUsers.Add(user);
                         Debug.WriteLine($"✅ User list ajoutée : {user.Username} ({user.Room})");
                     }
@@ -481,7 +487,9 @@ namespace Client.Services
                 if (File.Exists(path))
                 {
                     var json = await File.ReadAllTextAsync(path);
-                    return JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
+                    var list = JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
+                    list.RemoveAll(u => u.Username == App.UserName);
+                    return list;
                 }
             }
             catch (Exception ex)
@@ -496,7 +504,7 @@ namespace Client.Services
             try
             {
                 var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", "users.json");
-                var json = JsonConvert.SerializeObject(ConnectedUsers.ToList(), Formatting.Indented);
+                var json = JsonConvert.SerializeObject(ConnectedUsers.Where(u => u.Username != App.UserName).ToList(), Formatting.Indented);
                 await File.WriteAllTextAsync(path, json);
             }
             catch (Exception ex)
