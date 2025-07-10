@@ -13,6 +13,7 @@ using Client.Models;
 using Client.Services;
 using Client.Helpers;
 using Client;
+using System.Text;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI.Xaml.Documents;
 
@@ -549,12 +550,12 @@ namespace Client.Pages
             }
             else if (_currentMessageTarget is RichTextBlock rtb)
             {
-                text = rtb.Selection.Text;
-                if (string.IsNullOrEmpty(text))
-                {
-                    rtb.SelectAll();
-                    text = rtb.Selection.Text;
-                }
+                rtb.SelectAll();
+                text = GetRichText(rtb);
+            }
+            else if (_currentMessageTarget?.DataContext is ChatMessageModel msg)
+            {
+                text = $"{msg.Header}\n{msg.Content}\n{msg.TimeFormatted}";
             }
 
             if (!string.IsNullOrEmpty(text))
@@ -576,6 +577,30 @@ namespace Client.Pages
             {
                 rtb.SelectAll();
             }
+        }
+        private static string GetRichText(RichTextBlock block)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var b in block.Blocks)
+            {
+                if (b is Paragraph p)
+                {
+                    foreach (var inline in p.Inlines)
+                    {
+                        switch (inline)
+                        {
+                            case Run run:
+                                sb.Append(run.Text);
+                                break;
+                            case LineBreak:
+                                sb.Append('\n');
+                                break;
+                        }
+                    }
+                    sb.Append('\n');
+                }
+            }
+            return sb.ToString();
         }
 
         private async void DeleteMessage_Click(object sender, RoutedEventArgs e)
