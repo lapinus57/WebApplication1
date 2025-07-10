@@ -19,7 +19,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                         <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
-                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500">
+                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}">
                                 <Paragraph>
                                     <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
                                 </Paragraph>
@@ -41,7 +41,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                     <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
-                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500">
+                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}">
                             <Paragraph>
                                 <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
                             </Paragraph>
