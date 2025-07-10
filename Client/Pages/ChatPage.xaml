@@ -19,13 +19,11 @@
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                         <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
-                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}">
+                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
                                 <Paragraph>
                                     <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
                                 </Paragraph>
-                                <Paragraph>
-                                    <Run Text="{x:Bind Content}" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
-                                </Paragraph>
+                                <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
                                 <Paragraph TextAlignment="Right">
                                     <Run Text="{x:Bind TimeFormatted}" FontSize="12" Foreground="{ThemeResource TextOtherMessageColor}"/>
                                 </Paragraph>
@@ -41,13 +39,11 @@
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                     <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
-                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}">
+                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
                             <Paragraph>
                                 <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
                             </Paragraph>
-                            <Paragraph>
-                                <Run Text="{x:Bind Content}" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
-                            </Paragraph>
+                            <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
                             <Paragraph TextAlignment="Right">
                                 <Run Text="{x:Bind TimeFormatted}" FontSize="12" Foreground="{ThemeResource TextMyMessageColor}"/>
                             </Paragraph>
@@ -360,7 +356,7 @@
             <Button Content="Désarchiver" Click="UnarchivePatients_Click"/>
         </StackPanel>
 
-        <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown"
+        <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown" Paste="InputBox_Paste"
          
     
          Translation="0,0,50">

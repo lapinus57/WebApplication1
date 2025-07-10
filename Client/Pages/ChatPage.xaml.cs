@@ -602,6 +602,25 @@ namespace Client.Pages
             }
             return sb.ToString();
         }
+        private async void InputBox_Paste(object sender, TextControlPasteEventArgs e)
+        {
+            var content = Clipboard.GetContent();
+            if (content.Contains(StandardDataFormats.Text))
+            {
+                var text = await content.GetTextAsync();
+                text = text.Replace("\r", string.Empty).Replace("\n", " ");
+                if (sender is TextBox tb)
+                {
+                    var start = tb.SelectionStart;
+                    var length = tb.SelectionLength;
+                    var current = tb.Text;
+                    tb.Text = current.Substring(0, start) + text + current.Substring(start + length);
+                    tb.SelectionStart = start + text.Length;
+                    e.Handled = true;
+                }
+            }
+        }
+
 
         private async void DeleteMessage_Click(object sender, RoutedEventArgs e)
         {
