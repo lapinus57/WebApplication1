@@ -16,6 +16,8 @@ namespace Client.Models
         public string Room { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string Avatar { get; set; } = string.Empty;
+        public string SenderColor { get; set; } = string.Empty;
+        public string DestinataireColor { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
         public bool IsDeleted { get; set; }
 

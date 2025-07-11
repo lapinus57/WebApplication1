@@ -3,11 +3,13 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:data="using:Client.Models"
+    xmlns:helpers="using:Client.Helpers"
     Width="auto"
     xmlns:local="using:Client.Pages"
      x:Name="PageRoot">
 
     <Page.Resources>
+        <helpers:StringToColorConverter x:Key="StringToColorConverter" />
         <MenuFlyout x:Key="MessageContextMenu" Opened="MessageContextMenu_Opened">
             <MenuFlyoutItem Text="Copier la sélection" Click="CopySelection_Click" />
             <MenuFlyoutItem Text="Tout sélectionner" Click="SelectAll_Click" />
@@ -86,12 +88,12 @@
                 <Paragraph>
                     <Run Text="{x:Bind IrcTimestampWithBrackets}" Foreground="DarkViolet" />
                     <Run Text="&lt;" />
-                    <Run Text="{x:Bind Sender}" />
+                    <Run Text="{x:Bind Sender}" Foreground="{x:Bind SenderColor, Converter={StaticResource StringToColorConverter}}" />
                     <Run Text="(" />
                     <Run Text="{x:Bind Room}" />
                     <Run Text=")&gt;" />
                     <Run Text="&lt;" />
-                    <Run Text="{x:Bind Destinataire}" />
+                    <Run Text="{x:Bind Destinataire}" Foreground="{x:Bind DestinataireColor, Converter={StaticResource StringToColorConverter}}" />
                     <Run Text="&gt;" />
                     <Run Text=": " />
                     <Span x:Name="ContentSpan" />
@@ -173,7 +175,8 @@
         <DataTemplate x:Key="UserTemplate" x:DataType="data:UserInfo">
             <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
                 <Image Source="{x:Bind Avatar}" Width="32" Height="32"/>
-                <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
+                           Foreground="{x:Bind ColorUserName, Converter={StaticResource StringToColorConverter}}"/>
             </StackPanel>
         </DataTemplate>
 

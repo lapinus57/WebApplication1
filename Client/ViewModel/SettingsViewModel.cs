@@ -11,6 +11,7 @@ namespace Client.ViewModel
         private bool _isOldSchoolMode;
         private double _messageFontSize = 14;
         private string _appTheme = "Dark";
+        private string _colorUserName = "Black";
         private string _shortcutF5Refraction = string.Empty;
         private string _shortcutF5Lentilles = string.Empty;
         private string _shortcutF5Pathologies = string.Empty;
@@ -84,6 +85,20 @@ namespace Client.ViewModel
                     OnPropertyChanged(nameof(AppTheme));
                     AppSettings.Set("AppTheme", value);
                     ApplyTheme(value);
+                }
+            }
+        }
+
+        public string ColorUserName
+        {
+            get => _colorUserName;
+            set
+            {
+                if (_colorUserName != value)
+                {
+                    _colorUserName = value;
+                    OnPropertyChanged(nameof(ColorUserName));
+                    Set("ColorUserName", value);
                 }
             }
         }
@@ -245,6 +260,7 @@ namespace Client.ViewModel
             }
             _appTheme = AppSettings.Get("AppTheme", "Dark");
             ApplyTheme(_appTheme);
+            _colorUserName = Get("ColorUserName");
 
             _shortcutF5Refraction = Get("ShortcutF5Refraction");
             _shortcutF5Lentilles = Get("ShortcutF5Lentilles");
