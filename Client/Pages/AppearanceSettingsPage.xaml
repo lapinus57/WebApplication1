@@ -21,8 +21,11 @@
                         <TextBlock Text="Apparence" FontSize="18" FontWeight="Bold"/>
                     
 
-                    <ToggleSwitch x:Name="IrcModeToggle" Header="Affichage IRC (old school)"
+                   <ToggleSwitch x:Name="IrcModeToggle" Header="Affichage IRC (old school)"
                                    IsOn="{x:Bind ViewModelSettings.IsOldSchoolMode, Mode=TwoWay}" />
+
+                    <ToggleSwitch x:Name="SenderColorToggle" Header="Bulles colorées selon l'utilisateur"
+                                   IsOn="{x:Bind ViewModelSettings.UseSenderColorForBubbles, Mode=TwoWay}" />
 
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <TextBlock Text="Taille du texte" VerticalAlignment="Center"/>
