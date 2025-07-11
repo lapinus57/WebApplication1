@@ -176,6 +176,12 @@ namespace Client.Services
                         Debug.WriteLine($"✅ User list ajoutée : {user.Username} ({user.Room})");
                     }
 
+                    foreach (var msg in Messages.OfType<ChatMessageModel>())
+                    {
+                        msg.SenderColor = ConnectedUsers.FirstOrDefault(u => u.Username == msg.Sender)?.ColorUserName ?? "Black";
+                        msg.DestinataireColor = ConnectedUsers.FirstOrDefault(u => u.Username == msg.Destinataire)?.ColorUserName ?? "Black";
+                    }
+
                     await SaveUsersToDiskAsync();
                 });
             });

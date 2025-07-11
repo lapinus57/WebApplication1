@@ -5,19 +5,49 @@ using System;
 using System.Text.RegularExpressions;
 using Windows.System;
 using Microsoft.UI.Xaml.Media;
+using System.ComponentModel;
 
 namespace Client.Models
 {
-    public class ChatMessageModel
+    public class ChatMessageModel : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
         public int Id { get; set; }
         public string Sender { get; set; } = string.Empty;
         public string Destinataire { get; set; } = string.Empty;
         public string Room { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string Avatar { get; set; } = string.Empty;
-        public string SenderColor { get; set; } = string.Empty;
-        public string DestinataireColor { get; set; } = string.Empty;
+
+        private string _senderColor = string.Empty;
+        public string SenderColor
+        {
+            get => _senderColor;
+            set
+            {
+                if (_senderColor != value)
+                {
+                    _senderColor = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SenderColor)));
+                }
+            }
+        }
+
+        private string _destinataireColor = string.Empty;
+        public string DestinataireColor
+        {
+            get => _destinataireColor;
+            set
+            {
+                if (_destinataireColor != value)
+                {
+                    _destinataireColor = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DestinataireColor)));
+                }
+            }
+        }
+
         public DateTime Timestamp { get; set; }
         public bool IsDeleted { get; set; }
 
