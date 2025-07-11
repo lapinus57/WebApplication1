@@ -41,7 +41,10 @@ namespace Client.ViewModel
         private string _ctrlF12Exam = string.Empty;
         private string _shiftF12Exam = string.Empty;
 
+        private bool _useSenderColorForBubbles;
+
         public event Action<ChatStyle>? DisplayStyleChanged;
+        public event Action<bool>? BubbleColorModeChanged;
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public bool IsOldSchoolMode
@@ -100,6 +103,21 @@ namespace Client.ViewModel
                     OnPropertyChanged(nameof(ColorUserName));
                     Set("ColorUserName", value);
                     App.ChatService?.UpdateColorUserNameAsync(value);
+                }
+            }
+        }
+
+        public bool UseSenderColorForBubbles
+        {
+            get => _useSenderColorForBubbles;
+            set
+            {
+                if (_useSenderColorForBubbles != value)
+                {
+                    _useSenderColorForBubbles = value;
+                    OnPropertyChanged(nameof(UseSenderColorForBubbles));
+                    AppSettings.Set("UseSenderColorForBubbles", value ? "True" : "False");
+                    BubbleColorModeChanged?.Invoke(value);
                 }
             }
         }
@@ -262,6 +280,7 @@ namespace Client.ViewModel
             _appTheme = AppSettings.Get("AppTheme", "Dark");
             ApplyTheme(_appTheme);
             _colorUserName = Get("ColorUserName");
+            _useSenderColorForBubbles = AppSettings.Get("UseSenderColorForBubbles", "False") == "True";
 
             _shortcutF5Refraction = Get("ShortcutF5Refraction");
             _shortcutF5Lentilles = Get("ShortcutF5Lentilles");

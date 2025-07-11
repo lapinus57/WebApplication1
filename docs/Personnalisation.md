@@ -109,10 +109,29 @@ public bool IsOldSchoolMode
 ```
 【F:Client/ViewModel/SettingsViewModel.cs†L10-L36】
 
+```csharp
+public bool UseSenderColorForBubbles
+{
+    get => _useSenderColorForBubbles;
+    set
+    {
+        if (_useSenderColorForBubbles != value)
+        {
+            _useSenderColorForBubbles = value;
+            OnPropertyChanged(nameof(UseSenderColorForBubbles));
+            AppSettings.Set("UseSenderColorForBubbles", value ? "True" : "False");
+            BubbleColorModeChanged?.Invoke(value);
+        }
+    }
+}
+```
+【F:Client/ViewModel/SettingsViewModel.cs†L110-L123】
+
 ## Autres réglages
 
 * Taille de la police des messages (`MessageFontSize`).
 * Adresse du serveur SignalR (chargée au démarrage dans `SignalRService`).
 * Mémorisation de l'utilisateur sélectionné pour l'envoi des messages (`AppSettings.CurrentSelectedUser`).
+* Couleur des bulles basée sur celle de l'expéditeur (`UseSenderColorForBubbles`).
 
 Ces paramètres sont tous stockés localement afin d'être conservés entre les sessions de l'application.

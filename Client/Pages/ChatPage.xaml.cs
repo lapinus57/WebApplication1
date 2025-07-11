@@ -50,6 +50,7 @@ namespace Client.Pages
             _service.Dispatcher = DispatcherQueue;
 
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged += ApplyChatStyle;
+            ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged += ApplyBubbleColorMode;
             _service.ConnectedUsers.CollectionChanged += (_, _) => DispatcherQueue.TryEnqueue(TryRestoreUserSelection);
 
             _service.OnMessageReceived += OnMessageReceived;
@@ -65,13 +66,19 @@ namespace Client.Pages
             _service.OnPatientRemoved -= Service_OnPatientRemoved;
             _service.OnPatientUpdated -= Service_OnPatientUpdated;
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
+            ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged -= ApplyBubbleColorMode;
             Patients.CollectionChanged -= Patients_CollectionChanged;
         }
 
         private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
         {
             if (Resources["MessageTemplateSelector"] is ChatMessageTemplateSelector sel)
+            {
                 sel.MyUsername = App.UserName;
+                var useSenderColor = AppSettings.Get("UseSenderColorForBubbles", "False") == "True";
+                sel.UseSenderColor = useSenderColor;
+                ApplyBubbleColorMode(useSenderColor);
+            }
 
             var style = AppSettings.Get("ChatDisplayStyle", "Modern");
             ApplyChatStyle(style == "OldSchool" ? ChatStyle.OldSchool : ChatStyle.Modern);
@@ -326,6 +333,17 @@ namespace Client.Pages
             if (Resources[styleKey] is Style itemStyle)
             {
                 MessagesList.ItemContainerStyle = itemStyle;
+            }
+
+            MessagesList.ItemsSource = Messages;
+            MessagesList.UpdateLayout();
+        }
+
+        private void ApplyBubbleColorMode(bool useSenderColor)
+        {
+            if (Resources["MessageTemplateSelector"] is ChatMessageTemplateSelector selector)
+            {
+                selector.UseSenderColor = useSenderColor;
             }
 
             MessagesList.ItemsSource = Messages;

@@ -36,8 +36,48 @@
             </StackPanel>
         </DataTemplate>
 
+        <DataTemplate x:Key="OtherColoredMessageTemplate" x:DataType="data:ChatMessageModel">
+            <StackPanel HorizontalAlignment="Left">
+                <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{x:Bind SenderColor, Converter={StaticResource StringToColorConverter}}" ContextFlyout="{StaticResource MessageContextMenu}">
+                    <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
+                        <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                        <StackPanel MinWidth="200">
+                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
+                                <Paragraph>
+                                    <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                                </Paragraph>
+                                <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                                <Paragraph TextAlignment="Right">
+                                    <Run Text="{x:Bind IrcTimestamp}" FontSize="12" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                                </Paragraph>
+                            </RichTextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
         <DataTemplate x:Key="MyMessageTemplate" x:DataType="data:ChatMessageModel">
             <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{ThemeResource MyMessageColor}" ContextFlyout="{StaticResource MessageContextMenu}">
+                <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
+                    <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
+                    <StackPanel MinWidth="200">
+                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
+                            <Paragraph>
+                                <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
+                            </Paragraph>
+                            <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
+                            <Paragraph TextAlignment="Right">
+                                <Run Text="{x:Bind IrcTimestamp}" FontSize="12" Foreground="{ThemeResource TextMyMessageColor}"/>
+                            </Paragraph>
+                        </RichTextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="MyColoredMessageTemplate" x:DataType="data:ChatMessageModel">
+            <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{x:Bind SenderColor, Converter={StaticResource StringToColorConverter}}" ContextFlyout="{StaticResource MessageContextMenu}">
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                     <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
@@ -105,6 +145,8 @@
             MyUsername="Moi"
             MyMessageTemplate="{StaticResource MyMessageTemplate}"
             OtherMessageTemplate="{StaticResource OtherMessageTemplate}"
+            MyColoredTemplate="{StaticResource MyColoredMessageTemplate}"
+            OtherColoredTemplate="{StaticResource OtherColoredMessageTemplate}"
             IrcTemplate="{StaticResource IrcMessageTemplate}"
             LoadMoreTemplate="{StaticResource LoadMoreTemplate}"
             EmptyTemplate="{StaticResource EmptyTemplate}" />
