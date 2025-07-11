@@ -40,6 +40,7 @@ namespace Client.Pages
             _service.Dispatcher = DispatcherQueue;
 
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged += ApplyChatStyle;
+            ViewModel.ViewModel.SettingsViewModel.SenderColorModeChanged += ApplyColorMode;
             _service.ConnectedUsers.CollectionChanged += (_, _) => DispatcherQueue.TryEnqueue(TryRestoreUserSelection);
 
             _service.OnMessageReceived += OnMessageReceived;
@@ -51,12 +52,15 @@ namespace Client.Pages
         {
             _service.OnMessageReceived -= OnMessageReceived;
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
+            ViewModel.ViewModel.SettingsViewModel.SenderColorModeChanged -= ApplyColorMode;
         }
 
         private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
         {
             var style = AppSettings.Get("ChatDisplayStyle", "Modern");
             ApplyChatStyle(style == "OldSchool" ? ChatStyle.OldSchool : ChatStyle.Modern);
+            var colorMode = AppSettings.Get("UseSenderColors", "False") == "True";
+            ApplyColorMode(colorMode);
 
             if (_service.Connection == null || _service.Connection.State != HubConnectionState.Connected)
             {
@@ -294,6 +298,17 @@ namespace Client.Pages
                 MessagesList.ItemContainerStyle = itemStyle;
             }
 
+            MessagesList.ItemsSource = Messages;
+            MessagesList.UpdateLayout();
+        }
+
+        private void ApplyColorMode(bool useSenderColors)
+        {
+            Debug.WriteLine($"[ChatPage] ApplyColorMode: {useSenderColors}");
+            if (Resources["MessageTemplateSelector"] is ChatMessageTemplateSelector selector)
+            {
+                selector.UseSenderColors = useSenderColors;
+            }
             MessagesList.ItemsSource = Messages;
             MessagesList.UpdateLayout();
         }

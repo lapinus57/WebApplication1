@@ -77,12 +77,32 @@ public bool IsOldSchoolMode
             _isOldSchoolMode = value;
             OnPropertyChanged(nameof(IsOldSchoolMode));
             AppSettings.Set("ChatDisplayStyle", value ? "OldSchool" : "Modern");
-            DisplayStyleChanged?.Invoke(value ? ChatStyle.OldSchool : ChatStyle.Modern);
+           DisplayStyleChanged?.Invoke(value ? ChatStyle.OldSchool : ChatStyle.Modern);
         }
     }
 }
 ```
-【F:Client/ViewModel/SettingsViewModel.cs†L10-L36】
+【F:Client/ViewModel/SettingsViewModel.cs†L46-L58】
+
+Un second réglage (`UseSenderColors`) permet d'utiliser automatiquement une couleur différente pour chaque expéditeur. Cette option est exposée via la propriété `UseSenderColors` :
+
+```csharp
+public bool UseSenderColors
+{
+    get => _useSenderColors;
+    set
+    {
+        if (_useSenderColors != value)
+        {
+            _useSenderColors = value;
+            OnPropertyChanged(nameof(UseSenderColors));
+            AppSettings.Set("UseSenderColors", value.ToString());
+            SenderColorModeChanged?.Invoke(value);
+        }
+    }
+}
+```
+【F:Client/ViewModel/SettingsViewModel.cs†L62-L75】
 
 ## Autres réglages
 

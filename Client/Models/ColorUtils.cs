@@ -49,5 +49,17 @@ namespace Client.Models
             double luminance = (0.299 * background.R + 0.587 * background.G + 0.114 * background.B) / 255;
             return luminance > 0.5 ? Colors.Black : Colors.White;
         }
+
+        public static Color GetPastelColor(string input)
+        {
+            var hash = input.GetHashCode();
+            byte r = (byte)((hash >> 16) & 0xFF);
+            byte g = (byte)((hash >> 8) & 0xFF);
+            byte b = (byte)(hash & 0xFF);
+            r = (byte)((r + 255) / 2);
+            g = (byte)((g + 255) / 2);
+            b = (byte)((b + 255) / 2);
+            return Color.FromArgb(0xFF, r, g, b);
+        }
     }
 }

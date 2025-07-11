@@ -9,6 +9,7 @@ namespace Client.ViewModel
     public class SettingsViewModel : INotifyPropertyChanged
     {
         private bool _isOldSchoolMode;
+        private bool _useSenderColors;
         private double _messageFontSize = 14;
         private string _shortcutF5Refraction = string.Empty;
         private string _shortcutF5Lentilles = string.Empty;
@@ -40,6 +41,7 @@ namespace Client.ViewModel
         private string _shiftF12Exam = string.Empty;
 
         public event Action<ChatStyle>? DisplayStyleChanged;
+        public event Action<bool>? SenderColorModeChanged;
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public bool IsOldSchoolMode
@@ -53,6 +55,21 @@ namespace Client.ViewModel
                     OnPropertyChanged(nameof(IsOldSchoolMode));
                     AppSettings.Set("ChatDisplayStyle", value ? "OldSchool" : "Modern");
                     DisplayStyleChanged?.Invoke(value ? ChatStyle.OldSchool : ChatStyle.Modern);
+                }
+            }
+        }
+
+        public bool UseSenderColors
+        {
+            get => _useSenderColors;
+            set
+            {
+                if (_useSenderColors != value)
+                {
+                    _useSenderColors = value;
+                    OnPropertyChanged(nameof(UseSenderColors));
+                    AppSettings.Set("UseSenderColors", value.ToString());
+                    SenderColorModeChanged?.Invoke(value);
                 }
             }
         }
@@ -223,6 +240,7 @@ namespace Client.ViewModel
         {
             var style = AppSettings.Get("ChatDisplayStyle", "Modern");
             _isOldSchoolMode = style == "OldSchool";
+            _useSenderColors = AppSettings.Get("UseSenderColors", "False") == "True";
             if (double.TryParse(AppSettings.Get("MessageFontSize", "14"), out var size))
             {
                 _messageFontSize = size;
