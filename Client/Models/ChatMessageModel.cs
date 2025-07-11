@@ -19,6 +19,10 @@ namespace Client.Models
         public DateTime Timestamp { get; set; }
         public bool IsDeleted { get; set; }
 
+        /// <summary>
+        /// IrcTimestamp wrapped in square brackets for display.
+        /// </summary>
+        public string IrcTimestampWithBrackets => $"[{IrcTimestamp}]";
         public string TimeFormatted => Timestamp.ToString("dd/MM/yy HH:mm");
         public string Header => $"{Sender} ({Room}) :";
         /// <summary>

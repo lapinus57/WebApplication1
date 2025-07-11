@@ -25,7 +25,7 @@
                                 </Paragraph>
                                 <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
                                 <Paragraph TextAlignment="Right">
-                                    <Run Text="{x:Bind TimeFormatted}" FontSize="12" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                                    <Run Text="{x:Bind IrcTimestamp}" FontSize="12" Foreground="{ThemeResource TextOtherMessageColor}"/>
                                 </Paragraph>
                             </RichTextBlock>
                         </StackPanel>
@@ -45,7 +45,7 @@
                             </Paragraph>
                             <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
                             <Paragraph TextAlignment="Right">
-                                <Run Text="{x:Bind TimeFormatted}" FontSize="12" Foreground="{ThemeResource TextMyMessageColor}"/>
+                                <Run Text="{x:Bind IrcTimestamp}" FontSize="12" Foreground="{ThemeResource TextMyMessageColor}"/>
                             </Paragraph>
                         </RichTextBlock>
                     </StackPanel>
@@ -84,9 +84,7 @@
                            ContextFlyout="{StaticResource MessageContextMenu}"
                            Loaded="{x:Bind FormatContent}">
                 <Paragraph>
-                    <Run Text="[" Foreground="DarkViolet" />
-                    <Run Text="{x:Bind IrcTimestamp}" Foreground="DarkViolet" />
-                    <Run Text="]"  Foreground="DarkViolet" />
+                    <Run Text="{x:Bind IrcTimestampWithBrackets}" Foreground="DarkViolet" />
                     <Run Text="&lt;" />
                     <Run Text="{x:Bind Sender}" />
                     <Run Text="(" />
