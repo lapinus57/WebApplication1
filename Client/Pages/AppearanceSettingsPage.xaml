@@ -21,6 +21,9 @@
                     <ToggleSwitch x:Name="IrcModeToggle" Header="Affichage IRC (old school)"
                                    IsOn="{x:Bind ViewModelSettings.IsOldSchoolMode, Mode=TwoWay}" />
 
+                    <ToggleSwitch x:Name="ColorModeToggle" Header="Couleur des bulles par expéditeur"
+                                   IsOn="{x:Bind ViewModelSettings.UseSenderColors, Mode=TwoWay}" />
+
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <TextBlock Text="Taille du texte" VerticalAlignment="Center"/>
                         <Slider Minimum="12" Maximum="24" Width="200" Value="{x:Bind ViewModelSettings.MessageFontSize, Mode=TwoWay}"/>
