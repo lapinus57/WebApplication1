@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using System;
 using System.Text.RegularExpressions;
 using Windows.System;
+using Microsoft.UI.Xaml.Media;
 
 namespace Client.Models
 {
@@ -38,39 +39,52 @@ namespace Client.Models
             if (sender is not RichTextBlock block)
                 return;
 
-            if (block.FindName("ContentParagraph") is not Paragraph paragraph)
+            InlineCollection? container = null;
+            Brush? foreground = null;
+
+            if (block.FindName("ContentParagraph") is Paragraph paragraph)
+            {
+                container = paragraph.Inlines;
+                foreground = paragraph.Foreground;
+            }
+            else if (block.FindName("ContentSpan") is Span span)
+            {
+                container = span.Inlines;
+                foreground = span.Foreground;
+            }
+            if (container is null)
                 return;
 
-            paragraph.Inlines.Clear();
+            container.Clear();
 
             var text = Content;
             var last = 0;
             foreach (Match match in _urlRegex.Matches(text))
             {
                 if (match.Index > last)
-                    paragraph.Inlines.Add(new Run { Text = text.Substring(last, match.Index - last) });
+                    container.Add(new Run { Text = text.Substring(last, match.Index - last) });
 
                 var url = match.Value;
                 if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
                 {
-                    paragraph.Inlines.Add(new Run { Text = url });
+                    container.Add(new Run { Text = url });
                 }
                 else
                 {
                     var link = new Hyperlink
                     {
                         NavigateUri = uri,
-                        Foreground = paragraph.Foreground
+                        Foreground = foreground
                     };
                     link.Inlines.Add(new Run { Text = url });
                     link.Click += async (_, _) => await Launcher.LaunchUriAsync(uri);
-                    paragraph.Inlines.Add(link);
+                    container.Add(link);
                 }
 
                 last = match.Index + match.Length;
             }
             if (last < text.Length)
-                paragraph.Inlines.Add(new Run { Text = text[last..] });
+                container.Add(new Run { Text = text[last..] });
         }
     }
 }

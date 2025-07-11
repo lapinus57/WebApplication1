@@ -75,18 +75,30 @@
 
         <!-- 📩 Message IRC -->
         <DataTemplate x:Key="IrcMessageTemplate" x:DataType="data:ChatMessageModel">
-            <TextBlock FontFamily="Consolas"
-               FontSize="{ThemeResource MessageFontSize}"
-               HorizontalAlignment="Left"
-               TextWrapping="Wrap"
-               MaxWidth="1000"
-               IsTextSelectionEnabled="True"
-               ContextFlyout="{StaticResource MessageContextMenu}">
-                <Run Text="[" Foreground="DarkViolet" /><Run Text="{x:Bind IrcTimestamp}" Foreground="DarkViolet" /><Run Text="]"  Foreground="DarkViolet" />
-                <Run Text="&lt;"/><Run Text="{x:Bind Sender}" /><Run Text="(" /><Run Text="{x:Bind Room}" /><Run Text=")&gt;" />
-                <Run Text="&lt;"/><Run Text="{x:Bind Destinataire}" /><Run Text="&gt;" />
-                <Run Text=": "/><Run Text="{x:Bind Content}" />
-            </TextBlock>
+            <RichTextBlock FontFamily="Consolas"
+                           FontSize="{ThemeResource MessageFontSize}"
+                           HorizontalAlignment="Left"
+                           TextWrapping="Wrap"
+                           MaxWidth="1000"
+                           IsTextSelectionEnabled="True"
+                           ContextFlyout="{StaticResource MessageContextMenu}"
+                           Loaded="{x:Bind FormatContent}">
+                <Paragraph>
+                    <Run Text="[" Foreground="DarkViolet" />
+                    <Run Text="{x:Bind IrcTimestamp}" Foreground="DarkViolet" />
+                    <Run Text="]"  Foreground="DarkViolet" />
+                    <Run Text="&lt;" />
+                    <Run Text="{x:Bind Sender}" />
+                    <Run Text="(" />
+                    <Run Text="{x:Bind Room}" />
+                    <Run Text=")&gt;" />
+                    <Run Text="&lt;" />
+                    <Run Text="{x:Bind Destinataire}" />
+                    <Run Text="&gt;" />
+                    <Run Text=": " />
+                    <Span x:Name="ContentSpan" />
+                </Paragraph>
+            </RichTextBlock>
         </DataTemplate>
         
         <data:ChatMessageTemplateSelector x:Key="MessageTemplateSelector"
