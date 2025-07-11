@@ -72,7 +72,8 @@ namespace Client.Services
                 ConnectedUsers.Add(user);
             }
 
-            await ConnectAsync(App.UserName, @"E:\benoit.png", RoomName);
+            var color = AppSettings.Get("ColorUserName", "Black");
+            await ConnectAsync(App.UserName, @"E:\benoit.png", RoomName, color);
 
             Messages.Clear();
             Messages.Add(new LoadMorePlaceholder());
@@ -98,7 +99,7 @@ namespace Client.Services
                 Patients.Add(p);
         }
 
-        public async Task ConnectAsync(string username, string avatar, string room)
+        public async Task ConnectAsync(string username, string avatar, string room, string color)
         {
             if (Connection != null)
             {
@@ -198,6 +199,8 @@ namespace Client.Services
 
             Connection.On<int, string, string, string, string, string, DateTime>("ReceiveMessage", (id, user, room, destinataire, msg, avatar, time) =>
             {
+                var senderColor = ConnectedUsers.FirstOrDefault(u => u.Username == user)?.ColorUserName ?? "Black";
+                var destColor = ConnectedUsers.FirstOrDefault(u => u.Username == destinataire)?.ColorUserName ?? "Black";
                 var chat = new ChatMessageModel
                 {
                     Id = id,
@@ -206,7 +209,9 @@ namespace Client.Services
                     Room = room,
                     Content = msg,
                     Timestamp = time,
-                    Avatar = avatar
+                    Avatar = avatar,
+                    SenderColor = senderColor,
+                    DestinataireColor = destColor
                 };
 
                 Debug.WriteLine($"✅ Message reçu de {user} dans la salle {room} : {msg} ({time})");
@@ -281,7 +286,7 @@ namespace Client.Services
             try
             {
                 await Connection.StartAsync();
-                await Connection.InvokeAsync("RegisterUser", username, avatar, room);
+                await Connection.InvokeAsync("RegisterUser", username, avatar, room, color);
             }
             catch (Exception ex)
             {
@@ -332,7 +337,9 @@ namespace Client.Services
                     Content = m.Content,
                     Avatar = m.Avatar,
                     Timestamp = m.Timestamp,
-                    IsDeleted = m.IsDeleted
+                    IsDeleted = m.IsDeleted,
+                    SenderColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Sender)?.ColorUserName ?? "Black",
+                    DestinataireColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Destinataire)?.ColorUserName ?? "Black"
                 }).ToList();
 
                 return Result<List<ChatMessageModel>>.Ok(messages);
@@ -363,7 +370,9 @@ namespace Client.Services
                         Content = m.Content,
                         Avatar = m.Avatar,
                         Timestamp = m.Timestamp,
-                        IsDeleted = m.IsDeleted
+                        IsDeleted = m.IsDeleted,
+                        SenderColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Sender)?.ColorUserName ?? "Black",
+                        DestinataireColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Destinataire)?.ColorUserName ?? "Black"
                     }).ToList()
                 );
             }
@@ -448,7 +457,13 @@ namespace Client.Services
                 if (File.Exists(path))
                 {
                     var json = await File.ReadAllTextAsync(path);
-                    return JsonConvert.DeserializeObject<List<ChatMessageModel>>(json) ?? new();
+                    var list = JsonConvert.DeserializeObject<List<ChatMessageModel>>(json) ?? new();
+                    foreach (var m in list)
+                    {
+                        m.SenderColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Sender)?.ColorUserName ?? "Black";
+                        m.DestinataireColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Destinataire)?.ColorUserName ?? "Black";
+                    }
+                    return list;
                 }
             }
             catch (Exception ex)

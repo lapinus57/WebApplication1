@@ -21,6 +21,7 @@ namespace ChatServeur
                 Avatar = "ms-appx:///Assets/earth.png",
                 Room = string.Empty,
                 DisplayName = "A Tous",
+                ColorUserName = "Red",
                 IsOnline = true,
                 Note = string.Empty
             },
@@ -31,6 +32,7 @@ namespace ChatServeur
                 Avatar = "ms-appx:///Assets/secretaria.png",
                 Room = string.Empty,
                 DisplayName = "Secrétariat",
+                ColorUserName = "Blue",
                 IsOnline = true,
                 Note = string.Empty
             }
@@ -72,7 +74,7 @@ namespace ChatServeur
             await base.OnDisconnectedAsync(ex);
         }
 
-        public async Task RegisterUser(string username, string avatar, string room)
+        public async Task RegisterUser(string username, string avatar, string room, string color)
         {
             try
             {
@@ -85,6 +87,7 @@ namespace ChatServeur
                     Avatar = avatar,
                     Room = room,
                     DisplayName = username,
+                    ColorUserName = color,
                     IsOnline = true,
                     Note = string.Empty
                 };

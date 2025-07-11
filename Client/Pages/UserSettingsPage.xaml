@@ -5,12 +5,28 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Client.ViewModel"
+    xmlns:helpers="using:Client.Helpers"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Page.Resources>
+        <helpers:StringToColorConverter x:Key="StringToColorConverter" />
+    </Page.Resources>
     <ScrollViewer>
         <StackPanel Padding="20" Spacing="20">
             <Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
             <TextBlock Text="Utilisateur" FontSize="24" FontWeight="Bold"/>
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Couleur du nom:" VerticalAlignment="Center"/>
+                <Button>
+                    <Rectangle Width="32" Height="16" Stroke="Black"
+                               Fill="{x:Bind ViewModelSettings.ColorUserName, Mode=OneWay, Converter={StaticResource StringToColorConverter}}"/>
+                    <Button.Flyout>
+                        <Flyout>
+                            <ColorPicker Color="{x:Bind ViewModelSettings.ColorUserName, Mode=TwoWay, Converter={StaticResource StringToColorConverter}}"/>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
             <Border CornerRadius="8" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="Raccourcis en tête" FontSize="18" FontWeight="Bold"/>
