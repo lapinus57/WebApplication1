@@ -289,6 +289,18 @@ namespace ChatServeur
             }
         }
 
+        public async Task SetColorUserName(string color)
+        {
+            if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
+            {
+                user.ColorUserName = color;
+                AllUsers[user.Username] = user;
+
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                await Clients.All.SendAsync("UserListUpdated", userList);
+            }
+        }
+
         public async Task SaveExamOptions(IEnumerable<ExamOption> options)
         {
             var json = JsonSerializer.Serialize(options);

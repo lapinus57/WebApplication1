@@ -99,6 +99,7 @@ namespace Client.ViewModel
                     _colorUserName = value;
                     OnPropertyChanged(nameof(ColorUserName));
                     Set("ColorUserName", value);
+                    App.ChatService?.UpdateColorUserNameAsync(value);
                 }
             }
         }

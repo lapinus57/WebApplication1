@@ -652,6 +652,21 @@ namespace Client.Services
             }
         }
 
+        public async Task UpdateColorUserNameAsync(string color)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("SetColorUserName", color);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur mise à jour couleur utilisateur : {ex.Message}");
+                }
+            }
+        }
+
         public async Task ArchiveTakenPatientsAsync()
         {
             if (Connection != null && Connection.State == HubConnectionState.Connected)
