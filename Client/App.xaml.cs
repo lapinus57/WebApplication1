@@ -7,6 +7,7 @@ using Client.Models;
 using Client.Helpers;
 using Microsoft.UI.Xaml.Controls;
 using System.IO;
+using Client.Pages;
 
 namespace Client
 {
@@ -96,6 +97,7 @@ namespace Client
                     var username = userBox.Text.Trim();
                     App.UserName = username;
                     AppSettings.Reload();
+                    ApplySavedAppearance(root);
                     AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
 
                     if (string.IsNullOrWhiteSpace(machine.DefaultUser))
@@ -115,6 +117,7 @@ namespace Client
 
                 App.UserName = username;
                 AppSettings.Reload();
+                ApplySavedAppearance(root);
                 AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
             }
 
@@ -125,6 +128,23 @@ namespace Client
             }
         }
 
+        private static void ApplySavedAppearance(FrameworkElement root)
+        {
+            var theme = AppSettings.Get("AppTheme", "Dark");
+            if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
+            {
+                root.RequestedTheme =
+                    appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+            }
+
+            var colors = AppSettings.GetObject<AppColorSettings>("Colors");
+
+            var titleBar = root.FindName("AppTitleBar") as Grid;
+            var nav = root.FindName("nvSample") as NavigationView;
+            var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
+
+            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
+        }
 
         private void ChatService_OnMessageReceived(ChatMessageModel chat)
         {
