@@ -29,7 +29,8 @@ namespace Client.Models
                 if (_senderColor != value)
                 {
                     _senderColor = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SenderColor)));
+                    OnPropertyChanged(nameof(SenderColor));
+                    OnPropertyChanged(nameof(ForegroundColor));
                 }
             }
         }
@@ -43,10 +44,15 @@ namespace Client.Models
                 if (_destinataireColor != value)
                 {
                     _destinataireColor = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DestinataireColor)));
+                    OnPropertyChanged(nameof(DestinataireColor));
                 }
             }
         }
+
+        public string ForegroundColor =>
+            ColorUtils.ToHex(
+                ColorUtils.GetContrastingTextColor(
+                    ColorUtils.FromHex(SenderColor)));
 
         public DateTime Timestamp { get; set; }
         public bool IsDeleted { get; set; }
@@ -122,5 +128,8 @@ namespace Client.Models
             if (last < text.Length)
                 container.Add(new Run { Text = text[last..] });
         }
+
+        private void OnPropertyChanged(string propertyName) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
