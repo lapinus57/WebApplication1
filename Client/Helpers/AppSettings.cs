@@ -14,7 +14,7 @@ namespace Client.Helpers
         private static string FilePath =>
               Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat",
-                $"{(CurrentSelectedUser?.Username ?? App.UserName)}_settings.json");
+                $"{(App.UserName)}_settings.json");
 
         private static UserInfo? _currentUser;
         public static UserInfo? CurrentSelectedUser
@@ -25,12 +25,16 @@ namespace Client.Helpers
                 if (_currentUser?.Username != value?.Username)
                 {
                     _currentUser = value;
-                    Load();
+                    Set("SelectedUser", value?.Username ?? string.Empty);
                 }
             }
         }
 
         static AppSettings()
+        {
+            Load();
+        }
+        public static void Reload()
         {
             Load();
         }

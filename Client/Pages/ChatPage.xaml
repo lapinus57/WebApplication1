@@ -44,11 +44,11 @@
                         <StackPanel MinWidth="200">
                             <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
                                 <Paragraph>
-                                    <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                                    <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind ForegroundColor}"/>
                                 </Paragraph>
-                                <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                                <Paragraph x:Name="ContentParagraph" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind ForegroundColor}"/>
                                 <Paragraph TextAlignment="Right">
-                                    <Run Text="{x:Bind IrcTimestamp}" FontSize="12" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                                    <Run Text="{x:Bind IrcTimestamp}" FontSize="12" Foreground="{x:Bind ForegroundColor}"/>
                                 </Paragraph>
                             </RichTextBlock>
                         </StackPanel>

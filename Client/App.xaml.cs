@@ -95,6 +95,7 @@ namespace Client
                 {
                     var username = userBox.Text.Trim();
                     App.UserName = username;
+                    AppSettings.Reload();
                     AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
 
                     if (string.IsNullOrWhiteSpace(machine.DefaultUser))
@@ -113,6 +114,7 @@ namespace Client
                     username = Path.GetFileNameWithoutExtension(settingsFiles[0]).Replace("_settings", "");
 
                 App.UserName = username;
+                AppSettings.Reload();
                 AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
             }
 
