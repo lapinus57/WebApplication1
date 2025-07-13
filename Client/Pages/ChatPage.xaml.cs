@@ -56,6 +56,7 @@ namespace Client.Pages
             _service.OnMessageReceived += OnMessageReceived;
             _service.OnPatientRemoved += Service_OnPatientRemoved;
             _service.OnPatientUpdated += Service_OnPatientUpdated;
+            _service.ReconnectCountdownChanged += Service_ReconnectCountdownChanged;
             Loaded += ChatPage_Loaded;
             Unloaded += ChatPage_Unloaded;
         }
@@ -65,6 +66,7 @@ namespace Client.Pages
             _service.OnMessageReceived -= OnMessageReceived;
             _service.OnPatientRemoved -= Service_OnPatientRemoved;
             _service.OnPatientUpdated -= Service_OnPatientUpdated;
+            _service.ReconnectCountdownChanged -= Service_ReconnectCountdownChanged;
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
             ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged -= ApplyBubbleColorMode;
             Patients.CollectionChanged -= Patients_CollectionChanged;
@@ -90,6 +92,7 @@ namespace Client.Pages
 
             TryRestoreUserSelection();
             await WaitForConnectionReady();
+            UpdateReconnectButtonVisibility();
 
             if (!_service.IsHistoryLoaded && !Messages.OfType<ChatMessageModel>().Any())
             {
@@ -115,6 +118,18 @@ namespace Client.Pages
             }
 
             InputBox.Focus(FocusState.Programmatic);
+        }
+
+        private void UpdateReconnectButtonVisibility()
+        {
+            if (_service.Connection == null || _service.Connection.State != HubConnectionState.Connected)
+            {
+                ReconnectButton.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ReconnectButton.Visibility = Visibility.Collapsed;
+            }
         }
 
         public void FocusInputBox()
@@ -545,6 +560,22 @@ namespace Client.Pages
         private void Service_OnPatientUpdated(Patient patient)
         {
             DispatcherQueue.TryEnqueue(UpdatePatientViews);
+        }
+
+        private void Service_ReconnectCountdownChanged(int seconds)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_service.Connection == null || _service.Connection.State != HubConnectionState.Connected)
+                {
+                    ReconnectButton.Visibility = Visibility.Visible;
+                    ReconnectButton.Content = $"Reconnecter ({seconds})";
+                }
+                else
+                {
+                    ReconnectButton.Visibility = Visibility.Collapsed;
+                }
+            });
         }
 
         private IEnumerable<Patient> GetPatientsForRoom(string room)

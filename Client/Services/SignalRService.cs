@@ -37,6 +37,9 @@ namespace Client.Services
         private string _avatar = string.Empty;
         private string _color = string.Empty;
         private Timer? _reconnectTimer;
+        private Timer? _reconnectCountdownTimer;
+        private int _reconnectCountdown;
+        public event Action<int>? ReconnectCountdownChanged;
         private bool _isConnecting;
 
         public bool IsHistoryLoaded => _historyLoaded;
@@ -431,6 +434,20 @@ namespace Client.Services
         private void StartReconnectTimer()
         {
             _reconnectTimer?.Dispose();
+            _reconnectCountdownTimer?.Dispose();
+
+            _reconnectCountdown = 10;
+            ReconnectCountdownChanged?.Invoke(_reconnectCountdown);
+
+            _reconnectCountdownTimer = new Timer(_ =>
+            {
+                _reconnectCountdown--;
+                if (_reconnectCountdown >= 0)
+                    ReconnectCountdownChanged?.Invoke(_reconnectCountdown);
+                if (_reconnectCountdown <= 0)
+                    _reconnectCountdown = 10;
+            }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+
             _reconnectTimer = new Timer(async _ =>
             {
                 await ReconnectAsync();
@@ -442,6 +459,10 @@ namespace Client.Services
             _reconnectTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             _reconnectTimer?.Dispose();
             _reconnectTimer = null;
+            _reconnectCountdownTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            _reconnectCountdownTimer?.Dispose();
+            _reconnectCountdownTimer = null;
+            ReconnectCountdownChanged?.Invoke(0);
         }
 
         public async Task ReconnectAsync()
