@@ -412,13 +412,12 @@
         </StackPanel>
 
         <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown" Paste="InputBox_Paste"
-         
-    
-         Translation="0,0,50">
+                 Translation="0,0,50">
            
             <TextBox.Shadow>
                 <ThemeShadow/>
             </TextBox.Shadow>
         </TextBox>
+        <Button x:Name="ReconnectButton" Grid.Column="2" Grid.Row="1" Content="Reconnecter" Click="Reconnect_Click" HorizontalAlignment="Right"/>
     </Grid>
 </Page>

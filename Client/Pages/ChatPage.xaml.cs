@@ -527,6 +527,11 @@ namespace Client.Pages
             await _service.UnarchiveAllPatientsAsync();
         }
 
+        private async void Reconnect_Click(object sender, RoutedEventArgs e)
+        {
+            await _service.ReconnectAsync();
+        }
+
 
         private void Service_OnPatientRemoved(string id)
         {

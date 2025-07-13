@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using Microsoft.UI.Dispatching;
 using Windows.ApplicationModel.Chat;
 using Microsoft.VisualBasic;
@@ -32,6 +33,11 @@ namespace Client.Services
 
         private bool _initialized;
         private bool _historyLoaded;
+        private string _username = string.Empty;
+        private string _avatar = string.Empty;
+        private string _color = string.Empty;
+        private Timer? _reconnectTimer;
+        private bool _isConnecting;
 
         public bool IsHistoryLoaded => _historyLoaded;
 
@@ -101,6 +107,14 @@ namespace Client.Services
 
         public async Task ConnectAsync(string username, string avatar, string room, string color)
         {
+            if (_isConnecting)
+                return;
+            _isConnecting = true;
+
+            _username = username;
+            _avatar = avatar;
+            _color = color;
+
             if (Connection != null)
             {
                 try
@@ -142,6 +156,7 @@ namespace Client.Services
                 }
                 await SaveUsersToDiskAsync();
                 await Task.Delay(3000);
+                StartReconnectTimer();
             };
 
             Connection.On<UserInfo>("UserConnected", user =>
@@ -293,6 +308,7 @@ namespace Client.Services
             {
                 await Connection.StartAsync();
                 await Connection.InvokeAsync("RegisterUser", username, avatar, room, color);
+                StopReconnectTimer();
             }
             catch (Exception ex)
             {
@@ -309,8 +325,11 @@ namespace Client.Services
                 {
                     Debug.WriteLine($"❌ Toast error: {toastEx.Message}");
                 }
+                StartReconnectTimer();
             }
-            
+
+            _isConnecting = false;
+
         }
 
         public async Task SendMessage(string sender, string roomname, string destinataire, string message, string avatar, DateTime timemessage)
@@ -407,6 +426,30 @@ namespace Client.Services
                 Debug.WriteLine($"❌ Reconnexion échouée : {ex.Message}");
                 return false;
             }
+        }
+
+        private void StartReconnectTimer()
+        {
+            _reconnectTimer?.Dispose();
+            _reconnectTimer = new Timer(async _ =>
+            {
+                await ReconnectAsync();
+            }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+        }
+
+        private void StopReconnectTimer()
+        {
+            _reconnectTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            _reconnectTimer?.Dispose();
+            _reconnectTimer = null;
+        }
+
+        public async Task ReconnectAsync()
+        {
+            if (_isConnecting || string.IsNullOrEmpty(_username))
+                return;
+
+            await ConnectAsync(_username, _avatar, RoomName, _color);
         }
         private void ShowToast(string message)
         {
