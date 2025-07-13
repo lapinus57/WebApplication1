@@ -141,8 +141,9 @@ namespace Client.Services
                 try
                 {
                     AppNotification notification = new AppNotificationBuilder()
-                        .AddText("Serveur erreur")
-                        .AddText("Explore interactive samples and discover the power of modern Windows UI.")
+                        .AddText("Serveur indisponible")
+                        .AddText("Le serveur est actuellement injoignable.")
+                        .SetDuration(AppNotificationDuration.Long)
                         .BuildNotification();
 
                     AppNotificationManager.Default.Show(notification);
