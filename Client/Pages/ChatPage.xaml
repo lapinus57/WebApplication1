@@ -418,6 +418,6 @@
                 <ThemeShadow/>
             </TextBox.Shadow>
         </TextBox>
-        <Button x:Name="ReconnectButton" Grid.Column="2" Grid.Row="1" Content="Reconnecter" Click="Reconnect_Click" HorizontalAlignment="Right"/>
+        <Button x:Name="ReconnectButton" Grid.Column="2" Grid.Row="1" Content="Reconnecter" Visibility="Collapsed" Click="Reconnect_Click" HorizontalAlignment="Right"/>
     </Grid>
 </Page>
