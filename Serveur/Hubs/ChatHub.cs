@@ -531,5 +531,11 @@ namespace ChatServeur
                 await Clients.All.SendAsync("PatientUpdated", patient);
             }
         }
+
+        public Task<Dictionary<string, List<string>>> GetAllGroupMembers()
+        {
+            var result = GroupMembers.ToDictionary(g => g.Key, g => g.Value.ToList());
+            return Task.FromResult(result);
+        }
     }
 }

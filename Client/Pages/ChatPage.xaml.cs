@@ -226,7 +226,16 @@ namespace Client.Pages
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
                 e.Handled = true;
-                Send_Click(sender, e);
+                var text = InputBox.Text.Trim();
+                if (string.Equals(text, "/getallsalon", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = ShowAllGroupsDialog();
+                    InputBox.Text = string.Empty;
+                }
+                else
+                {
+                    Send_Click(sender, e);
+                }
             }
         }
 
@@ -675,6 +684,25 @@ namespace Client.Pages
             }
         }
 
+        private async Task ShowAllGroupsDialog()
+        {
+            var groups = await _service.GetAllGroupsAsync();
+            var sb = new StringBuilder();
+            foreach (var kvp in groups)
+            {
+                sb.AppendLine($"{kvp.Key}: {string.Join(", ", kvp.Value)}");
+            }
+
+            var dialog = new ContentDialog
+            {
+                Title = "Groupes",
+                Content = new ScrollViewer { Content = new TextBlock { Text = sb.ToString() } },
+                CloseButtonText = "Fermer",
+                XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
+            };
+
+            await dialog.ShowAsync();
+        }
 
         private async void DeleteMessage_Click(object sender, RoutedEventArgs e)
         {
