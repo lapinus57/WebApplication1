@@ -232,6 +232,11 @@ namespace Client.Pages
                     _ = ShowAllGroupsDialog();
                     InputBox.Text = string.Empty;
                 }
+                else if (string.Equals(text, "/setroom", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = ShowSetRoomDialog();
+                    InputBox.Text = string.Empty;
+                }
                 else
                 {
                     Send_Click(sender, e);
@@ -701,6 +706,71 @@ namespace Client.Pages
                 XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
             };
 
+            await dialog.ShowAsync();
+        }
+
+        private async Task ShowSetRoomDialog()
+        {
+            var groups = await _service.GetAllGroupsAsync();
+
+            var dialog = new ContentDialog
+            {
+                Title = "Edition de salle",
+                CloseButtonText = "Fermer",
+                XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
+            };
+
+            var stack = new StackPanel { Spacing = 10 };
+            var roomBox = new ComboBox { ItemsSource = groups.Keys.ToList(), PlaceholderText = "Salle" };
+            var nameBox = new TextBox { PlaceholderText = "Nouveau nom" };
+            var pwdBox = new PasswordBox { PlaceholderText = "Nouveau mot de passe" };
+            var membersList = new ListView { Height = 100 };
+
+            roomBox.SelectionChanged += (s, e) =>
+            {
+                if (roomBox.SelectedItem is string sel && groups.TryGetValue(sel, out var list))
+                    membersList.ItemsSource = list;
+            };
+
+            var renameBtn = new Button { Content = "Renommer" };
+            renameBtn.Click += async (s, e) =>
+            {
+                if (roomBox.SelectedItem is string sel && !string.IsNullOrWhiteSpace(nameBox.Text))
+                {
+                    await _service.RenameGroupAsync(sel, nameBox.Text);
+                }
+            };
+
+            var passBtn = new Button { Content = "Changer mot de passe" };
+            passBtn.Click += async (s, e) =>
+            {
+                if (roomBox.SelectedItem is string sel)
+                {
+                    await _service.ChangeGroupPasswordAsync(sel, pwdBox.Password);
+                }
+            };
+
+            var removeBtn = new Button { Content = "Supprimer utilisateur" };
+            removeBtn.Click += async (s, e) =>
+            {
+                if (roomBox.SelectedItem is string sel && membersList.SelectedItem is string user)
+                {
+                    await _service.RemoveUserFromGroupAsync(sel, user);
+                }
+            };
+
+            var btns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+            btns.Children.Add(renameBtn);
+            btns.Children.Add(passBtn);
+            btns.Children.Add(removeBtn);
+
+            stack.Children.Add(roomBox);
+            stack.Children.Add(nameBox);
+            stack.Children.Add(pwdBox);
+            stack.Children.Add(membersList);
+            stack.Children.Add(btns);
+
+            dialog.Content = stack;
             await dialog.ShowAsync();
         }
 

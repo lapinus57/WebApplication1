@@ -537,5 +537,71 @@ namespace ChatServeur
             var result = GroupMembers.ToDictionary(g => g.Key, g => g.Value.ToList());
             return Task.FromResult(result);
         }
+
+        public async Task RenameGroup(string oldName, string newName)
+        {
+            var secure = await _db.SecureGroups.FirstOrDefaultAsync(g => g.Name == oldName);
+            if (secure != null)
+            {
+                secure.Name = newName;
+                _db.SecureGroups.Update(secure);
+            }
+
+            var memberships = await _db.GroupMemberships.Where(m => m.GroupName == oldName).ToListAsync();
+            foreach (var m in memberships)
+                m.GroupName = newName;
+            if (memberships.Count > 0)
+                _db.GroupMemberships.UpdateRange(memberships);
+
+            await _db.SaveChangesAsync();
+
+            if (GroupMembers.TryGetValue(oldName, out var members))
+            {
+                GroupMembers.Remove(oldName);
+                GroupMembers[newName] = members;
+
+                foreach (var user in members)
+                {
+                    if (_userToConnectionId.TryGetValue(user, out var conn))
+                    {
+                        await Groups.RemoveFromGroupAsync(conn, oldName);
+                        await Groups.AddToGroupAsync(conn, newName);
+                    }
+                }
+            }
+        }
+
+        public async Task ChangeGroupPassword(string groupName, string password)
+        {
+            var group = await _db.SecureGroups.FirstOrDefaultAsync(g => g.Name == groupName);
+            if (group == null)
+            {
+                group = new SecureGroup { Name = groupName, PasswordHash = HashPassword(password) };
+                _db.SecureGroups.Add(group);
+            }
+            else
+            {
+                group.PasswordHash = HashPassword(password);
+                _db.SecureGroups.Update(group);
+            }
+
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task RemoveUserFromGroup(string groupName, string username)
+        {
+            var member = await _db.GroupMemberships.FirstOrDefaultAsync(m => m.GroupName == groupName && m.Username == username);
+            if (member != null)
+            {
+                _db.GroupMemberships.Remove(member);
+                await _db.SaveChangesAsync();
+            }
+
+            if (GroupMembers.TryGetValue(groupName, out var list))
+                list.Remove(username);
+
+            if (_userToConnectionId.TryGetValue(username, out var conn))
+                await Groups.RemoveFromGroupAsync(conn, groupName);
+        }
     }
 }
