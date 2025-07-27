@@ -800,5 +800,24 @@ namespace Client.Services
                 }
             }
         }
+
+        public async Task<Dictionary<string, List<string>>> GetAllGroupsAsync()
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return new Dictionary<string, List<string>>();
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<Dictionary<string, List<string>>>("GetAllGroupMembers");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur r\u00e9cup\u00e9ration groupes : {ex.Message}");
+                return new Dictionary<string, List<string>>();
+            }
+        }
     }
 }
