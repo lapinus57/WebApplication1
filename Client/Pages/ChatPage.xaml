@@ -411,7 +411,11 @@
             </ListView>
         </StackPanel>
 
-        <ListView x:Name="MessagesList" Grid.Column="1" ItemTemplateSelector="{StaticResource MessageTemplateSelector}" SelectionMode="None"/>
+        <ListView x:Name="MessagesList"
+                  Grid.Column="1"
+                  ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
+                  SelectionMode="None"
+                  ItemsSource="{x:Bind Messages}"/>
 
 
         <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Spacing="8">
