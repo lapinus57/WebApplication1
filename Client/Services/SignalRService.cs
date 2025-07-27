@@ -260,6 +260,7 @@ namespace Client.Services
                     var message = Messages.OfType<ChatMessageModel>().FirstOrDefault(m => m.Id == id);
                     if (message != null)
                         Messages.Remove(message);
+
                     await SaveTodayMessagesToDiskAsync();
                 });
             });
