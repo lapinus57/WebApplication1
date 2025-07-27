@@ -36,6 +36,7 @@ namespace Client.Services
         private string _username = string.Empty;
         private string _avatar = string.Empty;
         private string _color = string.Empty;
+        private List<UserInfo> _lastServerUserList = new();
         private Timer? _reconnectTimer;
         private Timer? _reconnectCountdownTimer;
         private int _reconnectCountdown;
@@ -187,9 +188,12 @@ namespace Client.Services
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
-                    ConnectedUsers.Clear();
+                    _lastServerUserList = users.ToList();
 
-                    foreach (var user in users)
+                    var finalList = await BuildUserListWithGroupsAsync(users);
+
+                    ConnectedUsers.Clear();
+                    foreach (var user in finalList)
                     {
                         ConnectedUsers.Add(user);
                         Debug.WriteLine($"✅ User list ajoutée : {user.Username} ({user.Room})");
@@ -872,6 +876,63 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur suppression utilisateur groupe : {ex.Message}");
             }
+        }
+
+        private async Task<List<UserInfo>> BuildUserListWithGroupsAsync(IEnumerable<UserInfo> baseList)
+        {
+            var result = baseList.ToList();
+            var groups = await GetAllGroupsAsync();
+
+            foreach (var kvp in groups)
+            {
+                var name = kvp.Key;
+                if (name == "A Tous")
+                    continue;
+
+                bool visibleToAll = name == "Secrétariat";
+                if (visibleToAll || kvp.Value.Contains(_username))
+                {
+                    if (!result.Any(u => u.Username == name))
+                    {
+                        result.Add(new UserInfo
+                        {
+                            ConnectionId = string.Empty,
+                            Username = name,
+                            Avatar = visibleToAll ? "ms-appx:///Assets/secretaria.png" : "ms-appx:///Assets/earth.png",
+                            Room = string.Empty,
+                            DisplayName = name,
+                            ColorUserName = visibleToAll ? "Blue" : "Green",
+                            IsOnline = true,
+                            Note = string.Empty
+                        });
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public async Task RefreshGroupsAsync()
+        {
+            if (_lastServerUserList.Count == 0)
+                return;
+
+            var finalList = await BuildUserListWithGroupsAsync(_lastServerUserList);
+
+            Dispatcher?.TryEnqueue(() =>
+            {
+                ConnectedUsers.Clear();
+                foreach (var u in finalList)
+                    ConnectedUsers.Add(u);
+
+                foreach (var msg in Messages.OfType<ChatMessageModel>())
+                {
+                    msg.SenderColor = ConnectedUsers.FirstOrDefault(c => c.Username == msg.Sender)?.ColorUserName ?? "Black";
+                    msg.DestinataireColor = ConnectedUsers.FirstOrDefault(c => c.Username == msg.Destinataire)?.ColorUserName ?? "Black";
+                }
+            });
+
+            await SaveUsersToDiskAsync();
         }
     }
 }

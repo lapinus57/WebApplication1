@@ -93,6 +93,7 @@ namespace Client.Pages
             TryRestoreUserSelection();
             await WaitForConnectionReady();
             UpdateReconnectButtonVisibility();
+            await _service.RefreshGroupsAsync();
 
             if (!_service.IsHistoryLoaded && !Messages.OfType<ChatMessageModel>().Any())
             {
@@ -296,6 +297,7 @@ namespace Client.Pages
 
                 var response = await App.ChatService.Connection.InvokeAsync<string>("JoinProtectedGroup", groupName, password);
                 Debug.WriteLine($"🔐 Groupe {groupName} : {response}");
+                await _service.RefreshGroupsAsync();
             }
         }
 
