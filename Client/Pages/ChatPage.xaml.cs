@@ -816,6 +816,7 @@ namespace Client.Pages
 
                 // Force the list view to refresh or the UI may still display
                 // the removed item until the page is reloaded
+                
                 if (Resources["MessageTemplateSelector"] is DataTemplateSelector selector)
                 {
                     MessagesList.ItemTemplateSelector = null;
