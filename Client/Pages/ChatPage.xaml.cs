@@ -39,6 +39,11 @@ namespace Client.Pages
             MessagesList.ItemsSource = Messages;
             _service.Dispatcher = DispatcherQueue;
 
+            if (Resources["MessageTemplateSelector"] is ChatMessageTemplateSelector selector)
+            {
+                selector.MyUsername = _service.Username;
+            }
+
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged += ApplyChatStyle;
             ViewModel.ViewModel.SettingsViewModel.SenderColorModeChanged += ApplyColorMode;
             _service.ConnectedUsers.CollectionChanged += (_, _) => DispatcherQueue.TryEnqueue(TryRestoreUserSelection);
@@ -65,6 +70,10 @@ namespace Client.Pages
             if (_service.Connection == null || _service.Connection.State != HubConnectionState.Connected)
             {
                 await _service.InitializeAsync();
+                if (Resources["MessageTemplateSelector"] is ChatMessageTemplateSelector selector)
+                {
+                    selector.MyUsername = _service.Username;
+                }
             }
 
             TryRestoreUserSelection();
@@ -79,7 +88,7 @@ namespace Client.Pages
                 foreach (var msg in cachedMessages)
                     Messages.Add(msg);
 
-                var result = await _service.LoadTodayMessagesAsync("Benoit");
+                var result = await _service.LoadTodayMessagesAsync(_service.Username);
                 if (result.Success)
                 {
                     foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
@@ -162,7 +171,7 @@ namespace Client.Pages
             {
                 if (user != null)
                 {
-                    await _service.SendMessage("Benoit", "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
+                    await _service.SendMessage(_service.Username, "RDC", user.Username, text, @"E:\benoit.png", DateTime.Now);
                     Debug.WriteLine($"📤 Message envoyé à {user.Username}: {text}");
                     InputBox.Text = string.Empty;
                 }
@@ -180,7 +189,7 @@ namespace Client.Pages
 
         private async Task LoadHistoryAsync(string withUser)
         {
-            var username = "Benoit";
+            var username = _service.Username;
 
             try
             {
@@ -258,7 +267,7 @@ namespace Client.Pages
                 _currentDate = _currentDate.AddDays(-1);
                 tryCount++;
 
-                var result = await _service.LoadMessagesForDateAsync("Moi", _currentDate);
+                var result = await _service.LoadMessagesForDateAsync(_service.Username, _currentDate);
 
                 if (result.Success && result.Value.Any())
                 {
