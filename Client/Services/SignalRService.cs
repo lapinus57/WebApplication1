@@ -28,6 +28,8 @@ namespace Client.Services
         public ObservableCollection<Patient> Patients { get; } = new();
         public ObservableCollection<object> Messages { get; } = new();
 
+        public string Username { get; private set; } = "Benoit";
+
         private bool _initialized;
         private bool _historyLoaded;
 
@@ -66,7 +68,7 @@ namespace Client.Services
                 ConnectedUsers.Add(user);
             }
 
-            await ConnectAsync("Benoit", @"E:\benoit.png", "RDC");
+            await ConnectAsync(Username, @"E:\benoit.png", "RDC");
 
             Messages.Clear();
             Messages.Add(new LoadMorePlaceholder());
@@ -75,7 +77,7 @@ namespace Client.Services
             foreach (var msg in cached)
                 Messages.Add(msg);
 
-            var result = await LoadTodayMessagesAsync("Benoit");
+            var result = await LoadTodayMessagesAsync(Username);
             if (result.Success)
             {
                 foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
@@ -102,6 +104,8 @@ namespace Client.Services
                     Debug.WriteLine($"❌ Error disposing previous connection: {ex.Message}");
                 }
             }
+
+            Username = username;
 
             Connection = new HubConnectionBuilder()
                 .WithUrl($"{ServerAddress}/chatHub")

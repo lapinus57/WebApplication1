@@ -13,11 +13,11 @@
             <StackPanel HorizontalAlignment="Left">
                 <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{ThemeResource OtherMessageColor}">
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                        <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                        <Image Source="{x:Bind Avatar, Mode=OneWay}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
-                            <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
-                            <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
-                            <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                            <TextBlock Text="{x:Bind Header, Mode=OneWay}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                            <TextBlock Text="{x:Bind Content, Mode=OneWay}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
+                            <TextBlock Text="{x:Bind TimeFormatted, Mode=OneWay}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextOtherMessageColor}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -27,11 +27,11 @@
         <DataTemplate x:Key="MyMessageTemplate" x:DataType="data:ChatMessageModel">
             <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{ThemeResource MyMessageColor}">
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                    <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
+                    <Image Source="{x:Bind Avatar, Mode=OneWay}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
-                        <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
-                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" MaxWidth="500" HorizontalAlignment="Left" Foreground="{ThemeResource TextMyMessageColor}"/>
-                        <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextMyMessageColor}"/>
+                        <TextBlock Text="{x:Bind Header, Mode=OneWay}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
+                        <TextBlock Text="{x:Bind Content, Mode=OneWay}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" MaxWidth="500" HorizontalAlignment="Left" Foreground="{ThemeResource TextMyMessageColor}"/>
+                        <TextBlock Text="{x:Bind TimeFormatted, Mode=OneWay}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextMyMessageColor}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -41,11 +41,11 @@
             <StackPanel HorizontalAlignment="Left">
                 <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{x:Bind SenderColor, Converter={StaticResource StringToColorConverter}}">
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                        <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                        <Image Source="{x:Bind Avatar, Mode=OneWay}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
-                            <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
-                            <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
-                            <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
+                            <TextBlock Text="{x:Bind Header, Mode=OneWay}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
+                            <TextBlock Text="{x:Bind Content, Mode=OneWay}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
+                            <TextBlock Text="{x:Bind TimeFormatted, Mode=OneWay}" FontSize="12" HorizontalAlignment="Right" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -55,11 +55,11 @@
         <DataTemplate x:Key="MyColoredTemplate" x:DataType="data:ChatMessageModel">
             <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{x:Bind SenderColor, Converter={StaticResource StringToColorConverter}}">
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                    <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
+                    <Image Source="{x:Bind Avatar, Mode=OneWay}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
-                        <TextBlock Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
-                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" MaxWidth="500" HorizontalAlignment="Left" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
-                        <TextBlock Text="{x:Bind TimeFormatted}" FontSize="12" HorizontalAlignment="Right" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
+                        <TextBlock Text="{x:Bind Header, Mode=OneWay}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
+                        <TextBlock Text="{x:Bind Content, Mode=OneWay}" TextWrapping="Wrap" FontSize="{ThemeResource MessageFontSize}" MaxWidth="500" HorizontalAlignment="Left" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
+                        <TextBlock Text="{x:Bind TimeFormatted, Mode=OneWay}" FontSize="12" HorizontalAlignment="Right" Foreground="{x:Bind SenderTextColor, Converter={StaticResource StringToColorConverter}}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -75,7 +75,7 @@
 
         <!-- 📭 Placeholder vide -->
         <DataTemplate x:Key="EmptyTemplate" x:DataType="data:EmptyPlaceholder">
-            <TextBlock Text="{x:Bind Message}"
+            <TextBlock Text="{x:Bind Message, Mode=OneWay}"
                HorizontalAlignment="Center"
                FontStyle="Italic"
                Foreground="Gray"
@@ -89,12 +89,12 @@
                HorizontalAlignment="Left"
                        TextWrapping="Wrap"
                        MaxWidth="1000"
-               Text="{x:Bind IrcHeader}">
+               Text="{x:Bind IrcHeader, Mode=OneWay}">
             </TextBlock>
         </DataTemplate>
         
         <data:ChatMessageTemplateSelector x:Key="MessageTemplateSelector"
-            MyUsername="Moi"
+            MyUsername="Benoit"
             MyMessageTemplate="{StaticResource MyMessageTemplate}"
             OtherMessageTemplate="{StaticResource OtherMessageTemplate}"
             MyColoredMessageTemplate="{StaticResource MyColoredTemplate}"
@@ -160,8 +160,8 @@
         </MenuFlyout>
         <DataTemplate x:Key="UserTemplate" x:DataType="data:UserInfo">
             <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
-                <Image Source="{x:Bind Avatar}" Width="32" Height="32"/>
-                <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                <Image Source="{x:Bind Avatar, Mode=OneWay}" Width="32" Height="32"/>
+                <TextBlock Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center"/>
             </StackPanel>
         </DataTemplate>
         
@@ -185,7 +185,7 @@
 
         <ListView x:Name="UsersList"
                   Grid.Column="2"
-                  ItemsSource="{x:Bind ConnectedUsers}"
+                  ItemsSource="{x:Bind ConnectedUsers, Mode=OneWay}"
                   ItemContainerStyle="{StaticResource UserListItemStyle}"
                   SelectionChanged="UsersList_SelectionChanged"
                   SelectionMode="Single">
@@ -195,10 +195,10 @@
                                 Spacing="10"
                                 Padding="5"
                                 ContextFlyout="{StaticResource UserContextMenu}">
-                        <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                        <Image Source="{x:Bind Avatar, Mode=OneWay}" Width="40" Height="40"/>
                         <StackPanel>
-                            <TextBlock Text="{x:Bind Username}" FontWeight="Bold"/>
-                            <TextBlock Text="{x:Bind Room, FallbackValue='Offline'}"/>
+                            <TextBlock Text="{x:Bind Username, Mode=OneWay}" FontWeight="Bold"/>
+                            <TextBlock Text="{x:Bind Room, Mode=OneWay, FallbackValue='Offline'}"/>
                         </StackPanel>
                     </StackPanel>
                 </DataTemplate>
