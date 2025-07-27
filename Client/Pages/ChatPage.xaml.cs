@@ -758,6 +758,13 @@ namespace Client.Pages
                 if (roomBox.SelectedItem is string sel && membersList.SelectedItem is string user)
                 {
                     await _service.RemoveUserFromGroupAsync(sel, user);
+
+                    if (groups.TryGetValue(sel, out var list))
+                    {
+                        list.Remove(user);
+                        membersList.ItemsSource = null;
+                        membersList.ItemsSource = list;
+                    }
                 }
             };
 
