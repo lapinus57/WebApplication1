@@ -381,27 +381,35 @@
             </Pivot.Resources>
         </Pivot>
 
-        <ListView x:Name="UsersList"
-                  Grid.Column="2"
+        <StackPanel Orientation="Vertical" Grid.Column="2" Grid.Row="0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8" Margin="0,0,0,8">
+                <Button Content="+" Width="32" Height="32" Click="JoinGroup_Click" />
+                <Button Content="🔄" FontSize="25" Click="RefreshUsers_Click" />
+
+
+            </StackPanel>
+
+            <ListView x:Name="UsersList"
                   ItemsSource="{x:Bind ConnectedUsers}"
                   ItemContainerStyle="{StaticResource UserListItemStyle}"
                   SelectionChanged="UsersList_SelectionChanged"
                   SelectionMode="Single">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="data:UserInfo">
-                    <StackPanel Orientation="Horizontal"
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="data:UserInfo">
+                        <StackPanel Orientation="Horizontal"
                                 Spacing="10"
                                 Padding="5"
                                 ContextFlyout="{StaticResource UserContextMenu}">
-                        <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
-                        <StackPanel>
-                            <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind ColorUserName}" FontWeight="Bold"/>
-                            <TextBlock Text="{x:Bind Room, FallbackValue='Offline'}"/>
+                            <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                            <StackPanel>
+                                <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind ColorUserName}" FontWeight="Bold"/>
+                                <TextBlock Text="{x:Bind Room, FallbackValue='Offline'}"/>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </StackPanel>
 
         <ListView x:Name="MessagesList" Grid.Column="1" ItemTemplateSelector="{StaticResource MessageTemplateSelector}" SelectionMode="None"/>
 
