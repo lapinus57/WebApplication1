@@ -44,10 +44,8 @@ namespace Client.Pages
             BuildRooms();
             Rooms.CollectionChanged += Rooms_CollectionChanged;
             Patients.CollectionChanged += Patients_CollectionChanged;
-            Messages.CollectionChanged += Messages_CollectionChanged;
 
             UsersList.ItemsSource = ConnectedUsers;
-            MessagesList.ItemsSource = Messages;
             _service.Dispatcher = DispatcherQueue;
 
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged += ApplyChatStyle;
@@ -71,7 +69,6 @@ namespace Client.Pages
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
             ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged -= ApplyBubbleColorMode;
             Patients.CollectionChanged -= Patients_CollectionChanged;
-            Messages.CollectionChanged -= Messages_CollectionChanged;
         }
 
         private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
@@ -370,8 +367,6 @@ namespace Client.Pages
                 MessagesList.ItemContainerStyle = itemStyle;
             }
 
-            MessagesList.ItemsSource = null;
-            MessagesList.ItemsSource = Messages;
             MessagesList.UpdateLayout();
         }
 
@@ -384,8 +379,6 @@ namespace Client.Pages
                 MessagesList.ItemTemplateSelector = selector;
             }
 
-            MessagesList.ItemsSource = null;
-            MessagesList.ItemsSource = Messages;
             MessagesList.UpdateLayout();
         }
 
@@ -441,20 +434,6 @@ namespace Client.Pages
             DispatcherQueue.TryEnqueue(UpdatePatientViews);
         }
 
-        private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                if (Resources["MessageTemplateSelector"] is DataTemplateSelector selector)
-                {
-                    MessagesList.ItemTemplateSelector = null;
-                    MessagesList.ItemTemplateSelector = selector;
-                }
-
-                MessagesList.ItemsSource = null;
-                MessagesList.ItemsSource = Messages;
-            });
-        }
 
         private void UpdatePatientViews()
         {
@@ -822,9 +801,6 @@ namespace Client.Pages
                     MessagesList.ItemTemplateSelector = null;
                     MessagesList.ItemTemplateSelector = selector;
                 }
-
-                MessagesList.ItemsSource = null;
-                MessagesList.ItemsSource = Messages;
             }
         }
     }
