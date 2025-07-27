@@ -168,6 +168,7 @@ namespace ChatServeur
                 await Clients.Group(destinataire).SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
                 await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
             }
+            Console.WriteLine($"[SERVER] Message sent from {sender} to {destinataire} in room {room}: {content}");  
         }
 
         public async Task JoinRoom(string roomName)

@@ -255,11 +255,12 @@ namespace Client.Services
 
             Connection.On<int>("MessageDeleted", id =>
             {
-                Dispatcher?.TryEnqueue(() =>
+                Dispatcher?.TryEnqueue(async () =>
                 {
                     var message = Messages.OfType<ChatMessageModel>().FirstOrDefault(m => m.Id == id);
                     if (message != null)
                         Messages.Remove(message);
+                    await SaveTodayMessagesToDiskAsync();
                 });
             });
 

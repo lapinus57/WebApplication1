@@ -789,6 +789,12 @@ namespace Client.Pages
             {
                 Messages.Remove(msg);
                 await _service.DeleteMessageAsync(msg.Id);
+                await _service.SaveTodayMessagesToDiskAsync();
+
+                // Force the list view to refresh or the UI may still display
+                // the removed item until the page is reloaded
+                MessagesList.ItemsSource = null;
+                MessagesList.ItemsSource = Messages;
             }
         }
     }
