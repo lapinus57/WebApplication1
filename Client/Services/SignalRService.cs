@@ -819,5 +819,59 @@ namespace Client.Services
                 return new Dictionary<string, List<string>>();
             }
         }
+
+        public async Task RenameGroupAsync(string oldName, string newName)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return;
+            }
+
+            try
+            {
+                await Connection.InvokeAsync("RenameGroup", oldName, newName);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur renommage groupe : {ex.Message}");
+            }
+        }
+
+        public async Task ChangeGroupPasswordAsync(string groupName, string password)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return;
+            }
+
+            try
+            {
+                await Connection.InvokeAsync("ChangeGroupPassword", groupName, password);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur changement mot de passe groupe : {ex.Message}");
+            }
+        }
+
+        public async Task RemoveUserFromGroupAsync(string groupName, string username)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return;
+            }
+
+            try
+            {
+                await Connection.InvokeAsync("RemoveUserFromGroup", groupName, username);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur suppression utilisateur groupe : {ex.Message}");
+            }
+        }
     }
 }
