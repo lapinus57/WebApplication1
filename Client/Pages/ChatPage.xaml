@@ -21,7 +21,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                         <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
-                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
+                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                                 <Paragraph>
                                     <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextOtherMessageColor}"/>
                                 </Paragraph>
@@ -42,7 +42,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                         <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
-                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
+                            <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                                 <Paragraph>
                                     <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind ForegroundColor}"/>
                                 </Paragraph>
@@ -62,7 +62,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                     <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
-                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
+                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                             <Paragraph>
                                 <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{ThemeResource TextMyMessageColor}"/>
                             </Paragraph>
@@ -81,7 +81,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
                     <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
-                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}">
+                        <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                             <Paragraph>
                                 <Run Text="{x:Bind Header}" FontWeight="Bold" FontSize="{ThemeResource MessageFontSize}" Foreground="{x:Bind ForegroundColor}"/>
                             </Paragraph>
@@ -124,7 +124,7 @@
                            MaxWidth="1000"
                            IsTextSelectionEnabled="True"
                            ContextFlyout="{StaticResource MessageContextMenu}"
-                           Loaded="{x:Bind FormatContent}">
+                           Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                 <Paragraph>
                     <Run Text="{x:Bind IrcTimestampWithBrackets}" Foreground="DarkViolet" />
                     <Run Text="&lt;" />

@@ -785,6 +785,14 @@ namespace Client.Pages
             await dialog.ShowAsync();
         }
 
+        private void Message_DataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
+        {
+            if (sender is RichTextBlock block && args.NewValue is ChatMessageModel msg)
+            {
+                msg.FormatContent(block, new RoutedEventArgs());
+            }
+        }
+
         private async void DeleteMessage_Click(object sender, RoutedEventArgs e)
         {
             if (_currentMessageTarget?.DataContext is ChatMessageModel msg)
