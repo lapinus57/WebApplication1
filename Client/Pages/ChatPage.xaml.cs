@@ -227,12 +227,12 @@ namespace Client.Pages
             {
                 e.Handled = true;
                 var text = InputBox.Text.Trim();
-                if (string.Equals(text, "/getallsalon", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(text, "/getallroom", StringComparison.OrdinalIgnoreCase))
                 {
                     _ = ShowAllGroupsDialog();
                     InputBox.Text = string.Empty;
                 }
-                else if (string.Equals(text, "/setroom", StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(text, "/setallroom", StringComparison.OrdinalIgnoreCase))
                 {
                     _ = ShowSetRoomDialog();
                     InputBox.Text = string.Empty;
