@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
+using System.Linq;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Client.Helpers;
 using Client.Models;
 
@@ -12,6 +14,7 @@ namespace Client.ViewModel
         private double _messageFontSize = 14;
         private string _appTheme = "Dark";
         private string _colorUserName = "Black";
+        private string _initials = string.Empty;
         private string _shortcutF5Refraction = string.Empty;
         private string _shortcutF5Lentilles = string.Empty;
         private string _shortcutF5Pathologies = string.Empty;
@@ -103,6 +106,25 @@ namespace Client.ViewModel
                     OnPropertyChanged(nameof(ColorUserName));
                     Set("ColorUserName", value);
                     App.ChatService?.UpdateColorUserNameAsync(value);
+                }
+            }
+        }
+
+        public string Initials
+        {
+            get => _initials;
+            set
+            {
+                if (_initials != value)
+                {
+                    _initials = value;
+                    OnPropertyChanged(nameof(Initials));
+                    Set("Initials", value);
+                    if (App.MainWindow?.Content is FrameworkElement root &&
+                        root.FindName("PersonPic") is Microsoft.UI.Xaml.Controls.PersonPicture pic)
+                    {
+                        pic.Initials = value;
+                    }
                 }
             }
         }
@@ -280,6 +302,12 @@ namespace Client.ViewModel
             _appTheme = AppSettings.Get("AppTheme", "Dark");
             ApplyTheme(_appTheme);
             _colorUserName = Get("ColorUserName");
+            _initials = Get("Initials");
+            if (string.IsNullOrWhiteSpace(_initials))
+            {
+                _initials = string.Concat(App.UserName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => char.ToUpperInvariant(s[0])));
+            }
             _useSenderColorForBubbles = AppSettings.Get("UseSenderColorForBubbles", "False") == "True";
 
             _shortcutF5Refraction = Get("ShortcutF5Refraction");
@@ -313,6 +341,11 @@ namespace Client.ViewModel
 
             // update resources with loaded values
             Application.Current.Resources["MessageFontSize"] = _messageFontSize;
+            if (App.MainWindow?.Content is FrameworkElement root &&
+                root.FindName("PersonPic") is Microsoft.UI.Xaml.Controls.PersonPicture pic)
+            {
+                pic.Initials = _initials;
+            }
             OnPropertyChanged(string.Empty);
         }
 

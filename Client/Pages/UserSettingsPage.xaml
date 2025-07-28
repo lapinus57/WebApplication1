@@ -27,6 +27,10 @@
                     </Button.Flyout>
                 </Button>
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Initiales:" VerticalAlignment="Center"/>
+                <TextBox Text="{x:Bind ViewModelSettings.Initials, Mode=TwoWay}" Width="60"/>
+            </StackPanel>
             <Border CornerRadius="8" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="Raccourcis en tête" FontSize="18" FontWeight="Bold"/>

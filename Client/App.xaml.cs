@@ -6,6 +6,7 @@ using Microsoft.Windows.AppNotifications.Builder;
 using Client.Models;
 using Client.Helpers;
 using Microsoft.UI.Xaml.Controls;
+using System.Linq;
 using System.IO;
 using Client.Pages;
 
@@ -142,6 +143,16 @@ namespace Client
             var titleBar = root.FindName("AppTitleBar") as Grid;
             var nav = root.FindName("nvSample") as NavigationView;
             var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
+            if (root.FindName("PersonPic") is PersonPicture pic)
+            {
+                var initials = AppSettings.Get("Initials", string.Empty);
+                if (string.IsNullOrWhiteSpace(initials))
+                {
+                    initials = string.Concat(App.UserName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => char.ToUpperInvariant(s[0])));
+                }
+                pic.Initials = initials;
+            }
 
             AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
         }

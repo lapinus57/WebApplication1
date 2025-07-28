@@ -45,7 +45,7 @@ public string AppTheme
     }
 }
 ```
-【F:Client/ViewModel/SettingsViewModel.cs†L76-L89】
+【F:Client/ViewModel/SettingsViewModel.cs†L82-L95】
 
 Ces paramètres sont modifiables dans la page `AppearanceSettingsPage` où des sélecteurs de couleurs permettent de choisir la teinte voulue.
 
@@ -125,7 +125,7 @@ public bool UseSenderColorForBubbles
     }
 }
 ```
-【F:Client/ViewModel/SettingsViewModel.cs†L110-L123】
+【F:Client/ViewModel/SettingsViewModel.cs†L132-L145】
 
 ## Autres réglages
 
@@ -133,5 +133,6 @@ public bool UseSenderColorForBubbles
 * Adresse du serveur SignalR (chargée au démarrage dans `SignalRService`).
 * Mémorisation de l'utilisateur sélectionné pour l'envoi des messages (`AppSettings.CurrentSelectedUser`).
 * Couleur des bulles basée sur celle de l'expéditeur (`UseSenderColorForBubbles`).
+* Initiales affichées dans la barre de titre (`Initials`).
 
 Ces paramètres sont tous stockés localement afin d'être conservés entre les sessions de l'application.
