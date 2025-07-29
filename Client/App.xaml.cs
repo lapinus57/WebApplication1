@@ -268,6 +268,18 @@ namespace Client
             await SyncUserSettingsAsync(root);
         }
 
+        public async Task LogoutAsync()
+        {
+            try
+            {
+                if (ChatService.Connection != null)
+                    await ChatService.DisconnectAsync();
+            }
+            catch { }
+
+            ChatService.ClearLocalData();
+        }
+
         private Window? m_window;
     }
 }
