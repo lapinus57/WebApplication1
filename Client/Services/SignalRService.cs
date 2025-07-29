@@ -44,6 +44,7 @@ namespace Client.Services
         private bool _isConnecting;
 
         public bool IsHistoryLoaded => _historyLoaded;
+        public IReadOnlyList<UserInfo> KnownUsers => _lastServerUserList;
 
         public string ServerAddress { get; set; } = "http://localhost:5000";
 
@@ -972,6 +973,23 @@ namespace Client.Services
             }
 
             return result;
+        }
+
+        public async Task DisconnectAsync()
+        {
+            StopReconnectTimer();
+            if (Connection != null)
+            {
+                try
+                {
+                    await Connection.StopAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur déconnexion : {ex.Message}");
+                }
+            }
+            _initialized = false;
         }
 
         public async Task RefreshGroupsAsync()

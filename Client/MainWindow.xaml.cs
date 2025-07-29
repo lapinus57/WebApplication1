@@ -100,7 +100,7 @@ namespace Client
             }
         }
 
-        private async void PersonPic_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        private async void ChangeAccount_Click(object sender, RoutedEventArgs e)
         {
             var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
             Directory.CreateDirectory(appFolder);
@@ -131,6 +131,11 @@ namespace Client
                     await ((App)Application.Current).ChangeUserAsync(name);
                 }
             }
+        }
+
+        private async void Logout_Click(object sender, RoutedEventArgs e)
+        {
+            await ((App)Application.Current).LogoutAsync();
         }
     }
 }

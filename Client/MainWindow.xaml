@@ -69,7 +69,17 @@
             </Grid.ColumnDefinitions>
             <Image x:Name="TitleBarIcon" Source="/Assets/EyeChat.png" Grid.Column="1" Width="32" Height="32" Margin="8,0,4,0"/>
             <TextBlock x:Name="TitleBarTextBlock" Text="EyeChat" FontSize="16" VerticalAlignment="Center" Grid.Column="2" />
-            <PersonPicture x:Name="PersonPic" Grid.Column="4" Height="32" Margin="0,0,150,0" Tapped="PersonPic_Tapped" />
+            <Button x:Name="AccountButton" Grid.Column="4" Margin="0,0,150,0" Background="Transparent" BorderThickness="0">
+                <Button.Content>
+                    <PersonPicture x:Name="PersonPic" Height="32" />
+                </Button.Content>
+                <Button.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Changer de compte" Click="ChangeAccount_Click" />
+                        <MenuFlyoutItem Text="Déconnexion" Click="Logout_Click" />
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
         </Grid>
         <NavigationView x:Name="nvSample" Grid.Row="1" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged" IsBackEnabled="False" MenuItemContainerStyle="{StaticResource NavItemStyle}">
             <NavigationView.MenuItems>
