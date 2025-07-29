@@ -125,7 +125,8 @@ namespace Client
             if (!string.IsNullOrWhiteSpace(machine.RoomName) )
             {
                 ChatService.RoomName = machine.RoomName;
-                _ = ChatService.InitializeAsync();
+                await ChatService.InitializeAsync();
+                await SyncUserSettingsAsync(root);
             }
         }
 
@@ -213,6 +214,29 @@ namespace Client
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Toast error: {ex.Message}");
+            }
+        }
+
+        private async Task SyncUserSettingsAsync(FrameworkElement root)
+        {
+            try
+            {
+                var json = await ChatService.GetUserSettingsAsync(App.UserName);
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    AppSettings.Import(json);
+                    ApplySavedAppearance(root);
+                }
+                else
+                {
+                    var local = AppSettings.Export();
+                    if (!string.IsNullOrWhiteSpace(local))
+                        await ChatService.SaveUserSettingsAsync(App.UserName, local);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Sync settings error: {ex.Message}");
             }
         }
 

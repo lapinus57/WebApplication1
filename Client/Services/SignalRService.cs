@@ -693,6 +693,40 @@ namespace Client.Services
             }
         }
 
+        public async Task SaveUserSettingsAsync(string username, string json)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+                throw new InvalidOperationException("Connexion SignalR non établie.");
+
+            try
+            {
+                await Connection.InvokeAsync("SaveUserSettings", username, json);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur envoi paramètres : {ex.Message}");
+            }
+        }
+
+        public async Task<string> GetUserSettingsAsync(string username)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return string.Empty;
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<string?>("GetUserSettings", username) ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération paramètres : {ex.Message}");
+                return string.Empty;
+            }
+        }
+
 
         public async Task<List<Patient>> GetPatientsAsync()
         {

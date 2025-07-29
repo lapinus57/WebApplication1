@@ -94,6 +94,34 @@ namespace Client.Helpers
             Save();
         }
 
+        public static string Export()
+        {
+            try
+            {
+                return JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        public static void Import(string json)
+        {
+            try
+            {
+                var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                if (dict != null)
+                {
+                    _settings = dict;
+                    Save();
+                }
+            }
+            catch
+            {
+            }
+        }
+
         private static void Save()
         {
             try

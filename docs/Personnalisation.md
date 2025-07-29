@@ -4,7 +4,7 @@ Cette page décrit les principaux éléments personnalisables de l'application *
 
 ## Couleurs de l'interface
 
-Le client permet de personnaliser les couleurs de la barre de titre, du menu de navigation, ainsi que les couleurs des bulles de messages. Ces valeurs sont sauvegardées localement dans un fichier *settings.json* lié à l'utilisateur courant et sont appliquées via `AppSettings.SetObject("Colors", ...)`.
+Le client permet de personnaliser les couleurs de la barre de titre, du menu de navigation, ainsi que les couleurs des bulles de messages. Ces valeurs sont sauvegardées localement dans un fichier *settings.json* lié à l'utilisateur courant et sont appliquées via `AppSettings.SetObject("Colors", ...)`. Depuis la version 2.0, ce fichier est synchronisé avec le serveur afin que chaque poste dispose du même `{utilisateur}_settings.json`.
 
 Les propriétés concernées se trouvent dans `AppColorSettings` :
 
@@ -136,3 +136,4 @@ public bool UseSenderColorForBubbles
 * Initiales affichées dans la barre de titre (`Initials`).
 
 Ces paramètres sont tous stockés localement afin d'être conservés entre les sessions de l'application.
+Ils sont également envoyés au serveur pour être partagés entre plusieurs clients.
