@@ -8,12 +8,15 @@ using WinRT.Interop;
 using Windows.UI;
 using Microsoft.UI;
 using Client.Helpers;
+using Windows.Graphics;
+using Windows.Foundation;
 
 namespace Client
 {
     public sealed partial class MainWindow : Window
     {
         public bool IsTopMost { get; private set; }
+        private readonly AppWindow _appWindow;
 
         public bool IsChatPageActive => contentFrame.CurrentSourcePageType == typeof(Pages.ChatPage);
 
@@ -27,12 +30,22 @@ namespace Client
             // Hide default title bar button backgrounds for seamless look
             var hwnd = WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            var appWindow = AppWindow.GetFromWindowId(windowId);
-            var titleBar = appWindow.TitleBar;
+            _appWindow = AppWindow.GetFromWindowId(windowId);
+            var titleBar = _appWindow.TitleBar;
             nvSample.SelectedItem = nvSample.MenuItems.OfType<NavigationViewItem>()
                 .FirstOrDefault(item => (string)item.Tag == "ChatPage");
             contentFrame.Navigate(typeof(Pages.ChatPage));
-           
+
+        }
+
+        private void AppTitleBar_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (_appWindow is not null)
+            {
+                var origin = LeftDragColumn.TransformToVisual(AppTitleBar).TransformPoint(new Windows.Foundation.Point(0, 0));
+                var rect = new RectInt32((int)origin.X, 0, (int)LeftDragColumn.ActualWidth, (int)AppTitleBar.ActualHeight);
+                _appWindow.TitleBar.SetDragRectangles([rect]);
+            }
         }
 
         private void nvSample_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
