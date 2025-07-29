@@ -59,7 +59,7 @@
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Grid x:Name="AppTitleBar" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" Height="48" Grid.Row="0">
+        <Grid x:Name="AppTitleBar" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" Height="48" Grid.Row="0" Loaded="AppTitleBar_Loaded" SizeChanged="AppTitleBar_Loaded">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="LeftPaddingColumn" Width="0"/>
                 <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
