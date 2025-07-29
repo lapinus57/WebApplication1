@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Controls;
 using System.Linq;
 using System.IO;
 using Client.Pages;
+using System.Threading.Tasks;
 
 namespace Client
 {
@@ -238,6 +239,33 @@ namespace Client
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Sync settings error: {ex.Message}");
             }
+        }
+
+        public async Task ChangeUserAsync(string username)
+        {
+            if (MainWindow?.Content is not FrameworkElement root)
+                return;
+
+            try
+            {
+                if (ChatService.Connection != null)
+                    await ChatService.Connection.StopAsync();
+            }
+            catch { }
+
+            ChatService.ClearLocalData();
+
+            UserName = username;
+            AppSettings.Reload();
+            ApplySavedAppearance(root);
+            AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
+
+            var machine = MachineConfig.Load();
+            machine.LastUser = username;
+            MachineConfig.Save(machine);
+
+            await ChatService.InitializeAsync();
+            await SyncUserSettingsAsync(root);
         }
 
         private Window? m_window;
