@@ -302,6 +302,25 @@ namespace ChatServeur
             }
         }
 
+        public async Task SaveUserSettings(string username, string json)
+        {
+            var setting = await _db.UserSettings.FirstOrDefaultAsync(s => s.Username == username);
+            if (setting == null)
+            {
+                setting = new UserSetting { Username = username };
+                _db.UserSettings.Add(setting);
+            }
+
+            setting.SettingsJson = json;
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task<string?> GetUserSettings(string username)
+        {
+            var setting = await _db.UserSettings.FirstOrDefaultAsync(s => s.Username == username);
+            return setting?.SettingsJson;
+        }
+
         public async Task SaveExamOptions(IEnumerable<ExamOption> options)
         {
             var json = JsonSerializer.Serialize(options);

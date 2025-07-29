@@ -35,6 +35,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
     EnsureArchivedColumn(db);
     EnsureIsDeletedColumn(db);
+    EnsureUserSettingsTable(db);
     if (!db.ServerConfigs.Any())
     {
         db.ServerConfigs.Add(new ServerConfig());
@@ -95,6 +96,27 @@ void EnsureIsDeletedColumn(ChatDbContext db)
         if (!exists)
         {
             cmd.CommandText = "ALTER TABLE Messages ADD COLUMN IsDeleted INTEGER NOT NULL DEFAULT 0";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+void EnsureUserSettingsTable(ChatDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='UserSettings'";
+        var result = cmd.ExecuteScalar();
+        if (result == null)
+        {
+            cmd.CommandText = "CREATE TABLE UserSettings (Id INTEGER PRIMARY KEY AUTOINCREMENT, Username TEXT NOT NULL UNIQUE, SettingsJson TEXT NOT NULL)";
             cmd.ExecuteNonQuery();
         }
     }
