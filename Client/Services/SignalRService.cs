@@ -596,6 +596,32 @@ namespace Client.Services
                 Debug.WriteLine($"Erreur sauvegarde users cache : {ex.Message}");
             }
         }
+
+        public void ClearLocalData()
+        {
+            try
+            {
+                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                if (Directory.Exists(folder))
+                {
+                    foreach (var file in Directory.GetFiles(folder, "chat_*.json"))
+                        File.Delete(file);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur nettoyage cache : {ex.Message}");
+            }
+
+            Dispatcher?.TryEnqueue(() =>
+            {
+                ConnectedUsers.Clear();
+                Patients.Clear();
+                Messages.Clear();
+                Messages.Add(new LoadMorePlaceholder());
+            });
+        }
         public async Task SendExamOptionsAsync(IEnumerable<ExamOption> options)
         {
             if (Connection is null || Connection.State != HubConnectionState.Connected)

@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Linq;
+using System.IO;
 using Microsoft.UI.Windowing;
 using WinRT.Interop;
 using Windows.UI;
@@ -83,6 +84,39 @@ namespace Client
             if (contentFrame.Content is Pages.ChatPage chat)
             {
                 chat.ScrollToLastMessage();
+            }
+        }
+
+        private async void PersonPic_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+            Directory.CreateDirectory(appFolder);
+            var settingsFiles = Directory.GetFiles(appFolder, "*_settings.json");
+            var users = settingsFiles.Select(f => Path.GetFileNameWithoutExtension(f).Replace("_settings", "")).ToList();
+
+            var dialog = new ContentDialog
+            {
+                Title = "Choisir l'utilisateur",
+                PrimaryButtonText = "OK",
+                CloseButtonText = "Annuler",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var stack = new StackPanel { Spacing = 10 };
+            var combo = new ComboBox { ItemsSource = users, PlaceholderText = "Utilisateur" };
+            var newBox = new TextBox { PlaceholderText = "Nouvel utilisateur" };
+            stack.Children.Add(combo);
+            stack.Children.Add(newBox);
+            dialog.Content = stack;
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                var name = !string.IsNullOrWhiteSpace(newBox.Text) ? newBox.Text.Trim() : combo.SelectedItem as string;
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    await ((App)Application.Current).ChangeUserAsync(name);
+                }
             }
         }
     }

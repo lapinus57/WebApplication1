@@ -138,5 +138,15 @@ namespace Client.Helpers
                 System.Diagnostics.Debug.WriteLine($"❌ Sauvegarde échouée : {ex.Message}");
             }
         }
+
+        public static void DeleteSettingsFile()
+        {
+            try
+            {
+                if (File.Exists(FilePath))
+                    File.Delete(FilePath);
+            }
+            catch { }
+        }
     }
 }
