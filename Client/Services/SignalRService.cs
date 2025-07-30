@@ -142,19 +142,22 @@ namespace Client.Services
 
             Connection.Closed += async (error) =>
             {
-                try
+                if (EnableReconnect)
                 {
-                    AppNotification notification = new AppNotificationBuilder()
-                        .AddText("Serveur indisponible")
-                        .AddText("Le serveur est actuellement injoignable.")
-                        .SetDuration(AppNotificationDuration.Long)
-                        .BuildNotification();
+                    try
+                    {
+                        AppNotification notification = new AppNotificationBuilder()
+                            .AddText("Serveur indisponible")
+                            .AddText("Le serveur est actuellement injoignable.")
+                            .SetDuration(AppNotificationDuration.Long)
+                            .BuildNotification();
 
-                    AppNotificationManager.Default.Show(notification);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"❌ Toast error: {ex.Message}");
+                        AppNotificationManager.Default.Show(notification);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"❌ Toast error: {ex.Message}");
+                    }
                 }
 
                 foreach (var u in ConnectedUsers)
