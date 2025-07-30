@@ -266,6 +266,12 @@ namespace Client
 
             await ChatService.InitializeAsync();
             await SyncUserSettingsAsync(root);
+
+            if (MainWindow is MainWindow mw)
+            {
+                var chat = mw.ShowChatPage();
+                chat?.RefreshUsername();
+            }
         }
 
         public async Task LogoutAsync()
