@@ -31,6 +31,7 @@ namespace Client.Pages
         private DateTime _currentDate = DateTime.Today;
         private FrameworkElement? _currentMessageTarget;
         private bool _ignoreSelectionChanged;
+        private bool _ignoreOrderChange;
         public bool ShowTimeModification { get; private set; }
         public Visibility TimeModificationVisibility => ShowTimeModification ? Visibility.Visible : Visibility.Collapsed;
         public ChatPage()
@@ -50,7 +51,11 @@ namespace Client.Pages
 
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged += ApplyChatStyle;
             ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged += ApplyBubbleColorMode;
-            _service.ConnectedUsers.CollectionChanged += (_, _) => DispatcherQueue.TryEnqueue(TryRestoreUserSelection);
+            _service.ConnectedUsers.CollectionChanged += (_, _) => DispatcherQueue.TryEnqueue(() =>
+            {
+                ApplySavedUserOrder();
+                TryRestoreUserSelection();
+            });
 
             _service.OnMessageReceived += OnMessageReceived;
             _service.OnPatientRemoved += Service_OnPatientRemoved;
@@ -93,6 +98,7 @@ namespace Client.Pages
             await WaitForConnectionReady();
             UpdateReconnectButtonVisibility();
             await _service.RefreshGroupsAsync();
+            ApplySavedUserOrder();
 
             if (!_service.IsHistoryLoaded && !Messages.OfType<ChatMessageModel>().Any())
             {
@@ -297,6 +303,7 @@ namespace Client.Pages
                 var response = await App.ChatService.Connection.InvokeAsync<string>("JoinProtectedGroup", groupName, password);
                 Debug.WriteLine($"🔐 Groupe {groupName} : {response}");
                 await _service.RefreshGroupsAsync();
+                ApplySavedUserOrder();
             }
         }
 
@@ -313,6 +320,7 @@ namespace Client.Pages
             ConnectedUsers.Clear();
             foreach (var u in sorted)
                 ConnectedUsers.Add(u);
+            SaveUserOrder();
         }
 
         private async void LoadMore_Click(object sender, RoutedEventArgs e)
@@ -821,6 +829,66 @@ namespace Client.Pages
                 MessagesList.ItemTemplateSelector = selector;
                 MessagesList.UpdateLayout();
             }
+        }
+
+        private void MoveUserUp_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is UserInfo user)
+            {
+                var index = ConnectedUsers.IndexOf(user);
+                if (index > 0)
+                {
+                    _ignoreOrderChange = true;
+                    ConnectedUsers.Move(index, index - 1);
+                    _ignoreOrderChange = false;
+                    SaveUserOrder();
+                }
+            }
+        }
+
+        private void MoveUserDown_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is UserInfo user)
+            {
+                var index = ConnectedUsers.IndexOf(user);
+                if (index >= 0 && index < ConnectedUsers.Count - 1)
+                {
+                    _ignoreOrderChange = true;
+                    ConnectedUsers.Move(index, index + 1);
+                    _ignoreOrderChange = false;
+                    SaveUserOrder();
+                }
+            }
+        }
+
+        private void ApplySavedUserOrder()
+        {
+            if (_ignoreOrderChange)
+                return;
+
+            var order = AppSettings.UserOrder;
+            if (order.Count == 0)
+                return;
+
+            var sorted = ConnectedUsers.OrderBy(u =>
+            {
+                int idx = order.IndexOf(u.Username);
+                return idx >= 0 ? idx : int.MaxValue;
+            }).ToList();
+
+            if (sorted.SequenceEqual(ConnectedUsers))
+                return;
+
+            _ignoreOrderChange = true;
+            ConnectedUsers.Clear();
+            foreach (var u in sorted)
+                ConnectedUsers.Add(u);
+            _ignoreOrderChange = false;
+        }
+
+        private void SaveUserOrder()
+        {
+            AppSettings.UserOrder = ConnectedUsers.Select(u => u.Username).ToList();
         }
     }
 
