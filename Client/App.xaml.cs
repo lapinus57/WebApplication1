@@ -249,7 +249,7 @@ namespace Client
             try
             {
                 if (ChatService.Connection != null)
-                    await ChatService.Connection.StopAsync();
+                    await ChatService.DisconnectAsync();
             }
             catch { }
 

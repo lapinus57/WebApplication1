@@ -42,6 +42,7 @@ namespace Client.Services
         private int _reconnectCountdown;
         public event Action<int>? ReconnectCountdownChanged;
         private bool _isConnecting;
+        public bool EnableReconnect { get; set; } = true;
 
         public bool IsHistoryLoaded => _historyLoaded;
         public IReadOnlyList<UserInfo> KnownUsers => _lastServerUserList;
@@ -115,6 +116,7 @@ namespace Client.Services
             if (_isConnecting)
                 return;
             _isConnecting = true;
+            EnableReconnect = true;
 
             _username = username;
             _avatar = avatar;
@@ -162,7 +164,8 @@ namespace Client.Services
                 }
                 await SaveUsersToDiskAsync();
                 await Task.Delay(3000);
-                StartReconnectTimer();
+                if (EnableReconnect)
+                    StartReconnectTimer();
             };
 
             Connection.On<UserInfo>("UserConnected", user =>
@@ -336,7 +339,8 @@ namespace Client.Services
                 {
                     Debug.WriteLine($"❌ Toast error: {toastEx.Message}");
                 }
-                StartReconnectTimer();
+                if (EnableReconnect)
+                    StartReconnectTimer();
             }
 
             _isConnecting = false;
@@ -419,6 +423,8 @@ namespace Client.Services
         }
         private async Task<bool> TryReconnectAsync()
         {
+            if (!EnableReconnect)
+                return false;
             try
             {
                 if (Connection == null)
@@ -441,6 +447,8 @@ namespace Client.Services
 
         private void StartReconnectTimer()
         {
+            if (!EnableReconnect)
+                return;
             _reconnectTimer?.Dispose();
             _reconnectCountdownTimer?.Dispose();
 
@@ -475,7 +483,7 @@ namespace Client.Services
 
         public async Task ReconnectAsync()
         {
-            if (_isConnecting || string.IsNullOrEmpty(_username))
+            if (!EnableReconnect || _isConnecting || string.IsNullOrEmpty(_username))
                 return;
 
             await ConnectAsync(_username, _avatar, RoomName, _color);
@@ -975,8 +983,10 @@ namespace Client.Services
             return result;
         }
 
-        public async Task DisconnectAsync()
+        public async Task DisconnectAsync(bool disableReconnect = true)
         {
+            if (disableReconnect)
+                EnableReconnect = false;
             StopReconnectTimer();
             if (Connection != null)
             {
