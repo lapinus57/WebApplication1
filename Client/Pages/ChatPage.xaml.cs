@@ -811,6 +811,17 @@ namespace Client.Pages
                 }
             }
         }
+
+        public void RefreshUsername()
+        {
+            if (Resources["MessageTemplateSelector"] is ChatMessageTemplateSelector selector)
+            {
+                selector.MyUsername = App.UserName;
+                MessagesList.ItemTemplateSelector = null;
+                MessagesList.ItemTemplateSelector = selector;
+                MessagesList.UpdateLayout();
+            }
+        }
     }
 
     public static class ObservableCollectionExtensions
