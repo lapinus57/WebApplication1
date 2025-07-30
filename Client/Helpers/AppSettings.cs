@@ -30,6 +30,12 @@ namespace Client.Helpers
             }
         }
 
+        public static List<string> UserOrder
+        {
+            get => GetObject<List<string>>("UserOrder");
+            set => SetObject("UserOrder", value);
+        }
+
         static AppSettings()
         {
             Load();

@@ -213,6 +213,8 @@
         <!-- Menu contextuel des utilisateurs -->
         <MenuFlyout x:Key="UserContextMenu">
             <MenuFlyoutItem Text="Message"/>
+            <MenuFlyoutItem Text="Monter" Click="MoveUserUp_Click"/>
+            <MenuFlyoutItem Text="Descendre" Click="MoveUserDown_Click"/>
         </MenuFlyout>
         <DataTemplate x:Key="UserTemplate" x:DataType="data:UserInfo">
             <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
