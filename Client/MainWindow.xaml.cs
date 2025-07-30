@@ -10,6 +10,7 @@ using Microsoft.UI;
 using Client.Helpers;
 using Windows.Graphics;
 using Windows.Foundation;
+using Microsoft.UI.Xaml.Media;
 
 namespace Client
 {
@@ -42,9 +43,18 @@ namespace Client
         {
             if (_appWindow is not null)
             {
-                var origin = LeftDragColumn.TransformToVisual(AppTitleBar).TransformPoint(new Windows.Foundation.Point(0, 0));
-                var rect = new RectInt32((int)origin.X, 0, (int)LeftDragColumn.ActualWidth, (int)AppTitleBar.ActualHeight);
-                _appWindow.TitleBar.SetDragRectangles([rect]);
+                // Fix: Replace 'LeftDragColumn.Parent' with a valid way to access the parent Grid of the ColumnDefinition  
+                if (LeftDragColumn is ColumnDefinition leftDragColumn)
+                {
+                    // Access the parent Grid through the visual tree  
+                    var parentGrid = VisualTreeHelper.GetParent(AppTitleBar) as Grid;
+                    if (parentGrid != null)
+                    {
+                        var origin = parentGrid.TransformToVisual(AppTitleBar).TransformPoint(new Windows.Foundation.Point(0, 0));
+                        var rect = new RectInt32((int)origin.X, 0, (int)leftDragColumn.ActualWidth, (int)AppTitleBar.ActualHeight);
+                        _appWindow.TitleBar.SetDragRectangles(new[] { rect });
+                    }
+                }
             }
         }
 
