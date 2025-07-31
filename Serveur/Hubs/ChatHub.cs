@@ -321,6 +321,12 @@ namespace ChatServeur
             return setting?.SettingsJson;
         }
 
+        public Task<List<UserInfo>> GetAllUsers()
+        {
+            var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+            return Task.FromResult(userList);
+        }
+
         public async Task SaveExamOptions(IEnumerable<ExamOption> options)
         {
             var json = JsonSerializer.Serialize(options);
