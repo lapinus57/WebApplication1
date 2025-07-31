@@ -87,6 +87,15 @@ namespace Client.Services
             var color = AppSettings.Get("ColorUserName", "Black");
             await ConnectAsync(App.UserName, @"E:\benoit.png", RoomName, color);
 
+            var serverUsers = await GetAllUsersAsync();
+            if (serverUsers.Count > 0)
+            {
+                var finalList = await BuildUserListWithGroupsAsync(serverUsers);
+                ConnectedUsers.Clear();
+                foreach (var u in finalList)
+                    ConnectedUsers.Add(u);
+            }
+
             Messages.Clear();
             Messages.Add(new LoadMorePlaceholder());
 
@@ -728,6 +737,25 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur récupération salles : {ex.Message}");
                 return new List<string>();
+            }
+        }
+
+        public async Task<List<UserInfo>> GetAllUsersAsync()
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return new List<UserInfo>();
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<List<UserInfo>>("GetAllUsers");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération utilisateurs : {ex.Message}");
+                return new List<UserInfo>();
             }
         }
 
