@@ -14,5 +14,6 @@ namespace ChatServeur
         public DbSet<ServerConfig> ServerConfigs => Set<ServerConfig>();
         public DbSet<Patient> Patients => Set<Patient>();
         public DbSet<UserSetting> UserSettings => Set<UserSetting>();
+        public DbSet<KnownUser> KnownUsers => Set<KnownUser>();
     }
 }
