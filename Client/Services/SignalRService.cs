@@ -844,6 +844,21 @@ namespace Client.Services
             }
         }
 
+        public async Task UpdateAvatarAsync(string avatar)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("SetAvatar", avatar);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur mise à jour avatar : {ex.Message}");
+                }
+            }
+        }
+
         public async Task ArchiveTakenPatientsAsync()
         {
             if (Connection != null && Connection.State == HubConnectionState.Connected)

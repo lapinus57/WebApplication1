@@ -371,6 +371,27 @@ namespace ChatServeur
             }
         }
 
+        public async Task SetAvatar(string avatar)
+        {
+            EnsureUsersLoaded();
+            if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
+            {
+                user.Avatar = avatar;
+                AllUsers[user.Username] = user;
+
+                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
+                if (dbUser != null)
+                {
+                    dbUser.Avatar = avatar;
+                    _db.KnownUsers.Update(dbUser);
+                    await _db.SaveChangesAsync();
+                }
+
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                await Clients.All.SendAsync("UserListUpdated", userList);
+            }
+        }
+
         public async Task SaveUserSettings(string username, string json)
         {
             var setting = await _db.UserSettings.FirstOrDefaultAsync(s => s.Username == username);

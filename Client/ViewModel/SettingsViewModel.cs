@@ -15,6 +15,7 @@ namespace Client.ViewModel
         private string _appTheme = "Dark";
         private string _colorUserName = "Black";
         private string _initials = string.Empty;
+        private string _avatar = "ms-appx:///Assets/earth.png";
         private string _shortcutF5Refraction = string.Empty;
         private string _shortcutF5Lentilles = string.Empty;
         private string _shortcutF5Pathologies = string.Empty;
@@ -125,6 +126,21 @@ namespace Client.ViewModel
                     {
                         pic.Initials = value;
                     }
+                }
+            }
+        }
+
+        public string Avatar
+        {
+            get => _avatar;
+            set
+            {
+                if (_avatar != value)
+                {
+                    _avatar = value;
+                    OnPropertyChanged(nameof(Avatar));
+                    Set("Avatar", value);
+                    App.ChatService?.UpdateAvatarAsync(value);
                 }
             }
         }
@@ -303,6 +319,7 @@ namespace Client.ViewModel
             ApplyTheme(_appTheme);
             _colorUserName = Get("ColorUserName");
             _initials = Get("Initials");
+            _avatar = Get("Avatar");
             if (string.IsNullOrWhiteSpace(_initials))
             {
                 _initials = string.Concat(App.UserName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
