@@ -134,6 +134,11 @@ public bool UseSenderColorForBubbles
 * Mémorisation de l'utilisateur sélectionné pour l'envoi des messages (`AppSettings.CurrentSelectedUser`).
 * Couleur des bulles basée sur celle de l'expéditeur (`UseSenderColorForBubbles`).
 * Initiales affichées dans la barre de titre (`Initials`).
+* Avatar de l'utilisateur (`Avatar`).
+
+L'avatar peut provenir d'une image intégrée ou d'un fichier importé. Le chemin
+de ce fichier est mémorisé dans le *settings.json* de l'utilisateur et envoyé au
+serveur afin de s'afficher de la même façon sur chaque poste.
 
 Ces paramètres sont tous stockés localement afin d'être conservés entre les sessions de l'application.
 Ils sont également envoyés au serveur pour être partagés entre plusieurs clients.

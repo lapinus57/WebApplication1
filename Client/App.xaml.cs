@@ -8,6 +8,7 @@ using Client.Helpers;
 using Microsoft.UI.Xaml.Controls;
 using System.Linq;
 using System.IO;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Client.Pages;
 using System.Threading.Tasks;
 
@@ -154,6 +155,12 @@ namespace Client
                         .Select(s => char.ToUpperInvariant(s[0])));
                 }
                 pic.Initials = initials;
+                var avatar = AppSettings.Get("Avatar", string.Empty);
+                if (!string.IsNullOrWhiteSpace(avatar))
+                {
+                    try { pic.ProfilePicture = new BitmapImage(new Uri(avatar)); }
+                    catch { }
+                }
             }
 
             AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
