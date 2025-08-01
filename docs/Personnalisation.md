@@ -139,6 +139,8 @@ public bool UseSenderColorForBubbles
 L'avatar peut provenir d'une image intégrée ou d'un fichier importé. Le chemin
 de ce fichier est mémorisé dans le *settings.json* de l'utilisateur et envoyé au
 serveur afin de s'afficher de la même façon sur chaque poste.
+La sélection s'effectue depuis la page **Utilisateur** via le bouton "Changer..."
+qui propose plusieurs icônes intégrées ou l'import d'une image personnelle.
 
 Ces paramètres sont tous stockés localement afin d'être conservés entre les sessions de l'application.
 Ils sont également envoyés au serveur pour être partagés entre plusieurs clients.
