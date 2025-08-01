@@ -11,6 +11,7 @@ namespace ChatServeur
         private static readonly Dictionary<string, string> _userToConnectionId = new();
         private static readonly Dictionary<string, UserInfo> AllUsers = new();
         private static readonly Dictionary<string, HashSet<string>> GroupMembers = new();
+        private static bool _usersLoaded;
 
         private static readonly List<UserInfo> BaseUsers = new()
         {
@@ -38,6 +39,29 @@ namespace ChatServeur
             }
         };
 
+        private void EnsureUsersLoaded()
+        {
+            if (_usersLoaded)
+                return;
+
+            foreach (var u in _db.KnownUsers)
+            {
+                AllUsers[u.Username] = new UserInfo
+                {
+                    ConnectionId = u.ConnectionId,
+                    Username = u.Username,
+                    Avatar = u.Avatar,
+                    Room = u.Room,
+                    DisplayName = u.DisplayName,
+                    ColorUserName = u.ColorUserName,
+                    IsOnline = u.IsOnline,
+                    Note = u.Note
+                };
+            }
+
+            _usersLoaded = true;
+        }
+
         private readonly ChatDbContext _db;
 
         public ChatHub(ChatDbContext db)
@@ -52,11 +76,22 @@ namespace ChatServeur
 
         public override async Task OnDisconnectedAsync(Exception? ex)
         {
+            EnsureUsersLoaded();
             if (ConnectedUsers.Remove(Context.ConnectionId, out var user))
             {
                 user.IsOnline = false;
                 user.Room = "Hors ligne";
                 AllUsers[user.Username] = user;
+
+                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
+                if (dbUser != null)
+                {
+                    dbUser.ConnectionId = string.Empty;
+                    dbUser.Room = "Hors ligne";
+                    dbUser.IsOnline = false;
+                    _db.KnownUsers.Update(dbUser);
+                    await _db.SaveChangesAsync();
+                }
 
                 await Clients.All.SendAsync("UserDisconnected", user.Username);
 
@@ -78,6 +113,7 @@ namespace ChatServeur
         {
             try
             {
+                EnsureUsersLoaded();
                 Console.WriteLine($"[SERVER] RegisterUser : {username}");
 
                 var user = new UserInfo
@@ -95,6 +131,21 @@ namespace ChatServeur
                 ConnectedUsers[Context.ConnectionId] = user;
                 _userToConnectionId[username] = Context.ConnectionId;
                 AllUsers[username] = user;
+
+                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == username);
+                if (dbUser == null)
+                {
+                    dbUser = new KnownUser { Username = username };
+                    _db.KnownUsers.Add(dbUser);
+                }
+                dbUser.ConnectionId = Context.ConnectionId;
+                dbUser.Avatar = avatar;
+                dbUser.Room = room;
+                dbUser.DisplayName = username;
+                dbUser.ColorUserName = color;
+                dbUser.IsOnline = true;
+                dbUser.Note = string.Empty;
+                await _db.SaveChangesAsync();
 
                 await Groups.AddToGroupAsync(Context.ConnectionId, "A Tous");
                 if (!GroupMembers.ContainsKey("A Tous"))
@@ -280,10 +331,19 @@ namespace ChatServeur
 
         public async Task SetRoomName(string roomName)
         {
+            EnsureUsersLoaded();
             if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
             {
                 user.Room = roomName;
                 AllUsers[user.Username] = user;
+
+                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
+                if (dbUser != null)
+                {
+                    dbUser.Room = roomName;
+                    _db.KnownUsers.Update(dbUser);
+                    await _db.SaveChangesAsync();
+                }
 
                 var userList = BaseUsers.Concat(AllUsers.Values).ToList();
                 await Clients.All.SendAsync("UserListUpdated", userList);
@@ -292,10 +352,19 @@ namespace ChatServeur
 
         public async Task SetColorUserName(string color)
         {
+            EnsureUsersLoaded();
             if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
             {
                 user.ColorUserName = color;
                 AllUsers[user.Username] = user;
+
+                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
+                if (dbUser != null)
+                {
+                    dbUser.ColorUserName = color;
+                    _db.KnownUsers.Update(dbUser);
+                    await _db.SaveChangesAsync();
+                }
 
                 var userList = BaseUsers.Concat(AllUsers.Values).ToList();
                 await Clients.All.SendAsync("UserListUpdated", userList);
@@ -323,6 +392,7 @@ namespace ChatServeur
 
         public Task<List<UserInfo>> GetAllUsers()
         {
+            EnsureUsersLoaded();
             var userList = BaseUsers.Concat(AllUsers.Values).ToList();
             return Task.FromResult(userList);
         }
