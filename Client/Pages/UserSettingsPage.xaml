@@ -10,7 +10,9 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <Page.Resources>
         <helpers:StringToColorConverter x:Key="StringToColorConverter" />
+
         <helpers:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
+
         <DataTemplate x:Key="AvatarTemplate">
             <Image Source="{Binding}" Width="60" Height="60"/>
         </DataTemplate>
@@ -37,7 +39,9 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                 <TextBlock Text="Avatar:" VerticalAlignment="Center"/>
+
                 <Image Source="{x:Bind ViewModelSettings.Avatar, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
+
                 <Button Content="Changer..." Click="ChangeAvatar_Click"/>
             </StackPanel>
             <Border CornerRadius="8" Padding="20">
