@@ -10,6 +10,8 @@ using Windows.Storage;
 using WinRT.Interop;
 using System;
 using System.IO;
+using System.Linq;
+using Microsoft.UI.Xaml.Markup;
 
 namespace Client.Pages
 {
@@ -39,8 +41,11 @@ namespace Client.Pages
         {
             var serverAvatars = await App.ChatService.GetAvailableAvatarsAsync();
             _defaultAvatars.Clear();
-            foreach (var avatar in serverAvatars)
-                _defaultAvatars.Add(avatar);
+            foreach (var avatar in serverAvatars.Distinct())
+            {
+                if (!_defaultAvatars.Contains(avatar))
+                    _defaultAvatars.Add(avatar);
+            }
 
             var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync("Avatars", CreationCollisionOption.OpenIfExists);
             var files = await folder.GetFilesAsync();
@@ -62,32 +67,34 @@ namespace Client.Pages
                 XamlRoot = this.XamlRoot
             };
 
-            var list = new ListView
+            var grid = new GridView
             {
                 ItemsSource = _defaultAvatars,
                 SelectionMode = ListViewSelectionMode.Single,
                 ItemTemplate = (DataTemplate)this.Resources["AvatarTemplate"],
                 MaxHeight = 200
             };
-            list.SelectedIndex = _defaultAvatars.IndexOf(ViewModelSettings.Avatar);
+            grid.ItemsPanel = (ItemsPanelTemplate)XamlReader.Load(
+                "<ItemsPanelTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'><ItemsWrapGrid Orientation='Vertical' MaximumRowsOrColumns='6'/></ItemsPanelTemplate>");
+            grid.SelectedIndex = _defaultAvatars.IndexOf(ViewModelSettings.Avatar);
 
             var importButton = new Button { Content = "Importer une image..." };
-            importButton.Click += async (s, args) => await ImportAvatarAsync(list);
+            importButton.Click += async (s, args) => await ImportAvatarAsync(grid);
 
             var panel = new StackPanel { Spacing = 10 };
-            panel.Children.Add(list);
+            panel.Children.Add(grid);
             panel.Children.Add(importButton);
 
             dialog.Content = panel;
             var result = await dialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
-                if (list.SelectedItem is string avatar)
+                if (grid.SelectedItem is string avatar)
                     ViewModelSettings.Avatar = avatar;
             }
         }
 
-        private async Task ImportAvatarAsync(ListView list)
+        private async Task ImportAvatarAsync(ListViewBase list)
         {
             var picker = new FileOpenPicker();
             picker.FileTypeFilter.Add(".png");
