@@ -85,7 +85,9 @@ namespace Client.Services
             }
 
             var color = AppSettings.Get("ColorUserName", "Black");
-            await ConnectAsync(App.UserName, @"E:\benoit.png", RoomName, color);
+            var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+            await ConnectAsync(App.UserName, avatar, RoomName, color);
+
 
             var serverUsers = await GetAllUsersAsync();
             if (serverUsers.Count > 0)

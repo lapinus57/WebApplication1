@@ -220,7 +220,8 @@ namespace Client.Pages
             {
                 if (user != null)
                 {
-                    await _service.SendMessage(App.UserName, _service.RoomName, user.Username, text, @"E:\benoit.png", DateTime.Now);
+                    var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+                    await _service.SendMessage(App.UserName, _service.RoomName, user.Username, text, avatar, DateTime.Now);
                     Debug.WriteLine($"📤 Message envoyé à {user.Username}: {text}");
                     InputBox.Text = string.Empty;
                 }
