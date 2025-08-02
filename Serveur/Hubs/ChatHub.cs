@@ -398,12 +398,19 @@ namespace ChatServeur
 
         public async Task<string> UploadAvatar(string fileName, string base64)
         {
+            var commaIndex = base64.IndexOf(',');
+            if (commaIndex >= 0)
+                base64 = base64.Substring(commaIndex + 1);
+
             var bytes = Convert.FromBase64String(base64);
             var avatarsPath = Path.Combine(_env.WebRootPath, "avatars");
             Directory.CreateDirectory(avatarsPath);
-            var filePath = Path.Combine(avatarsPath, fileName);
+            var extension = Path.GetExtension(fileName);
+            var safeName = Path.ChangeExtension(Path.GetRandomFileName(), extension);
+            var filePath = Path.Combine(avatarsPath, safeName);
             await File.WriteAllBytesAsync(filePath, bytes);
-            return $"/avatars/{fileName}";
+            //return $"/avatars/{fileName}";
+            return $"/avatars/{safeName}";
         }
 
         public async Task SaveUserSettings(string username, string json)

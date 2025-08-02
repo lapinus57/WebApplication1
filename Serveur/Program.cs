@@ -12,7 +12,10 @@ builder.Services.AddDbContext<ChatDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
 builder.Services.AddRazorPages();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(o =>
+{
+    o.MaximumReceiveMessageSize = 2 * 1024 * 1024;
+});
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 var app = builder.Build();
