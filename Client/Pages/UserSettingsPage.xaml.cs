@@ -86,15 +86,15 @@ namespace Client.Pages
             if (file != null)
             {
                 var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync("Avatars", CreationCollisionOption.OpenIfExists);
-                await file.CopyAsync(folder, file.Name, NameCollisionOption.ReplaceExisting);
+                var newFile = await file.CopyAsync(folder, file.Name, NameCollisionOption.GenerateUniqueName);
 
-                using var stream = await file.OpenStreamForReadAsync();
+                using var stream = await newFile.OpenStreamForReadAsync();
                 using var ms = new MemoryStream();
                 await stream.CopyToAsync(ms);
                 var base64 = Convert.ToBase64String(ms.ToArray());
-                var serverPath = await App.ChatService.UploadAvatarAsync(file.Name, base64);
+                var serverPath = await App.ChatService.UploadAvatarAsync(newFile.Name, base64);
                 string path = string.IsNullOrEmpty(serverPath)
-                    ? $"ms-appdata:///local/Avatars/{file.Name}"
+                    ? $"ms-appdata:///local/Avatars/{newFile.Name}"
                     : $"{App.ChatService.ServerAddress}{serverPath}";
 
                 ViewModelSettings.Avatar = path;
