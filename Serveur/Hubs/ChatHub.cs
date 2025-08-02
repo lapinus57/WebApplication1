@@ -52,7 +52,7 @@ namespace ChatServeur
                 {
                     ConnectionId = u.ConnectionId,
                     Username = u.Username,
-                    Avatar = u.Avatar,
+                    Avatar = ToRelativeAvatar(u.Avatar),
                     Room = u.Room,
                     DisplayName = u.DisplayName,
                     ColorUserName = u.ColorUserName,
@@ -71,6 +71,22 @@ namespace ChatServeur
         {
             _db = db;
             _env = env;
+        }
+
+        private static string ToRelativeAvatar(string avatar)
+        {
+            if (string.IsNullOrWhiteSpace(avatar))
+                return avatar;
+            try
+            {
+                var uri = new Uri(avatar, UriKind.RelativeOrAbsolute);
+                if (uri.IsAbsoluteUri)
+                    return uri.PathAndQuery;
+            }
+            catch
+            {
+            }
+            return avatar;
         }
 
         public override Task OnConnectedAsync()
@@ -117,6 +133,7 @@ namespace ChatServeur
         {
             try
             {
+                avatar = ToRelativeAvatar(avatar);
                 EnsureUsersLoaded();
                 Console.WriteLine($"[SERVER] RegisterUser : {username}");
 
@@ -185,6 +202,7 @@ namespace ChatServeur
 
         public async Task SendMessage(string sender, string room, string destinataire, string content, string avatar, DateTime timestamp)
         {
+            avatar = ToRelativeAvatar(avatar);
             timestamp = DateTime.Now;
             var message = new ChatMessage
             {
@@ -377,6 +395,7 @@ namespace ChatServeur
 
         public async Task SetAvatar(string avatar)
         {
+            avatar = ToRelativeAvatar(avatar);
             EnsureUsersLoaded();
             if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
             {
@@ -403,7 +422,12 @@ namespace ChatServeur
                 base64 = base64.Substring(commaIndex + 1);
 
             var bytes = Convert.FromBase64String(base64);
-            var avatarsPath = Path.Combine(_env.WebRootPath, "avatars");
+
+            var webRoot = _env.WebRootPath;
+            if (string.IsNullOrEmpty(webRoot))
+                webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+
+            var avatarsPath = Path.Combine(webRoot, "avatars");
             Directory.CreateDirectory(avatarsPath);
             var extension = Path.GetExtension(fileName);
             var safeName = Path.ChangeExtension(Path.GetRandomFileName(), extension);

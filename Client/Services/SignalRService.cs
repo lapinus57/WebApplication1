@@ -69,6 +69,35 @@ namespace Client.Services
             ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
         };
 
+        private string ToServerAvatar(string avatar)
+        {
+            if (string.IsNullOrWhiteSpace(avatar))
+                return avatar;
+            try
+            {
+                var serverUri = new Uri(ServerAddress);
+                var uri = new Uri(avatar, UriKind.RelativeOrAbsolute);
+                if (uri.IsAbsoluteUri && uri.Host == serverUri.Host && uri.Port == serverUri.Port)
+                    return uri.PathAndQuery;
+            }
+            catch
+            {
+            }
+            return avatar;
+        }
+
+        private string ToClientAvatar(string avatar)
+        {
+            if (string.IsNullOrWhiteSpace(avatar))
+                return avatar;
+            if (Uri.TryCreate(avatar, UriKind.RelativeOrAbsolute, out var uri))
+            {
+                if (!uri.IsAbsoluteUri && avatar.StartsWith("/"))
+                    return $"{ServerAddress}{avatar}";
+            }
+            return avatar;
+        }
+
         public async Task InitializeAsync()
         {
             if (_initialized)
@@ -81,6 +110,7 @@ namespace Client.Services
             {
                 user.IsOnline = false;
                 user.Room = "Hors ligne";
+                user.Avatar = ToClientAvatar(user.Avatar);
                 ConnectedUsers.Add(user);
             }
 
@@ -92,7 +122,12 @@ namespace Client.Services
             var serverUsers = await GetAllUsersAsync();
             if (serverUsers.Count > 0)
             {
-                var finalList = await BuildUserListWithGroupsAsync(serverUsers);
+                var processed = serverUsers.Select(u =>
+                {
+                    u.Avatar = ToClientAvatar(u.Avatar);
+                    return u;
+                }).ToList();
+                var finalList = await BuildUserListWithGroupsAsync(processed);
                 ConnectedUsers.Clear();
                 foreach (var u in finalList)
                     ConnectedUsers.Add(u);
@@ -103,7 +138,10 @@ namespace Client.Services
 
             var cached = await LoadTodayMessagesFromDiskAsync();
             foreach (var msg in cached)
+            {
+                msg.Avatar = ToClientAvatar(msg.Avatar);
                 Messages.Add(msg);
+            }
 
             var result = await LoadTodayMessagesAsync(App.UserName);
             if (result.Success)
@@ -186,6 +224,7 @@ namespace Client.Services
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
+                    user.Avatar = ToClientAvatar(user.Avatar);
                     var existing = ConnectedUsers.FirstOrDefault(u => u.Username == user.Username);
                     if (existing != null)
                     {
@@ -206,9 +245,15 @@ namespace Client.Services
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
-                    _lastServerUserList = users.ToList();
+                    var processed = users.Select(u =>
+                    {
+                        u.Avatar = ToClientAvatar(u.Avatar);
+                        return u;
+                    }).ToList();
+                    _lastServerUserList = processed.ToList();
 
-                    var finalList = await BuildUserListWithGroupsAsync(users);
+
+                    var finalList = await BuildUserListWithGroupsAsync(processed);
 
                     ConnectedUsers.Clear();
                     foreach (var user in finalList)
@@ -256,7 +301,7 @@ namespace Client.Services
                     Room = room,
                     Content = msg,
                     Timestamp = time,
-                    Avatar = avatar,
+                    Avatar = ToClientAvatar(avatar),
                     SenderColor = senderColor,
                     DestinataireColor = destColor
                 };
@@ -335,7 +380,7 @@ namespace Client.Services
             try
             {
                 await Connection.StartAsync();
-                await Connection.InvokeAsync("RegisterUser", username, avatar, room, color);
+                await Connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color); 
                 StopReconnectTimer();
             }
             catch (Exception ex)
@@ -365,7 +410,7 @@ namespace Client.Services
         {
             if (Connection is null || Connection.State != HubConnectionState.Connected)
                 throw new InvalidOperationException("Connexion SignalR non établie.");
-            await Connection.InvokeAsync("SendMessage", sender, roomname, destinataire, message, avatar, timemessage);
+            await Connection.InvokeAsync("SendMessage", sender, roomname, destinataire, message, ToServerAvatar(avatar), timemessage);
 
         }
 
@@ -389,7 +434,7 @@ namespace Client.Services
                     Destinataire = m.Destinataire,
                     Room = m.Room,
                     Content = m.Content,
-                    Avatar = m.Avatar,
+                    Avatar = ToClientAvatar(m.Avatar),
                     Timestamp = m.Timestamp,
                     IsDeleted = m.IsDeleted,
                     SenderColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Sender)?.ColorUserName ?? "Black",
@@ -422,7 +467,7 @@ namespace Client.Services
                         Destinataire = m.Destinataire,
                         Room = m.Room,
                         Content = m.Content,
-                        Avatar = m.Avatar,
+                        Avatar = ToClientAvatar(m.Avatar),
                         Timestamp = m.Timestamp,
                         IsDeleted = m.IsDeleted,
                         SenderColor = ConnectedUsers.FirstOrDefault(u => u.Username == m.Sender)?.ColorUserName ?? "Black",
@@ -868,7 +913,7 @@ namespace Client.Services
             {
                 try
                 {
-                    await Connection.InvokeAsync("SetAvatar", avatar);
+                    await Connection.InvokeAsync("SetAvatar", ToServerAvatar(avatar));
                 }
                 catch (Exception ex)
                 {
