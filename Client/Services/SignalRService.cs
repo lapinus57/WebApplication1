@@ -844,6 +844,22 @@ namespace Client.Services
             }
         }
 
+        public async Task<string?> UploadAvatarAsync(string fileName, string base64)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    return await Connection.InvokeAsync<string>("UploadAvatar", fileName, base64);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur envoi avatar : {ex.Message}");
+                }
+            }
+            return null;
+        }
+
         public async Task UpdateAvatarAsync(string avatar)
         {
             if (Connection != null && Connection.State == HubConnectionState.Connected)
