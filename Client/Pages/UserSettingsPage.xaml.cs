@@ -75,7 +75,7 @@ namespace Client.Pages
                 MaxHeight = 200
             };
             grid.ItemsPanel = (ItemsPanelTemplate)XamlReader.Load(
-                "<ItemsPanelTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'><ItemsWrapGrid Orientation='Vertical' MaximumRowsOrColumns='6'/></ItemsPanelTemplate>");
+                "<ItemsPanelTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'><ItemsWrapGrid Orientation='Vertical' MaximumRowsOrColumns='9'/></ItemsPanelTemplate>");
             grid.SelectedIndex = _defaultAvatars.IndexOf(ViewModelSettings.Avatar);
 
             var importButton = new Button { Content = "Importer une image..." };
