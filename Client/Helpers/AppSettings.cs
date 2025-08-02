@@ -119,7 +119,12 @@ namespace Client.Helpers
                 var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
                 if (dict != null)
                 {
-                    _settings = dict;
+                    foreach (var kvp in dict)
+                    {
+                        if (kvp.Value.ValueKind == JsonValueKind.Null)
+                            continue;
+                        _settings[kvp.Key] = kvp.Value;
+                    }
                     Save();
                 }
             }
