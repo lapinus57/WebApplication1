@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using static ChatServeur.PasswordHelper;
 using Microsoft.AspNetCore.Hosting;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ChatServeur
 {
@@ -435,6 +437,20 @@ namespace ChatServeur
             await File.WriteAllBytesAsync(filePath, bytes);
             //return $"/avatars/{fileName}";
             return $"/avatars/{safeName}";
+        }
+
+        public Task<List<string>> GetAvailableAvatars()
+        {
+            var webRoot = _env.WebRootPath;
+            if (string.IsNullOrEmpty(webRoot))
+                webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            var avatarsPath = Path.Combine(webRoot, "avatars");
+            if (!Directory.Exists(avatarsPath))
+                return Task.FromResult(new List<string>());
+            var files = Directory.GetFiles(avatarsPath)
+                .Select(f => $"/avatars/{Path.GetFileName(f)}")
+                .ToList();
+            return Task.FromResult(files);
         }
 
         public async Task SaveUserSettings(string username, string json)
