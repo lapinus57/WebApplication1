@@ -907,6 +907,23 @@ namespace Client.Services
             return null;
         }
 
+        public async Task<List<string>> GetAvailableAvatarsAsync()
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    var avatars = await Connection.InvokeAsync<List<string>>("GetAvailableAvatars");
+                    return avatars.Select(ToClientAvatar).ToList();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur récupération avatars : {ex.Message}");
+                }
+            }
+            return new List<string>();
+        }
+
         public async Task UpdateAvatarAsync(string avatar)
         {
             if (Connection != null && Connection.State == HubConnectionState.Connected)

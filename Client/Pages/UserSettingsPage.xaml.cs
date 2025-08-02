@@ -18,11 +18,7 @@ namespace Client.Pages
         public SettingsViewModel ViewModelSettings { get; } = new();
         public ObservableCollection<ExamOption> ExamOptions { get; } = ExamOption.Load();
 
-        private readonly ObservableCollection<string> _defaultAvatars = new()
-        {
-            "ms-appx:///Assets/earth.png",
-            "ms-appx:///Assets/secretaria.png"
-        };
+        private readonly ObservableCollection<string> _defaultAvatars = new();
 
         public UserSettingsPage()
         {
@@ -41,6 +37,23 @@ namespace Client.Pages
 
         private async void ChangeAvatar_Click(object sender, RoutedEventArgs e)
         {
+            var serverAvatars = await App.ChatService.GetAvailableAvatarsAsync();
+            _defaultAvatars.Clear();
+            foreach (var avatar in serverAvatars)
+                _defaultAvatars.Add(avatar);
+
+            var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync("Avatars", CreationCollisionOption.OpenIfExists);
+            var files = await folder.GetFilesAsync();
+            foreach (var file in files)
+            {
+                var path = $"ms-appdata:///local/Avatars/{file.Name}";
+                if (!_defaultAvatars.Contains(path))
+                    _defaultAvatars.Add(path);
+            }
+
+            if (!string.IsNullOrEmpty(ViewModelSettings.Avatar) && !_defaultAvatars.Contains(ViewModelSettings.Avatar))
+                _defaultAvatars.Add(ViewModelSettings.Avatar);
+
             var dialog = new ContentDialog
             {
                 Title = "Choisir un avatar",
