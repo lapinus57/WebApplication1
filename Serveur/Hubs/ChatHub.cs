@@ -2,6 +2,8 @@ using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using static ChatServeur.PasswordHelper;
+using Microsoft.AspNetCore.Hosting;
+using System.IO;
 
 namespace ChatServeur
 {
@@ -63,10 +65,12 @@ namespace ChatServeur
         }
 
         private readonly ChatDbContext _db;
+        private readonly IWebHostEnvironment _env;
 
-        public ChatHub(ChatDbContext db)
+        public ChatHub(ChatDbContext db, IWebHostEnvironment env)
         {
             _db = db;
+            _env = env;
         }
 
         public override Task OnConnectedAsync()
@@ -390,6 +394,16 @@ namespace ChatServeur
                 var userList = BaseUsers.Concat(AllUsers.Values).ToList();
                 await Clients.All.SendAsync("UserListUpdated", userList);
             }
+        }
+
+        public async Task<string> UploadAvatar(string fileName, string base64)
+        {
+            var bytes = Convert.FromBase64String(base64);
+            var avatarsPath = Path.Combine(_env.WebRootPath, "avatars");
+            Directory.CreateDirectory(avatarsPath);
+            var filePath = Path.Combine(avatarsPath, fileName);
+            await File.WriteAllBytesAsync(filePath, bytes);
+            return $"/avatars/{fileName}";
         }
 
         public async Task SaveUserSettings(string username, string json)

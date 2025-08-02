@@ -4,12 +4,12 @@ using Microsoft.UI.Xaml.Controls;
 using System.Diagnostics;
 using Client.Models;
 using System.Collections.ObjectModel;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 using Windows.Storage;
 using WinRT.Interop;
 using System;
+using System.IO;
 
 namespace Client.Pages
 {
@@ -18,7 +18,7 @@ namespace Client.Pages
         public SettingsViewModel ViewModelSettings { get; } = new();
         public ObservableCollection<ExamOption> ExamOptions { get; } = ExamOption.Load();
 
-        private readonly List<string> _defaultAvatars = new()
+        private readonly ObservableCollection<string> _defaultAvatars = new()
         {
             "ms-appx:///Assets/earth.png",
             "ms-appx:///Assets/secretaria.png"
@@ -86,9 +86,20 @@ namespace Client.Pages
             if (file != null)
             {
                 var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync("Avatars", CreationCollisionOption.OpenIfExists);
-                await file.CopyAsync(folder, file.Name, NameCollisionOption.ReplaceExisting);
-                var path = $"ms-appdata:///local/Avatars/{file.Name}";
+                var newFile = await file.CopyAsync(folder, file.Name, NameCollisionOption.GenerateUniqueName);
+
+                using var stream = await newFile.OpenStreamForReadAsync();
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                var serverPath = await App.ChatService.UploadAvatarAsync(newFile.Name, base64);
+                string path = string.IsNullOrEmpty(serverPath)
+                    ? $"ms-appdata:///local/Avatars/{newFile.Name}"
+                    : $"{App.ChatService.ServerAddress}{serverPath}";
+
                 ViewModelSettings.Avatar = path;
+                if (!_defaultAvatars.Contains(path))
+                    _defaultAvatars.Add(path);
                 list.SelectedItem = null;
             }
         }
