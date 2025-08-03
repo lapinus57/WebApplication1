@@ -462,6 +462,10 @@ namespace ChatServeur
                     await _db.SaveChangesAsync();
                 }
 
+                await _db.Messages
+                    .Where(m => m.Sender == user.Username)
+                    .ExecuteUpdateAsync(s => s.SetProperty(m => m.Avatar, avatar));
+
                 var userList = BaseUsers.Concat(AllUsers.Values).ToList();
                 await Clients.All.SendAsync("UserListUpdated", userList);
             }
