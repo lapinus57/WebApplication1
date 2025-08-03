@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.Chat;
 using Microsoft.VisualBasic;
 using Newtonsoft.Json;
@@ -377,10 +378,35 @@ namespace Client.Services
                 RoomsUpdated?.Invoke(rooms);
             });
 
+            Connection.On<string, string>("UserSettingsUpdated", (username, json) =>
+            {
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    try
+                    {
+                        var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                        Directory.CreateDirectory(appFolder);
+                        var path = Path.Combine(appFolder, $"{username}_settings.json");
+                        File.WriteAllText(path, json);
+
+                        if (username == App.UserName)
+                        {
+                            AppSettings.Import(json);
+                            if (App.MainWindow?.Content is FrameworkElement root)
+                                App.ApplySavedAppearance(root);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Erreur MAJ paramètres : {ex.Message}");
+                    }
+                });
+            });
+
             try
             {
                 await Connection.StartAsync();
-                await Connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color); 
+                await Connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color);
                 StopReconnectTimer();
             }
             catch (Exception ex)
@@ -837,6 +863,25 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur récupération paramètres : {ex.Message}");
                 return string.Empty;
+            }
+        }
+
+        public async Task<Dictionary<string, string>> GetMissingUserSettingsAsync(IEnumerable<string> knownUsers)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return new Dictionary<string, string>();
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<Dictionary<string, string>>("GetMissingUserSettings", knownUsers);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération paramètres manquants : {ex.Message}");
+                return new Dictionary<string, string>();
             }
         }
 

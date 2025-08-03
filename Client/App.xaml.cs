@@ -10,6 +10,7 @@ using System.Linq;
 using System.IO;
 using Client.Pages;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace Client
 {
@@ -23,6 +24,21 @@ namespace Client
         public App()
         {
             this.InitializeComponent();
+
+            AppSettings.SettingsChanged += async () =>
+            {
+                try
+                {
+                    if (ChatService.Connection != null && ChatService.Connection.State == HubConnectionState.Connected)
+                    {
+                        await ChatService.SaveUserSettingsAsync(UserName, AppSettings.Export());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Sync settings error: {ex.Message}");
+                }
+            };
         }
 
         protected async override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
@@ -128,10 +144,11 @@ namespace Client
                 ChatService.RoomName = machine.RoomName;
                 await ChatService.InitializeAsync();
                 await SyncUserSettingsAsync(root);
+                await DownloadMissingUserSettingsAsync();
             }
         }
 
-        private static void ApplySavedAppearance(FrameworkElement root)
+        public static void ApplySavedAppearance(FrameworkElement root)
         {
             var theme = AppSettings.Get("AppTheme", "Dark");
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
@@ -242,6 +259,28 @@ namespace Client
             }
         }
 
+        private async Task DownloadMissingUserSettingsAsync()
+        {
+            try
+            {
+                var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                Directory.CreateDirectory(appFolder);
+                var localUsers = Directory.GetFiles(appFolder, "*_settings.json")
+                    .Select(f => Path.GetFileNameWithoutExtension(f).Replace("_settings", ""))
+                    .ToList();
+                var missing = await ChatService.GetMissingUserSettingsAsync(localUsers);
+                foreach (var kvp in missing)
+                {
+                    var path = Path.Combine(appFolder, $"{kvp.Key}_settings.json");
+                    File.WriteAllText(path, kvp.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Sync missing settings error: {ex.Message}");
+            }
+        }
+
         public async Task ChangeUserAsync(string username)
         {
             if (MainWindow?.Content is not FrameworkElement root)
@@ -267,6 +306,7 @@ namespace Client
 
             await ChatService.InitializeAsync();
             await SyncUserSettingsAsync(root);
+            await DownloadMissingUserSettingsAsync();
 
             if (MainWindow is MainWindow mw)
             {
