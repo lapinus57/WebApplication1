@@ -173,7 +173,7 @@ namespace Client.Services
             }, IntPtr.Zero);
             return foundTitle;
         }
-        private static async Task ShowPatientDialogAsync(string examName)
+        public static async Task ShowPatientDialogAsync(string examName, string? patientName = null)
         {
             var options = ExamOption.Load();
             var rooms = RoomList.Load();
@@ -213,22 +213,29 @@ namespace Client.Services
                 floorCombo.SelectedItem = examOpt.Floor;
             var commentBox = new TextBox { PlaceholderText = "Commentaire", Width = 600 };
 
-            // Extract patient name from active window title
-            var title = GetActiveWindowTitle();
-            Debug.WriteLine($"[HotKeyService] Active window title: {title}");
-
-            if (!TryExtractPatientFromTitle(title, out var patientTitle, out var lastName, out var firstName))
+            // Extract patient name either from parameter or active window title
+            if (string.IsNullOrWhiteSpace(patientName))
             {
-                var other = FindExamWindowTitle();
-                if (!string.IsNullOrEmpty(other))
-                {
-                    Debug.WriteLine($"[HotKeyService] Using window title: {other}");
-                    TryExtractPatientFromTitle(other, out patientTitle, out lastName, out firstName);
-                }
-            }
+                var title = GetActiveWindowTitle();
+                Debug.WriteLine($"[HotKeyService] Active window title: {title}");
 
-            if (!string.IsNullOrWhiteSpace(patientTitle) || !string.IsNullOrWhiteSpace(lastName) || !string.IsNullOrWhiteSpace(firstName))
-                nameBox.Text = $"{patientTitle} {lastName} {firstName}".Trim();
+                if (!TryExtractPatientFromTitle(title, out var patientTitle, out var lastName, out var firstName))
+                {
+                    var other = FindExamWindowTitle();
+                    if (!string.IsNullOrEmpty(other))
+                    {
+                        Debug.WriteLine($"[HotKeyService] Using window title: {other}");
+                        TryExtractPatientFromTitle(other, out patientTitle, out lastName, out firstName);
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(patientTitle) || !string.IsNullOrWhiteSpace(lastName) || !string.IsNullOrWhiteSpace(firstName))
+                    nameBox.Text = $"{patientTitle} {lastName} {firstName}".Trim();
+            }
+            else
+            {
+                nameBox.Text = patientName;
+            }
 
             // Layout
             AddLabeledControl(grid, 0, "Nom", nameBox);
@@ -274,6 +281,39 @@ namespace Client.Services
                 {
                     Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
                 }
+            }
+        }
+
+        public static async Task DeclarePatientAsync(string examName, string patientName)
+        {
+            var options = ExamOption.Load();
+            var opt = options.FirstOrDefault(o => o.Name.Equals(examName, StringComparison.OrdinalIgnoreCase));
+
+            PatientStringHelper.ExtractInfoFromInput(patientName.Trim(),
+                out var title, out var lastName, out var firstName);
+
+            var patient = new Patient
+            {
+                Id = Guid.NewGuid().ToString(),
+                Colors = opt?.Color ?? string.Empty,
+                Title = title,
+                LastName = lastName,
+                FirstName = firstName,
+                Exams = examName,
+                Eye = "ODG",
+                Annotation = opt?.Annotation ?? string.Empty,
+                Position = opt?.Floor ?? string.Empty,
+                HoldTime = DateTime.Now,
+                Examinator = App.UserName,
+            };
+
+            try
+            {
+                await App.ChatService.DeclarePatient(patient);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
             }
         }
 

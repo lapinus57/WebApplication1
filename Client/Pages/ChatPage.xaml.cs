@@ -234,6 +234,20 @@ namespace Client.Pages
             {
                 e.Handled = true;
                 var text = InputBox.Text.Trim();
+
+                var options = ExamOption.Load();
+                var exam = options.FirstOrDefault(o => !string.IsNullOrEmpty(o.CodeMSG) && text.StartsWith(o.CodeMSG, StringComparison.OrdinalIgnoreCase));
+                if (exam != null)
+                {
+                    var name = text.Substring(exam.CodeMSG.Length).Trim();
+                    if (string.IsNullOrEmpty(name))
+                        _ = HotKeyService.ShowPatientDialogAsync(exam.Name);
+                    else
+                        _ = HotKeyService.DeclarePatientAsync(exam.Name, name);
+                    InputBox.Text = string.Empty;
+                    return;
+                }
+
                 if (string.Equals(text, "/getallroom", StringComparison.OrdinalIgnoreCase))
                 {
                     _ = ShowAllGroupsDialog();
