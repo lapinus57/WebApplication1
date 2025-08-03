@@ -268,7 +268,15 @@ namespace ChatServeur
                 await Clients.Group(destinataire).SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
                 await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
             }
-            Console.WriteLine($"[SERVER] Message sent from {sender} to {destinataire} in room {room}: {content}");  
+            Console.WriteLine($"[SERVER] Message sent from {sender} to {destinataire} in room {room}: {content}");
+        }
+
+        public async Task CallUser(string caller, string room, string destinataire)
+        {
+            if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionIds))
+            {
+                await Clients.Clients(targetConnectionIds).SendAsync("ReceiveCall", caller, room);
+            }
         }
 
         public async Task JoinRoom(string roomName)
