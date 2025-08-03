@@ -59,6 +59,7 @@ namespace Client.Services
         }
 
         public event Action<ChatMessageModel>? OnMessageReceived;
+        public event Action<string, string>? OnCallReceived;
         public event Action<Patient>? OnNewPatient;
         public event Action<string>? OnPatientRemoved;
         public event Action<Patient>? OnPatientUpdated;
@@ -317,6 +318,11 @@ namespace Client.Services
                 });
             });
 
+            Connection.On<string, string>("ReceiveCall", (caller, room) =>
+            {
+                Dispatcher?.TryEnqueue(() => OnCallReceived?.Invoke(caller, room));
+            });
+
             Connection.On<int>("MessageDeleted", id =>
             {
                 Dispatcher?.TryEnqueue(async () =>
@@ -438,6 +444,13 @@ namespace Client.Services
                 throw new InvalidOperationException("Connexion SignalR non établie.");
             await Connection.InvokeAsync("SendMessage", sender, roomname, destinataire, message, ToServerAvatar(avatar), timemessage);
 
+        }
+
+        public async Task CallUser(string sender, string roomname, string destinataire)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+                throw new InvalidOperationException("Connexion SignalR non établie.");
+            await Connection.InvokeAsync("CallUser", sender, roomname, destinataire);
         }
 
         public async Task<Result<List<ChatMessageModel>>> LoadTodayMessagesAsync(string username)

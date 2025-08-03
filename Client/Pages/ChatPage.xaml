@@ -211,8 +211,8 @@
         </Style>
 
         <!-- Menu contextuel des utilisateurs -->
-        <MenuFlyout x:Key="UserContextMenu">
-            <MenuFlyoutItem Text="Message"/>
+        <MenuFlyout x:Key="UserContextMenu" Opened="UserContextMenu_Opened">
+            <MenuFlyoutItem Text="Tu peut venir" Click="CallUser_Click"/>
             <MenuFlyoutItem Text="Monter" Click="MoveUserUp_Click"/>
             <MenuFlyoutItem Text="Descendre" Click="MoveUserDown_Click"/>
         </MenuFlyout>

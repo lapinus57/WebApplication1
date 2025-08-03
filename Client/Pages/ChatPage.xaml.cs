@@ -61,6 +61,7 @@ namespace Client.Pages
             _service.OnPatientRemoved += Service_OnPatientRemoved;
             _service.OnPatientUpdated += Service_OnPatientUpdated;
             _service.ReconnectCountdownChanged += Service_ReconnectCountdownChanged;
+            _service.OnCallReceived += Service_OnCallReceived;
             Loaded += ChatPage_Loaded;
             Unloaded += ChatPage_Unloaded;
         }
@@ -71,6 +72,7 @@ namespace Client.Pages
             _service.OnPatientRemoved -= Service_OnPatientRemoved;
             _service.OnPatientUpdated -= Service_OnPatientUpdated;
             _service.ReconnectCountdownChanged -= Service_ReconnectCountdownChanged;
+            _service.OnCallReceived -= Service_OnCallReceived;
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
             ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged -= ApplyBubbleColorMode;
             Patients.CollectionChanged -= Patients_CollectionChanged;
@@ -619,6 +621,31 @@ namespace Client.Pages
             });
         }
 
+        private async void Service_OnCallReceived(string caller, string room)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Appel",
+                Content = $"{caller} vous a appelé dans la pièce {room}",
+                PrimaryButtonText = "0",
+                SecondaryButtonText = "5",
+                CloseButtonText = "AT",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            string response = result switch
+            {
+                ContentDialogResult.Primary => "je vient dans 0",
+                ContentDialogResult.Secondary => "je vient dans 5",
+                _ => "met en attente"
+            };
+
+            var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+            await _service.SendMessage(App.UserName, _service.RoomName, "A Tous", response, avatar, DateTime.Now);
+        }
+
         private IEnumerable<Patient> GetPatientsForRoom(string room)
         {
             IEnumerable<Patient> query = room == "Toutes"
@@ -634,6 +661,19 @@ namespace Client.Pages
         {
             if (sender is MenuFlyout menu)
                 _currentMessageTarget = menu.Target as FrameworkElement;
+        }
+
+        private void UserContextMenu_Opened(object sender, object e)
+        {
+            if (sender is MenuFlyout menu && menu.Items.Count > 0)
+            {
+                if (menu.Items[0] is MenuFlyoutItem item && menu.Target?.DataContext is UserInfo user)
+                {
+                    item.Visibility = (user.Username == "A Tous" || user.Username == "Secrétariat")
+                        ? Visibility.Collapsed
+                        : Visibility.Visible;
+                }
+            }
         }
 
         private void CopySelection_Click(object sender, RoutedEventArgs e)
@@ -843,6 +883,17 @@ namespace Client.Pages
                 MessagesList.ItemTemplateSelector = null;
                 MessagesList.ItemTemplateSelector = selector;
                 MessagesList.UpdateLayout();
+            }
+        }
+
+        private async void CallUser_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is UserInfo user)
+            {
+                var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+                var content = $"{App.UserName} a appelé {user.Username}";
+                await _service.SendMessage(App.UserName, _service.RoomName, "A Tous", content, avatar, DateTime.Now);
+                await _service.CallUser(App.UserName, _service.RoomName, user.Username);
             }
         }
 
