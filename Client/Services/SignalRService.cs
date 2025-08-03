@@ -109,7 +109,7 @@ namespace Client.Services
             foreach (var user in cachedUsers)
             {
                 user.IsOnline = false;
-                user.Room = "Hors ligne";
+                user.Rooms.Clear();
                 user.Avatar = ToClientAvatar(user.Avatar);
                 ConnectedUsers.Add(user);
             }
@@ -212,7 +212,7 @@ namespace Client.Services
                 foreach (var u in ConnectedUsers)
                 {
                     u.IsOnline = false;
-                    u.Room = "Hors ligne";
+                    u.Rooms.Clear();
                 }
                 await SaveUsersToDiskAsync();
                 await Task.Delay(3000);
@@ -259,7 +259,7 @@ namespace Client.Services
                     foreach (var user in finalList)
                     {
                         ConnectedUsers.Add(user);
-                        Debug.WriteLine($"✅ User list ajoutée : {user.Username} ({user.Room})");
+                        Debug.WriteLine($"✅ User list ajoutée : {user.Username} ({string.Join(", ", user.Rooms)})");
                     }
 
                     foreach (var msg in Messages.OfType<ChatMessageModel>())
@@ -1096,7 +1096,7 @@ namespace Client.Services
                             ConnectionId = string.Empty,
                             Username = name,
                             Avatar = visibleToAll ? "ms-appx:///Assets/secretaria.png" : "ms-appx:///Assets/earth.png",
-                            Room = string.Empty,
+                            Rooms = new List<string>(),
                             DisplayName = name,
                             ColorUserName = visibleToAll ? "Blue" : "Green",
                             IsOnline = true,

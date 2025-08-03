@@ -6,13 +6,14 @@ using Microsoft.AspNetCore.Hosting;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System;
 
 namespace ChatServeur
 {
     public class ChatHub : Hub
     {
         private static readonly Dictionary<string, UserInfo> ConnectedUsers = new();
-        private static readonly Dictionary<string, string> _userToConnectionId = new();
+        private static readonly Dictionary<string, HashSet<string>> _userToConnectionId = new();
         private static readonly Dictionary<string, UserInfo> AllUsers = new();
         private static readonly Dictionary<string, HashSet<string>> GroupMembers = new();
         private static bool _usersLoaded;
@@ -24,7 +25,7 @@ namespace ChatServeur
                 ConnectionId = string.Empty,
                 Username = "A Tous",
                 Avatar = "ms-appx:///Assets/earth.png",
-                Room = string.Empty,
+                Rooms = new List<string>(),
                 DisplayName = "A Tous",
                 ColorUserName = "Red",
                 IsOnline = true,
@@ -35,7 +36,7 @@ namespace ChatServeur
                 ConnectionId = string.Empty,
                 Username = "Secrétariat",
                 Avatar = "ms-appx:///Assets/secretaria.png",
-                Room = string.Empty,
+                Rooms = new List<string>(),
                 DisplayName = "Secrétariat",
                 ColorUserName = "Blue",
                 IsOnline = true,
@@ -55,7 +56,7 @@ namespace ChatServeur
                     ConnectionId = u.ConnectionId,
                     Username = u.Username,
                     Avatar = ToRelativeAvatar(u.Avatar),
-                    Room = u.Room,
+                    Rooms = ParseRooms(u.Room),
                     DisplayName = u.DisplayName,
                     ColorUserName = u.ColorUserName,
                     IsOnline = u.IsOnline,
@@ -89,6 +90,14 @@ namespace ChatServeur
             {
             }
             return avatar;
+        }
+
+        private static List<string> ParseRooms(string rooms)
+        {
+            return string.IsNullOrWhiteSpace(rooms)
+                ? new List<string>()
+                : rooms.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(r => r.Trim()).ToList();
         }
 
         public override Task OnConnectedAsync()

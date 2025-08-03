@@ -405,7 +405,7 @@
                             <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                             <StackPanel>
                                 <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind ColorUserName}" FontWeight="Bold"/>
-                                <TextBlock Text="{x:Bind Room, FallbackValue='Offline'}"/>
+                                <TextBlock Text="{x:Bind RoomsDisplay, FallbackValue='Offline'}"/>
                             </StackPanel>
                         </StackPanel>
                     </DataTemplate>
