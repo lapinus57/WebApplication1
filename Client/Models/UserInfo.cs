@@ -22,5 +22,6 @@ namespace Client.Models
         /// Returns a comma separated list of rooms the user is connected to.
         /// </summary>
         public string RoomsDisplay => Rooms.Count == 0 ? string.Empty : string.Join(", ", Rooms);
+
     }
 }

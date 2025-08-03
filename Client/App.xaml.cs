@@ -154,6 +154,7 @@ namespace Client
                         .Select(s => char.ToUpperInvariant(s[0])));
                 }
                 pic.Initials = initials;
+
             }
 
             AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
