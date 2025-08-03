@@ -240,7 +240,10 @@ namespace Client.Pages
                 if (exam != null)
                 {
                     var name = text.Substring(exam.CodeMSG.Length).Trim();
-                    _ = HotKeyService.ShowPatientDialogAsync(exam.Name, name);
+                    if (string.IsNullOrEmpty(name))
+                        _ = HotKeyService.ShowPatientDialogAsync(exam.Name);
+                    else
+                        _ = HotKeyService.DeclarePatientAsync(exam.Name, name);
                     InputBox.Text = string.Empty;
                     return;
                 }

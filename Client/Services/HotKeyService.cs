@@ -284,6 +284,39 @@ namespace Client.Services
             }
         }
 
+        public static async Task DeclarePatientAsync(string examName, string patientName)
+        {
+            var options = ExamOption.Load();
+            var opt = options.FirstOrDefault(o => o.Name.Equals(examName, StringComparison.OrdinalIgnoreCase));
+
+            PatientStringHelper.ExtractInfoFromInput(patientName.Trim(),
+                out var title, out var lastName, out var firstName);
+
+            var patient = new Patient
+            {
+                Id = Guid.NewGuid().ToString(),
+                Colors = opt?.Color ?? string.Empty,
+                Title = title,
+                LastName = lastName,
+                FirstName = firstName,
+                Exams = examName,
+                Eye = "ODG",
+                Annotation = opt?.Annotation ?? string.Empty,
+                Position = opt?.Floor ?? string.Empty,
+                HoldTime = DateTime.Now,
+                Examinator = App.UserName,
+            };
+
+            try
+            {
+                await App.ChatService.DeclarePatient(patient);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
+            }
+        }
+
         private static void AddLabeledControl(Grid grid, int row, string label, UIElement control)
         {
             var tb = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center };
