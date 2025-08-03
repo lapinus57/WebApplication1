@@ -8,7 +8,6 @@ using Client.Helpers;
 using Microsoft.UI.Xaml.Controls;
 using System.Linq;
 using System.IO;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Client.Pages;
 using System.Threading.Tasks;
 
@@ -154,7 +153,8 @@ namespace Client
                     initials = string.Concat(App.UserName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                         .Select(s => char.ToUpperInvariant(s[0])));
                 }
-                pic.Initials = initials;               
+                pic.Initials = initials;
+
             }
 
             AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);

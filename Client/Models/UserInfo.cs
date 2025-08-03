@@ -17,6 +17,11 @@ namespace Client.Models
         /// <see cref="Username"/> otherwise.
         /// </summary>
         public string Name => string.IsNullOrWhiteSpace(DisplayName) ? Username : DisplayName;
-        public string RoomsDisplay => string.Join(", ", Rooms);
+
+        /// <summary>
+        /// Returns a comma separated list of rooms the user is connected to.
+        /// </summary>
+        public string RoomsDisplay => Rooms.Count == 0 ? string.Empty : string.Join(", ", Rooms);
+
     }
 }
