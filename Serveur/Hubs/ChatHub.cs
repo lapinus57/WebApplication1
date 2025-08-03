@@ -6,13 +6,14 @@ using Microsoft.AspNetCore.Hosting;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System;
 
 namespace ChatServeur
 {
     public class ChatHub : Hub
     {
         private static readonly Dictionary<string, UserInfo> ConnectedUsers = new();
-        private static readonly Dictionary<string, string> _userToConnectionId = new();
+        private static readonly Dictionary<string, HashSet<string>> _userToConnectionId = new();
         private static readonly Dictionary<string, UserInfo> AllUsers = new();
         private static readonly Dictionary<string, HashSet<string>> GroupMembers = new();
         private static bool _usersLoaded;
@@ -24,7 +25,7 @@ namespace ChatServeur
                 ConnectionId = string.Empty,
                 Username = "A Tous",
                 Avatar = "ms-appx:///Assets/earth.png",
-                Room = string.Empty,
+                Rooms = new List<string>(),
                 DisplayName = "A Tous",
                 ColorUserName = "Red",
                 IsOnline = true,
@@ -35,7 +36,7 @@ namespace ChatServeur
                 ConnectionId = string.Empty,
                 Username = "Secrétariat",
                 Avatar = "ms-appx:///Assets/secretaria.png",
-                Room = string.Empty,
+                Rooms = new List<string>(),
                 DisplayName = "Secrétariat",
                 ColorUserName = "Blue",
                 IsOnline = true,
@@ -55,7 +56,7 @@ namespace ChatServeur
                     ConnectionId = u.ConnectionId,
                     Username = u.Username,
                     Avatar = ToRelativeAvatar(u.Avatar),
-                    Room = u.Room,
+                    Rooms = ParseRooms(u.Room),
                     DisplayName = u.DisplayName,
                     ColorUserName = u.ColorUserName,
                     IsOnline = u.IsOnline,
@@ -91,6 +92,14 @@ namespace ChatServeur
             return avatar;
         }
 
+        private static List<string> ParseRooms(string rooms)
+        {
+            return string.IsNullOrWhiteSpace(rooms)
+                ? new List<string>()
+                : rooms.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(r => r.Trim()).ToList();
+        }
+
         public override Task OnConnectedAsync()
         {
             return base.OnConnectedAsync();
@@ -101,30 +110,37 @@ namespace ChatServeur
             EnsureUsersLoaded();
             if (ConnectedUsers.Remove(Context.ConnectionId, out var user))
             {
-                user.IsOnline = false;
-                user.Room = "Hors ligne";
-                AllUsers[user.Username] = user;
-
-                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
-                if (dbUser != null)
+                if (_userToConnectionId.TryGetValue(user.Username, out var connections))
                 {
-                    dbUser.ConnectionId = string.Empty;
-                    dbUser.Room = "Hors ligne";
-                    dbUser.IsOnline = false;
-                    _db.KnownUsers.Update(dbUser);
-                    await _db.SaveChangesAsync();
-                }
+                    connections.Remove(Context.ConnectionId);
+                    if (connections.Count == 0)
+                    {
+                        _userToConnectionId.Remove(user.Username);
 
-                await Clients.All.SendAsync("UserDisconnected", user.Username);
+                        user.IsOnline = false;
+                        user.Rooms.Clear();
+                        AllUsers[user.Username] = user;
 
-                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
-                await Clients.All.SendAsync("UserListUpdated", userList);
+                        var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
+                        if (dbUser != null)
+                        {
+                            dbUser.ConnectionId = string.Empty;
+                            dbUser.Room = "Hors ligne";
+                            dbUser.IsOnline = false;
+                            _db.KnownUsers.Update(dbUser);
+                            await _db.SaveChangesAsync();
+                        }
 
-                _userToConnectionId.Remove(user.Username);
+                        await Clients.All.SendAsync("UserDisconnected", user.Username);
 
-                foreach (var group in GroupMembers.Keys)
-                {
-                    GroupMembers[group].Remove(user.Username);
+                        var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                        await Clients.All.SendAsync("UserListUpdated", userList);
+
+                        foreach (var group in GroupMembers.Keys)
+                        {
+                            GroupMembers[group].Remove(user.Username);
+                        }
+                    }
                 }
             }
 
@@ -139,12 +155,16 @@ namespace ChatServeur
                 EnsureUsersLoaded();
                 Console.WriteLine($"[SERVER] RegisterUser : {username}");
 
+                var rooms = new List<string> { room };
+                if (AllUsers.TryGetValue(username, out var existing) && existing.Rooms.Any())
+                    rooms = new List<string>(existing.Rooms);
+
                 var user = new UserInfo
                 {
                     ConnectionId = Context.ConnectionId,
                     Username = username,
                     Avatar = avatar,
-                    Room = room,
+                    Rooms = rooms,
                     DisplayName = username,
                     ColorUserName = color,
                     IsOnline = true,
@@ -152,7 +172,12 @@ namespace ChatServeur
                 };
 
                 ConnectedUsers[Context.ConnectionId] = user;
-                _userToConnectionId[username] = Context.ConnectionId;
+                if (!_userToConnectionId.TryGetValue(username, out var set))
+                {
+                    set = new HashSet<string>();
+                    _userToConnectionId[username] = set;
+                }
+                set.Add(Context.ConnectionId);
                 AllUsers[username] = user;
 
                 var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == username);
@@ -163,7 +188,7 @@ namespace ChatServeur
                 }
                 dbUser.ConnectionId = Context.ConnectionId;
                 dbUser.Avatar = avatar;
-                dbUser.Room = room;
+                dbUser.Room = string.Join(",", user.Rooms);
                 dbUser.DisplayName = username;
                 dbUser.ColorUserName = color;
                 dbUser.IsOnline = true;
@@ -233,9 +258,9 @@ namespace ChatServeur
                     await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, "Secrétariat", content, avatar, timestamp);
                 }
             }
-            else if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionId))
+            else if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionIds))
             {
-                await Clients.Client(targetConnectionId).SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
+                await Clients.Clients(targetConnectionIds).SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
                 await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
             }
             else
@@ -256,6 +281,15 @@ namespace ChatServeur
             GroupMembers[roomName].Add(username);
 
             await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
+
+            if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
+            {
+                if (!user.Rooms.Contains(roomName))
+                    user.Rooms.Add(roomName);
+                AllUsers[user.Username] = user;
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                await Clients.All.SendAsync("UserListUpdated", userList);
+            }
         }
 
         public async Task<string> JoinProtectedGroup(string groupName, string password)
@@ -279,6 +313,14 @@ namespace ChatServeur
                 if (!GroupMembers.ContainsKey(groupName))
                     GroupMembers[groupName] = new HashSet<string>();
                 GroupMembers[groupName].Add(username);
+                if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
+                {
+                    if (!user.Rooms.Contains(groupName))
+                        user.Rooms.Add(groupName);
+                    AllUsers[user.Username] = user;
+                    var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                    await Clients.All.SendAsync("UserListUpdated", userList);
+                }
                 return "created";
             }
             else
@@ -294,6 +336,14 @@ namespace ChatServeur
                     if (!GroupMembers.ContainsKey(groupName))
                         GroupMembers[groupName] = new HashSet<string>();
                     GroupMembers[groupName].Add(username);
+                    if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
+                    {
+                        if (!user.Rooms.Contains(groupName))
+                            user.Rooms.Add(groupName);
+                        AllUsers[user.Username] = user;
+                        var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                        await Clients.All.SendAsync("UserListUpdated", userList);
+                    }
                     return "joined";
                 }
                 else
@@ -358,13 +408,13 @@ namespace ChatServeur
             EnsureUsersLoaded();
             if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
             {
-                user.Room = roomName;
+                user.Rooms = new List<string> { roomName };
                 AllUsers[user.Username] = user;
 
                 var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
                 if (dbUser != null)
                 {
-                    dbUser.Room = roomName;
+                    dbUser.Room = string.Join(",", user.Rooms);
                     _db.KnownUsers.Update(dbUser);
                     await _db.SaveChangesAsync();
                 }
@@ -740,12 +790,23 @@ namespace ChatServeur
 
                 foreach (var user in members)
                 {
-                    if (_userToConnectionId.TryGetValue(user, out var conn))
+                    if (_userToConnectionId.TryGetValue(user, out var conns))
                     {
-                        await Groups.RemoveFromGroupAsync(conn, oldName);
-                        await Groups.AddToGroupAsync(conn, newName);
+                        foreach (var conn in conns)
+                        {
+                            await Groups.RemoveFromGroupAsync(conn, oldName);
+                            await Groups.AddToGroupAsync(conn, newName);
+                        }
+                    }
+                    if (AllUsers.TryGetValue(user, out var info))
+                    {
+                        if (info.Rooms.Remove(oldName))
+                            info.Rooms.Add(newName);
                     }
                 }
+
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                await Clients.All.SendAsync("UserListUpdated", userList);
             }
         }
 
@@ -778,8 +839,19 @@ namespace ChatServeur
             if (GroupMembers.TryGetValue(groupName, out var list))
                 list.Remove(username);
 
-            if (_userToConnectionId.TryGetValue(username, out var conn))
-                await Groups.RemoveFromGroupAsync(conn, groupName);
+            if (_userToConnectionId.TryGetValue(username, out var conns))
+            {
+                foreach (var conn in conns)
+                    await Groups.RemoveFromGroupAsync(conn, groupName);
+            }
+
+            if (AllUsers.TryGetValue(username, out var user))
+            {
+                user.Rooms.Remove(groupName);
+                AllUsers[username] = user;
+                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+                await Clients.All.SendAsync("UserListUpdated", userList);
+            }
         }
     }
 }
