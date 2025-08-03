@@ -518,12 +518,21 @@ namespace ChatServeur
 
             setting.SettingsJson = json;
             await _db.SaveChangesAsync();
+
+            await Clients.Others.SendAsync("UserSettingsUpdated", username, json);
         }
 
         public async Task<string?> GetUserSettings(string username)
         {
             var setting = await _db.UserSettings.FirstOrDefaultAsync(s => s.Username == username);
             return setting?.SettingsJson;
+        }
+
+        public async Task<Dictionary<string, string>> GetMissingUserSettings(IEnumerable<string> knownUsers)
+        {
+            return await _db.UserSettings
+                .Where(s => !knownUsers.Contains(s.Username))
+                .ToDictionaryAsync(s => s.Username, s => s.SettingsJson);
         }
 
         public Task<List<UserInfo>> GetAllUsers()

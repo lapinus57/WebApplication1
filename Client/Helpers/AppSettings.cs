@@ -11,6 +11,8 @@ namespace Client.Helpers
     {
         private static Dictionary<string, JsonElement> _settings = new();
 
+        public static event Action? SettingsChanged;
+
         private static string FilePath =>
               Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat",
@@ -91,6 +93,7 @@ namespace Client.Helpers
         {
             _settings[key] = JsonDocument.Parse($"\"{value}\"").RootElement;
             Save();
+            SettingsChanged?.Invoke();
         }
 
         public static void SetObject<T>(string key, T value)
@@ -98,6 +101,7 @@ namespace Client.Helpers
             var json = JsonSerializer.Serialize(value);
             _settings[key] = JsonDocument.Parse(json).RootElement;
             Save();
+            SettingsChanged?.Invoke();
         }
 
         public static string Export()

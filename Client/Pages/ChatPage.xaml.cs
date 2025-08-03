@@ -901,20 +901,9 @@ namespace Client.Pages
             _ignoreOrderChange = false;
         }
 
-        private async void SaveUserOrder()
+        private void SaveUserOrder()
         {
             AppSettings.UserOrder = ConnectedUsers.Select(u => u.Username).ToList();
-
-            if (_service.Connection != null &&
-                _service.Connection.State == HubConnectionState.Connected)
-            {
-                try
-                {
-                    await _service.SaveUserSettingsAsync(App.UserName,
-                        AppSettings.Export());
-                }
-                catch { }
-            }
         }
     }
 
