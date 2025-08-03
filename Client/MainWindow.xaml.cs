@@ -10,7 +10,6 @@ using Microsoft.UI;
 using Client.Helpers;
 using Windows.Graphics;
 using Windows.Foundation;
-using Microsoft.UI.Xaml.Media;
 
 namespace Client
 {
@@ -43,18 +42,16 @@ namespace Client
         {
             if (_appWindow is not null)
             {
-                // Fix: Replace 'LeftDragColumn.Parent' with a valid way to access the parent Grid of the ColumnDefinition  
-                if (LeftDragColumn is ColumnDefinition leftDragColumn)
-                {
-                    // Access the parent Grid through the visual tree  
-                    var parentGrid = VisualTreeHelper.GetParent(AppTitleBar) as Grid;
-                    if (parentGrid != null)
-                    {
-                        var origin = parentGrid.TransformToVisual(AppTitleBar).TransformPoint(new Windows.Foundation.Point(0, 0));
-                        var rect = new RectInt32((int)origin.X, 0, (int)leftDragColumn.ActualWidth, (int)AppTitleBar.ActualHeight);
-                        _appWindow.TitleBar.SetDragRectangles(new[] { rect });
-                    }
-                }
+                // Make the entire title bar draggable, excluding interactive controls like the account button.
+                // SetDragRectangles expects coordinates in physical pixels, so scale from effective pixels using the XamlRoot scale.
+                double scale = AppTitleBar.XamlRoot?.RasterizationScale ?? 1.0;
+                var dragRect = new RectInt32(
+                    0,
+                    0,
+                    (int)(AppTitleBar.ActualWidth * scale),
+                    (int)(AppTitleBar.ActualHeight * scale));
+
+                _appWindow.TitleBar.SetDragRectangles(new[] { dragRect });
             }
         }
 
