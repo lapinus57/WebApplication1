@@ -48,7 +48,7 @@ namespace Client.Services
         public bool IsHistoryLoaded => _historyLoaded;
         public IReadOnlyList<UserInfo> KnownUsers => _lastServerUserList;
 
-        public string ServerAddress { get; set; } = "http://localhost:5000";
+        public string ServerAddress { get; set; } = string.Empty;
 
         public SignalRService()
         {
@@ -106,6 +106,23 @@ namespace Client.Services
                 return;
 
             _initialized = true;
+
+            if (string.IsNullOrWhiteSpace(ServerAddress) || ServerAddress.Contains("localhost"))
+            {
+                var detected = await NetworkScanner.FindServerAsync();
+                if (!string.IsNullOrEmpty(detected))
+                {
+                    ServerAddress = detected;
+                    ConnectionConfig.Save(new ConnectionConfig { ServerAddress = ServerAddress });
+                }
+                else if (ServerAddress.Contains("localhost"))
+                {
+                    ServerAddress = string.Empty;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(ServerAddress))
+                return;
 
             var cachedUsers = await LoadUsersFromDiskAsync();
             foreach (var user in cachedUsers)
@@ -188,7 +205,6 @@ namespace Client.Services
 
             Connection = new HubConnectionBuilder()
                 .WithUrl($"{ServerAddress}/chatHub")
-                .WithAutomaticReconnect()
                 .Build();
 
             Connection.Closed += async (error) =>
