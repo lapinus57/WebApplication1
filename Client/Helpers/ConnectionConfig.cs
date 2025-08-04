@@ -6,7 +6,7 @@ namespace Client.Helpers
 {
     public class ConnectionConfig
     {
-        public string ServerAddress { get; set; } = "http://localhost:5000";
+        public string ServerAddress { get; set; } = string.Empty;
 
         public static string FilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

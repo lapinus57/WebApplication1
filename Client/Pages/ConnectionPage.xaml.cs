@@ -37,13 +37,13 @@ namespace Client.Pages
             if (!string.IsNullOrEmpty(address))
             {
                 ServerAddress = address;
+                AddressBox.Text = ServerAddress;
             }
             else
             {
-                // fallback to localhost if nothing found
-                ServerAddress = "http://localhost:5000";
+                ServerAddress = string.Empty;
+                AddressBox.Text = "Serveur introuvable";
             }
-            AddressBox.Text = ServerAddress;
         }
     }
 }
