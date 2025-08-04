@@ -13,7 +13,8 @@ namespace Client.Pages
         {
             this.InitializeComponent();
             var cfg = ConnectionConfig.Load();
-            ServerAddress = cfg.ServerAddress;
+            App.ChatService.ServerAddress = cfg.ServerAddress;
+            ServerAddress = App.ChatService.ServerAddress;
             DataContext = this;
         }
 
@@ -25,8 +26,8 @@ namespace Client.Pages
 
         private async void Save_Click(object sender, RoutedEventArgs e)
         {
-            ConnectionConfig.Save(new ConnectionConfig { ServerAddress = ServerAddress });
             App.ChatService.ServerAddress = ServerAddress;
+            ConnectionConfig.Save(new ConnectionConfig { ServerAddress = App.ChatService.ServerAddress });
             await App.ChatService.InitializeAsync();
         }
 

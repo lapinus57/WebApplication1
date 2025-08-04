@@ -48,7 +48,12 @@ namespace Client.Services
         public bool IsHistoryLoaded => _historyLoaded;
         public IReadOnlyList<UserInfo> KnownUsers => _lastServerUserList;
 
-        public string ServerAddress { get; set; } = string.Empty;
+        private string _serverAddress = string.Empty;
+        public string ServerAddress
+        {
+            get => _serverAddress;
+            set => _serverAddress = NormalizeServerAddress(value);
+        }
 
         public SignalRService()
         {
@@ -70,6 +75,22 @@ namespace Client.Services
         {
             ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
         };
+
+        private static string NormalizeServerAddress(string address)
+        {
+            if (string.IsNullOrWhiteSpace(address))
+                return string.Empty;
+
+            address = address.Trim();
+
+            if (!address.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !address.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                address = "http://" + address;
+            }
+
+            return address.TrimEnd('/');
+        }
 
         private string ToServerAvatar(string avatar)
         {
