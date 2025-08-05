@@ -623,6 +623,11 @@ namespace Client.Pages
 
         private async Task Service_OnCallReceived(string caller, string room)
         {
+            if (App.MainWindow is Window mainWindow)
+            {
+                WindowHelper.SetTopMost(mainWindow, true, true);
+            }
+
             var dialog = new ContentDialog
             {
                 Title = "Appel",
@@ -635,6 +640,11 @@ namespace Client.Pages
             };
 
             var result = await dialog.ShowAsync();
+
+            if (App.MainWindow is Window window)
+            {
+                WindowHelper.SetTopMost(window, false, false);
+            }
             string response = result switch
             {
                 ContentDialogResult.Primary => "je vient dans 0",
