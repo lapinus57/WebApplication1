@@ -127,6 +127,15 @@ namespace Client.Pages
             }
         }
 
+        private async void EditPatient_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                await HotKeyService.ShowEditPatientDialogAsync(patient);
+                BuildRooms();
+            }
+        }
+
         private async void DeletePatient_Click(object sender, RoutedEventArgs e)
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)

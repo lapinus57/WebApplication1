@@ -724,6 +724,26 @@ namespace ChatServeur
             }
         }
 
+        public async Task UpdatePatient(Patient updated)
+        {
+            var patient = await _db.Patients.FindAsync(updated.Id);
+            if (patient != null)
+            {
+                patient.Title = updated.Title;
+                patient.LastName = updated.LastName;
+                patient.FirstName = updated.FirstName;
+                patient.Exams = updated.Exams;
+                patient.Eye = updated.Eye;
+                patient.Annotation = updated.Annotation;
+                patient.Position = updated.Position;
+                patient.Colors = updated.Colors;
+                patient.HoldTime = updated.HoldTime;
+                _db.Patients.Update(patient);
+                await _db.SaveChangesAsync();
+                await Clients.All.SendAsync("PatientUpdated", patient);
+            }
+        }
+
         public async Task<List<Patient>> GetPatients()
         {
             var today = DateTime.Today;

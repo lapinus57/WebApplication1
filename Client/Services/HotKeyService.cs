@@ -284,6 +284,86 @@ namespace Client.Services
             }
         }
 
+        public static async Task ShowEditPatientDialogAsync(Patient patient)
+        {
+            var options = ExamOption.Load();
+            var rooms = RoomList.Load();
+
+            var dialog = new ContentDialog
+            {
+                Title = "Modifier un patient",
+                PrimaryButtonText = "Valider",
+                CloseButtonText = "Annuler",
+                XamlRoot = App.MainWindow.Content.XamlRoot,
+            };
+
+            var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            for (int i = 0; i < 5; i++)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var nameBox = new TextBox { Width = 600, Text = $"{patient.Title} {patient.LastName} {patient.FirstName}".Trim() };
+            var examCombo = new ComboBox
+            {
+                ItemsSource = options,
+                DisplayMemberPath = "Name",
+                SelectedValuePath = "Name",
+                SelectedValue = patient.Exams,
+                Width = 600
+            };
+            var eyeCombo = new ComboBox { Width = 600 };
+            eyeCombo.Items.Add(new ComboBoxItem { Content = "ODG" });
+            eyeCombo.Items.Add(new ComboBoxItem { Content = "OD" });
+            eyeCombo.Items.Add(new ComboBoxItem { Content = "OG" });
+            eyeCombo.SelectedItem = eyeCombo.Items
+                .OfType<ComboBoxItem>()
+                .FirstOrDefault(i => (string)i.Content == patient.Eye) ?? eyeCombo.Items[0];
+
+            var floorCombo = new ComboBox { Width = 600, ItemsSource = rooms, SelectedItem = patient.Position };
+            var timePicker = new TimePicker { Width = 600, Time = patient.HoldTime.TimeOfDay };
+            var commentBox = new TextBox { Width = 600, Text = patient.Annotation };
+
+            AddLabeledControl(grid, 0, "Nom", nameBox);
+            AddLabeledControl(grid, 1, "Examen", examCombo);
+            AddLabeledControl(grid, 2, "Heure", timePicker);
+            AddLabeledControl(grid, 3, "Salle", floorCombo);
+            AddLabeledControl(grid, 4, "Commentaire", commentBox);
+
+            dialog.Content = grid;
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                var inputName = nameBox.Text.Trim();
+                PatientStringHelper.ExtractInfoFromInput(inputName,
+                    out var titleBox, out var lastNameBox, out var firstNameBox);
+
+                var selectedExam = examCombo.SelectedValue as string ?? string.Empty;
+                var opt = options.FirstOrDefault(o => o.Name == selectedExam);
+
+                patient.Title = titleBox;
+                patient.LastName = lastNameBox;
+                patient.FirstName = firstNameBox;
+                patient.Exams = selectedExam;
+                patient.Eye = (eyeCombo.SelectedItem as ComboBoxItem)?.Content as string ?? string.Empty;
+                patient.Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim();
+                patient.Position = floorCombo.SelectedItem as string ?? string.Empty;
+                patient.Colors = opt?.Color ?? string.Empty;
+                var date = patient.HoldTime.Date;
+                patient.HoldTime = date + timePicker.Time;
+
+                try
+                {
+                    await App.ChatService.UpdatePatientAsync(patient);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[HotKeyService] Error updating patient: {ex.Message}");
+                }
+            }
+        }
+
         public static async Task DeclarePatientAsync(string examName, string patientName)
         {
             var options = ExamOption.Load();
