@@ -64,7 +64,7 @@ namespace Client.Services
         }
 
         public event Action<ChatMessageModel>? OnMessageReceived;
-        public event Action<string, string>? OnCallReceived;
+        public event Func<string, string, Task>? OnCallReceived;
         public event Action<Patient>? OnNewPatient;
         public event Action<string>? OnPatientRemoved;
         public event Action<Patient>? OnPatientUpdated;
@@ -357,7 +357,11 @@ namespace Client.Services
 
             Connection.On<string, string>("ReceiveCall", (caller, room) =>
             {
-                Dispatcher?.TryEnqueue(() => OnCallReceived?.Invoke(caller, room));
+                Dispatcher?.TryEnqueue(async () =>
+                {
+                    if (OnCallReceived != null)
+                        await OnCallReceived(caller, room);
+                });
             });
 
             Connection.On<int>("MessageDeleted", id =>

@@ -621,7 +621,7 @@ namespace Client.Pages
             });
         }
 
-        private async void Service_OnCallReceived(string caller, string room)
+        private async Task Service_OnCallReceived(string caller, string room)
         {
             var dialog = new ContentDialog
             {
