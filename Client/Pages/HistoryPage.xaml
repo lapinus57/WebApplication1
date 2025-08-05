@@ -11,6 +11,7 @@
                 <Border.ContextFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="Modifier" Tag="{x:Bind}" Click="EditPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
                         <MenuFlyoutSubItem Text="Modification temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
                             <MenuFlyoutItem Text="Mettre en premier" Tag="{x:Bind}" Click="MovePatientFirst_Click" />
@@ -45,6 +46,7 @@
                 <Border.ContextFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="Modifier" Tag="{x:Bind}" Click="EditPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
                     </MenuFlyout>
                 </Border.ContextFlyout>

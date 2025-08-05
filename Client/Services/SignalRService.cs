@@ -669,6 +669,12 @@ namespace Client.Services
                 await Connection.InvokeAsync("UpdatePatientHoldTime", id, newTime);
         }
 
+        public async Task UpdatePatientAsync(Patient patient)
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+                await Connection.InvokeAsync("UpdatePatient", patient);
+        }
+
         public async Task DeleteMessageAsync(int id)
         {
             if (Connection != null && Connection.State == HubConnectionState.Connected)

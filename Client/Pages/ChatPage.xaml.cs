@@ -493,6 +493,15 @@ namespace Client.Pages
             }
         }
 
+        private async void EditPatient_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                await HotKeyService.ShowEditPatientDialogAsync(patient);
+                UpdatePatientViews();
+            }
+        }
+
         private async void TogglePatientTaken_Click(object sender, RoutedEventArgs e)
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
