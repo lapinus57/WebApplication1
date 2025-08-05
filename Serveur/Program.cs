@@ -39,6 +39,7 @@ using (var scope = app.Services.CreateScope())
     EnsureArchivedColumn(db);
     EnsureIsDeletedColumn(db);
     EnsureUserSettingsTable(db);
+    CleanupKnownUsers(db);
     if (!db.ServerConfigs.Any())
     {
         db.ServerConfigs.Add(new ServerConfig());
@@ -122,6 +123,22 @@ void EnsureUserSettingsTable(ChatDbContext db)
             cmd.CommandText = "CREATE TABLE UserSettings (Id INTEGER PRIMARY KEY AUTOINCREMENT, Username TEXT NOT NULL UNIQUE, SettingsJson TEXT NOT NULL)";
             cmd.ExecuteNonQuery();
         }
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+void CleanupKnownUsers(ChatDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "DELETE FROM KnownUsers WHERE (Username IS NULL OR Username = '') AND (DisplayName IS NULL OR DisplayName = '')";
+        cmd.ExecuteNonQuery();
     }
     finally
     {
