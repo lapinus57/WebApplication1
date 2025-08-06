@@ -321,7 +321,7 @@ namespace Client.Services
                 .FirstOrDefault(i => (string)i.Content == patient.Eye) ?? eyeCombo.Items[0];
 
             var floorCombo = new ComboBox { Width = 600, ItemsSource = rooms, SelectedItem = patient.Position };
-            var timePicker = new TimePicker { Width = 600, Time = patient.HoldTime.TimeOfDay };
+            var timePicker = new TimePicker { Time = patient.HoldTime.TimeOfDay, ClockIdentifier = "24HourClock", MinuteIncrement = 1};
             var commentBox = new TextBox { Width = 600, Text = patient.Annotation };
 
             AddLabeledControl(grid, 0, "Nom", nameBox);
