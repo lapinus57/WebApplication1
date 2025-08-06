@@ -289,8 +289,11 @@ namespace Client.Services
                         u.Avatar = ToClientAvatar(u.Avatar);
                         return u;
                     }).ToList();
-                    _lastServerUserList = processed.ToList();
 
+                    if (AreUserListsEqual(processed))
+                        return;
+
+                    _lastServerUserList = processed.ToList();
 
                     var finalList = await BuildUserListWithGroupsAsync(processed);
 
@@ -1178,6 +1181,24 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur suppression utilisateur groupe : {ex.Message}");
             }
+        }
+
+        private bool AreUserListsEqual(List<UserInfo> newList)
+        {
+            if (_lastServerUserList.Count != newList.Count)
+                return false;
+
+            for (int i = 0; i < _lastServerUserList.Count; i++)
+            {
+                var existing = _lastServerUserList[i];
+                var incoming = newList[i];
+                if (existing.Username != incoming.Username ||
+                    existing.IsOnline != incoming.IsOnline ||
+                    existing.Rooms.Count != incoming.Rooms.Count ||
+                    !existing.Rooms.SequenceEqual(incoming.Rooms))
+                    return false;
+            }
+            return true;
         }
 
         private async Task<List<UserInfo>> BuildUserListWithGroupsAsync(IEnumerable<UserInfo> baseList)
