@@ -153,6 +153,7 @@ namespace Client.Services
                 user.Avatar = ToClientAvatar(user.Avatar);
                 ConnectedUsers.Add(user);
             }
+            UpdateSpecialUsers();
 
             var color = AppSettings.Get("ColorUserName", "Black");
             var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
@@ -171,6 +172,7 @@ namespace Client.Services
                 ConnectedUsers.Clear();
                 foreach (var u in finalList)
                     ConnectedUsers.Add(u);
+                UpdateSpecialUsers();
             }
 
             Messages.Clear();
@@ -253,6 +255,7 @@ namespace Client.Services
                     u.IsOnline = false;
                     u.Rooms.Clear();
                 }
+                UpdateSpecialUsers();
                 await SaveUsersToDiskAsync();
                 await Task.Delay(3000);
                 if (EnableReconnect)
@@ -274,6 +277,7 @@ namespace Client.Services
                     {
                         ConnectedUsers.Add(user);
                     }
+                    UpdateSpecialUsers();
                     Debug.WriteLine($"✅ User connecté : {user.Username}");
                     await SaveUsersToDiskAsync();
                 });
@@ -303,6 +307,7 @@ namespace Client.Services
                         ConnectedUsers.Add(user);
                         Debug.WriteLine($"✅ User list ajoutée : {user.Username} ({string.Join(", ", user.Rooms)})");
                     }
+                    UpdateSpecialUsers();
 
                     foreach (var msg in Messages.OfType<ChatMessageModel>())
                     {
@@ -1226,6 +1231,31 @@ namespace Client.Services
             return true;
         }
 
+        private void UpdateSpecialUsers()
+        {
+            var realUsers = ConnectedUsers.Where(u =>
+                u.Username != "A Tous" &&
+                u.Username != "Secrétariat" &&
+                (!string.IsNullOrEmpty(u.ConnectionId) || !u.IsOnline)).ToList();
+
+            int totalKnown = realUsers.Count;
+            int totalOnline = realUsers.Count(u => u.IsOnline);
+
+            var allUser = ConnectedUsers.FirstOrDefault(u => u.Username == "A Tous");
+            if (allUser != null)
+            {
+                allUser.Rooms.Clear();
+                allUser.Rooms.Add($"{totalOnline}/{totalKnown}");
+            }
+
+            var secretariat = ConnectedUsers.FirstOrDefault(u => u.Username == "Secrétariat");
+            if (secretariat != null)
+            {
+                secretariat.Rooms.Clear();
+                secretariat.Rooms.Add(string.Empty);
+            }
+        }
+
         private async Task<List<UserInfo>> BuildUserListWithGroupsAsync(IEnumerable<UserInfo> baseList)
         {
             var result = baseList.ToList();
@@ -1291,6 +1321,7 @@ namespace Client.Services
                 ConnectedUsers.Clear();
                 foreach (var u in finalList)
                     ConnectedUsers.Add(u);
+                UpdateSpecialUsers();
 
                 foreach (var msg in Messages.OfType<ChatMessageModel>())
                 {
