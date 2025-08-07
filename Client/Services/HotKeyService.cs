@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Linq;
+using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI.Xaml;
@@ -364,6 +366,40 @@ namespace Client.Services
             }
         }
 
+        public static async Task ShowPatientInfoDialogAsync(Patient patient)
+        {
+            List<PatientLog> logs;
+            try
+            {
+                logs = await App.ChatService.GetPatientLogsAsync(patient.Id);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[HotKeyService] Error retrieving patient logs: {ex.Message}");
+                logs = new List<PatientLog>();
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"{patient.Title} {patient.LastName} {patient.FirstName}".Trim());
+            sb.AppendLine($"Examen : {patient.Exams}");
+            sb.AppendLine($"Œil : {patient.Eye}");
+            sb.AppendLine($"Salle : {patient.Position}");
+            sb.AppendLine();
+            foreach (var log in logs.OrderBy(l => l.Timestamp))
+                sb.AppendLine($"{log.Timestamp:dd/MM HH:mm} - {log.Username} - {log.Action} {log.Details}");
+
+            var dialog = new ContentDialog
+            {
+                Title = "Informations patient",
+                CloseButtonText = "Fermer",
+                Content = new ScrollViewer
+                {
+                    Content = new TextBlock { Text = sb.ToString(), TextWrapping = TextWrapping.Wrap }
+                },
+                XamlRoot = App.MainWindow.Content.XamlRoot,
+            };
+            await dialog.ShowAsync();
+        }
         public static async Task DeclarePatientAsync(string examName, string patientName)
         {
             var options = ExamOption.Load();

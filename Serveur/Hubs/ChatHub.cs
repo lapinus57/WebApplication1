@@ -100,6 +100,25 @@ namespace ChatServeur
                     .Select(r => r.Trim()).ToList();
         }
 
+        private string GetUsername()
+        {
+            return ConnectedUsers.TryGetValue(Context.ConnectionId, out var user)
+                ? user.Username
+                : "Unknown";
+        }
+
+        private void AddPatientLog(string patientId, string action, string details)
+        {
+            _db.PatientLogs.Add(new PatientLog
+            {
+                PatientId = patientId,
+                Username = GetUsername(),
+                Action = action,
+                Details = details,
+                Timestamp = DateTime.Now
+            });
+        }
+
         public override Task OnConnectedAsync()
         {
             return base.OnConnectedAsync();
@@ -684,6 +703,7 @@ namespace ChatServeur
         {
             patient.IsArchived = false;
             _db.Patients.Add(patient);
+            AddPatientLog(patient.Id, "Create", "Patient créé");
             await _db.SaveChangesAsync();
             await Clients.All.SendAsync("NewPatient", patient);
         }
@@ -694,6 +714,7 @@ namespace ChatServeur
             if (patient != null)
             {
                 _db.Patients.Remove(patient);
+                AddPatientLog(patient.Id, "Delete", "Patient supprimé");
                 await _db.SaveChangesAsync();
                 await Clients.All.SendAsync("PatientRemoved", id);
             }
@@ -704,8 +725,10 @@ namespace ChatServeur
             var patient = await _db.Patients.FindAsync(id);
             if (patient != null)
             {
+                var oldValue = patient.IsTaken;
                 patient.IsTaken = isTaken;
                 patient.PickUpTime = isTaken ? DateTime.Now : null;
+                AddPatientLog(patient.Id, "IsTaken", $"IsTaken: {oldValue} -> {isTaken}");
                 _db.Patients.Update(patient);
                 await _db.SaveChangesAsync();
                 await Clients.All.SendAsync("PatientUpdated", patient);
@@ -717,7 +740,9 @@ namespace ChatServeur
             var patient = await _db.Patients.FindAsync(id);
             if (patient != null)
             {
+                var oldTime = patient.HoldTime;
                 patient.HoldTime = newTime;
+                AddPatientLog(patient.Id, "HoldTime", $"HoldTime: {oldTime:HH:mm} -> {newTime:HH:mm}");
                 _db.Patients.Update(patient);
                 await _db.SaveChangesAsync();
                 await Clients.All.SendAsync("PatientUpdated", patient);
@@ -729,18 +754,23 @@ namespace ChatServeur
             var patient = await _db.Patients.FindAsync(updated.Id);
             if (patient != null)
             {
-                patient.Title = updated.Title;
-                patient.LastName = updated.LastName;
-                patient.FirstName = updated.FirstName;
-                patient.Exams = updated.Exams;
-                patient.Eye = updated.Eye;
-                patient.Annotation = updated.Annotation;
-                patient.Position = updated.Position;
-                patient.Colors = updated.Colors;
-                patient.HoldTime = updated.HoldTime;
-                _db.Patients.Update(patient);
-                await _db.SaveChangesAsync();
-                await Clients.All.SendAsync("PatientUpdated", patient);
+                var changes = new List<string>();
+                if (patient.Title != updated.Title) { changes.Add($"Titre: {patient.Title} -> {updated.Title}"); patient.Title = updated.Title; }
+                if (patient.LastName != updated.LastName) { changes.Add($"Nom: {patient.LastName} -> {updated.LastName}"); patient.LastName = updated.LastName; }
+                if (patient.FirstName != updated.FirstName) { changes.Add($"Prénom: {patient.FirstName} -> {updated.FirstName}"); patient.FirstName = updated.FirstName; }
+                if (patient.Exams != updated.Exams) { changes.Add($"Examen: {patient.Exams} -> {updated.Exams}"); patient.Exams = updated.Exams; }
+                if (patient.Eye != updated.Eye) { changes.Add($"Œil: {patient.Eye} -> {updated.Eye}"); patient.Eye = updated.Eye; }
+                if (patient.Annotation != updated.Annotation) { changes.Add($"Commentaire: {patient.Annotation} -> {updated.Annotation}"); patient.Annotation = updated.Annotation; }
+                if (patient.Position != updated.Position) { changes.Add($"Salle: {patient.Position} -> {updated.Position}"); patient.Position = updated.Position; }
+                if (patient.Colors != updated.Colors) { changes.Add("Couleurs modifiées"); patient.Colors = updated.Colors; }
+                if (patient.HoldTime != updated.HoldTime) { changes.Add($"Heure: {patient.HoldTime:HH:mm} -> {updated.HoldTime:HH:mm}"); patient.HoldTime = updated.HoldTime; }
+                if (changes.Count > 0)
+                {
+                    _db.Patients.Update(patient);
+                    AddPatientLog(patient.Id, "Update", string.Join(", ", changes));
+                    await _db.SaveChangesAsync();
+                    await Clients.All.SendAsync("PatientUpdated", patient);
+                }
             }
         }
 
@@ -767,7 +797,10 @@ namespace ChatServeur
             if (patients.Any())
             {
                 foreach (var p in patients)
+                {
                     p.IsArchived = true;
+                    AddPatientLog(p.Id, "Archive", "Archivé");
+                }
                 _db.Patients.UpdateRange(patients);
                 await _db.SaveChangesAsync();
                 foreach (var p in patients)
@@ -781,7 +814,10 @@ namespace ChatServeur
             if (patients.Any())
             {
                 foreach (var p in patients)
+                {
                     p.IsArchived = false;
+                    AddPatientLog(p.Id, "UnarchiveAll", "Désarchivé");
+                }
                 _db.Patients.UpdateRange(patients);
                 await _db.SaveChangesAsync();
                 foreach (var p in patients)
@@ -795,10 +831,19 @@ namespace ChatServeur
             if (patient != null)
             {
                 patient.IsArchived = false;
+                AddPatientLog(patient.Id, "Unarchive", "Désarchivé");
                 _db.Patients.Update(patient);
                 await _db.SaveChangesAsync();
                 await Clients.All.SendAsync("PatientUpdated", patient);
             }
+        }
+
+        public async Task<List<PatientLog>> GetPatientLogs(string patientId)
+        {
+            return await _db.PatientLogs
+                .Where(l => l.PatientId == patientId)
+                .OrderBy(l => l.Timestamp)
+                .ToListAsync();
         }
 
         public Task<Dictionary<string, List<string>>> GetAllGroupMembers()

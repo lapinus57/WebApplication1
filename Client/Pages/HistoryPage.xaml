@@ -11,6 +11,7 @@
                 <Border.ContextFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="Infos" Tag="{x:Bind}" Click="InfoPatient_Click" />
                         <MenuFlyoutItem Text="Modifier" Tag="{x:Bind}" Click="EditPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
                         <MenuFlyoutSubItem Text="Modification temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
@@ -51,6 +52,7 @@
                 <Border.ContextFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="{x:Bind ToggleExamLabel}" Tag="{x:Bind}" Click="TogglePatientTaken_Click" />
+                        <MenuFlyoutItem Text="Infos" Tag="{x:Bind}" Click="InfoPatient_Click" />
                         <MenuFlyoutItem Text="Modifier" Tag="{x:Bind}" Click="EditPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
                     </MenuFlyout>
@@ -79,6 +81,7 @@
                 <Border.ContextFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="Désarchiver" Tag="{x:Bind}" Click="UnarchivePatient_Click" />
+                        <MenuFlyoutItem Text="Infos" Tag="{x:Bind}" Click="InfoPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
                     </MenuFlyout>
                 </Border.ContextFlyout>
@@ -113,6 +116,7 @@
                 <Border.ContextFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="Désarchiver" Tag="{x:Bind}" Click="UnarchivePatient_Click" />
+                        <MenuFlyoutItem Text="Infos" Tag="{x:Bind}" Click="InfoPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
                     </MenuFlyout>
                 </Border.ContextFlyout>
