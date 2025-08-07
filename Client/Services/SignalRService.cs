@@ -730,7 +730,13 @@ namespace Client.Services
                 if (File.Exists(path))
                 {
                     var json = await File.ReadAllTextAsync(path);
-                    return JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
+                    var users = JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
+                    foreach (var u in users)
+                    {
+                        if (u.Rooms.Count == 0)
+                            u.IsOnline = false;
+                    }
+                    return users;
                 }
             }
             catch (Exception ex)
