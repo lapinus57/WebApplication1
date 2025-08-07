@@ -127,6 +127,14 @@ namespace Client.Pages
             }
         }
 
+        private async void InfoPatient_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
+            {
+                await HotKeyService.ShowPatientInfoDialogAsync(patient);
+            }
+        }
+
         private async void EditPatient_Click(object sender, RoutedEventArgs e)
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)

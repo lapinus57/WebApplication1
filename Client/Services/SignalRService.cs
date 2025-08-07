@@ -1109,6 +1109,25 @@ namespace Client.Services
                 }
             }
         }
+        public async Task<List<PatientLog>> GetPatientLogsAsync(string patientId)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return new List<PatientLog>();
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<List<PatientLog>>("GetPatientLogs", patientId);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération historique patient : {ex.Message}");
+                return new List<PatientLog>();
+            }
+        }
+
 
         public async Task<Dictionary<string, List<string>>> GetAllGroupsAsync()
         {

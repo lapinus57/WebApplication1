@@ -38,6 +38,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
     EnsureArchivedColumn(db);
     EnsureIsDeletedColumn(db);
+    EnsurePatientLogsTable(db);
     EnsureUserSettingsTable(db);
     CleanupKnownUsers(db);
     if (!db.ServerConfigs.Any())
@@ -121,6 +122,27 @@ void EnsureUserSettingsTable(ChatDbContext db)
         if (result == null)
         {
             cmd.CommandText = "CREATE TABLE UserSettings (Id INTEGER PRIMARY KEY AUTOINCREMENT, Username TEXT NOT NULL UNIQUE, SettingsJson TEXT NOT NULL)";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+void EnsurePatientLogsTable(ChatDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='PatientLogs'";
+        var result = cmd.ExecuteScalar();
+        if (result == null)
+        {
+            cmd.CommandText = "CREATE TABLE PatientLogs (Id INTEGER PRIMARY KEY AUTOINCREMENT, PatientId TEXT NOT NULL, Username TEXT NOT NULL, Action TEXT NOT NULL, Details TEXT NOT NULL, Timestamp TEXT NOT NULL)";
             cmd.ExecuteNonQuery();
         }
     }

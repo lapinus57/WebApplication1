@@ -12,6 +12,7 @@ namespace ChatServeur
         public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
         public DbSet<SecureGroup> SecureGroups => Set<SecureGroup>();
         public DbSet<ServerConfig> ServerConfigs => Set<ServerConfig>();
+        public DbSet<PatientLog> PatientLogs => Set<PatientLog>();
         public DbSet<Patient> Patients => Set<Patient>();
         public DbSet<UserSetting> UserSettings => Set<UserSetting>();
         public DbSet<KnownUser> KnownUsers => Set<KnownUser>();
