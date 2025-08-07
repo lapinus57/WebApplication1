@@ -263,9 +263,12 @@
                        Text="{x:Bind Examinator}" Foreground="{x:Bind ForegroundColor}"
                        HorizontalAlignment="Right"/>
 
-                    <!-- Deuxième ligne : examens et heure -->
-                    <TextBlock Grid.Row="1" Grid.Column="0"
-                       Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                    <!-- Deuxième ligne : examens, œil, annotation et heure -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind Eye}" Foreground="{x:Bind ForegroundColor}"/>
+                        <TextBlock Text="{x:Bind Annotation}" Foreground="{x:Bind ForegroundColor}"/>
+                    </StackPanel>
                     <TextBlock Grid.Row="1" Grid.Column="1"
                        Text="{x:Bind HoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}"
                        FontWeight="Bold" HorizontalAlignment="Right"/>
