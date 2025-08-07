@@ -1241,7 +1241,7 @@ namespace Client.Services
                             ConnectionId = string.Empty,
                             Username = name,
                             Avatar = visibleToAll ? "ms-appx:///Assets/secretaria.png" : "ms-appx:///Assets/earth.png",
-                            Rooms = new List<string>(),
+                            Rooms = new ObservableCollection<string>(),
                             DisplayName = name,
                             ColorUserName = visibleToAll ? "Blue" : "Green",
                             IsOnline = true,
