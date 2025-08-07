@@ -174,9 +174,11 @@ namespace ChatServeur
                 EnsureUsersLoaded();
                 Console.WriteLine($"[SERVER] RegisterUser : {username}");
 
-                var rooms = new List<string> { room };
+                var rooms = new List<string>();
                 if (AllUsers.TryGetValue(username, out var existing) && existing.Rooms.Any())
-                    rooms = new List<string>(existing.Rooms);
+                    rooms = existing.Rooms.Where(r => r != "Hors ligne").ToList();
+                if (!rooms.Contains(room))
+                    rooms.Add(room);
 
                 var user = new UserInfo
                 {
