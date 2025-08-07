@@ -29,6 +29,7 @@ namespace Client.Models
                     _rooms.CollectionChanged += Rooms_CollectionChanged;
                     OnPropertyChanged(nameof(Rooms));
                     OnPropertyChanged(nameof(RoomsDisplay));
+                    IsOnline = _rooms.Count > 0;
                 }
             }
         }
@@ -61,10 +62,11 @@ namespace Client.Models
         /// <summary>
         /// Returns a comma separated list of rooms the user is connected to.
         /// </summary>
-        public string RoomsDisplay => Rooms.Count == 0 ? string.Empty : string.Join(", ", Rooms);
+        public string RoomsDisplay => Rooms.Count == 0 ? "Offline" : string.Join(", ", Rooms);
 
         private void Rooms_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            IsOnline = _rooms.Count > 0;
             OnPropertyChanged(nameof(RoomsDisplay));
         }
 
