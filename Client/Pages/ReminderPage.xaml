@@ -2,6 +2,7 @@
     x:Class="Client.Pages.ReminderPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:Client.Models"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <ScrollViewer>
         <StackPanel Padding="20" Spacing="20">
@@ -10,9 +11,38 @@
             <TextBox x:Name="MessageBox" Header="Message" AcceptsReturn="True" TextWrapping="Wrap"/>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <TimePicker x:Name="TimePicker"/>
-                <Button Content="Ajouter" Click="AddTime_Click"/>
+                <Button Content="Ajouter l'heure" Click="AddTime_Click"/>
             </StackPanel>
-            <ListView x:Name="TimesList" Height="100" DoubleTapped="TimesList_DoubleTapped"/>
+            <ListView x:Name="TimesList" Height="100">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{Binding}" Width="60"/>
+                            <Button Content="Supprimer" Click="RemoveTime_Click" Tag="{Binding}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            <Button Content="Ajouter le rappel" Click="AddReminder_Click" HorizontalAlignment="Left"/>
+            <ListView x:Name="RemindersList" Height="200">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:ReminderItem">
+                        <StackPanel Spacing="5">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="{x:Bind Message}" FontWeight="Bold"/>
+                                <Button Content="Supprimer" Click="RemoveReminder_Click" Tag="{x:Bind}"/>
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{x:Bind Times}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
             <ToggleSwitch x:Name="EnableSwitch" Header="Activer les rappels"/>
             <Button Content="Sauvegarder" Click="Save_Click" HorizontalAlignment="Left"/>
         </StackPanel>
