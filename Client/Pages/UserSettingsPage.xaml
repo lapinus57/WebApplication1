@@ -6,6 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Client.ViewModel"
     xmlns:helpers="using:Client.Helpers"
+    xmlns:models="using:Client.Models"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <Page.Resources>
@@ -15,6 +16,15 @@
 
         <DataTemplate x:Key="AvatarTemplate">
             <Image Source="{Binding}" Width="60" Height="60"/>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ExamOptionTemplate" x:DataType="models:ExamOption">
+            <TextBlock>
+                <Run Text="{x:Bind Name}"/>
+                <Run Text=" ("/>
+                <Run Text="{x:Bind Floor}"/>
+                <Run Text=")"/>
+            </TextBlock>
         </DataTemplate>
     </Page.Resources>
     <ScrollViewer>
@@ -148,7 +158,7 @@
                                 <TextBlock Text="Ctrl F9" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.CtrlF9Exam, Mode=TwoWay}"/>
                             </StackPanel>
@@ -158,7 +168,7 @@
                                 <TextBlock Text="Maj F9" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.ShiftF9Exam, Mode=TwoWay}"/>
                             </StackPanel>
@@ -168,7 +178,7 @@
                                 <TextBlock Text="Ctrl F10" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.CtrlF10Exam, Mode=TwoWay}"/>
                             </StackPanel>
@@ -178,7 +188,7 @@
                                 <TextBlock Text="Maj F10" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.ShiftF10Exam, Mode=TwoWay}"/>
                             </StackPanel>
@@ -190,7 +200,7 @@
                                 <TextBlock Text="Ctrl F11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.CtrlF11Exam, Mode=TwoWay}"/>
                             </StackPanel>
@@ -200,7 +210,7 @@
                                 <TextBlock Text="Maj F11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.ShiftF11Exam, Mode=TwoWay}"/>
                             </StackPanel>
@@ -210,7 +220,7 @@
                                 <TextBlock Text="Ctrl F12" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.CtrlF12Exam, Mode=TwoWay}"/>
                             </StackPanel>
@@ -220,7 +230,7 @@
                                 <TextBlock Text="Maj F12" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <ComboBox Width="150"
                                           ItemsSource="{x:Bind ExamOptions}"
-                                          DisplayMemberPath="Name"
+                                          ItemTemplate="{StaticResource ExamOptionTemplate}"
                                           SelectedValuePath="Name"
                                           SelectedValue="{x:Bind ViewModelSettings.ShiftF12Exam, Mode=TwoWay}"/>
                             </StackPanel>
