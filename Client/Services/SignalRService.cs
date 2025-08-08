@@ -853,7 +853,14 @@ namespace Client.Services
         public async Task SendReminderAsync(ReminderConfig config)
         {
             if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected)
+                {
+                    Debug.WriteLine("Impossible d'envoyer le rappel : connexion SignalR non établie.");
+                    return;
+                }
+            }
 
             try
             {
