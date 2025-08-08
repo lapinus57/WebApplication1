@@ -849,6 +849,40 @@ namespace Client.Services
                 Debug.WriteLine($"Erreur envoi salles silencieux : {ex.Message}");
             }
         }
+
+        public async Task SendReminderAsync(ReminderConfig config)
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+                throw new InvalidOperationException("Connexion SignalR non établie.");
+
+            try
+            {
+                await Connection.InvokeAsync("SaveReminder", config);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur envoi rappel : {ex.Message}");
+            }
+        }
+
+        public async Task<ReminderConfig?> GetReminderAsync()
+        {
+            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected) return null;
+            }
+
+            try
+            {
+                return await Connection.InvokeAsync<ReminderConfig>("GetReminder");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération rappel : {ex.Message}");
+                return null;
+            }
+        }
         public async Task<List<ExamOption>> GetExamOptionsAsync()
         {
             if (Connection is null || Connection.State != HubConnectionState.Connected)

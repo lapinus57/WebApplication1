@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Client.Helpers;
 
 namespace Client.Pages
 {
@@ -8,6 +9,8 @@ namespace Client.Pages
         public SettingsPage()
         {
             this.InitializeComponent();
+            var cfg = MachineConfig.Load();
+            ReminderGrid.Visibility = cfg.ShowReminderPage ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Appearance_Click(object sender, RoutedEventArgs e)
@@ -33,6 +36,11 @@ namespace Client.Pages
         private void Connection_Click(object sender, RoutedEventArgs e)
         {
             Frame.Navigate(typeof(ConnectionPage));
+        }
+
+        private void Reminder_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(ReminderPage));
         }
     }
 }

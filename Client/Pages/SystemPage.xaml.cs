@@ -12,6 +12,7 @@ namespace Client.Pages
     {
         public string RoomName { get; set; } = string.Empty;
         public bool ShowTimeModification { get; set; }
+        public bool ShowReminderPage { get; set; }
         public List<string> Users { get; set; } = new();
         public string DefaultUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
@@ -22,6 +23,7 @@ namespace Client.Pages
             this.InitializeComponent();
             var cfg = MachineConfig.Load();
             ShowTimeModification = cfg.ShowTimeModification;
+            ShowReminderPage = cfg.ShowReminderPage;
             RoomName = cfg.RoomName;
             DefaultUser = cfg.DefaultUser;
             ConnectLastUser = cfg.ConnectLastUser;
@@ -49,6 +51,7 @@ namespace Client.Pages
             var cfg = MachineConfig.Load();
             cfg.RoomName = RoomName;
             cfg.ShowTimeModification = ShowTimeModification;
+            cfg.ShowReminderPage = ShowReminderPage;
             cfg.DefaultUser = DefaultUser;
             cfg.ConnectLastUser = ConnectLastUser;
             MachineConfig.Save(cfg);

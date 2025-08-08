@@ -15,6 +15,11 @@ namespace Client.Helpers
         /// </summary>
         public bool ShowTimeModification { get; set; }
 
+        /// <summary>
+        /// Show the reminder page in settings.
+        /// </summary>
+        public bool ShowReminderPage { get; set; }
+
         public static string FilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat", "machine.json");
