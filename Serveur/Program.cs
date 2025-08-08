@@ -16,6 +16,7 @@ builder.Services.AddSignalR(o =>
 {
     o.MaximumReceiveMessageSize = 2 * 1024 * 1024;
 });
+builder.Services.AddHostedService<ReminderService>();
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 var app = builder.Build();
@@ -40,6 +41,7 @@ using (var scope = app.Services.CreateScope())
     EnsureIsDeletedColumn(db);
     EnsurePatientLogsTable(db);
     EnsureUserSettingsTable(db);
+    EnsureReminderColumn(db);
     CleanupKnownUsers(db);
     if (!db.ServerConfigs.Any())
     {
@@ -122,6 +124,37 @@ void EnsureUserSettingsTable(ChatDbContext db)
         if (result == null)
         {
             cmd.CommandText = "CREATE TABLE UserSettings (Id INTEGER PRIMARY KEY AUTOINCREMENT, Username TEXT NOT NULL UNIQUE, SettingsJson TEXT NOT NULL)";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+void EnsureReminderColumn(ChatDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
+        using var reader = cmd.ExecuteReader();
+        bool exists = false;
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), "ReminderJson", StringComparison.OrdinalIgnoreCase))
+            {
+                exists = true;
+                break;
+            }
+        }
+        reader.Close();
+        if (!exists)
+        {
+            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN ReminderJson TEXT NOT NULL DEFAULT ''";
             cmd.ExecuteNonQuery();
         }
     }
