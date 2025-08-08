@@ -8,13 +8,16 @@
 			<Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
 			<TextBlock Text="Système" FontSize="24" FontWeight="Bold"/>
 			<Border CornerRadius="8" Padding="20">
-				<StackPanel Spacing="10">
-					<TextBlock Text="Nom de la salle"/>
-					<TextBox x:Name="RoomBox" Text="{x:Bind RoomName, Mode=TwoWay}"/>
-					<ToggleSwitch x:Name="TimeModSwitch" Header="Afficher la modification du temps" IsOn="{x:Bind ShowTimeModification, Mode=TwoWay}"/>
-					<Button Content="Sauvegarder" Click="Save_Click" HorizontalAlignment="Left"/>
-				</StackPanel>
-			</Border>
-		</StackPanel>
-	</ScrollViewer>
+                                <StackPanel Spacing="10">
+                                        <TextBlock Text="Nom de la salle"/>
+                                        <TextBox x:Name="RoomBox" Text="{x:Bind RoomName, Mode=TwoWay}"/>
+                                        <ToggleSwitch x:Name="TimeModSwitch" Header="Afficher la modification du temps" IsOn="{x:Bind ShowTimeModification, Mode=TwoWay}"/>
+                                        <TextBlock Text="Utilisateur par défaut"/>
+                                        <ComboBox ItemsSource="{x:Bind Users}" SelectedItem="{x:Bind DefaultUser, Mode=TwoWay}"/>
+                                        <ToggleSwitch Header="Se connecter avec le dernier utilisateur" IsOn="{x:Bind ConnectLastUser, Mode=TwoWay}"/>
+                                        <Button Content="Sauvegarder" Click="Save_Click" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                        </Border>
+                </StackPanel>
+        </ScrollViewer>
 </Page>
