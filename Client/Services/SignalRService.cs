@@ -109,10 +109,10 @@ namespace Client.Services
             return avatar;
         }
 
-        private string ToClientAvatar(string avatar)
+        private string? ToClientAvatar(string? avatar)
         {
             if (string.IsNullOrWhiteSpace(avatar))
-                return avatar;
+                return null;
             if (Uri.TryCreate(avatar, UriKind.RelativeOrAbsolute, out var uri))
             {
                 if (!uri.IsAbsoluteUri && avatar.StartsWith("/"))
