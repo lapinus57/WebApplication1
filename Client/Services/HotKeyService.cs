@@ -36,6 +36,7 @@ namespace Client.Services
         private const int VK_SHIFT = 0x10;
 
         private const uint KEYEVENTF_KEYUP = 0x0002;
+        public string RoomName { get; set; } = string.Empty;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct KBDLLHOOKSTRUCT
@@ -106,7 +107,8 @@ namespace Client.Services
 
         private static string ProcessTemplate(string text)
         {
-            return text.Replace("[ROOM]", Environment.UserName)
+            var machine = MachineConfig.Load();
+            return text.Replace("[ROOM]", machine.RoomName)
                        .Replace("[NEWLINE]", System.Environment.NewLine)
                        .Replace("[TIME]", DateTime.Now.ToString("HH:mm"));
         }
