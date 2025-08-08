@@ -58,36 +58,39 @@ namespace ChatServeur
                 return;
 
             var now = DateTime.Now;
-            foreach (var t in reminder.Times)
+            foreach (var item in reminder.Reminders)
             {
-                if (!TimeSpan.TryParse(t, out var span))
-                    continue;
-                var scheduled = now.Date.Add(span);
-                if (Math.Abs((scheduled - now).TotalMinutes) < 1)
+                foreach (var t in item.Times)
                 {
-                    var key = scheduled.ToString("yyyyMMddHHmm");
-                    if (_sent.Add(key))
+                    if (!TimeSpan.TryParse(t, out var span))
+                        continue;
+                    var scheduled = now.Date.Add(span);
+                    if (Math.Abs((scheduled - now).TotalMinutes) < 1)
                     {
-                        var message = new ChatMessage
+                        var key = $"{item.Message}-{scheduled:yyyyMMddHHmm}";
+                        if (_sent.Add(key))
                         {
-                            Sender = "Rappel",
-                            Destinataire = "A Tous",
-                            Room = string.Empty,
-                            Content = reminder.Message,
-                            Avatar = "/Assets/secretaria.png",
+                            var message = new ChatMessage
+                            {
+                                Sender = "Rappel",
+                                Destinataire = "A Tous",
+                                Room = string.Empty,
+                                Content = item.Message,
+                                Avatar = "/Assets/secretaria.png",
 
-                            Timestamp = now,
-                            IsDeleted = false
-                        };
-                        db.Messages.Add(message);
-                        await db.SaveChangesAsync();
-                        await _hub.Clients.All.SendAsync("ReceiveMessage", message.Id, message.Sender, message.Room, message.Destinataire, message.Content, message.Avatar, message.Timestamp);
+                                Timestamp = now,
+                                IsDeleted = false
+                            };
+                            db.Messages.Add(message);
+                            await db.SaveChangesAsync();
+                            await _hub.Clients.All.SendAsync("ReceiveMessage", message.Id, message.Sender, message.Room, message.Destinataire, message.Content, message.Avatar, message.Timestamp);
+                        }
                     }
                 }
             }
 
             var todayPrefix = now.ToString("yyyyMMdd");
-            _sent.RemoveWhere(k => !k.StartsWith(todayPrefix));
+            _sent.RemoveWhere(k => !k.Contains(todayPrefix));
         }
     }
 }

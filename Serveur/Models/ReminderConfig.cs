@@ -4,8 +4,7 @@ namespace ChatServeur
 {
     public class ReminderConfig
     {
-        public string Message { get; set; } = string.Empty;
-        public List<string> Times { get; set; } = new();
+        public List<ReminderItem> Reminders { get; set; } = new();
         public bool IsEnabled { get; set; }
     }
 }

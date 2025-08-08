@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Client.Models;
@@ -10,11 +9,13 @@ namespace Client.Pages
     public sealed partial class ReminderPage : Page
     {
         public ObservableCollection<string> Times { get; } = new();
+        public ObservableCollection<ReminderItem> Reminders { get; } = new();
 
         public ReminderPage()
         {
             this.InitializeComponent();
             TimesList.ItemsSource = Times;
+            RemindersList.ItemsSource = Reminders;
             Loaded += ReminderPage_Loaded;
         }
 
@@ -23,10 +24,9 @@ namespace Client.Pages
             var cfg = await App.ChatService.GetReminderAsync();
             if (cfg != null)
             {
-                MessageBox.Text = cfg.Message;
-                Times.Clear();
-                foreach (var t in cfg.Times)
-                    Times.Add(t);
+                Reminders.Clear();
+                foreach (var r in cfg.Reminders)
+                    Reminders.Add(r);
                 EnableSwitch.IsOn = cfg.IsEnabled;
             }
         }
@@ -44,18 +44,37 @@ namespace Client.Pages
                 Times.Add(t);
         }
 
-        private void TimesList_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        private void RemoveTime_Click(object sender, RoutedEventArgs e)
         {
-            if (TimesList.SelectedItem is string t)
+            if (sender is Button btn && btn.Tag is string t)
                 Times.Remove(t);
+        }
+
+        private void AddReminder_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(MessageBox.Text) || Times.Count == 0)
+                return;
+            var item = new ReminderItem
+            {
+                Message = MessageBox.Text,
+                Times = Times.ToList()
+            };
+            Reminders.Add(item);
+            MessageBox.Text = string.Empty;
+            Times.Clear();
+        }
+
+        private void RemoveReminder_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is ReminderItem item)
+                Reminders.Remove(item);
         }
 
         private async void Save_Click(object sender, RoutedEventArgs e)
         {
             var cfg = new ReminderConfig
             {
-                Message = MessageBox.Text,
-                Times = Times.ToList(),
+                Reminders = Reminders.ToList(),
                 IsEnabled = EnableSwitch.IsOn
             };
             await App.ChatService.SendReminderAsync(cfg);
