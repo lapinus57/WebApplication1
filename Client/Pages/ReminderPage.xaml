@@ -8,7 +8,7 @@
         <StackPanel Padding="20" Spacing="20">
             <Button Content="\u2190 Retour" Click="Back_Click" HorizontalAlignment="Left"/>
             <TextBlock Text="Rappels" FontSize="24" FontWeight="Bold"/>
-            <TextBox x:Name="MessageBox" Header="Message" AcceptsReturn="True" TextWrapping="Wrap"/>
+            <RichEditBox x:Name="MessageBox" Header="Message"/>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <TimePicker x:Name="TimePicker"/>
                 <Button Content="Ajouter l'heure" Click="AddTime_Click"/>
@@ -23,13 +23,14 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
-            <Button Content="Ajouter le rappel" Click="AddReminder_Click" HorizontalAlignment="Left"/>
+            <Button x:Name="AddReminderButton" Content="Ajouter le rappel" Click="AddReminder_Click" HorizontalAlignment="Left"/>
             <ListView x:Name="RemindersList" Height="200">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:ReminderItem">
                         <StackPanel Spacing="5">
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock Text="{x:Bind Message}" FontWeight="Bold"/>
+                                <TextBlock Text="{x:Bind Message}" FontWeight="Bold" TextWrapping="Wrap"/>
+                                <Button Content="Modifier" Click="EditReminder_Click" Tag="{x:Bind}"/>
                                 <Button Content="Supprimer" Click="RemoveReminder_Click" Tag="{x:Bind}"/>
                             </StackPanel>
                             <ItemsControl ItemsSource="{x:Bind Times}">

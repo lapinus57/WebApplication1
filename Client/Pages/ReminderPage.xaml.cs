@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Client.Models;
+using Windows.UI.Text;
 
 namespace Client.Pages
 {
@@ -10,6 +11,7 @@ namespace Client.Pages
     {
         public ObservableCollection<string> Times { get; } = new();
         public ObservableCollection<ReminderItem> Reminders { get; } = new();
+        private ReminderItem? _editing;
 
         public ReminderPage()
         {
@@ -52,16 +54,45 @@ namespace Client.Pages
 
         private void AddReminder_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(MessageBox.Text) || Times.Count == 0)
+            MessageBox.Document.GetText(TextGetOptions.None, out var txt);
+            var message = txt.Trim();
+            if (string.IsNullOrWhiteSpace(message) || Times.Count == 0)
                 return;
-            var item = new ReminderItem
+
+            if (_editing != null)
             {
-                Message = MessageBox.Text,
-                Times = Times.ToList()
-            };
-            Reminders.Add(item);
-            MessageBox.Text = string.Empty;
+                _editing.Message = message;
+                _editing.Times = Times.ToList();
+                Reminders.Add(_editing);
+                _editing = null;
+                AddReminderButton.Content = "Ajouter le rappel";
+            }
+            else
+            {
+                var item = new ReminderItem
+                {
+                    Message = message,
+                    Times = Times.ToList()
+                };
+                Reminders.Add(item);
+            }
+
+            MessageBox.Document.SetText(TextSetOptions.None, string.Empty);
             Times.Clear();
+        }
+
+        private void EditReminder_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is ReminderItem item)
+            {
+                MessageBox.Document.SetText(TextSetOptions.None, item.Message);
+                Times.Clear();
+                foreach (var t in item.Times)
+                    Times.Add(t);
+                Reminders.Remove(item);
+                _editing = item;
+                AddReminderButton.Content = "Mettre à jour le rappel";
+            }
         }
 
         private void RemoveReminder_Click(object sender, RoutedEventArgs e)
