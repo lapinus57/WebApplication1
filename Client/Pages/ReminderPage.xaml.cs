@@ -3,7 +3,8 @@ using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Client.Models;
-using Windows.UI.Text;
+using Microsoft.UI.Text;
+
 
 namespace Client.Pages
 {
