@@ -701,6 +701,34 @@ namespace ChatServeur
             }
         }
 
+        public async Task SaveReminder(ReminderConfig config)
+        {
+            var json = JsonSerializer.Serialize(config);
+            var cfg = await _db.ServerConfigs.SingleOrDefaultAsync();
+            if (cfg == null)
+            {
+                cfg = new ServerConfig();
+                _db.ServerConfigs.Add(cfg);
+            }
+            cfg.ReminderJson = json;
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task<ReminderConfig?> GetReminder()
+        {
+            var cfg = await _db.ServerConfigs.SingleOrDefaultAsync();
+            if (cfg == null || string.IsNullOrEmpty(cfg.ReminderJson))
+                return new ReminderConfig();
+            try
+            {
+                return JsonSerializer.Deserialize<ReminderConfig>(cfg.ReminderJson) ?? new ReminderConfig();
+            }
+            catch
+            {
+                return new ReminderConfig();
+            }
+        }
+
         public async Task DeclarePatient(Patient patient)
         {
             patient.IsArchived = false;

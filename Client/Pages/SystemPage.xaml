@@ -12,6 +12,7 @@
                                         <TextBlock Text="Nom de la salle"/>
                                         <TextBox x:Name="RoomBox" Text="{x:Bind RoomName, Mode=TwoWay}"/>
                                         <ToggleSwitch x:Name="TimeModSwitch" Header="Afficher la modification du temps" IsOn="{x:Bind ShowTimeModification, Mode=TwoWay}"/>
+                                        <ToggleSwitch x:Name="ReminderPageSwitch" Header="Afficher la page de rappel" IsOn="{x:Bind ShowReminderPage, Mode=TwoWay}"/>
                                         <TextBlock Text="Utilisateur par défaut"/>
                                         <ComboBox ItemsSource="{x:Bind Users}" SelectedItem="{x:Bind DefaultUser, Mode=TwoWay}"/>
                                         <ToggleSwitch Header="Se connecter avec le dernier utilisateur" IsOn="{x:Bind ConnectLastUser, Mode=TwoWay}"/>
