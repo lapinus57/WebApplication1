@@ -33,7 +33,10 @@ namespace ChatServeur
                 {
                     _logger.LogError(ex, "Erreur service rappels");
                 }
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+
+                var now = DateTime.Now;
+                var delay = TimeSpan.FromMinutes(1) - TimeSpan.FromSeconds(now.Second) - TimeSpan.FromMilliseconds(now.Millisecond);
+                await Task.Delay(delay, stoppingToken);
             }
         }
 
