@@ -75,6 +75,7 @@ namespace ChatServeur
                             Room = string.Empty,
                             Content = reminder.Message,
                             Avatar = "/Assets/secretaria.png",
+
                             Timestamp = now,
                             IsDeleted = false
                         };
