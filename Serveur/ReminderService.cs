@@ -63,6 +63,8 @@ namespace ChatServeur
             var now = DateTime.Now;
             foreach (var item in reminder.Reminders)
             {
+                if (item.Days != null && item.Days.Count > 0 && !item.Days.Contains(now.DayOfWeek))
+                    continue;
                 foreach (var t in item.Times)
                 {
                     if (!TimeSpan.TryParse(t, out var span))
@@ -70,14 +72,14 @@ namespace ChatServeur
                     var scheduled = now.Date.Add(span);
                     if (Math.Abs((scheduled - now).TotalMinutes) < 1)
                     {
-                        var key = $"{item.Message}-{scheduled:yyyyMMddHHmm}";
+                        var key = $"{item.Title}-{item.Message}-{scheduled:yyyyMMddHHmm}";
                         if (_sent.Add(key))
                         {
                             var message = new ChatMessage
                             {
                                 Sender = "Rappel",
                                 Destinataire = "A Tous",
-                                Room = string.Empty,
+                                Room = item.Title ?? string.Empty,
                                 Content = item.Message,
                                 Avatar = "/Assets/secretaria.png",
 
