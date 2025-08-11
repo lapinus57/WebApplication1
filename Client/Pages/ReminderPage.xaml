@@ -8,7 +8,17 @@
         <StackPanel Padding="20" Spacing="20">
             <Button Content="\u2190 Retour" Click="Back_Click" HorizontalAlignment="Left"/>
             <TextBlock Text="Rappels" FontSize="24" FontWeight="Bold"/>
+            <TextBox x:Name="TitleBox" Header="Titre"/>
             <RichEditBox x:Name="MessageBox" Header="Message"/>
+            <StackPanel x:Name="DaysPanel" Orientation="Horizontal" Spacing="10">
+                <CheckBox Content="Lun" Tag="Monday" Checked="Day_Checked" Unchecked="Day_Unchecked"/>
+                <CheckBox Content="Mar" Tag="Tuesday" Checked="Day_Checked" Unchecked="Day_Unchecked"/>
+                <CheckBox Content="Mer" Tag="Wednesday" Checked="Day_Checked" Unchecked="Day_Unchecked"/>
+                <CheckBox Content="Jeu" Tag="Thursday" Checked="Day_Checked" Unchecked="Day_Unchecked"/>
+                <CheckBox Content="Ven" Tag="Friday" Checked="Day_Checked" Unchecked="Day_Unchecked"/>
+                <CheckBox Content="Sam" Tag="Saturday" Checked="Day_Checked" Unchecked="Day_Unchecked"/>
+                <CheckBox Content="Dim" Tag="Sunday" Checked="Day_Checked" Unchecked="Day_Unchecked"/>
+            </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <TimePicker x:Name="TimePicker"/>
                 <Button Content="Ajouter l'heure" Click="AddTime_Click"/>
@@ -29,10 +39,18 @@
                     <DataTemplate x:DataType="models:ReminderItem">
                         <StackPanel Spacing="5">
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock Text="{x:Bind Message}" FontWeight="Bold" TextWrapping="Wrap"/>
+                                <TextBlock Text="{x:Bind Title}" FontWeight="Bold" TextWrapping="Wrap"/>
                                 <Button Content="Modifier" Click="EditReminder_Click" Tag="{x:Bind}"/>
                                 <Button Content="Supprimer" Click="RemoveReminder_Click" Tag="{x:Bind}"/>
                             </StackPanel>
+                            <TextBlock Text="{x:Bind Message}" TextWrapping="Wrap"/>
+                            <ItemsControl ItemsSource="{x:Bind Days}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                             <ItemsControl ItemsSource="{x:Bind Times}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
