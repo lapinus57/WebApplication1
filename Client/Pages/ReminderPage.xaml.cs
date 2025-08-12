@@ -125,8 +125,6 @@ namespace Client.Pages
                     if (Enum.TryParse<DayOfWeek>(cb.Tag?.ToString(), out var day))
                         cb.IsChecked = item.Days.Contains(day);
                 }
-                foreach (var d in item.Days)
-                    Days.Add(d);
                 Reminders.Remove(item);
                 _editing = item;
                 AddReminderButton.Content = "Mettre à jour le rappel";
