@@ -24,6 +24,7 @@ namespace Client.Pages
         private readonly SignalRService _service;
         public ObservableCollection<UserInfo> ConnectedUsers => _service.ConnectedUsers;
         public ObservableCollection<object> Messages => _service.Messages;
+        public ObservableCollection<object> FilteredMessages { get; } = new();
         public ObservableCollection<Patient> Patients => _service.Patients;
         public ObservableCollection<string> Rooms { get; } = RoomList.Load();
         private ObservableCollection<string> RoomsWithAll { get; } = new();
@@ -48,6 +49,7 @@ namespace Client.Pages
 
             UsersList.ItemsSource = ConnectedUsers;
             _service.Dispatcher = DispatcherQueue;
+            Messages.CollectionChanged += Messages_CollectionChanged;
 
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged += ApplyChatStyle;
             ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged += ApplyBubbleColorMode;
@@ -76,6 +78,7 @@ namespace Client.Pages
             ViewModel.ViewModel.SettingsViewModel.DisplayStyleChanged -= ApplyChatStyle;
             ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged -= ApplyBubbleColorMode;
             Patients.CollectionChanged -= Patients_CollectionChanged;
+            Messages.CollectionChanged -= Messages_CollectionChanged;
         }
 
         private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
@@ -126,6 +129,7 @@ namespace Client.Pages
             }
 
             InputBox.Focus(FocusState.Programmatic);
+            ApplyMessageFilter();
         }
 
         private void UpdateReconnectButtonVisibility()
@@ -165,6 +169,47 @@ namespace Client.Pages
                     await _service.SaveTodayMessagesToDiskAsync();
                 }
             });
+        }
+
+        private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            ApplyMessageFilter();
+            ScrollToLastMessage();
+        }
+
+        private void ApplyMessageFilter()
+        {
+            if (UsersList == null)
+                return;
+
+            var selected = UsersList.SelectedItem as UserInfo;
+            FilteredMessages.Clear();
+            foreach (var item in Messages)
+            {
+                if (ShouldKeepMessage(item, selected))
+                    FilteredMessages.Add(item);
+            }
+        }
+
+        private bool ShouldKeepMessage(object item, UserInfo? selected)
+        {
+            if (item is not ChatMessageModel msg)
+                return true;
+
+            if (selected == null)
+                return false;
+
+            string me = App.UserName;
+
+            if (selected.Username == "A Tous")
+                return msg.Destinataire == "A Tous";
+
+            if (selected.Username == "Secrétariat")
+                return (msg.Sender == me && msg.Destinataire == "Secrétariat") ||
+                       (msg.Sender == "Secrétariat" && msg.Destinataire == me);
+
+            return (msg.Sender == me && msg.Destinataire == selected.Username) ||
+                   (msg.Sender == selected.Username && msg.Destinataire == me);
         }
 
         private void TryRestoreUserSelection()
@@ -211,6 +256,8 @@ namespace Client.Pages
                 App.LastUserChanged = selected;
                 AppSettings.CurrentSelectedUser = selected;
                 InputBox.Focus(FocusState.Programmatic);
+                ApplyMessageFilter();
+                ScrollToLastMessage();
             }
         }
 

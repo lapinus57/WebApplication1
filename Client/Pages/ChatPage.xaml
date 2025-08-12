@@ -424,7 +424,7 @@
                   Grid.Column="1"
                   ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
                   SelectionMode="None"
-                  ItemsSource="{x:Bind Messages}"/>
+                  ItemsSource="{x:Bind FilteredMessages}"/>
 
 
         <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Spacing="8">
