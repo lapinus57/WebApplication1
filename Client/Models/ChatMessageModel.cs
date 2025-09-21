@@ -254,6 +254,7 @@ namespace Client.Models
             return new InlineUIContainer
             {
                 Child = border
+
             };
         }
 
