@@ -292,6 +292,54 @@ namespace ChatServeur
             Console.WriteLine($"[SERVER] Message sent from {sender} to {destinataire} in room {room}: {content}");
         }
 
+        public async Task GenerateSampleMessages()
+        {
+            EnsureUsersLoaded();
+
+            var username = GetUsername();
+            if (string.Equals(username, "Unknown", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var userAvatar = "ms-appx:///Assets/earth.png";
+            var userRoom = "A Tous";
+
+            if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var caller))
+            {
+                if (!string.IsNullOrWhiteSpace(caller.Avatar))
+                    userAvatar = caller.Avatar;
+
+                var firstRoom = caller.Rooms.FirstOrDefault(r => !string.Equals(r, "Hors ligne", StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(firstRoom))
+                    userRoom = firstRoom;
+            }
+            else if (AllUsers.TryGetValue(username, out var known))
+            {
+                if (!string.IsNullOrWhiteSpace(known.Avatar))
+                    userAvatar = known.Avatar;
+
+                var firstRoom = known.Rooms.FirstOrDefault(r => !string.Equals(r, "Hors ligne", StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(firstRoom))
+                    userRoom = firstRoom;
+            }
+
+            userAvatar = ToRelativeAvatar(userAvatar);
+            var secretariatAvatar = ToRelativeAvatar(BaseUsers.FirstOrDefault(u => u.Username == "Secrétariat")?.Avatar ?? "ms-appx:///Assets/secretaria.png");
+
+            var messages = new List<(string Sender, string Room, string Dest, string Content, string Avatar)>
+            {
+                (username, userRoom, "A Tous", "Bonjour à tous, ceci est un message de démonstration.", userAvatar),
+                (username, userRoom, "A Tous", "Utilisez l'icône « + » pour ajouter un patient au planning.", userAvatar),
+                ("Secrétariat", "Secrétariat", "A Tous", "Pensez à prévenir l'équipe lorsqu'un examen est terminé.", secretariatAvatar),
+                (username, userRoom, "A Tous", "Sélectionnez un destinataire pour envoyer un message privé.", userAvatar),
+                ("Secrétariat", "Secrétariat", "A Tous", "Tapez /clearallmessageday pour remettre le fil à zéro.", secretariatAvatar)
+            };
+
+            foreach (var (sender, room, destinataire, content, avatar) in messages)
+            {
+                await SendMessage(sender, room, destinataire, content, avatar, DateTime.Now);
+            }
+        }
+
         public async Task CallUser(string caller, string room, string destinataire)
         {
             if (_userToConnectionId.TryGetValue(destinataire, out var targetConnectionIds))
@@ -429,6 +477,30 @@ namespace ChatServeur
                 _db.Messages.Update(message);
                 await _db.SaveChangesAsync();
                 await Clients.All.SendAsync("MessageDeleted", id);
+            }
+        }
+
+        public async Task ClearTodayMessages()
+        {
+            var today = DateTime.Today;
+            var messages = await _db.Messages
+                .Where(m => !m.IsDeleted && m.Timestamp.Date == today)
+                .ToListAsync();
+
+            if (!messages.Any())
+                return;
+
+            foreach (var message in messages)
+            {
+                message.IsDeleted = true;
+            }
+
+            _db.Messages.UpdateRange(messages);
+            await _db.SaveChangesAsync();
+
+            foreach (var message in messages)
+            {
+                await Clients.All.SendAsync("MessageDeleted", message.Id);
             }
         }
 
@@ -747,6 +819,30 @@ namespace ChatServeur
                 AddPatientLog(patient.Id, "Delete", "Patient supprimé");
                 await _db.SaveChangesAsync();
                 await Clients.All.SendAsync("PatientRemoved", id);
+            }
+        }
+
+        public async Task ClearTodayPatients()
+        {
+            var today = DateTime.Today;
+            var patients = await _db.Patients
+                .Where(p => p.HoldTime.Date == today && !p.IsArchived)
+                .ToListAsync();
+
+            if (!patients.Any())
+                return;
+
+            foreach (var patient in patients)
+            {
+                AddPatientLog(patient.Id, "DeleteDay", "Suppression via clearallpatientday");
+            }
+
+            _db.Patients.RemoveRange(patients);
+            await _db.SaveChangesAsync();
+
+            foreach (var patient in patients)
+            {
+                await Clients.All.SendAsync("PatientRemoved", patient.Id);
             }
         }
 

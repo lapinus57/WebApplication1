@@ -1113,6 +1113,52 @@ namespace Client.Services
                 }
             }
         }
+
+        public async Task ClearTodayPatientsAsync()
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("ClearTodayPatients");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur suppression patients du jour : {ex.Message}");
+                }
+            }
+        }
+
+        public async Task ClearTodayMessagesAsync()
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("ClearTodayMessages");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur suppression messages du jour : {ex.Message}");
+                }
+            }
+        }
+
+        public async Task GenerateSampleMessagesAsync()
+        {
+            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await Connection.InvokeAsync("GenerateSampleMessages");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Erreur génération messages : {ex.Message}");
+                }
+            }
+        }
+
         public async Task UnarchiveAllPatientsAsync()
         {
             if (Connection != null && Connection.State == HubConnectionState.Connected)
