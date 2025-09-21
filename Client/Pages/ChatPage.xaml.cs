@@ -1024,20 +1024,60 @@ namespace Client.Pages
                 {
                     foreach (var inline in p.Inlines)
                     {
-                        switch (inline)
-                        {
-                            case Run run:
-                                sb.Append(run.Text);
-                                break;
-                            case LineBreak:
-                                sb.Append('\n');
-                                break;
-                        }
+                        AppendInlineText(sb, inline);
                     }
                     sb.Append('\n');
                 }
             }
             return sb.ToString();
+        }
+
+        private static void AppendInlineText(System.Text.StringBuilder sb, Inline inline)
+        {
+            switch (inline)
+            {
+                case Run run:
+                    sb.Append(run.Text);
+                    break;
+                case LineBreak:
+                    sb.Append('\n');
+                    break;
+                case InlineUIContainer container:
+                    sb.Append(ExtractTextFromElement(container.Child));
+                    break;
+            }
+        }
+
+        private static string ExtractTextFromElement(UIElement? element)
+        {
+            switch (element)
+            {
+                case TextBlock textBlock:
+                    return textBlock.Text;
+                case Border border:
+                    return ExtractTextFromElement(border.Child);
+                case Panel panel:
+                    {
+                        var sb = new System.Text.StringBuilder();
+                        foreach (var child in panel.Children)
+                        {
+                            if (child is UIElement uiElement)
+                            {
+                                sb.Append(ExtractTextFromElement(uiElement));
+                            }
+                        }
+                        return sb.ToString();
+                    }
+                case ContentControl contentControl:
+                    return contentControl.Content switch
+                    {
+                        string text => text,
+                        UIElement uiElement => ExtractTextFromElement(uiElement),
+                        _ => string.Empty
+                    };
+                default:
+                    return string.Empty;
+            }
         }
         private async void InputBox_Paste(object sender, TextControlPasteEventArgs e)
         {
