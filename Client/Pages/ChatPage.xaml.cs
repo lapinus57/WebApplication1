@@ -39,6 +39,9 @@ namespace Client.Pages
             new SlashCommandInfo("/getallroom", "Afficher toutes les salles et leurs membres"),
             new SlashCommandInfo("/setallroom", "Modifier l'affectation des salles"),
             new SlashCommandInfo("/addpatienttest", "Ajouter une série de patients de test"),
+            new SlashCommandInfo("/clearallpatientday", "Supprimer tous les patients du jour"),
+            new SlashCommandInfo("/clearallmessageday", "Supprimer tous les messages du jour"),
+            new SlashCommandInfo("/generatemessage", "Générer des messages de démonstration"),
         };
         private static readonly string[] TestFirstNames = new[]
         {
@@ -335,6 +338,21 @@ namespace Client.Pages
                 else if (string.Equals(text, "/addpatienttest", StringComparison.OrdinalIgnoreCase))
                 {
                     _ = AddTestPatientsAsync();
+                    InputBox.Text = string.Empty;
+                }
+                else if (string.Equals(text, "/clearallpatientday", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = _service.ClearTodayPatientsAsync();
+                    InputBox.Text = string.Empty;
+                }
+                else if (string.Equals(text, "/clearallmessageday", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = _service.ClearTodayMessagesAsync();
+                    InputBox.Text = string.Empty;
+                }
+                else if (string.Equals(text, "/generatemessage", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = _service.GenerateSampleMessagesAsync();
                     InputBox.Text = string.Empty;
                 }
                 else
