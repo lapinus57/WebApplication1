@@ -255,7 +255,8 @@ namespace Client.Models
             {
                 Text = "+",
                 FontSize = fontSize > 0 ? fontSize : 14,
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = new FontWeight { Weight = 600 },
+
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(2, 0, 2, 0)
             };
