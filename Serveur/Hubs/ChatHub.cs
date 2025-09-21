@@ -329,6 +329,7 @@ namespace ChatServeur
             {
                 (username, userRoom, "A Tous", "Bonjour à tous, ceci est un message de démonstration.", userAvatar),
                 (username, userRoom, "A Tous", "Utilisez l'icône « + » pour ajouter un patient au planning.", userAvatar),
+                (username, userRoom, "A Tous", "Pour mettre votre en-tête, appuyez sur la touche [[F5]].", userAvatar),
                 ("Secrétariat", "Secrétariat", "A Tous", "Pensez à prévenir l'équipe lorsqu'un examen est terminé.", secretariatAvatar),
                 (username, userRoom, "A Tous", "Sélectionnez un destinataire pour envoyer un message privé.", userAvatar),
                 ("Secrétariat", "Secrétariat", "A Tous", "Tapez /clearallmessageday pour remettre le fil à zéro.", secretariatAvatar)
