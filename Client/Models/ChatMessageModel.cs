@@ -214,11 +214,9 @@ namespace Client.Models
 
         private static Inline CreateKeyInline(string keyText, double fontSize, FontFamily? fontFamily, Brush? foreground)
         {
-            var baseColor = Colors.Gray;
-            if (foreground is SolidColorBrush solid)
-            {
-                baseColor = solid.Color;
-            }
+            var baseColor = foreground is SolidColorBrush solid
+                ? solid.Color
+                : Color.FromArgb(255, 128, 128, 128);
 
             var backgroundColor = Color.FromArgb(40, baseColor.R, baseColor.G, baseColor.B);
             var borderColor = Color.FromArgb(120, baseColor.R, baseColor.G, baseColor.B);
@@ -227,7 +225,7 @@ namespace Client.Models
             {
                 Text = keyText,
                 FontSize = fontSize > 0 ? fontSize : 14,
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = new FontWeight { Weight = 600 },
                 VerticalAlignment = VerticalAlignment.Center
             };
 
@@ -249,13 +247,14 @@ namespace Client.Models
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(6, 2, 6, 2),
                 Margin = new Thickness(2, 0, 2, 0),
+                VerticalAlignment = VerticalAlignment.Center,
                 Child = textBlock
             };
 
             return new InlineUIContainer
             {
-                Child = border,
-                BaselineAlignment = BaselineAlignment.Center
+                Child = border
+
             };
         }
 
