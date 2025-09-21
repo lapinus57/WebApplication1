@@ -230,10 +230,7 @@ namespace Client.Models
 
                 if (i > current)
                 {
-                    container.Add(new Run
-                    {
-                        Text = text.Substring(current, i - current)
-                    });
+                    container.Add(CreateTextRun(text.Substring(current, i - current), fontSize, fontFamily, foreground));
                 }
 
                 container.Add(CreateConnectorInline(fontSize, fontFamily, foreground));
@@ -242,39 +239,61 @@ namespace Client.Models
 
             if (current < text.Length)
             {
-                container.Add(new Run
-                {
-                    Text = text.Substring(current)
-                });
+                container.Add(CreateTextRun(text.Substring(current), fontSize, fontFamily, foreground));
             }
         }
 
         private static Inline CreateConnectorInline(double fontSize, FontFamily? fontFamily, Brush? foreground)
         {
-            var connector = new TextBlock
+
+            var run = new Run
             {
                 Text = "+",
-                FontSize = fontSize > 0 ? fontSize : 14,
-                FontWeight = new FontWeight { Weight = 600 },
-
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
+                FontWeight = new FontWeight { Weight = 600 }
             };
+
+            if (fontSize > 0)
+            {
+                run.FontSize = fontSize;
+            }
 
             if (foreground != null)
             {
-                connector.Foreground = foreground;
+                run.Foreground = foreground;
             }
 
             if (fontFamily != null)
             {
-                connector.FontFamily = fontFamily;
+                run.FontFamily = fontFamily;
             }
 
-            return new InlineUIContainer
+            return run;
+        }
+
+        private static Run CreateTextRun(string text, double fontSize, FontFamily? fontFamily, Brush? foreground)
+        {
+            var run = new Run
             {
-                Child = connector
+                Text = text
             };
+
+            if (fontSize > 0)
+            {
+                run.FontSize = fontSize;
+            }
+
+            if (foreground != null)
+            {
+                run.Foreground = foreground;
+            }
+
+            if (fontFamily != null)
+            {
+                run.FontFamily = fontFamily;
+            }
+
+            return run;
+
         }
 
         private static bool IsStandalonePlus(string text, int index)
