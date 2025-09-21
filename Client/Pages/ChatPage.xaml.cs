@@ -33,6 +33,13 @@ namespace Client.Pages
         private FrameworkElement? _currentMessageTarget;
         private bool _ignoreSelectionChanged;
         private bool _ignoreOrderChange;
+        private bool _isApplyingSlashCommand;
+        private readonly List<SlashCommandInfo> _slashCommands = new()
+        {
+            new SlashCommandInfo("/getallroom", "Afficher toutes les salles et leurs membres"),
+            new SlashCommandInfo("/setallroom", "Modifier l'affectation des salles"),
+            new SlashCommandInfo("/addpatienttest", "Ajouter une série de patients de test"),
+        };
         private static readonly string[] TestFirstNames = new[]
         {
             "Léa", "Lucas","Lucie", "Benoit", "Olivier", "Emma", "Gabriel", "Chloé",
@@ -299,6 +306,7 @@ namespace Client.Pages
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
                 e.Handled = true;
+                HideSlashCommandsFlyout();
                 var text = InputBox.Text.Trim();
 
                 var options = ExamOption.Load();
@@ -843,6 +851,75 @@ namespace Client.Pages
                 rtb.SelectAll();
             }
         }
+
+        private void InputBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (SlashCommandsFlyout == null)
+                return;
+
+            if (_isApplyingSlashCommand)
+            {
+                _isApplyingSlashCommand = false;
+                return;
+            }
+
+            if (sender is not TextBox textBox)
+                return;
+
+            var text = textBox.Text;
+
+            if (string.IsNullOrWhiteSpace(text) || !text.StartsWith("/", StringComparison.Ordinal))
+            {
+                HideSlashCommandsFlyout();
+                return;
+            }
+
+            var matches = _slashCommands
+                .Where(cmd => cmd.Command.StartsWith(text, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (matches.Count == 0)
+            {
+                HideSlashCommandsFlyout();
+                return;
+            }
+
+            foreach (var item in SlashCommandsFlyout.Items.OfType<MenuFlyoutItem>().ToList())
+            {
+                item.Click -= SlashCommandFlyoutItem_Click;
+            }
+
+            SlashCommandsFlyout.Items.Clear();
+
+            foreach (var command in matches)
+            {
+                var item = new MenuFlyoutItem
+                {
+                    Text = $"{command.Command} — {command.Description}",
+                    Tag = command.Command
+                };
+                item.Click += SlashCommandFlyoutItem_Click;
+                SlashCommandsFlyout.Items.Add(item);
+            }
+
+            if (!SlashCommandsFlyout.IsOpen)
+            {
+                SlashCommandsFlyout.ShowAt(textBox);
+            }
+        }
+
+        private void SlashCommandFlyoutItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem item && item.Tag is string command)
+            {
+                _isApplyingSlashCommand = true;
+                InputBox.Text = command + " ";
+                InputBox.SelectionStart = InputBox.Text.Length;
+                InputBox.Focus(FocusState.Programmatic);
+                HideSlashCommandsFlyout();
+            }
+        }
+
         private static string GetRichText(RichTextBlock block)
         {
             var sb = new System.Text.StringBuilder();
@@ -870,19 +947,20 @@ namespace Client.Pages
         private async void InputBox_Paste(object sender, TextControlPasteEventArgs e)
         {
             var content = Clipboard.GetContent();
-            if (content.Contains(StandardDataFormats.Text))
+            if (!content.Contains(StandardDataFormats.Text))
+                return;
+
+            e.Handled = true;
+
+            var text = await content.GetTextAsync();
+            text = text.Replace("\r", string.Empty).Replace("\n", " ");
+            if (sender is TextBox tb)
             {
-                var text = await content.GetTextAsync();
-                text = text.Replace("\r", string.Empty).Replace("\n", " ");
-                if (sender is TextBox tb)
-                {
-                    var start = tb.SelectionStart;
-                    var length = tb.SelectionLength;
-                    var current = tb.Text;
-                    tb.Text = current.Substring(0, start) + text + current.Substring(start + length);
-                    tb.SelectionStart = start + text.Length;
-                    e.Handled = true;
-                }
+                var start = tb.SelectionStart;
+                var length = tb.SelectionLength;
+                var current = tb.Text;
+                tb.Text = current.Substring(0, start) + text + current.Substring(start + length);
+                tb.SelectionStart = start + text.Length;
             }
         }
 
@@ -1086,6 +1164,26 @@ namespace Client.Pages
         {
             AppSettings.UserOrder = ConnectedUsers.Select(u => u.Username).ToList();
         }
+
+        private void HideSlashCommandsFlyout()
+        {
+            if (SlashCommandsFlyout == null)
+                return;
+
+            foreach (var item in SlashCommandsFlyout.Items.OfType<MenuFlyoutItem>().ToList())
+            {
+                item.Click -= SlashCommandFlyoutItem_Click;
+            }
+
+            SlashCommandsFlyout.Items.Clear();
+
+            if (SlashCommandsFlyout.IsOpen)
+            {
+                SlashCommandsFlyout.Hide();
+            }
+        }
+
+        private sealed record SlashCommandInfo(string Command, string Description);
     }
 
     public static class ObservableCollectionExtensions
@@ -1096,4 +1194,5 @@ namespace Client.Pages
             foreach (var item in toRemove)
                 collection.Remove(item);
         }
-    }}
+    }
+}

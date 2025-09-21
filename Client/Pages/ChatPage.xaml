@@ -433,8 +433,13 @@
         </StackPanel>
 
         <TextBox x:Name="InputBox" Grid.Column="1" Grid.Row="1" PlaceholderText="Votre message..." KeyDown="InputBox_KeyDown" Paste="InputBox_Paste"
+                 TextChanged="InputBox_TextChanged"
                  Translation="0,0,50">
-           
+
+            <FlyoutBase.AttachedFlyout>
+                <MenuFlyout x:Name="SlashCommandsFlyout" Placement="TopEdgeAlignedLeft" />
+            </FlyoutBase.AttachedFlyout>
+
             <TextBox.Shadow>
                 <ThemeShadow/>
             </TextBox.Shadow>
