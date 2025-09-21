@@ -35,19 +35,19 @@ namespace Client.Pages
         private bool _ignoreOrderChange;
         private static readonly string[] TestFirstNames = new[]
         {
-            "Léa", "Lucas", "Emma", "Gabriel", "Chloé",
-            "Louis", "Manon", "Arthur", "Camille", "Noah",
+            "Léa", "Lucas","Lucie", "Benoit", "Olivier", "Emma", "Gabriel", "Chloé",
+            "Louis", "Manon", "Arthur", "Camille", "Noah","Eric", "Jade", "Hugo","Alice","Julien","Sophie","Maxime",
         };
 
         private static readonly string[] TestLastNames = new[]
         {
-            "Martin", "Bernard", "Dubois", "Thomas", "Robert",
-            "Petit", "Durand", "Leroy", "Moreau", "Simon",
+            "Martin", "Bernard", "Dubois", "Thomas", "Robert","Richard", "Weber", "Muller", "Fournier", "Girard","Thomas",
+            "Petit", "Durand", "Leroy", "Moreau", "Simon","Laurent", "Lefevre", "Michel", "Garcia", "David", "Bertrand","Roux",
         };
 
         private static readonly string[] TestTitles = new[]
         {
-            string.Empty, "Mr", "Mme", "Mlle", "Monsieur", "Madame"
+            "Enfant", "Mr", "Mme", "Mlle"
         };
 
         public bool ShowTimeModification { get; private set; }
