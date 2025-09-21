@@ -33,6 +33,23 @@ namespace Client.Pages
         private FrameworkElement? _currentMessageTarget;
         private bool _ignoreSelectionChanged;
         private bool _ignoreOrderChange;
+        private static readonly string[] TestFirstNames = new[]
+        {
+            "Léa", "Lucas", "Emma", "Gabriel", "Chloé",
+            "Louis", "Manon", "Arthur", "Camille", "Noah",
+        };
+
+        private static readonly string[] TestLastNames = new[]
+        {
+            "Martin", "Bernard", "Dubois", "Thomas", "Robert",
+            "Petit", "Durand", "Leroy", "Moreau", "Simon",
+        };
+
+        private static readonly string[] TestTitles = new[]
+        {
+            string.Empty, "Mr", "Mme", "Mlle", "Monsieur", "Madame"
+        };
+
         public bool ShowTimeModification { get; private set; }
         public Visibility TimeModificationVisibility => ShowTimeModification ? Visibility.Visible : Visibility.Collapsed;
         public ChatPage()
@@ -307,10 +324,49 @@ namespace Client.Pages
                     _ = ShowSetRoomDialog();
                     InputBox.Text = string.Empty;
                 }
+                else if (string.Equals(text, "/addpatienttest", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = AddTestPatientsAsync();
+                    InputBox.Text = string.Empty;
+                }
                 else
                 {
                     Send_Click(sender, e);
                 }
+            }
+        }
+
+        private async Task AddTestPatientsAsync()
+        {
+            try
+            {
+                var examOptions = await _service.GetExamOptionsAsync();
+                if (examOptions == null || examOptions.Count == 0)
+                {
+                    examOptions = ExamOption.Load().ToList();
+                }
+
+                var validExams = examOptions
+                    .Where(o => !string.IsNullOrWhiteSpace(o.Name))
+                    .OrderBy(o => o.Index)
+                    .ToList();
+
+                if (validExams.Count == 0)
+                    return;
+
+                foreach (var exam in validExams)
+                {
+                    var firstName = TestFirstNames[Random.Shared.Next(TestFirstNames.Length)];
+                    var lastName = TestLastNames[Random.Shared.Next(TestLastNames.Length)];
+                    var title = TestTitles[Random.Shared.Next(TestTitles.Length)];
+                    var fullName = $"{title} {lastName} {firstName}".Trim();
+
+                    await HotKeyService.DeclarePatientAsync(exam.Name, fullName);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ChatPage] Error adding test patients: {ex.Message}");
             }
         }
 
