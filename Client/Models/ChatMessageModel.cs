@@ -245,6 +245,7 @@ namespace Client.Models
 
         private static Inline CreateConnectorInline(double fontSize, FontFamily? fontFamily, Brush? foreground)
         {
+
             var run = new Run
             {
                 Text = "+",
@@ -292,6 +293,7 @@ namespace Client.Models
             }
 
             return run;
+
         }
 
         private static bool IsStandalonePlus(string text, int index)
