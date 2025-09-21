@@ -169,10 +169,11 @@ namespace Client.Models
 
                 if (segment.Index > currentIndex)
                 {
-                    container.Add(new Run
-                    {
-                        Text = text.Substring(currentIndex, segment.Index - currentIndex)
-                    });
+                    AddPlainTextInline(container,
+                        text.Substring(currentIndex, segment.Index - currentIndex),
+                        fontSize,
+                        fontFamily,
+                        foreground);
                 }
 
                 switch (segment.Type)
@@ -190,7 +191,11 @@ namespace Client.Models
 
             if (currentIndex < text.Length)
             {
-                container.Add(new Run { Text = text[currentIndex..] });
+                AddPlainTextInline(container,
+                    text[currentIndex..],
+                    fontSize,
+                    fontFamily,
+                    foreground);
             }
         }
 
@@ -210,6 +215,76 @@ namespace Client.Models
             link.Inlines.Add(new Run { Text = url });
             link.Click += async (_, _) => await Launcher.LaunchUriAsync(uri);
             container.Add(link);
+        }
+
+        private static void AddPlainTextInline(InlineCollection container, string text, double fontSize, FontFamily? fontFamily, Brush? foreground)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            var current = 0;
+            for (var i = 0; i < text.Length; i++)
+            {
+                if (!IsStandalonePlus(text, i))
+                    continue;
+
+                if (i > current)
+                {
+                    container.Add(new Run
+                    {
+                        Text = text.Substring(current, i - current)
+                    });
+                }
+
+                container.Add(CreateConnectorInline(fontSize, fontFamily, foreground));
+                current = i + 1;
+            }
+
+            if (current < text.Length)
+            {
+                container.Add(new Run
+                {
+                    Text = text.Substring(current)
+                });
+            }
+        }
+
+        private static Inline CreateConnectorInline(double fontSize, FontFamily? fontFamily, Brush? foreground)
+        {
+            var connector = new TextBlock
+            {
+                Text = "+",
+                FontSize = fontSize > 0 ? fontSize : 14,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2, 0, 2, 0)
+            };
+
+            if (foreground != null)
+            {
+                connector.Foreground = foreground;
+            }
+
+            if (fontFamily != null)
+            {
+                connector.FontFamily = fontFamily;
+            }
+
+            return new InlineUIContainer
+            {
+                Child = connector
+            };
+        }
+
+        private static bool IsStandalonePlus(string text, int index)
+        {
+            if (text[index] != '+')
+                return false;
+
+            var isStartOrSpaceBefore = index == 0 || char.IsWhiteSpace(text[index - 1]);
+            var isEndOrSpaceAfter = index == text.Length - 1 || char.IsWhiteSpace(text[index + 1]);
+
+            return isStartOrSpaceBefore && isEndOrSpaceAfter;
         }
 
         private static Inline CreateKeyInline(string keyText, double fontSize, FontFamily? fontFamily, Brush? foreground)
