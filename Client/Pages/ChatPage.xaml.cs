@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Collections.Generic;
@@ -200,22 +201,98 @@ namespace Client.Pages
 
         private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            ApplyMessageFilter();
+            var selected = GetSelectedUser();
+
+            switch (e.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                    AddFilteredItems(e.NewItems, e.NewStartingIndex, selected);
+                    break;
+                case NotifyCollectionChangedAction.Remove:
+                    RemoveFilteredItems(e.OldItems);
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    RemoveFilteredItems(e.OldItems);
+                    AddFilteredItems(e.NewItems, e.NewStartingIndex, selected);
+                    break;
+                case NotifyCollectionChangedAction.Move:
+                    ApplyMessageFilter(selected);
+                    break;
+                default:
+                    ApplyMessageFilter(selected);
+                    break;
+            }
+
             ScrollToLastMessage();
         }
 
+        private UserInfo? GetSelectedUser() => UsersList?.SelectedItem as UserInfo;
+
         private void ApplyMessageFilter()
         {
-            if (UsersList == null)
-                return;
+            ApplyMessageFilter(GetSelectedUser());
+        }
 
-            var selected = UsersList.SelectedItem as UserInfo;
+        private void ApplyMessageFilter(UserInfo? selected)
+        {
             FilteredMessages.Clear();
             foreach (var item in Messages)
             {
                 if (ShouldKeepMessage(item, selected))
                     FilteredMessages.Add(item);
             }
+        }
+
+        private void AddFilteredItems(IList? newItems, int startingIndex, UserInfo? selected)
+        {
+            if (newItems == null)
+                return;
+
+            for (int i = 0; i < newItems.Count; i++)
+            {
+                var item = newItems[i];
+                if (!ShouldKeepMessage(item, selected))
+                    continue;
+
+                var messageIndex = startingIndex >= 0 ? startingIndex + i : Messages.IndexOf(item);
+                if (messageIndex < 0)
+                {
+                    FilteredMessages.Add(item);
+                    continue;
+                }
+
+                var insertIndex = CalculateFilteredInsertIndex(messageIndex, selected);
+                insertIndex = Math.Min(insertIndex, FilteredMessages.Count);
+                FilteredMessages.Insert(insertIndex, item);
+            }
+        }
+
+        private void RemoveFilteredItems(IList? oldItems)
+        {
+            if (oldItems == null)
+                return;
+
+            foreach (var item in oldItems)
+            {
+                if (item != null)
+                    FilteredMessages.Remove(item);
+            }
+        }
+
+        private int CalculateFilteredInsertIndex(int messageIndex, UserInfo? selected)
+        {
+            if (messageIndex <= 0)
+                return 0;
+
+            int count = 0;
+            int limit = Math.Min(messageIndex, Messages.Count);
+            for (int i = 0; i < limit; i++)
+            {
+                if (ShouldKeepMessage(Messages[i], selected))
+                    count++;
+            }
+
+            return count;
         }
 
         private bool ShouldKeepMessage(object item, UserInfo? selected)
