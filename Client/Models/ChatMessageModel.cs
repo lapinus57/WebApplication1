@@ -254,6 +254,7 @@ namespace Client.Models
                 TextLineBounds = TextLineBounds.Tight,
                 Padding = new Thickness(0),
                 Margin = new Thickness(0, 1, 0, 1)
+
             };
 
             if (foreground != null)
@@ -270,6 +271,7 @@ namespace Client.Models
             {
                 Child = textBlock,
                 BaselineAlignment = BaselineAlignment.Center
+
             };
         }
 

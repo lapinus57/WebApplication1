@@ -1034,6 +1034,7 @@ namespace Client.Pages
         }
 
         private static void AppendInlineText(StringBuilder sb, Inline inline)
+
         {
             switch (inline)
             {
@@ -1049,6 +1050,7 @@ namespace Client.Pages
                         AppendInlineText(sb, child);
                     }
                     break;
+
                 case InlineUIContainer container:
                     sb.Append(ExtractTextFromElement(container.Child));
                     break;
@@ -1076,11 +1078,13 @@ namespace Client.Pages
                     }
 
                     return string.Empty;
+
                 case Border border:
                     return ExtractTextFromElement(border.Child);
                 case Panel panel:
                     {
                         var sb = new StringBuilder();
+
                         foreach (var child in panel.Children)
                         {
                             if (child is UIElement uiElement)
