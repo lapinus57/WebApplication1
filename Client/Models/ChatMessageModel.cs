@@ -245,29 +245,30 @@ namespace Client.Models
 
         private static Inline CreateConnectorInline(double fontSize, FontFamily? fontFamily, Brush? foreground)
         {
-
-            var run = new Run
+            var textBlock = new TextBlock
             {
                 Text = "+",
-                FontWeight = new FontWeight { Weight = 600 }
+                FontSize = fontSize > 0 ? fontSize : 14,
+                FontWeight = new FontWeight { Weight = 600 },
+                VerticalAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(0),
+                Margin = new Thickness(0)
             };
-
-            if (fontSize > 0)
-            {
-                run.FontSize = fontSize;
-            }
 
             if (foreground != null)
             {
-                run.Foreground = foreground;
+                textBlock.Foreground = foreground;
             }
 
             if (fontFamily != null)
             {
-                run.FontFamily = fontFamily;
+                textBlock.FontFamily = fontFamily;
             }
 
-            return run;
+            return new InlineUIContainer
+            {
+                Child = textBlock
+            };
         }
 
         private static Run CreateTextRun(string text, double fontSize, FontFamily? fontFamily, Brush? foreground)
