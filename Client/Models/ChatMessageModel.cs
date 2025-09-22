@@ -245,29 +245,32 @@ namespace Client.Models
 
         private static Inline CreateConnectorInline(double fontSize, FontFamily? fontFamily, Brush? foreground)
         {
-
-            var run = new Run
+            var textBlock = new TextBlock
             {
                 Text = "+",
-                FontWeight = new FontWeight { Weight = 600 }
+                FontSize = fontSize > 0 ? fontSize : 14,
+                FontWeight = new FontWeight { Weight = 600 },
+                VerticalAlignment = VerticalAlignment.Center,
+                TextLineBounds = TextLineBounds.Tight,
+                Padding = new Thickness(0),
+                Margin = new Thickness(0, 1, 0, 1)
             };
-
-            if (fontSize > 0)
-            {
-                run.FontSize = fontSize;
-            }
 
             if (foreground != null)
             {
-                run.Foreground = foreground;
+                textBlock.Foreground = foreground;
             }
 
             if (fontFamily != null)
             {
-                run.FontFamily = fontFamily;
+                textBlock.FontFamily = fontFamily;
             }
 
-            return run;
+            return new InlineUIContainer
+            {
+                Child = textBlock,
+                BaselineAlignment = BaselineAlignment.Center
+            };
         }
 
         private static Run CreateTextRun(string text, double fontSize, FontFamily? fontFamily, Brush? foreground)
@@ -351,6 +354,18 @@ namespace Client.Models
                 Child = border
 
             };
+        }
+
+        public string GetPlainTextContent()
+        {
+            if (string.IsNullOrEmpty(Content))
+                return string.Empty;
+
+            return _keyRegex.Replace(Content, match =>
+            {
+                var keyText = match.Groups["key"].Value.Trim();
+                return keyText;
+            });
         }
 
         private void OnPropertyChanged(string propertyName) =>

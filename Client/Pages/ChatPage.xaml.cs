@@ -923,7 +923,8 @@ namespace Client.Pages
             }
             else if (_currentMessageTarget?.DataContext is ChatMessageModel msg)
             {
-                text = $"{msg.Header}\n{msg.Content}\n{msg.TimeFormatted}";
+                var content = msg.GetPlainTextContent();
+                text = $"{msg.Header}\n{content}\n{msg.TimeFormatted}";
             }
 
             if (!string.IsNullOrEmpty(text))
@@ -1017,27 +1018,88 @@ namespace Client.Pages
 
         private static string GetRichText(RichTextBlock block)
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             foreach (var b in block.Blocks)
             {
                 if (b is Paragraph p)
                 {
                     foreach (var inline in p.Inlines)
                     {
-                        switch (inline)
-                        {
-                            case Run run:
-                                sb.Append(run.Text);
-                                break;
-                            case LineBreak:
-                                sb.Append('\n');
-                                break;
-                        }
+                        AppendInlineText(sb, inline);
                     }
                     sb.Append('\n');
                 }
             }
             return sb.ToString();
+        }
+
+        private static void AppendInlineText(StringBuilder sb, Inline inline)
+        {
+            switch (inline)
+            {
+                case Run run:
+                    sb.Append(run.Text);
+                    break;
+                case LineBreak:
+                    sb.Append('\n');
+                    break;
+                case Span span:
+                    foreach (var child in span.Inlines)
+                    {
+                        AppendInlineText(sb, child);
+                    }
+                    break;
+                case InlineUIContainer container:
+                    sb.Append(ExtractTextFromElement(container.Child));
+                    break;
+            }
+        }
+
+        private static string ExtractTextFromElement(UIElement? element)
+        {
+            switch (element)
+            {
+                case TextBlock textBlock:
+                    if (!string.IsNullOrEmpty(textBlock.Text))
+                    {
+                        return textBlock.Text;
+                    }
+
+                    if (textBlock.Inlines != null && textBlock.Inlines.Count > 0)
+                    {
+                        var sb = new StringBuilder();
+                        foreach (var inline in textBlock.Inlines)
+                        {
+                            AppendInlineText(sb, inline);
+                        }
+                        return sb.ToString();
+                    }
+
+                    return string.Empty;
+                case Border border:
+                    return ExtractTextFromElement(border.Child);
+                case Panel panel:
+                    {
+                        var sb = new StringBuilder();
+                        foreach (var child in panel.Children)
+                        {
+                            if (child is UIElement uiElement)
+                            {
+                                sb.Append(ExtractTextFromElement(uiElement));
+                            }
+                        }
+                        return sb.ToString();
+                    }
+                case ContentControl contentControl:
+                    return contentControl.Content switch
+                    {
+                        string text => text,
+                        UIElement uiElement => ExtractTextFromElement(uiElement),
+                        _ => string.Empty
+                    };
+                default:
+                    return string.Empty;
+            }
         }
         private async void InputBox_Paste(object sender, TextControlPasteEventArgs e)
         {
