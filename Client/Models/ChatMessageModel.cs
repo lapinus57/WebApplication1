@@ -1,12 +1,13 @@
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
-using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text.RegularExpressions;
 using Windows.System;
-using Microsoft.UI.Xaml.Media;
-using System.ComponentModel;
 using Windows.UI;
 using Windows.UI.Text;
 
@@ -245,15 +246,20 @@ namespace Client.Models
 
         private static Inline CreateConnectorInline(double fontSize, FontFamily? fontFamily, Brush? foreground)
         {
+            var resolvedFontSize = fontSize > 0 ? fontSize : 14;
+            var verticalPadding = Math.Max(1d, Math.Round(resolvedFontSize * 0.15));
+            var horizontalMargin = Math.Max(0d, Math.Round(resolvedFontSize * 0.05));
+
             var textBlock = new TextBlock
             {
                 Text = "+",
-                FontSize = fontSize > 0 ? fontSize : 14,
-                FontWeight = new FontWeight { Weight = 600 },
+                FontSize = resolvedFontSize,
+                FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
                 TextLineBounds = TextLineBounds.Tight,
-                Padding = new Thickness(0),
-                Margin = new Thickness(0, 1, 0, 1)
+                Padding = new Thickness(0, verticalPadding, 0, verticalPadding),
+                Margin = new Thickness(horizontalMargin, 0, horizontalMargin, 0)
 
             };
 
@@ -270,7 +276,6 @@ namespace Client.Models
             return new InlineUIContainer
             {
                 Child = textBlock,
-                BaselineAlignment = BaselineAlignment.Center
 
             };
         }
@@ -325,7 +330,7 @@ namespace Client.Models
             {
                 Text = keyText,
                 FontSize = fontSize > 0 ? fontSize : 14,
-                FontWeight = new FontWeight { Weight = 600 },
+                FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
