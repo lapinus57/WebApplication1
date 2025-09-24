@@ -81,6 +81,23 @@ namespace Client.Models
         private static readonly Regex _urlRegex = new(@"https?://\S+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex _keyRegex = new(@"\[\[(?<key>[^\[\]]+)\]\]", RegexOptions.Compiled);
         private static readonly Regex _combinationRegex = new(@"\{\{(?<combo>.*?)\}\}", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly HashSet<string> _knownKeyTokens = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CTRL", "CONTROL", "ALT", "ALTGR", "ALTGRAPH", "SHIFT", "MAJ", "MAJUSCULE",
+            "CMD", "COMMAND", "COMMANDE", "WINDOWS", "WIN", "SUPER", "META", "OPTION",
+            "OPT", "FN", "MENU", "APPS", "APP", "ENTER", "ENTREE", "ENTRÉE", "RETURN",
+            "TAB", "TABULATION", "ESC", "ESCAPE", "ECHAP", "ÉCHAP", "SPACE", "SPACEBAR",
+            "ESPACE", "BACKSPACE", "SUPPR", "DELETE", "DEL", "INS", "INSERT", "HOME",
+            "END", "PGUP", "PAGEUP", "PGDN", "PAGEDOWN", "UP", "DOWN", "LEFT", "RIGHT",
+            "PAUSE", "BREAK", "PRINTSCREEN", "IMPR", "IMPRECRAN", "IMPRIMECRAN", "PRTSC",
+            "SCROLLLOCK", "SCRLK", "CAPSLOCK", "VERRMAJ", "NUMLOCK", "VERRNUM"
+        };
+        private static readonly HashSet<char> _punctuationKeyCharacters = new(new[]
+        {
+            '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+',
+            '[', ']', '{', '}', '\\', '|', ';', ':', '\'', '"', ',', '.', '<', '>', '/', '?'
+        });
+        private static readonly HashSet<char> _tokenTrimCharacters = new(new[] { '(', ')', '[', ']', '{', '}', '<', '>', '\'', '"', '`' });
 
         private enum SpecialSegmentType
         {
@@ -271,7 +288,9 @@ namespace Client.Models
                 if (text[i] != '+')
                     continue;
 
-                if (!allowTightConnectors && !IsStandalonePlus(text, i))
+
+                if (!ShouldTreatPlusAsConnector(text, i, allowTightConnectors))
+
                     continue;
 
                 if (i > current)
@@ -351,15 +370,167 @@ namespace Client.Models
 
         }
 
-        private static bool IsStandalonePlus(string text, int index)
+        private static bool ShouldTreatPlusAsConnector(string text, int index, bool allowTightConnectors)
         {
             if (text[index] != '+')
                 return false;
 
-            var isStartOrSpaceBefore = index == 0 || char.IsWhiteSpace(text[index - 1]);
-            var isEndOrSpaceAfter = index == text.Length - 1 || char.IsWhiteSpace(text[index + 1]);
+            if (allowTightConnectors)
+                return true;
 
-            return isStartOrSpaceBefore && isEndOrSpaceAfter;
+            if (IsWhitespaceSeparatedPlus(text, index))
+                return true;
+
+            var leftToken = ExtractKeyToken(text, index - 1, -1);
+            var rightToken = ExtractKeyToken(text, index + 1, 1);
+
+            if (string.IsNullOrEmpty(leftToken) || string.IsNullOrEmpty(rightToken))
+                return false;
+
+            var leftStrong = IsStrongKeyToken(leftToken);
+            var rightStrong = IsStrongKeyToken(rightToken);
+
+            if (!leftStrong && !rightStrong)
+                return false;
+
+            var leftIsKey = leftStrong || IsSingleKeyToken(leftToken);
+            var rightIsKey = rightStrong || IsSingleKeyToken(rightToken);
+
+            if (!leftIsKey || !rightIsKey)
+                return false;
+
+            if (!leftStrong && !rightStrong && IsDigitToken(leftToken) && IsDigitToken(rightToken))
+                return false;
+
+            return true;
+        }
+
+        private static bool IsWhitespaceSeparatedPlus(string text, int index)
+        {
+            var hasSpaceBefore = index == 0 || char.IsWhiteSpace(text[index - 1]);
+            var hasSpaceAfter = index >= text.Length - 1 || char.IsWhiteSpace(text[index + 1]);
+
+            return hasSpaceBefore && hasSpaceAfter;
+        }
+
+        private static string ExtractKeyToken(string text, int startIndex, int direction)
+        {
+            var i = startIndex;
+
+            while (i >= 0 && i < text.Length && char.IsWhiteSpace(text[i]))
+            {
+                i += direction;
+            }
+
+            if (i < 0 || i >= text.Length)
+                return string.Empty;
+
+            var tokenStart = i;
+            var tokenEnd = i;
+
+            if (direction < 0)
+            {
+                var j = i;
+                while (j >= 0 && !char.IsWhiteSpace(text[j]) && text[j] != '+')
+                {
+                    tokenStart = j;
+                    j--;
+                }
+
+                return text.Substring(tokenStart, tokenEnd - tokenStart + 1);
+            }
+            else
+            {
+                var j = i;
+                while (j < text.Length && !char.IsWhiteSpace(text[j]) && text[j] != '+')
+                {
+                    tokenEnd = j;
+                    j++;
+                }
+
+                return text.Substring(tokenStart, tokenEnd - tokenStart + 1);
+            }
+        }
+
+        private static bool IsStrongKeyToken(string token)
+        {
+            var trimmed = TrimToken(token);
+            if (string.IsNullOrEmpty(trimmed))
+                return false;
+
+            if (trimmed.StartsWith("[[", StringComparison.Ordinal) && trimmed.EndsWith("]]", StringComparison.Ordinal))
+                return true;
+
+            if (_knownKeyTokens.Contains(trimmed))
+                return true;
+
+            if (trimmed.Length >= 2 && (trimmed[0] == 'F' || trimmed[0] == 'f') && int.TryParse(trimmed[1..], out var functionNumber) && functionNumber >= 1 && functionNumber <= 24)
+                return true;
+
+            if (trimmed.Length > 6 && trimmed.StartsWith("NUMPAD", StringComparison.OrdinalIgnoreCase) && int.TryParse(trimmed[6..], out _))
+                return true;
+
+            if (trimmed.Length > 3 && trimmed.StartsWith("NUM", StringComparison.OrdinalIgnoreCase) && int.TryParse(trimmed[3..], out _))
+                return true;
+
+            return false;
+        }
+
+        private static bool IsSingleKeyToken(string token)
+        {
+            var trimmed = TrimToken(token);
+            if (string.IsNullOrEmpty(trimmed))
+                return false;
+
+            if (trimmed.StartsWith("[[", StringComparison.Ordinal) && trimmed.EndsWith("]]", StringComparison.Ordinal))
+                return true;
+
+            if (trimmed.Length == 1)
+            {
+                var ch = trimmed[0];
+                return char.IsLetterOrDigit(ch) || _punctuationKeyCharacters.Contains(ch);
+            }
+
+            return false;
+        }
+
+        private static bool IsDigitToken(string token)
+        {
+            var trimmed = TrimToken(token);
+            if (string.IsNullOrEmpty(trimmed))
+                return false;
+
+            foreach (var ch in trimmed)
+            {
+                if (!char.IsDigit(ch))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static string TrimToken(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return string.Empty;
+
+            var trimmed = token.Trim();
+            var start = 0;
+            var end = trimmed.Length;
+
+            while (start < end && _tokenTrimCharacters.Contains(trimmed[start]))
+            {
+                start++;
+            }
+
+            while (end > start && _tokenTrimCharacters.Contains(trimmed[end - 1]))
+            {
+                end--;
+            }
+
+            return start == 0 && end == trimmed.Length
+                ? trimmed
+                : trimmed.Substring(start, end - start);
         }
 
         private static Inline CreateKeyInline(string keyText, double fontSize, FontFamily? fontFamily, Brush? foreground)
@@ -435,7 +606,6 @@ namespace Client.Models
                         fontFamily,
                         foreground,
                         allowTightConnectors: true);
-
                 }
 
                 var keyText = match.Groups["key"].Value.Trim();
@@ -456,7 +626,6 @@ namespace Client.Models
                     fontFamily,
                     foreground,
                     allowTightConnectors: true);
-
             }
 
             if (span.Inlines.Count == 0)
