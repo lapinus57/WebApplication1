@@ -80,11 +80,13 @@ namespace Client.Models
 
         private static readonly Regex _urlRegex = new(@"https?://\S+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex _keyRegex = new(@"\[\[(?<key>[^\[\]]+)\]\]", RegexOptions.Compiled);
+        private static readonly Regex _combinationRegex = new(@"\{\{(?<combo>.*?)\}\}", RegexOptions.Compiled | RegexOptions.Singleline);
 
         private enum SpecialSegmentType
         {
+            Key,
             Url,
-            Key
+            Combination
         }
 
         private sealed class SpecialSegment
@@ -93,6 +95,7 @@ namespace Client.Models
             public int Length { get; init; }
             public string Value { get; init; } = string.Empty;
             public SpecialSegmentType Type { get; init; }
+            public string Original { get; init; } = string.Empty;
         }
 
         public void FormatContent(object sender, RoutedEventArgs e)
@@ -133,6 +136,28 @@ namespace Client.Models
                 return;
 
             var segments = new List<SpecialSegment>();
+            var combinationRanges = new List<(int Start, int End)>();
+
+            foreach (Match match in _combinationRegex.Matches(text))
+            {
+                var combinationText = match.Groups["combo"].Value.Trim();
+                if (string.IsNullOrEmpty(combinationText))
+                    continue;
+
+                if (!_keyRegex.IsMatch(combinationText))
+                    continue;
+
+                segments.Add(new SpecialSegment
+                {
+                    Index = match.Index,
+                    Length = match.Length,
+                    Value = combinationText,
+                    Original = match.Value,
+                    Type = SpecialSegmentType.Combination
+                });
+
+                combinationRanges.Add((match.Index, match.Index + match.Length));
+            }
 
             foreach (Match match in _keyRegex.Matches(text))
             {
@@ -140,22 +165,30 @@ namespace Client.Models
                 if (string.IsNullOrEmpty(keyText))
                     continue;
 
+                if (IsInsideAnyRange(match.Index, match.Length, combinationRanges))
+                    continue;
+
                 segments.Add(new SpecialSegment
                 {
                     Index = match.Index,
                     Length = match.Length,
                     Value = keyText,
+                    Original = match.Value,
                     Type = SpecialSegmentType.Key
                 });
             }
 
             foreach (Match match in _urlRegex.Matches(text))
             {
+                if (IsInsideAnyRange(match.Index, match.Length, combinationRanges))
+                    continue;
+
                 segments.Add(new SpecialSegment
                 {
                     Index = match.Index,
                     Length = match.Length,
                     Value = match.Value,
+                    Original = match.Value,
                     Type = SpecialSegmentType.Url
                 });
             }
@@ -184,6 +217,9 @@ namespace Client.Models
                         break;
                     case SpecialSegmentType.Url:
                         AddUrlInline(container, segment.Value, foreground);
+                        break;
+                    case SpecialSegmentType.Combination:
+                        container.Add(CreateCombinationInline(segment.Value, segment.Original, fontSize, fontFamily, foreground));
                         break;
                 }
 
@@ -363,16 +399,89 @@ namespace Client.Models
             };
         }
 
+        private static Inline CreateCombinationInline(string combinationText, string originalText, double fontSize, FontFamily? fontFamily, Brush? foreground)
+        {
+            if (string.IsNullOrEmpty(combinationText))
+            {
+                return new Run { Text = originalText };
+            }
+
+            var span = new Span();
+            var matches = _keyRegex.Matches(combinationText);
+
+            if (matches.Count == 0)
+            {
+                return new Run { Text = originalText };
+            }
+
+            var currentIndex = 0;
+            foreach (Match match in matches)
+            {
+                if (match.Index > currentIndex)
+                {
+                    AddPlainTextInline(span.Inlines,
+                        combinationText.Substring(currentIndex, match.Index - currentIndex),
+                        fontSize,
+                        fontFamily,
+                        foreground);
+                }
+
+                var keyText = match.Groups["key"].Value.Trim();
+                if (!string.IsNullOrEmpty(keyText))
+                {
+                    span.Inlines.Add(CreateKeyInline(keyText, fontSize, fontFamily, foreground));
+                }
+
+                currentIndex = match.Index + match.Length;
+            }
+
+            if (currentIndex < combinationText.Length)
+            {
+                AddPlainTextInline(span.Inlines,
+                    combinationText.Substring(currentIndex),
+                    fontSize,
+                    fontFamily,
+                    foreground);
+            }
+
+            if (span.Inlines.Count == 0)
+            {
+                return new Run { Text = originalText };
+            }
+
+            return span;
+        }
+
         public string GetPlainTextContent()
         {
             if (string.IsNullOrEmpty(Content))
                 return string.Empty;
 
-            return _keyRegex.Replace(Content, match =>
+            string ReplaceKey(Match match) => match.Groups["key"].Value.Trim();
+
+            var withoutCombinations = _combinationRegex.Replace(Content, match =>
             {
-                var keyText = match.Groups["key"].Value.Trim();
-                return keyText;
+                var combinationText = match.Groups["combo"].Value;
+                if (!_keyRegex.IsMatch(combinationText))
+                    return match.Value;
+
+                return _keyRegex.Replace(combinationText, ReplaceKey);
             });
+
+            return _keyRegex.Replace(withoutCombinations, ReplaceKey);
+        }
+
+        private static bool IsInsideAnyRange(int index, int length, List<(int Start, int End)> ranges)
+        {
+            foreach (var (start, end) in ranges)
+            {
+                if (index >= start && index + length <= end)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void OnPropertyChanged(string propertyName) =>
