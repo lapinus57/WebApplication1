@@ -311,18 +311,21 @@ namespace Client.Models
         private static Inline CreateConnectorInline(double fontSize, FontFamily? fontFamily, Brush? foreground)
         {
             var resolvedFontSize = fontSize > 0 ? fontSize : 14;
-            var verticalPadding = Math.Max(1d, Math.Round(resolvedFontSize * 0.15));
+            var basePadding = Math.Max(1d, resolvedFontSize * 0.15);
+            var targetHeight = resolvedFontSize + (basePadding * 2);
+            var connectorFontSize = resolvedFontSize * 1.2;
+            var adjustedPadding = Math.Max(0d, (targetHeight - connectorFontSize) / 2);
             var horizontalMargin = Math.Max(0d, Math.Round(resolvedFontSize * 0.05));
 
             var textBlock = new TextBlock
             {
                 Text = "+",
-                FontSize = resolvedFontSize,
+                FontSize = connectorFontSize,
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Center,
                 TextLineBounds = TextLineBounds.Tight,
-                Padding = new Thickness(0, verticalPadding, 0, verticalPadding),
+                Padding = new Thickness(0, adjustedPadding, 0, adjustedPadding),
                 Margin = new Thickness(horizontalMargin, 0, horizontalMargin, 0)
 
             };
