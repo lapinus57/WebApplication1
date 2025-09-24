@@ -254,7 +254,13 @@ namespace Client.Models
             container.Add(link);
         }
 
-        private static void AddPlainTextInline(InlineCollection container, string text, double fontSize, FontFamily? fontFamily, Brush? foreground)
+        private static void AddPlainTextInline(
+            InlineCollection container,
+            string text,
+            double fontSize,
+            FontFamily? fontFamily,
+            Brush? foreground,
+            bool allowTightConnectors = false)
         {
             if (string.IsNullOrEmpty(text))
                 return;
@@ -262,7 +268,10 @@ namespace Client.Models
             var current = 0;
             for (var i = 0; i < text.Length; i++)
             {
-                if (!IsStandalonePlus(text, i))
+                if (text[i] != '+')
+                    continue;
+
+                if (!allowTightConnectors && !IsStandalonePlus(text, i))
                     continue;
 
                 if (i > current)
@@ -419,11 +428,14 @@ namespace Client.Models
             {
                 if (match.Index > currentIndex)
                 {
-                    AddPlainTextInline(span.Inlines,
+                    AddPlainTextInline(
+                        span.Inlines,
                         combinationText.Substring(currentIndex, match.Index - currentIndex),
                         fontSize,
                         fontFamily,
-                        foreground);
+                        foreground,
+                        allowTightConnectors: true);
+
                 }
 
                 var keyText = match.Groups["key"].Value.Trim();
@@ -437,11 +449,14 @@ namespace Client.Models
 
             if (currentIndex < combinationText.Length)
             {
-                AddPlainTextInline(span.Inlines,
+                AddPlainTextInline(
+                    span.Inlines,
                     combinationText.Substring(currentIndex),
                     fontSize,
                     fontFamily,
-                    foreground);
+                    foreground,
+                    allowTightConnectors: true);
+
             }
 
             if (span.Inlines.Count == 0)
