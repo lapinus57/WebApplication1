@@ -288,7 +288,9 @@ namespace Client.Models
                 if (text[i] != '+')
                     continue;
 
+
                 if (!ShouldTreatPlusAsConnector(text, i, allowTightConnectors))
+
                     continue;
 
                 if (i > current)
