@@ -435,6 +435,7 @@ namespace Client.Models
                         fontFamily,
                         foreground,
                         allowTightConnectors: true);
+
                 }
 
                 var keyText = match.Groups["key"].Value.Trim();
@@ -455,6 +456,7 @@ namespace Client.Models
                     fontFamily,
                     foreground,
                     allowTightConnectors: true);
+
             }
 
             if (span.Inlines.Count == 0)
