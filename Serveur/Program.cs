@@ -46,6 +46,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
     db.Database.EnsureCreated();
+    EnsurePatientsTable(db);
     EnsureArchivedColumn(db);
     EnsureIsDeletedColumn(db);
     EnsurePatientLogsTable(db);
@@ -65,6 +66,11 @@ void EnsureArchivedColumn(ChatDbContext db)
     connection.Open();
     try
     {
+        if (!TableExists(connection, "Patients"))
+        {
+            return;
+        }
+
         using var cmd = connection.CreateCommand();
         cmd.CommandText = "PRAGMA table_info('Patients')";
         using var reader = cmd.ExecuteReader();
@@ -88,6 +94,56 @@ void EnsureArchivedColumn(ChatDbContext db)
     {
         connection.Close();
     }
+}
+
+void EnsurePatientsTable(ChatDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        if (TableExists(connection, "Patients"))
+        {
+            return;
+        }
+
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"CREATE TABLE Patients (
+            Id TEXT NOT NULL PRIMARY KEY,
+            Colors TEXT NOT NULL DEFAULT '',
+            Title TEXT NOT NULL DEFAULT '',
+            LastName TEXT NOT NULL DEFAULT '',
+            FirstName TEXT NOT NULL DEFAULT '',
+            Exams TEXT NOT NULL DEFAULT '',
+            Eye TEXT NOT NULL DEFAULT '',
+            Annotation TEXT NOT NULL DEFAULT '',
+            Position TEXT NOT NULL DEFAULT '',
+            HoldTime TEXT NOT NULL,
+            PickUpTime TEXT NULL,
+            TimeOrder TEXT NOT NULL,
+            Examinator TEXT NOT NULL DEFAULT '',
+            OperatorName TEXT NOT NULL DEFAULT '',
+            IsTaken INTEGER NOT NULL DEFAULT 0,
+            IsArchived INTEGER NOT NULL DEFAULT 0
+        )";
+        cmd.ExecuteNonQuery();
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+bool TableExists(System.Data.Common.DbConnection connection, string tableName)
+{
+    using var cmd = connection.CreateCommand();
+    cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name=$name";
+    var parameter = cmd.CreateParameter();
+    parameter.ParameterName = "$name";
+    parameter.Value = tableName;
+    cmd.Parameters.Add(parameter);
+    var result = cmd.ExecuteScalar();
+    return result != null;
 }
 
 void EnsureIsDeletedColumn(ChatDbContext db)
