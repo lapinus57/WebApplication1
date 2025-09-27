@@ -52,6 +52,7 @@ using (var scope = app.Services.CreateScope())
     EnsurePatientLogsTable(db);
     EnsureUserSettingsTable(db);
     EnsureReminderColumn(db);
+    EnsureKnownUsersTable(db);
     CleanupKnownUsers(db);
     if (!db.ServerConfigs.Any())
     {
@@ -243,6 +244,37 @@ void EnsurePatientLogsTable(ChatDbContext db)
             cmd.CommandText = "CREATE TABLE PatientLogs (Id INTEGER PRIMARY KEY AUTOINCREMENT, PatientId TEXT NOT NULL, Username TEXT NOT NULL, Action TEXT NOT NULL, Details TEXT NOT NULL, Timestamp TEXT NOT NULL)";
             cmd.ExecuteNonQuery();
         }
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+void EnsureKnownUsersTable(ChatDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        if (TableExists(connection, "KnownUsers"))
+        {
+            return;
+        }
+
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"CREATE TABLE KnownUsers (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ConnectionId TEXT NOT NULL DEFAULT '',
+            Username TEXT NOT NULL DEFAULT '',
+            Avatar TEXT NOT NULL DEFAULT '',
+            Room TEXT NOT NULL DEFAULT '',
+            DisplayName TEXT NOT NULL DEFAULT '',
+            ColorUserName TEXT NOT NULL DEFAULT '',
+            IsOnline INTEGER NOT NULL DEFAULT 0,
+            Note TEXT NOT NULL DEFAULT ''
+        )";
+        cmd.ExecuteNonQuery();
     }
     finally
     {
