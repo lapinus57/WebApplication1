@@ -1,8 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using ChatServeur;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (OperatingSystem.IsWindows())
+{
+    builder.Host.UseWindowsService(options =>
+    {
+        options.ServiceName = "ChatServeur";
+    });
+}
 
 var dbFolder = Path.Combine(AppContext.BaseDirectory, "data");
 Directory.CreateDirectory(dbFolder);
