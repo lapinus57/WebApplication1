@@ -25,6 +25,10 @@ namespace Client
         {
             this.InitializeComponent();
 
+            this.UnhandledException += App_UnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+
             AppSettings.SettingsChanged += async () =>
             {
                 try
@@ -328,5 +332,60 @@ namespace Client
         }
 
         private Window? m_window;
+
+        private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            if (e.Exception is Exception ex)
+            {
+                Logger.LogException("Unhandled UI exception", ex);
+            }
+            else
+            {
+                Logger.Log("Unhandled UI exception without an Exception instance.");
+            }
+
+            e.Handled = true;
+
+            if (MainWindow is MainWindow window && window.Content is FrameworkElement root)
+            {
+                window.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    try
+                    {
+                        var dialog = new ContentDialog
+                        {
+                            Title = "Erreur inattendue",
+                            Content = "Une erreur est survenue. Un journal a été enregistré dans les données locales.",
+                            CloseButtonText = "Fermer",
+                            XamlRoot = root.XamlRoot
+                        };
+
+                        await dialog.ShowAsync();
+                    }
+                    catch
+                    {
+                        // Ignore dialog errors – the dispatcher may not be available during shutdown.
+                    }
+                });
+            }
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (e.ExceptionObject is Exception ex)
+            {
+                Logger.LogException("AppDomain unhandled exception", ex);
+            }
+            else
+            {
+                Logger.Log($"AppDomain unhandled exception object: {e.ExceptionObject}");
+            }
+        }
+
+        private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Logger.LogException("Unobserved task exception", e.Exception);
+            e.SetObserved();
+        }
     }
 }
