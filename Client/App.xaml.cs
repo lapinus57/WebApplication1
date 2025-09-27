@@ -194,7 +194,7 @@ namespace Client
                 mw.DispatcherQueue.TryEnqueue(() =>
                 {
                     mw.ShowChatPage();
-                    mw.SetTopMost(true, false);
+                    mw.BringToForeground();
                     mw.ScrollMessagesToEnd();
                 });
             }
