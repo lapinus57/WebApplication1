@@ -99,6 +99,19 @@ namespace Client
             IsTopMost = topMost;
         }
 
+        public void BringToForeground()
+        {
+            if (IsTopMost)
+            {
+                SetTopMost(true, true);
+            }
+            else
+            {
+                SetTopMost(true, true);
+                SetTopMost(false, false);
+            }
+        }
+
         public void ScrollMessagesToEnd()
         {
             if (contentFrame.Content is Pages.ChatPage chat)

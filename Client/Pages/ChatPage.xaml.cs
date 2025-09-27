@@ -846,9 +846,15 @@ namespace Client.Pages
 
         private async Task Service_OnCallReceived(string caller, string room)
         {
-            if (App.MainWindow is Window mainWindow)
+            bool resetTopMost = false;
+            if (App.MainWindow is MainWindow mainWindow)
             {
-                WindowHelper.SetTopMost(mainWindow, true, true);
+                mainWindow.BringToForeground();
+            }
+            else if (App.MainWindow is Window genericWindow)
+            {
+                WindowHelper.SetTopMost(genericWindow, true, true);
+                resetTopMost = true;
             }
 
             var dialog = new ContentDialog
@@ -864,7 +870,7 @@ namespace Client.Pages
 
             var result = await dialog.ShowAsync();
 
-            if (App.MainWindow is Window window)
+            if (resetTopMost && App.MainWindow is Window window)
             {
                 WindowHelper.SetTopMost(window, false, false);
             }
