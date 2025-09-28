@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections;
 using System.Collections.ObjectModel;
@@ -35,6 +36,7 @@ namespace Client.Pages
         private bool _ignoreSelectionChanged;
         private bool _ignoreOrderChange;
         private bool _isApplyingSlashCommand;
+        private ScrollViewer? _messagesScrollViewer;
         private readonly List<SlashCommandInfo> _slashCommands = new()
         {
             new SlashCommandInfo("/getallroom", "Afficher toutes les salles et leurs membres"),
@@ -647,7 +649,7 @@ namespace Client.Pages
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                await Task.Delay(300);
+                await Task.Delay(200);
 
                 var count = MessagesList.Items.Count;
                 if (count == 0)
@@ -656,7 +658,7 @@ namespace Client.Pages
                 var lastIndex = count - 1;
                 var last = MessagesList.Items[lastIndex];
 
-                MessagesList.ScrollIntoView(last);
+                MessagesList.ScrollIntoView(last, ScrollIntoViewAlignment.Leading);
                 MessagesList.UpdateLayout();
 
                 if (MessagesList.ContainerFromIndex(lastIndex) is ListViewItem container)
@@ -669,6 +671,44 @@ namespace Client.Pages
                     return;
                 }
             }
+
+            if (TryGetMessagesScrollViewer() is ScrollViewer scrollViewer)
+            {
+                scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null, disableAnimation: false);
+            }
+        }
+
+        private ScrollViewer? TryGetMessagesScrollViewer()
+        {
+            if (_messagesScrollViewer != null)
+                return _messagesScrollViewer;
+
+            _messagesScrollViewer = FindDescendant<ScrollViewer>(MessagesList);
+            return _messagesScrollViewer;
+        }
+
+        private static T? FindDescendant<T>(DependencyObject? parent) where T : DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            var queue = new Queue<DependencyObject>();
+            queue.Enqueue(parent);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (current is T match)
+                    return match;
+
+                var childrenCount = VisualTreeHelper.GetChildrenCount(current);
+                for (int i = 0; i < childrenCount; i++)
+                {
+                    queue.Enqueue(VisualTreeHelper.GetChild(current, i));
+                }
+            }
+
+            return null;
         }
 
         private async Task WaitForConnectionReady()
