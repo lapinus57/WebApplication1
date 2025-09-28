@@ -183,20 +183,21 @@ namespace Client.Pages
             {
                 // Avoid adding a duplicate message if one with the same
                 // sender, recipient, content and timestamp already exists
-                var existing = Messages
+                var alreadyExists = Messages
                     .OfType<ChatMessageModel>()
                     .Any(m => m.Sender == chat.Sender &&
                               m.Destinataire == chat.Destinataire &&
                               m.Content == chat.Content &&
                               m.Timestamp == chat.Timestamp);
 
-                if (!existing)
+                if (!alreadyExists)
                 {
                     Messages.Add(chat);
                     AutoSelectConversationForIncomingMessage(chat);
                     ScrollToLastMessage();
                     await _service.SaveTodayMessagesToDiskAsync();
                 }
+                AutoSelectConversationForIncomingMessage(chat);
             });
         }
 
