@@ -643,12 +643,31 @@ namespace Client.Pages
 
         public async void ScrollToLastMessage()
         {
-            await Task.Delay(100);
+            const int maxAttempts = 5;
 
-            if (MessagesList.Items.Count > 0)
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                var last = MessagesList.Items[MessagesList.Items.Count - 1];
+                await Task.Delay(300);
+
+                var count = MessagesList.Items.Count;
+                if (count == 0)
+                    return;
+
+                var lastIndex = count - 1;
+                var last = MessagesList.Items[lastIndex];
+
                 MessagesList.ScrollIntoView(last);
+                MessagesList.UpdateLayout();
+
+                if (MessagesList.ContainerFromIndex(lastIndex) is ListViewItem container)
+                {
+                    container.StartBringIntoView(new BringIntoViewOptions
+                    {
+                        VerticalAlignmentRatio = 1.0,
+                        AnimationDesired = true
+                    });
+                    return;
+                }
             }
         }
 
