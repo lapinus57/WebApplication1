@@ -1,3 +1,4 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -643,13 +644,27 @@ namespace Client.Pages
             MessagesList.UpdateLayout();
         }
 
-        public async void ScrollToLastMessage()
+        public void ScrollToLastMessage()
+        {
+            if (DispatcherQueue == null)
+                return;
+
+            if (!DispatcherQueue.HasThreadAccess)
+            {
+                DispatcherQueue.TryEnqueue(ScrollToLastMessage);
+                return;
+            }
+
+            _ = ScrollToLastMessageAsync();
+        }
+
+        private async Task ScrollToLastMessageAsync()
         {
             const int maxAttempts = 5;
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                await Task.Delay(200);
+                await Task.Delay(50);
 
                 var count = MessagesList.Items.Count;
                 if (count == 0)
@@ -660,6 +675,15 @@ namespace Client.Pages
 
                 MessagesList.ScrollIntoView(last, ScrollIntoViewAlignment.Leading);
                 MessagesList.UpdateLayout();
+
+                if (TryGetMessagesScrollViewer() is ScrollViewer scrollViewer)
+                {
+                    var targetOffset = scrollViewer.ScrollableHeight;
+                    scrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
+
+                    if (Math.Abs(scrollViewer.VerticalOffset - targetOffset) <= 1)
+                        return;
+                }
 
                 if (MessagesList.ContainerFromIndex(lastIndex) is ListViewItem container)
                 {
@@ -672,9 +696,9 @@ namespace Client.Pages
                 }
             }
 
-            if (TryGetMessagesScrollViewer() is ScrollViewer scrollViewer)
+            if (TryGetMessagesScrollViewer() is ScrollViewer fallback)
             {
-                scrollViewer.ChangeView(null, scrollViewer.ScrollableHeight, null, disableAnimation: false);
+                fallback.ChangeView(null, fallback.ScrollableHeight, null, disableAnimation: true);
             }
         }
 
