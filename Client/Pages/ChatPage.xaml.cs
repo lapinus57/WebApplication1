@@ -193,10 +193,37 @@ namespace Client.Pages
                 if (!existing)
                 {
                     Messages.Add(chat);
+                    AutoSelectConversationForIncomingMessage(chat);
                     ScrollToLastMessage();
                     await _service.SaveTodayMessagesToDiskAsync();
                 }
             });
+        }
+
+        private void AutoSelectConversationForIncomingMessage(ChatMessageModel message)
+        {
+            if (UsersList == null)
+                return;
+
+            var me = App.UserName;
+            if (message.Sender == me)
+                return;
+
+            UserInfo? target = null;
+
+            if (message.Destinataire == "A Tous")
+            {
+                target = ConnectedUsers.FirstOrDefault(u => u.Username == "A Tous");
+            }
+            else if (message.Destinataire == me)
+            {
+                target = ConnectedUsers.FirstOrDefault(u => u.Username == message.Sender);
+            }
+
+            if (target != null && !Equals(UsersList.SelectedItem, target))
+            {
+                UsersList.SelectedItem = target;
+            }
         }
 
         private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
