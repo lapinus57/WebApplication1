@@ -370,7 +370,7 @@ namespace Client
             }
         }
 
-        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        private void CurrentDomain_UnhandledException(object? sender, System.UnhandledExceptionEventArgs e)
         {
             if (e.ExceptionObject is Exception ex)
             {
