@@ -7,6 +7,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 if (OperatingSystem.IsWindows())
 {
+    builder.Services.AddHostedService<TrayIconHostedService>();
+}
+
+if (OperatingSystem.IsWindows())
+{
     builder.Host.UseWindowsService(options =>
     {
         options.ServiceName = "ChatServeur";
