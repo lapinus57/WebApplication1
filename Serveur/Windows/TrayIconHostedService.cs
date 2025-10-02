@@ -117,6 +117,7 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
                 _logger);
 
             _trayContext = context;
+            syncContext.Post(_ => context.Initialize(), null);
             _initializationCompletion.TrySetResult();
 
             Application.Run(context);
@@ -302,7 +303,6 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
 
             _notifyIcon = new NotifyIcon
             {
-                Visible = true,
                 Icon = _startingIcon,
                 Text = "ChatServeur - démarrage..."
             };
@@ -315,6 +315,18 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
 
             _notifyIcon.ContextMenuStrip = menu;
             _notifyIcon.DoubleClick += (_, _) => ShowBalloon("État du serveur", _notifyIcon.Text);
+        }
+
+        public void Initialize()
+        {
+            try
+            {
+                _notifyIcon.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Impossible d'afficher l'icône de notification.");
+            }
         }
 
         public void SetStatus(TrayStatus status)
