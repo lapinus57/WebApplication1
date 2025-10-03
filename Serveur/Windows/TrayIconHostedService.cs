@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +23,7 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
     private SynchronizationContext? _uiContext;
     private TrayApplicationContext? _trayContext;
     private Thread? _uiThread;
+    private int _isCleaningBackups;
 
     public TrayIconHostedService(ILogger<TrayIconHostedService> logger, IHostApplicationLifetime lifetime)
     {
@@ -112,6 +115,7 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
 
             var context = new TrayApplicationContext(
                 RestartApplication,
+                TriggerBackupCleanup,
                 LaunchUpdateWorkflow,
                 ExitApplication,
                 _logger);
@@ -234,6 +238,132 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
         }
     }
 
+    private void TriggerBackupCleanup()
+    {
+        if (Interlocked.Exchange(ref _isCleaningBackups, 1) == 1)
+        {
+            PostToUi(() => _trayContext?.ShowBalloon(
+                "Nettoyage des sauvegardes",
+                "Un nettoyage est déjà en cours."));
+            return;
+        }
+
+        Task.Run(() =>
+        {
+            try
+            {
+                _logger.LogInformation("Nettoyage des sauvegardes demandé depuis l'icône de notification.");
+                PostToUi(() => _trayContext?.ShowBalloon(
+                    "Nettoyage des sauvegardes",
+                    "Analyse des fichiers de sauvegarde..."));
+
+                var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                var backups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                if (Directory.Exists(appFolder))
+                {
+                    var patterns = new[] { "*.bak", "*.bak*", "*.backup", "*.backup*" };
+                    foreach (var pattern in patterns)
+                    {
+                        try
+                        {
+                            foreach (var file in Directory.EnumerateFiles(appFolder, pattern, SearchOption.AllDirectories))
+                            {
+                                backups.Add(file);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Erreur lors de l'énumération des sauvegardes avec le motif {Pattern}", pattern);
+                        }
+                    }
+                }
+
+                if (backups.Count == 0)
+                {
+                    PostToUi(() => _trayContext?.ShowBalloon(
+                        "Nettoyage des sauvegardes",
+                        "Aucune sauvegarde à supprimer."));
+                    return;
+                }
+
+                int deleted = 0;
+                int failed = 0;
+                long freedBytes = 0;
+
+                foreach (var file in backups)
+                {
+                    try
+                    {
+                        var info = new FileInfo(file);
+                        if (info.Exists)
+                        {
+                            freedBytes += info.Length;
+                        }
+
+                        File.Delete(file);
+                        deleted++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        _logger.LogWarning(ex, "Impossible de supprimer la sauvegarde {File}", file);
+                    }
+                }
+
+                var summary = $"Suppression terminée. {deleted} fichier(s) supprimé(s)";
+                if (freedBytes > 0)
+                {
+                    summary += $" ({FormatBytes(freedBytes)} libérés)";
+                }
+                summary += ".";
+
+                if (failed > 0)
+                {
+                    summary += $" {failed} fichier(s) n'ont pas pu être supprimés.";
+                }
+
+                _logger.LogInformation(
+                    "Nettoyage des sauvegardes terminé : {Deleted} supprimé(s), {Failed} échec(s), {Freed} octets libérés.",
+                    deleted,
+                    failed,
+                    freedBytes);
+
+                PostToUi(() => _trayContext?.ShowBalloon(
+                    "Nettoyage des sauvegardes",
+                    summary));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur inattendue lors du nettoyage des sauvegardes.");
+                PostToUi(() => _trayContext?.ShowBalloon(
+                    "Nettoyage des sauvegardes",
+                    $"Erreur : {ex.Message}"));
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isCleaningBackups, 0);
+            }
+        });
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = { "octets", "Ko", "Mo", "Go", "To" };
+        double size = bytes;
+        var unitIndex = 0;
+
+        while (size >= 1024 && unitIndex < units.Length - 1)
+        {
+            size /= 1024;
+            unitIndex++;
+        }
+
+        return unitIndex == 0
+            ? $"{bytes} {units[unitIndex]}"
+            : $"{size:0.##} {units[unitIndex]}";
+    }
+
     private void ExitApplication()
     {
         Task.Run(() =>
@@ -282,17 +412,20 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
         private readonly Icon _errorIcon;
         private readonly ILogger _logger;
         private readonly Action _restartAction;
+        private readonly Action _cleanupAction;
         private readonly Action _updateAction;
         private readonly Action _exitAction;
         private bool _isDisposed;
 
         public TrayApplicationContext(
             Action restartAction,
+            Action cleanupAction,
             Action updateAction,
             Action exitAction,
             ILogger logger)
         {
             _restartAction = restartAction;
+            _cleanupAction = cleanupAction;
             _updateAction = updateAction;
             _exitAction = exitAction;
             _logger = logger;
@@ -310,6 +443,7 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
 
             var menu = new ContextMenuStrip();
             menu.Items.Add("Redémarrer", null, (_, _) => _restartAction());
+            menu.Items.Add("Nettoyer les sauvegardes...", null, (_, _) => _cleanupAction());
             menu.Items.Add("Mettre à jour...", null, (_, _) => _updateAction());
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Arrêter", null, (_, _) => _exitAction());
