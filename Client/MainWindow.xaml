@@ -86,6 +86,22 @@
                 <NavigationViewItem Content="Chat" Tag="ChatPage" Icon="LeaveChat" />
                 <NavigationViewItem Content="Historique" Tag="HistoryPage" Icon="People" />
             </NavigationView.MenuItems>
+            <NavigationView.PaneFooter>
+                <StackPanel Margin="12" Spacing="8">
+                    <Button x:Name="ClearBackupsButton"
+                            Content="Effacer les sauvegardes"
+                            HorizontalAlignment="Stretch"
+                            Click="ClearBackups_Click" />
+                    <ProgressBar x:Name="ClearBackupsProgress"
+                                 Visibility="Collapsed"
+                                 Height="4"
+                                 Minimum="0"
+                                 IsIndeterminate="True" />
+                    <TextBlock x:Name="ClearBackupsStatusText"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed" />
+                </StackPanel>
+            </NavigationView.PaneFooter>
             <Frame x:Name="contentFrame" Padding="-2" />
         </NavigationView>
     </Grid>
