@@ -98,7 +98,47 @@ function Backup-CurrentInstall {
     $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
     $backupPath = Join-Path $DestinationRoot $timestamp
     Write-Host "Sauvegarde de l'installation actuelle vers '$backupPath'..."
-    Copy-Item -Path (Join-Path $CurrentPath '*') -Destination $backupPath -Recurse -Force
+    # Empêche la sauvegarde d'embarquer le dossier de sauvegardes lui-même lorsque
+    # la destination se trouve sous le dossier d'installation (ce qui gonflerait la
+    # taille des backups de manière exponentielle).
+    $excludeFolder = $null
+    try {
+        $currentFullPath = [System.IO.Path]::GetFullPath($CurrentPath)
+        $backupRootFullPath = [System.IO.Path]::GetFullPath($DestinationRoot)
+
+        $trimChars = @([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+        $normalizedCurrent = $currentFullPath.TrimEnd($trimChars)
+        $normalizedBackup = $backupRootFullPath.TrimEnd($trimChars)
+
+        $isSubPath = $false
+        if ($normalizedBackup.Equals($normalizedCurrent, [StringComparison]::OrdinalIgnoreCase)) {
+            $isSubPath = $true
+        } elseif ($normalizedBackup.Length -gt $normalizedCurrent.Length -and $normalizedBackup.StartsWith($normalizedCurrent, [StringComparison]::OrdinalIgnoreCase)) {
+            $nextChar = $normalizedBackup[$normalizedCurrent.Length]
+            if ($nextChar -eq [System.IO.Path]::DirectorySeparatorChar -or $nextChar -eq [System.IO.Path]::AltDirectorySeparatorChar) {
+                $isSubPath = $true
+            }
+        }
+
+        if ($isSubPath) {
+            $excludeFolder = Split-Path -Leaf $DestinationRoot
+        }
+    } catch {
+        $excludeFolder = $null
+    }
+
+    $copyParameters = @{ 
+        Path        = (Join-Path $CurrentPath '*')
+        Destination = $backupPath
+        Recurse     = $true
+        Force       = $true
+    }
+
+    if ($excludeFolder) {
+        $copyParameters['Exclude'] = $excludeFolder
+    }
+
+    Copy-Item @copyParameters
 
     if ($Retention -gt 0) {
         $backups = Get-ChildItem -Directory -Path $DestinationRoot | Sort-Object Name -Descending

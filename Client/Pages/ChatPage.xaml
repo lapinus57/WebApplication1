@@ -424,7 +424,6 @@
                   Grid.Column="1"
                   ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
                   SelectionMode="None"
-                  ItemsUpdatingScrollMode="KeepLastItemInView"
                   ItemsSource="{x:Bind FilteredMessages}"/>
 
 

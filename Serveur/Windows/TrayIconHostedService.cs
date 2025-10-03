@@ -284,6 +284,7 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
         private readonly Action _restartAction;
         private readonly Action _updateAction;
         private readonly Action _exitAction;
+        private bool _isDisposed;
 
         public TrayApplicationContext(
             Action restartAction,
@@ -353,6 +354,11 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
 
         public void ShowBalloon(string title, string message)
         {
+            if (_isDisposed)
+            {
+                _logger.LogDebug("Notification ignorée car l'icône a été supprimée.");
+                return;
+            }
             _notifyIcon.ShowBalloonTip(5000, title, message, ToolTipIcon.Info);
         }
 
@@ -360,6 +366,7 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
         {
             if (disposing)
             {
+                _isDisposed = true;
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
                 _runningIcon.Dispose();
@@ -373,6 +380,17 @@ public sealed class TrayIconHostedService : IHostedService, IDisposable
 
         private void UpdateIcon(Icon icon, string text)
         {
+            if (_isDisposed)
+            {
+                _logger.LogDebug("Demande de mise à jour ignorée car l'icône a été supprimée.");
+                return;
+            }
+
+            if (icon is null)
+            {
+                _logger.LogWarning("Icône de statut nulle reçue. Aucune mise à jour effectuée.");
+                return;
+            }
             try
             {
                 _notifyIcon.Icon = icon;
