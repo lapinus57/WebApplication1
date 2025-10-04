@@ -91,15 +91,15 @@ namespace Client.Helpers
 
         public static void Set(string key, string value)
         {
-            _settings[key] = JsonDocument.Parse($"\"{value}\"").RootElement;
+            var safeValue = value ?? string.Empty;
+            _settings[key] = JsonSerializer.SerializeToElement(safeValue);
             Save();
             SettingsChanged?.Invoke();
         }
 
         public static void SetObject<T>(string key, T value)
         {
-            var json = JsonSerializer.Serialize(value);
-            _settings[key] = JsonDocument.Parse(json).RootElement;
+            _settings[key] = JsonSerializer.SerializeToElement(value);
             Save();
             SettingsChanged?.Invoke();
         }
