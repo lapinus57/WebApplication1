@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using Client.Helpers;
 using Newtonsoft.Json;
 
 namespace Client.Models
@@ -66,9 +67,10 @@ namespace Client.Models
             get => _color;
             set
             {
-                if (_color != value)
+                var sanitized = value?.Trim() ?? string.Empty;
+                if (_color != sanitized)
                 {
-                    _color = value;
+                    _color = sanitized;
                     OnPropertyChanged(nameof(Color));
                     OnPropertyChanged(nameof(ForegroundColor));
                 }
@@ -85,9 +87,10 @@ namespace Client.Models
             get => _codeMSG;
             set
             {
-                if (_codeMSG != value)
+                var sanitized = value?.Trim() ?? string.Empty;
+                if (_codeMSG != sanitized)
                 {
-                    _codeMSG = value;
+                    _codeMSG = sanitized;
                     OnPropertyChanged(nameof(CodeMSG));
                 }
             }
@@ -98,9 +101,10 @@ namespace Client.Models
             get => _annotation;
             set
             {
-                if (_annotation != value)
+                var sanitized = value ?? string.Empty;
+                if (_annotation != sanitized)
                 {
-                    _annotation = value;
+                    _annotation = sanitized;
                     OnPropertyChanged(nameof(Annotation));
                 }
             }
@@ -111,9 +115,10 @@ namespace Client.Models
             get => _endAnnotation;
             set
             {
-                if (_endAnnotation != value)
+                var sanitized = value ?? string.Empty;
+                if (_endAnnotation != sanitized)
                 {
-                    _endAnnotation = value;
+                    _endAnnotation = sanitized;
                     OnPropertyChanged(nameof(EndAnnotation));
                 }
             }
@@ -124,9 +129,10 @@ namespace Client.Models
             get => _floor;
             set
             {
-                if (_floor != value)
+                var sanitized = value?.Trim() ?? string.Empty;
+                if (_floor != sanitized)
                 {
-                    _floor = value;
+                    _floor = sanitized;
                     OnPropertyChanged(nameof(Floor));
                 }
             }
@@ -163,11 +169,17 @@ namespace Client.Models
                         }
                     }
 
+                    foreach (var option in items)
+                    {
+                        option?.Normalize();
+                    }
+
                     return items;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("ExamOption.Load failed", ex);
             }
             return new ObservableCollection<ExamOption>();
         }
@@ -182,12 +194,29 @@ namespace Client.Models
                     options
                         .Where(o => o is not null)
                         .Cast<ExamOption>());
+
+                foreach (var option in sanitized)
+                {
+                    option.Normalize();
+                }
                 var json = JsonConvert.SerializeObject(sanitized, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("ExamOption.Save failed", ex);
             }
+        }
+
+        public void Normalize()
+        {
+            Name = Name;
+            Description = Description;
+            Color = Color;
+            CodeMSG = CodeMSG;
+            Annotation = Annotation;
+            EndAnnotation = EndAnnotation;
+            Floor = Floor;
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Client.Models;
 using Client;
 
@@ -9,7 +10,7 @@ namespace Client.Helpers
 {
     public static class AppSettings
     {
-        private static Dictionary<string, JsonElement> _settings = new();
+        private static Dictionary<string, JsonNode?> _settings = new();
 
         public static event Action? SettingsChanged;
 
@@ -55,7 +56,7 @@ namespace Client.Helpers
                 if (File.Exists(FilePath))
                 {
                     var json = File.ReadAllText(FilePath);
-                    _settings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)
+                    _settings = JsonSerializer.Deserialize<Dictionary<string, JsonNode?>>(json)
                                 ?? new();
                 }
                 else
@@ -71,16 +72,22 @@ namespace Client.Helpers
 
         public static string Get(string key, string defaultValue = "")
         {
-            return _settings.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String
-                ? value.GetString() ?? defaultValue
-                : defaultValue;
+            if (_settings.TryGetValue(key, out var value) && value is JsonValue jsonValue)
+            {
+                if (jsonValue.TryGetValue<string>(out var text) && text is not null)
+                {
+                    return text;
+                }
+            }
+
+            return defaultValue;
         }
 
         public static T GetObject<T>(string key) where T : new()
         {
             try
             {
-                if (_settings.TryGetValue(key, out var value))
+                if (_settings.TryGetValue(key, out var value) && value is not null)
                 {
                     return value.Deserialize<T>() ?? new T();
                 }
@@ -91,15 +98,15 @@ namespace Client.Helpers
 
         public static void Set(string key, string value)
         {
-            _settings[key] = JsonDocument.Parse($"\"{value}\"").RootElement;
+            var safeValue = value ?? string.Empty;
+            _settings[key] = JsonValue.Create(safeValue);
             Save();
             SettingsChanged?.Invoke();
         }
 
         public static void SetObject<T>(string key, T value)
         {
-            var json = JsonSerializer.Serialize(value);
-            _settings[key] = JsonDocument.Parse(json).RootElement;
+            _settings[key] = JsonSerializer.SerializeToNode(value);
             Save();
             SettingsChanged?.Invoke();
         }
@@ -120,12 +127,12 @@ namespace Client.Helpers
         {
             try
             {
-                var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                var dict = JsonSerializer.Deserialize<Dictionary<string, JsonNode?>>(json);
                 if (dict != null)
                 {
                     foreach (var kvp in dict)
                     {
-                        if (kvp.Value.ValueKind == JsonValueKind.Null)
+                        if (kvp.Value is null)
                             continue;
                         _settings[kvp.Key] = kvp.Value;
                     }
