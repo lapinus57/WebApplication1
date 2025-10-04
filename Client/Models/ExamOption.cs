@@ -68,6 +68,7 @@ namespace Client.Models
             set
             {
                 var sanitized = value?.Trim() ?? string.Empty;
+
                 if (_color != sanitized)
                 {
                     _color = sanitized;
@@ -76,10 +77,16 @@ namespace Client.Models
                 }
             }
         }
-        public string ForegroundColor =>
-            ColorUtils.ToHex(
-                ColorUtils.GetContrastingTextColor(
-                    ColorUtils.FromHex(_color)));
+
+        public string ForegroundColor
+        {
+            get
+            {
+                var background = ColorUtils.FromHex(_color);
+                var contrasting = ColorUtils.GetContrastingTextColor(background);
+                return ColorUtils.ToHex(contrasting);
+            }
+        }
 
 
         public string CodeMSG
