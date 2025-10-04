@@ -69,10 +69,10 @@
                                 <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
                                     <Button Content="Dupliquer" Click="DuplicateExam_Click"/>
                                     <Button Click="MoveExamUp_Click" ToolTipService.ToolTip="Monter">
-                                        <SymbolIcon Symbol="Up"/>
+                                        <FontIcon FontFamily="Segoe UI Symbol" Glyph="↑" />
                                     </Button>
                                     <Button Click="MoveExamDown_Click" ToolTipService.ToolTip="Descendre">
-                                        <SymbolIcon Symbol="Down"/>
+                                        <FontIcon FontFamily="Segoe UI Symbol" Glyph="↓" />
                                     </Button>
                                     <Button Content="Supprimer" Click="DeleteExam_Click" />
                                 </StackPanel>
