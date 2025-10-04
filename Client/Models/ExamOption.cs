@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using Client.Helpers;
 using Newtonsoft.Json;
 
 namespace Client.Models
@@ -66,8 +67,7 @@ namespace Client.Models
             get => _color;
             set
             {
-                var sanitized = value ?? string.Empty;
-                sanitized = ColorUtils.ToHex(ColorUtils.FromHex(sanitized));
+                var sanitized = value?.Trim() ?? string.Empty;
 
                 if (_color != sanitized)
                 {
@@ -94,7 +94,7 @@ namespace Client.Models
             get => _codeMSG;
             set
             {
-                var sanitized = value ?? string.Empty;
+                var sanitized = value?.Trim() ?? string.Empty;
                 if (_codeMSG != sanitized)
                 {
                     _codeMSG = sanitized;
@@ -136,7 +136,7 @@ namespace Client.Models
             get => _floor;
             set
             {
-                var sanitized = value ?? string.Empty;
+                var sanitized = value?.Trim() ?? string.Empty;
                 if (_floor != sanitized)
                 {
                     _floor = sanitized;
@@ -176,11 +176,17 @@ namespace Client.Models
                         }
                     }
 
+                    foreach (var option in items)
+                    {
+                        option?.Normalize();
+                    }
+
                     return items;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("ExamOption.Load failed", ex);
             }
             return new ObservableCollection<ExamOption>();
         }
@@ -195,12 +201,29 @@ namespace Client.Models
                     options
                         .Where(o => o is not null)
                         .Cast<ExamOption>());
+
+                foreach (var option in sanitized)
+                {
+                    option.Normalize();
+                }
                 var json = JsonConvert.SerializeObject(sanitized, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("ExamOption.Save failed", ex);
             }
+        }
+
+        public void Normalize()
+        {
+            Name = Name;
+            Description = Description;
+            Color = Color;
+            CodeMSG = CodeMSG;
+            Annotation = Annotation;
+            EndAnnotation = EndAnnotation;
+            Floor = Floor;
         }
     }
 }
