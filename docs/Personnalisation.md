@@ -68,7 +68,7 @@ public string ShortcutF5Refraction
 
 ## Liste des examens et salles
 
-La page `ExamRoomPage` permet de gérer la liste des examens médicaux disponibles et les salles associées. Chaque examen possède un nom, une couleur, un code clavier et une annotation. Les données sont sauvegardées dans `exam_options.json` via `ExamOption.Save` et dans `rooms.json` via `RoomList.Save` :
+La page `ExamRoomPage` permet de gérer la liste des examens médicaux disponibles et les salles associées. Chaque examen possède un nom, une description, une couleur, un code clavier et une annotation. Les données sont sauvegardées dans `exam_options.json` via `ExamOption.Save` et dans `rooms.json` via `RoomList.Save` :
 
 ```csharp
 public static readonly string FilePath = Path.Combine(
