@@ -13,6 +13,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using Client.Helpers;
+using System.Text.RegularExpressions;
 
 namespace Client.Pages
 {
@@ -47,6 +48,76 @@ namespace Client.Pages
             if (sender is Button btn && btn.DataContext is ExamOption opt)
             {
                 Options.Remove(opt);
+            }
+        }
+
+        private void DuplicateExam_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is ExamOption opt)
+            {
+                var duplicate = new ExamOption
+                {
+                    Color = opt.Color,
+                    Name = GenerateDuplicateName(opt.Name),
+                    CodeMSG = opt.CodeMSG,
+                    Annotation = opt.Annotation,
+                    Floor = opt.Floor
+                };
+
+                var index = Options.IndexOf(opt);
+                if (index >= 0)
+                {
+                    Options.Insert(index + 1, duplicate);
+                }
+                else
+                {
+                    Options.Add(duplicate);
+                }
+            }
+        }
+
+        private string GenerateDuplicateName(string originalName)
+        {
+            var baseName = originalName.Trim();
+            var match = Regex.Match(baseName, @"^(.*)\s\((\d+)\)$");
+            if (match.Success)
+            {
+                baseName = match.Groups[1].Value;
+            }
+
+            var counter = 1;
+            string candidate;
+            do
+            {
+                candidate = $"{baseName} ({counter})";
+                counter++;
+            }
+            while (Options.Any(o => string.Equals(o.Name, candidate, StringComparison.OrdinalIgnoreCase)));
+
+            return candidate;
+        }
+
+        private void MoveExamUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is ExamOption opt)
+            {
+                var index = Options.IndexOf(opt);
+                if (index > 0)
+                {
+                    Options.Move(index, index - 1);
+                }
+            }
+        }
+
+        private void MoveExamDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is ExamOption opt)
+            {
+                var index = Options.IndexOf(opt);
+                if (index >= 0 && index < Options.Count - 1)
+                {
+                    Options.Move(index, index + 1);
+                }
             }
         }
         private void Add_Click(object sender, RoutedEventArgs e)
@@ -138,11 +209,32 @@ namespace Client.Pages
 
         private void Options_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            if (e.Action == NotifyCollectionChangedAction.Reset)
+            {
+                foreach (var option in Options)
+                    option.PropertyChanged += Option_PropertyChanged;
+            }
+            else
+            {
+                if (e.OldItems != null)
+                {
+                    foreach (ExamOption item in e.OldItems)
+                        item.PropertyChanged -= Option_PropertyChanged;
+                }
+
+                if (e.NewItems != null)
+                {
+                    foreach (ExamOption item in e.NewItems)
+                        item.PropertyChanged += Option_PropertyChanged;
+                }
+            }
+
             if (_syncing) return;
             int index = 1;
             foreach (var opt in Options)
                 opt.Index = index++;
 
+            _hasChanges = true;
             ExamOption.Save(Options);
         }
 
