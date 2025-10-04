@@ -839,6 +839,25 @@ namespace Client.Pages
             }
         }
 
+        private async void SetPatientOnHold_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as MenuFlyoutItem)?.Tag is not Patient patient)
+                return;
+
+            var oldExam = patient.Exams?.Trim() ?? string.Empty;
+            if (string.Equals(oldExam, "AT", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            patient.Exams = "AT";
+            if (!string.IsNullOrWhiteSpace(oldExam))
+            {
+                patient.Annotation = $"{oldExam} FAIT";
+            }
+
+            UpdatePatientViews();
+            await _service.UpdatePatientAsync(patient);
+        }
+
         private async void MovePatientFirst_Click(object sender, RoutedEventArgs e)
         {
             if ((sender as MenuFlyoutItem)?.Tag is Patient patient)
