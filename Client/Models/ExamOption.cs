@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace Client.Models
@@ -150,8 +151,19 @@ namespace Client.Models
                 if (File.Exists(FilePath))
                 {
                     var json = File.ReadAllText(FilePath);
-                    return JsonConvert.DeserializeObject<ObservableCollection<ExamOption>>(json)
-                           ?? new ObservableCollection<ExamOption>();
+                    var items = JsonConvert.DeserializeObject<ObservableCollection<ExamOption>>(json)
+                                ?? new ObservableCollection<ExamOption>();
+
+                    // Les entrées nulles provoquent un plantage lors de l'évaluation des liaisons XAML.
+                    for (int i = items.Count - 1; i >= 0; i--)
+                    {
+                        if (items[i] is null)
+                        {
+                            items.RemoveAt(i);
+                        }
+                    }
+
+                    return items;
                 }
             }
             catch
@@ -165,7 +177,12 @@ namespace Client.Models
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-                var json = JsonConvert.SerializeObject(options, Formatting.Indented);
+
+                var sanitized = new ObservableCollection<ExamOption>(
+                    options
+                        .Where(o => o is not null)
+                        .Cast<ExamOption>());
+                var json = JsonConvert.SerializeObject(sanitized, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }
             catch
