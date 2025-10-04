@@ -8,6 +8,7 @@ namespace ChatServeur
         public string CodeMSG { get; set; } = string.Empty;
         public string ForegroundColor => ColorHelpers.GetForeground(Color);
         public string Annotation { get; set; } = string.Empty;
+        public string EndAnnotation { get; set; } = string.Empty;
         public string Floor { get; set; } = string.Empty;
     }
 }
