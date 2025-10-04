@@ -66,18 +66,27 @@ namespace Client.Models
             get => _color;
             set
             {
-                if (_color != value)
+                var sanitized = value ?? string.Empty;
+                sanitized = ColorUtils.ToHex(ColorUtils.FromHex(sanitized));
+
+                if (_color != sanitized)
                 {
-                    _color = value;
+                    _color = sanitized;
                     OnPropertyChanged(nameof(Color));
                     OnPropertyChanged(nameof(ForegroundColor));
                 }
             }
         }
-        public string ForegroundColor =>
-            ColorUtils.ToHex(
-                ColorUtils.GetContrastingTextColor(
-                    ColorUtils.FromHex(_color)));
+
+        public string ForegroundColor
+        {
+            get
+            {
+                var background = ColorUtils.FromHex(_color);
+                var contrasting = ColorUtils.GetContrastingTextColor(background);
+                return ColorUtils.ToHex(contrasting);
+            }
+        }
 
 
         public string CodeMSG
@@ -85,9 +94,10 @@ namespace Client.Models
             get => _codeMSG;
             set
             {
-                if (_codeMSG != value)
+                var sanitized = value ?? string.Empty;
+                if (_codeMSG != sanitized)
                 {
-                    _codeMSG = value;
+                    _codeMSG = sanitized;
                     OnPropertyChanged(nameof(CodeMSG));
                 }
             }
@@ -98,9 +108,10 @@ namespace Client.Models
             get => _annotation;
             set
             {
-                if (_annotation != value)
+                var sanitized = value ?? string.Empty;
+                if (_annotation != sanitized)
                 {
-                    _annotation = value;
+                    _annotation = sanitized;
                     OnPropertyChanged(nameof(Annotation));
                 }
             }
@@ -111,9 +122,10 @@ namespace Client.Models
             get => _endAnnotation;
             set
             {
-                if (_endAnnotation != value)
+                var sanitized = value ?? string.Empty;
+                if (_endAnnotation != sanitized)
                 {
-                    _endAnnotation = value;
+                    _endAnnotation = sanitized;
                     OnPropertyChanged(nameof(EndAnnotation));
                 }
             }
@@ -124,9 +136,10 @@ namespace Client.Models
             get => _floor;
             set
             {
-                if (_floor != value)
+                var sanitized = value ?? string.Empty;
+                if (_floor != sanitized)
                 {
-                    _floor = value;
+                    _floor = sanitized;
                     OnPropertyChanged(nameof(Floor));
                 }
             }

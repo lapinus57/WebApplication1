@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Microsoft.UI;
 using Microsoft.UI.Xaml.Media;
@@ -27,14 +28,39 @@ namespace Client.Models
                 return named;
             }
 
-            hex = hex.Replace("#", "");
-            if (hex.Length == 6)
-                hex = "FF" + hex;
+            if (hex.StartsWith("#"))
+            {
+                hex = hex[1..];
+            }
 
-            byte a = Convert.ToByte(hex.Substring(0, 2), 16);
-            byte r = Convert.ToByte(hex.Substring(2, 2), 16);
-            byte g = Convert.ToByte(hex.Substring(4, 2), 16);
-            byte b = Convert.ToByte(hex.Substring(6, 2), 16);
+            if (hex.Length == 3)
+            {
+                hex = string.Concat(hex.Select(c => new string(c, 2)));
+            }
+            else if (hex.Length == 4)
+            {
+                hex = string.Concat(hex.Select(c => new string(c, 2)));
+            }
+
+            if (hex.Length == 6)
+            {
+                hex = "FF" + hex;
+            }
+
+            if (hex.Length != 8)
+            {
+                return Colors.Black;
+            }
+
+            if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
+            {
+                return Colors.Black;
+            }
+
+            byte a = (byte)((value & 0xFF000000) >> 24);
+            byte r = (byte)((value & 0x00FF0000) >> 16);
+            byte g = (byte)((value & 0x0000FF00) >> 8);
+            byte b = (byte)(value & 0x000000FF);
 
             return Color.FromArgb(a, r, g, b);
         }
