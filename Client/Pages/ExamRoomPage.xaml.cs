@@ -14,6 +14,10 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using Client.Helpers;
 using System.Text.RegularExpressions;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using Windows.Storage.Provider;
+using WinRT.Interop;
 
 namespace Client.Pages
 {
@@ -61,6 +65,7 @@ namespace Client.Pages
                     Name = GenerateDuplicateName(opt.Name),
                     CodeMSG = opt.CodeMSG,
                     Annotation = opt.Annotation,
+                    EndAnnotation = opt.EndAnnotation,
                     Floor = opt.Floor
                 };
 
@@ -129,6 +134,7 @@ namespace Client.Pages
                 Name = "Nouvel examen",
                 CodeMSG = "examen",
                 Annotation = string.Empty,
+                EndAnnotation = string.Empty,
                 Floor = "tes"
 
 
@@ -166,6 +172,102 @@ namespace Client.Pages
         private async void SendServer_Click(object sender, RoutedEventArgs e)
         {
             await SendConfigToServerAsync();
+        }
+
+        private async void Export_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileSavePicker();
+            picker.FileTypeChoices.Add("Configuration EyeChat", new List<string> { ".eyechatconfig" });
+            picker.SuggestedFileName = $"EyeChatConfig_{DateTime.Now:yyyyMMdd_HHmm}";
+            var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSaveFileAsync();
+            if (file == null)
+                return;
+
+            try
+            {
+                var configuration = new ExamRoomConfiguration
+                {
+                    Exams = Options.ToList(),
+                    Rooms = Rooms.ToList()
+                };
+
+                var json = JsonConvert.SerializeObject(configuration, Formatting.Indented);
+                CachedFileManager.DeferUpdates(file);
+                await FileIO.WriteTextAsync(file, json);
+                await CachedFileManager.CompleteUpdatesAsync(file);
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageAsync("Erreur d'export", $"Impossible d'enregistrer la configuration : {ex.Message}");
+            }
+        }
+
+        private async void Import_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".eyechatconfig");
+            var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file == null)
+                return;
+
+            try
+            {
+                var json = await FileIO.ReadTextAsync(file);
+                var configuration = JsonConvert.DeserializeObject<ExamRoomConfiguration>(json);
+                if (configuration == null)
+                {
+                    await ShowMessageAsync("Import invalide", "Le fichier sélectionné est vide ou invalide.");
+                    return;
+                }
+
+                _syncing = true;
+
+                BackupFile(ExamOption.FilePath);
+                Options.CollectionChanged -= Options_CollectionChanged;
+                foreach (var option in Options)
+                    option.PropertyChanged -= Option_PropertyChanged;
+                Options.Clear();
+                if (configuration.Exams != null)
+                {
+                    foreach (var opt in configuration.Exams.OrderBy(o => o.Index))
+                    {
+                        Options.Add(opt);
+                        opt.PropertyChanged += Option_PropertyChanged;
+                    }
+                }
+                int index = 1;
+                foreach (var opt in Options)
+                    opt.Index = index++;
+                Options.CollectionChanged += Options_CollectionChanged;
+                ExamOption.Save(Options);
+
+                BackupFile(RoomList.FilePath);
+                Rooms.CollectionChanged -= Rooms_CollectionChanged;
+                Rooms.Clear();
+                if (configuration.Rooms != null)
+                {
+                    foreach (var room in configuration.Rooms)
+                        Rooms.Add(room);
+                }
+                Rooms.CollectionChanged += Rooms_CollectionChanged;
+                RoomList.Save(Rooms);
+
+                _hasChanges = false;
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageAsync("Erreur d'import", $"Impossible de charger la configuration : {ex.Message}");
+            }
+            finally
+            {
+                _syncing = false;
+            }
         }
         private async Task TrySendExamOptionsAsync()
         {
@@ -336,6 +438,23 @@ namespace Client.Pages
             }
         }
 
+        private async Task ShowMessageAsync(string title, string message)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = new TextBlock
+                {
+                    Text = message,
+                    TextWrapping = TextWrapping.Wrap
+                },
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            };
+
+            await dialog.ShowAsync();
+        }
+
         private static bool AreExamOptionsEqual(IEnumerable<ExamOption> a, IEnumerable<ExamOption> b)
         {
             var ja = JsonConvert.SerializeObject(a);
@@ -366,6 +485,12 @@ namespace Client.Pages
                 }
             }
         }
+    }
+
+    internal class ExamRoomConfiguration
+    {
+        public List<ExamOption>? Exams { get; set; }
+        public List<string>? Rooms { get; set; }
     }
 }
 
