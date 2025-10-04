@@ -13,6 +13,7 @@ namespace Client.Models
         private string _color = string.Empty;
         private string _codeMSG = string.Empty;
         private string _annotation = string.Empty;
+        private string _endAnnotation = string.Empty;
         private string _floor = string.Empty;
 
         public int Index
@@ -82,6 +83,19 @@ namespace Client.Models
                 {
                     _annotation = value;
                     OnPropertyChanged(nameof(Annotation));
+                }
+            }
+        }
+
+        public string EndAnnotation
+        {
+            get => _endAnnotation;
+            set
+            {
+                if (_endAnnotation != value)
+                {
+                    _endAnnotation = value;
+                    OnPropertyChanged(nameof(EndAnnotation));
                 }
             }
         }

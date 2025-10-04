@@ -22,14 +22,16 @@
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="200" />
                     <ColumnDefinition Width="200" />
-                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="280" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="Nom" Grid.Column="0" TextAlignment="Center"/>
                 <TextBlock Text="Couleur" Grid.Column="1" TextAlignment="Center"/>
                 <TextBlock Text="Code clavier" Grid.Column="2" TextAlignment="Center"/>
                 <TextBlock Text="Annotation" Grid.Column="3" TextAlignment="Center"/>
-                <TextBlock Text="Salle" Grid.Column="4" TextAlignment="Center"/>
-                <TextBlock Text="Actions" Grid.Column="5" TextAlignment="Center"/>
+                <TextBlock Text="Annotation de fin" Grid.Column="4" TextAlignment="Center"/>
+                <TextBlock Text="Salle" Grid.Column="5" TextAlignment="Center"/>
+                <TextBlock Text="Actions" Grid.Column="6" TextAlignment="Center"/>
             </Grid>
 
             <ListView x:Name="OptionsList" ItemsSource="{x:Bind Options}" SelectionMode="None">
@@ -43,7 +45,8 @@
                                     <ColumnDefinition Width="150" />
                                     <ColumnDefinition Width="200" />
                                     <ColumnDefinition Width="200" />
-                                    <ColumnDefinition Width="220" />
+                                    <ColumnDefinition Width="200" />
+                                    <ColumnDefinition Width="280" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox Text="{x:Bind Name, Mode=TwoWay}" Grid.Column="0"/>
                                 <Grid Grid.Column="1">
@@ -63,10 +66,11 @@
 
                                 <TextBox Text="{x:Bind CodeMSG, Mode=TwoWay}" Grid.Column="2"/>
                                 <TextBox Text="{x:Bind Annotation, Mode=TwoWay}" Grid.Column="3"/>
-                                <ComboBox Grid.Column="4" Width="200"
+                                <TextBox Text="{x:Bind EndAnnotation, Mode=TwoWay}" Grid.Column="4"/>
+                                <ComboBox Grid.Column="5" Width="200"
                                           ItemsSource="{Binding Rooms, ElementName=PageRoot}"
                                           SelectedItem="{x:Bind Floor, Mode=TwoWay}"/>
-                                <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
+                                <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
                                     <Button Content="Dupliquer" Click="DuplicateExam_Click"/>
                                     <Button Click="MoveExamUp_Click" ToolTipService.ToolTip="Monter">
                                         <FontIcon FontFamily="Segoe UI Symbol" Glyph="↑" />
@@ -101,6 +105,10 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+                <Button Content="Exporter" Click="Export_Click" />
+                <Button Content="Importer" Click="Import_Click" />
+            </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
                 <Button Content="Charger depuis serveur" Click="LoadServer_Click" />
                 <Button Content="Envoyer au serveur" Click="SendServer_Click" />
