@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using Microsoft.UI.Xaml;
@@ -356,6 +357,8 @@ namespace Client.ViewModel
             _ctrlF12Exam = Get("CtrlF12Exam");
             _shiftF12Exam = Get("ShiftF12Exam");
 
+            ValidateExamSelections();
+
             // update resources with loaded values
             Application.Current.Resources["MessageFontSize"] = _messageFontSize;
             if (App.MainWindow?.Content is FrameworkElement root &&
@@ -364,6 +367,96 @@ namespace Client.ViewModel
                 pic.Initials = _initials;
             }
             OnPropertyChanged(string.Empty);
+        }
+
+        private void ValidateExamSelections()
+        {
+            try
+            {
+                var validNames = BuildValidExamNameMap();
+
+                if (validNames.Count == 0)
+                {
+                    return;
+                }
+
+                ValidateExamSelection(_shiftF9Exam, value => ShiftF9Exam = value, validNames);
+                ValidateExamSelection(_ctrlF9Exam, value => CtrlF9Exam = value, validNames);
+                ValidateExamSelection(_shiftF10Exam, value => ShiftF10Exam = value, validNames);
+                ValidateExamSelection(_ctrlF10Exam, value => CtrlF10Exam = value, validNames);
+                ValidateExamSelection(_shiftF11Exam, value => ShiftF11Exam = value, validNames);
+                ValidateExamSelection(_ctrlF11Exam, value => CtrlF11Exam = value, validNames);
+                ValidateExamSelection(_shiftF12Exam, value => ShiftF12Exam = value, validNames);
+                ValidateExamSelection(_ctrlF12Exam, value => CtrlF12Exam = value, validNames);
+            }
+            catch
+            {
+                // Ignore validation failures – settings remain unchanged if exam options cannot be loaded.
+            }
+        }
+
+        private static Dictionary<string, string> BuildValidExamNameMap()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var option in ExamOption.Load())
+            {
+                if (option is null)
+                {
+                    continue;
+                }
+
+                var name = option.Name;
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                var sanitized = name.Trim();
+                if (string.IsNullOrWhiteSpace(sanitized))
+                {
+                    continue;
+                }
+
+                if (!map.ContainsKey(sanitized))
+                {
+                    map[sanitized] = sanitized;
+                }
+            }
+
+            return map;
+        }
+
+        private static void ValidateExamSelection(string currentValue, Action<string> setter, IReadOnlyDictionary<string, string> validNames)
+        {
+            if (setter is null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentValue))
+            {
+                return;
+            }
+
+            var lookupKey = currentValue.Trim();
+            if (string.IsNullOrWhiteSpace(lookupKey))
+            {
+                setter(string.Empty);
+                return;
+            }
+
+            if (validNames.TryGetValue(lookupKey, out var normalized))
+            {
+                if (!string.Equals(currentValue, normalized, StringComparison.Ordinal))
+                {
+                    setter(normalized);
+                }
+            }
+            else
+            {
+                setter(string.Empty);
+            }
         }
 
         private static void ApplyTheme(string theme)
