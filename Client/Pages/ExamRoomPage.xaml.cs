@@ -63,6 +63,7 @@ namespace Client.Pages
                 {
                     Color = opt.Color,
                     Name = GenerateDuplicateName(opt.Name),
+                    Description = opt.Description,
                     CodeMSG = opt.CodeMSG,
                     Annotation = opt.Annotation,
                     EndAnnotation = opt.EndAnnotation,
@@ -132,6 +133,7 @@ namespace Client.Pages
                 Index = Options.Count + 1,
                 Color = "#FF0000", // Default color red
                 Name = "Nouvel examen",
+                Description = "Nouvel examen",
                 CodeMSG = "examen",
                 Annotation = string.Empty,
                 EndAnnotation = string.Empty,

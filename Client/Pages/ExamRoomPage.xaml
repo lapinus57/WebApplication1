@@ -18,6 +18,7 @@
             <Grid  Padding="5" ColumnSpacing="5" Margin="10,10,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="220" />
                     <ColumnDefinition Width="100" />
                     <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="200" />
@@ -26,12 +27,13 @@
                     <ColumnDefinition Width="280" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="Nom" Grid.Column="0" TextAlignment="Center"/>
-                <TextBlock Text="Couleur" Grid.Column="1" TextAlignment="Center"/>
-                <TextBlock Text="Code clavier" Grid.Column="2" TextAlignment="Center"/>
-                <TextBlock Text="Annotation" Grid.Column="3" TextAlignment="Center"/>
-                <TextBlock Text="Annotation de fin" Grid.Column="4" TextAlignment="Center"/>
-                <TextBlock Text="Salle" Grid.Column="5" TextAlignment="Center"/>
-                <TextBlock Text="Actions" Grid.Column="6" TextAlignment="Center"/>
+                <TextBlock Text="Description" Grid.Column="1" TextAlignment="Center"/>
+                <TextBlock Text="Couleur" Grid.Column="2" TextAlignment="Center"/>
+                <TextBlock Text="Code clavier" Grid.Column="3" TextAlignment="Center"/>
+                <TextBlock Text="Annotation" Grid.Column="4" TextAlignment="Center"/>
+                <TextBlock Text="Annotation de fin" Grid.Column="5" TextAlignment="Center"/>
+                <TextBlock Text="Salle" Grid.Column="6" TextAlignment="Center"/>
+                <TextBlock Text="Actions" Grid.Column="7" TextAlignment="Center"/>
             </Grid>
 
             <ListView x:Name="OptionsList" ItemsSource="{x:Bind Options}" SelectionMode="None">
@@ -41,6 +43,7 @@
                             <Grid Padding="5" ColumnSpacing="5">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="200" />
+                                    <ColumnDefinition Width="220" />
                                     <ColumnDefinition Width="100" />
                                     <ColumnDefinition Width="150" />
                                     <ColumnDefinition Width="200" />
@@ -49,7 +52,8 @@
                                     <ColumnDefinition Width="280" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox Text="{x:Bind Name, Mode=TwoWay}" Grid.Column="0"/>
-                                <Grid Grid.Column="1">
+                                <TextBox Text="{x:Bind Description, Mode=TwoWay}" Grid.Column="1"/>
+                                <Grid Grid.Column="2">
                                     <Button HorizontalAlignment="Stretch">
                                         <Rectangle Width="32" Height="16"
                                                    Fill="{x:Bind Color, Mode=OneWay , Converter={StaticResource StringToColorConverter}}"
@@ -64,13 +68,13 @@
                                     </Button>
                                 </Grid>
 
-                                <TextBox Text="{x:Bind CodeMSG, Mode=TwoWay}" Grid.Column="2"/>
-                                <TextBox Text="{x:Bind Annotation, Mode=TwoWay}" Grid.Column="3"/>
-                                <TextBox Text="{x:Bind EndAnnotation, Mode=TwoWay}" Grid.Column="4"/>
-                                <ComboBox Grid.Column="5" Width="200"
+                                <TextBox Text="{x:Bind CodeMSG, Mode=TwoWay}" Grid.Column="3"/>
+                                <TextBox Text="{x:Bind Annotation, Mode=TwoWay}" Grid.Column="4"/>
+                                <TextBox Text="{x:Bind EndAnnotation, Mode=TwoWay}" Grid.Column="5"/>
+                                <ComboBox Grid.Column="6" Width="200"
                                           ItemsSource="{Binding Rooms, ElementName=PageRoot}"
                                           SelectedItem="{x:Bind Floor, Mode=TwoWay}"/>
-                                <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
+                                <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
                                     <Button Content="Dupliquer" Click="DuplicateExam_Click"/>
                                     <Button Click="MoveExamUp_Click" ToolTipService.ToolTip="Monter">
                                         <FontIcon FontFamily="Segoe UI Symbol" Glyph="↑" />

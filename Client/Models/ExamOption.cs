@@ -15,6 +15,7 @@ namespace Client.Models
         private string _annotation = string.Empty;
         private string _endAnnotation = string.Empty;
         private string _floor = string.Empty;
+        private string _description = string.Empty;
 
         public int Index
         {
@@ -34,10 +35,27 @@ namespace Client.Models
             get => _name;
             set
             {
-                if (_name != value)
+                var sanitized = value ?? string.Empty;
+                if (_name != sanitized)
                 {
-                    _name = value;
+                    _name = sanitized;
                     OnPropertyChanged(nameof(Name));
+                    OnPropertyChanged(nameof(DisplayLabel));
+                }
+            }
+        }
+
+        public string Description
+        {
+            get => _description;
+            set
+            {
+                var sanitized = value ?? string.Empty;
+                if (_description != sanitized)
+                {
+                    _description = sanitized;
+                    OnPropertyChanged(nameof(Description));
+                    OnPropertyChanged(nameof(DisplayLabel));
                 }
             }
         }
@@ -112,6 +130,9 @@ namespace Client.Models
                 }
             }
         }
+
+        [JsonIgnore]
+        public string DisplayLabel => string.IsNullOrWhiteSpace(Description) ? Name : Description;
 
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged(string propertyName) =>
