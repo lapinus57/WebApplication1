@@ -173,6 +173,7 @@ namespace Client.Services
                 foreach (var u in finalList)
                     ConnectedUsers.Add(u);
                 UpdateSpecialUsers();
+                await SaveUsersToDiskAsync();
             }
 
             Messages.Clear();
@@ -200,6 +201,8 @@ namespace Client.Services
             Patients.Clear();
             foreach (var p in patients)
                 Patients.Add(p);
+
+            await SyncServerConfigurationAsync();
         }
 
         public async Task ConnectAsync(string username, string avatar, string room, string color)
@@ -485,6 +488,27 @@ namespace Client.Services
 
             _isConnecting = false;
 
+        }
+
+        private async Task SyncServerConfigurationAsync()
+        {
+            var examOptions = await GetExamOptionsAsync();
+            if (examOptions.Any())
+            {
+                var ordered = examOptions
+                    .OrderBy(o => o.Index)
+                    .ToList();
+                ExamOption.Save(new ObservableCollection<ExamOption>(ordered));
+                Dispatcher?.TryEnqueue(() => ExamOptionsUpdated?.Invoke(ordered));
+            }
+
+            var rooms = await GetRoomsAsync();
+            if (rooms.Any())
+            {
+                var roomList = rooms.ToList();
+                RoomList.Save(new ObservableCollection<string>(roomList));
+                Dispatcher?.TryEnqueue(() => RoomsUpdated?.Invoke(roomList));
+            }
         }
 
         public async Task SendMessage(string sender, string roomname, string destinataire, string message, string avatar, DateTime timemessage)
