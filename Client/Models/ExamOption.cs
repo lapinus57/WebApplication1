@@ -219,11 +219,38 @@ namespace Client.Models
         {
             Name = Name;
             Description = Description;
-            Color = Color;
             CodeMSG = CodeMSG;
             Annotation = Annotation;
             EndAnnotation = EndAnnotation;
             Floor = Floor;
+            Color = Color;
+
+            if (string.IsNullOrWhiteSpace(Name))
+            {
+                // Certains environnements ne renseignent ni le nom ni la description. On essaye alors
+                // de dériver un identifiant stable à partir des autres champs disponibles pour que les
+                // ComboBox puissent toujours fournir un SelectedValue exploitable.
+                var fallback = new[]
+                {
+                    Description,
+                    CodeMSG,
+                    Annotation,
+                    EndAnnotation,
+                    Floor
+                }.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
+
+                if (string.IsNullOrWhiteSpace(fallback))
+                {
+                    fallback = Index != 0 ? $"Examen {Index}" : "Examen";
+                }
+
+                Name = fallback;
+            }
+
+            if (string.IsNullOrWhiteSpace(Description))
+            {
+                Description = Name;
+            }
         }
     }
 }
