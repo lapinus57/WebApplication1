@@ -37,7 +37,7 @@ namespace Client.Models
             get => _name;
             set
             {
-                var sanitized = value ?? string.Empty;
+                var sanitized = value?.Trim() ?? string.Empty;
                 if (_name != sanitized)
                 {
                     _name = sanitized;
@@ -52,7 +52,7 @@ namespace Client.Models
             get => _description;
             set
             {
-                var sanitized = value ?? string.Empty;
+                var sanitized = value?.Trim() ?? string.Empty;
                 if (_description != sanitized)
                 {
                     _description = sanitized;

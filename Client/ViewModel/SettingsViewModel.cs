@@ -263,49 +263,121 @@ namespace Client.ViewModel
         public string CtrlF9Exam
         {
             get => _ctrlF9Exam;
-            set { if (_ctrlF9Exam != value) { _ctrlF9Exam = value; OnPropertyChanged(nameof(CtrlF9Exam)); Set("CtrlF9Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_ctrlF9Exam != normalized)
+                {
+                    _ctrlF9Exam = normalized;
+                    OnPropertyChanged(nameof(CtrlF9Exam));
+                    Set("CtrlF9Exam", normalized);
+                }
+            }
         }
 
         public string ShiftF9Exam
         {
             get => _shiftF9Exam;
-            set { if (_shiftF9Exam != value) { _shiftF9Exam = value; OnPropertyChanged(nameof(ShiftF9Exam)); Set("ShiftF9Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_shiftF9Exam != normalized)
+                {
+                    _shiftF9Exam = normalized;
+                    OnPropertyChanged(nameof(ShiftF9Exam));
+                    Set("ShiftF9Exam", normalized);
+                }
+            }
         }
 
         public string CtrlF10Exam
         {
             get => _ctrlF10Exam;
-            set { if (_ctrlF10Exam != value) { _ctrlF10Exam = value; OnPropertyChanged(nameof(CtrlF10Exam)); Set("CtrlF10Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_ctrlF10Exam != normalized)
+                {
+                    _ctrlF10Exam = normalized;
+                    OnPropertyChanged(nameof(CtrlF10Exam));
+                    Set("CtrlF10Exam", normalized);
+                }
+            }
         }
 
         public string ShiftF10Exam
         {
             get => _shiftF10Exam;
-            set { if (_shiftF10Exam != value) { _shiftF10Exam = value; OnPropertyChanged(nameof(ShiftF10Exam)); Set("ShiftF10Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_shiftF10Exam != normalized)
+                {
+                    _shiftF10Exam = normalized;
+                    OnPropertyChanged(nameof(ShiftF10Exam));
+                    Set("ShiftF10Exam", normalized);
+                }
+            }
         }
 
         public string CtrlF11Exam
         {
             get => _ctrlF11Exam;
-            set { if (_ctrlF11Exam != value) { _ctrlF11Exam = value; OnPropertyChanged(nameof(CtrlF11Exam)); Set("CtrlF11Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_ctrlF11Exam != normalized)
+                {
+                    _ctrlF11Exam = normalized;
+                    OnPropertyChanged(nameof(CtrlF11Exam));
+                    Set("CtrlF11Exam", normalized);
+                }
+            }
         }
 
         public string ShiftF11Exam
         {
             get => _shiftF11Exam;
-            set { if (_shiftF11Exam != value) { _shiftF11Exam = value; OnPropertyChanged(nameof(ShiftF11Exam)); Set("ShiftF11Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_shiftF11Exam != normalized)
+                {
+                    _shiftF11Exam = normalized;
+                    OnPropertyChanged(nameof(ShiftF11Exam));
+                    Set("ShiftF11Exam", normalized);
+                }
+            }
         }
 
         public string CtrlF12Exam
         {
             get => _ctrlF12Exam;
-            set { if (_ctrlF12Exam != value) { _ctrlF12Exam = value; OnPropertyChanged(nameof(CtrlF12Exam)); Set("CtrlF12Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_ctrlF12Exam != normalized)
+                {
+                    _ctrlF12Exam = normalized;
+                    OnPropertyChanged(nameof(CtrlF12Exam));
+                    Set("CtrlF12Exam", normalized);
+                }
+            }
         }
 
         public string ShiftF12Exam
         {
             get => _shiftF12Exam;
-            set { if (_shiftF12Exam != value) { _shiftF12Exam = value; OnPropertyChanged(nameof(ShiftF12Exam)); Set("ShiftF12Exam", value); } }
+            set
+            {
+                var normalized = NormalizeExamValue(value);
+                if (_shiftF12Exam != normalized)
+                {
+                    _shiftF12Exam = normalized;
+                    OnPropertyChanged(nameof(ShiftF12Exam));
+                    Set("ShiftF12Exam", normalized);
+                }
+            }
         }
 
         public void Load()
@@ -348,14 +420,14 @@ namespace Client.ViewModel
             _shortcutF8Pathologies = Get("ShortcutF8Pathologies");
             _shortcutF8Orthoptie = Get("ShortcutF8Orthoptie");
 
-            _ctrlF9Exam = Get("CtrlF9Exam");
-            _shiftF9Exam = Get("ShiftF9Exam");
-            _ctrlF10Exam = Get("CtrlF10Exam");
-            _shiftF10Exam = Get("ShiftF10Exam");
-            _ctrlF11Exam = Get("CtrlF11Exam");
-            _shiftF11Exam = Get("ShiftF11Exam");
-            _ctrlF12Exam = Get("CtrlF12Exam");
-            _shiftF12Exam = Get("ShiftF12Exam");
+            _ctrlF9Exam = NormalizeExamValue(Get("CtrlF9Exam"));
+            _shiftF9Exam = NormalizeExamValue(Get("ShiftF9Exam"));
+            _ctrlF10Exam = NormalizeExamValue(Get("CtrlF10Exam"));
+            _shiftF10Exam = NormalizeExamValue(Get("ShiftF10Exam"));
+            _ctrlF11Exam = NormalizeExamValue(Get("CtrlF11Exam"));
+            _shiftF11Exam = NormalizeExamValue(Get("ShiftF11Exam"));
+            _ctrlF12Exam = NormalizeExamValue(Get("CtrlF12Exam"));
+            _shiftF12Exam = NormalizeExamValue(Get("ShiftF12Exam"));
 
             ValidateExamSelections();
 
@@ -367,6 +439,11 @@ namespace Client.ViewModel
                 pic.Initials = _initials;
             }
             OnPropertyChanged(string.Empty);
+        }
+
+        private static string NormalizeExamValue(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
         }
 
         private void ValidateExamSelections()
@@ -406,21 +483,18 @@ namespace Client.ViewModel
                     continue;
                 }
 
-                var name = option.Name;
+                var name = NormalizeExamValue(option.Name);
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     continue;
                 }
 
-                var sanitized = name.Trim();
-                if (string.IsNullOrWhiteSpace(sanitized))
-                {
-                    continue;
-                }
+                map[name] = name;
 
-                if (!map.ContainsKey(sanitized))
+                var description = NormalizeExamValue(option.Description);
+                if (!string.IsNullOrEmpty(description) && !map.ContainsKey(description))
                 {
-                    map[sanitized] = sanitized;
+                    map[description] = name;
                 }
             }
 
@@ -439,7 +513,7 @@ namespace Client.ViewModel
                 return;
             }
 
-            var lookupKey = currentValue.Trim();
+            var lookupKey = NormalizeExamValue(currentValue);
             if (string.IsNullOrWhiteSpace(lookupKey))
             {
                 setter(string.Empty);
