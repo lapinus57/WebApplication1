@@ -175,9 +175,9 @@
                                                                    FontWeight="SemiBold"
                                                                    HorizontalAlignment="Center" />
                                                         <ComboBox Width="150"
-                                                                  ItemsSource="{Binding  ElementName=PageRoot, Path=ExamOptions}"
+                                                                  ItemsSource="{x:Bind AvailableExamOptions, Mode=OneWay}"
                                                                   ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                                                  DisplayMemberPath="DisplayLabel"
+                                                                  SelectionBoxItemTemplate="{StaticResource ExamOptionTemplate}"
                                                                   SelectedValuePath="Name"
                                                                   SelectedValue="{x:Bind SelectedExam, Mode=TwoWay}" />
                                                     </StackPanel>

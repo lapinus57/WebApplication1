@@ -97,14 +97,14 @@ namespace Client.Pages
                 }));
         }
 
-        private static ExamShortcutEntry CreateShortcutEntry(
+        private ExamShortcutEntry CreateShortcutEntry(
             SettingsViewModel root,
             string header,
             string propertyName,
             Func<SettingsViewModel, string> getter,
             Action<SettingsViewModel, string> setter)
         {
-            return new ExamShortcutEntry(root, header, propertyName, getter, setter);
+            return new ExamShortcutEntry(root, ExamOptions, header, propertyName, getter, setter);
         }
 
         private void DisposeExamShortcutGroups()
@@ -300,12 +300,14 @@ namespace Client.Pages
 
         public ExamShortcutEntry(
             SettingsViewModel root,
+            ObservableCollection<ExamOption> availableExamOptions,
             string header,
             string viewModelPropertyName,
             Func<SettingsViewModel, string> getter,
             Action<SettingsViewModel, string> setter)
         {
             Root = root ?? throw new ArgumentNullException(nameof(root));
+            AvailableExamOptions = availableExamOptions ?? throw new ArgumentNullException(nameof(availableExamOptions));
             Header = header;
             _viewModelPropertyName = viewModelPropertyName ?? string.Empty;
             _getter = getter ?? throw new ArgumentNullException(nameof(getter));
@@ -317,6 +319,8 @@ namespace Client.Pages
         public string Header { get; }
 
         public SettingsViewModel Root { get; }
+
+        public ObservableCollection<ExamOption> AvailableExamOptions { get; }
 
         public string SelectedExam
         {
