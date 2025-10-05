@@ -3,7 +3,8 @@
     x:Class="Client.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Client">
+    xmlns:local="using:Client"
+    xmlns:ui="using:Windows.UI">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -25,9 +26,10 @@
             <SolidColorBrush x:Key="OtherMessageColor" Color="#FFD9F2DC" />
             <SolidColorBrush x:Key="TextOtherMessageColor" Color="#FF000000" />
             <SolidColorBrush x:Key="PivotHeaderForeground" Color="Red" />
-            
 
-            <Color x:Key="SystemAccentColorDark1">CadetBlue</Color>
+
+
+            <ui:Color x:Key="SystemAccentColorDark1">CadetBlue</ui:Color>
             <SolidColorBrush x:Key="AccentColor" Color="Red" />
             <x:Double x:Key="MessageFontSize">14</x:Double>
             <ResourceDictionary.ThemeDictionaries>
