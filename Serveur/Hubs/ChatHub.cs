@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -663,7 +664,7 @@ namespace ChatServeur
             var changed = new List<Patient>();
             foreach (var p in patients)
             {
-                var opt = opts.SingleOrDefault(o => o.Name == p.Exams);
+                var opt = opts.FirstOrDefault(o => string.Equals(o.Name, p.Exams, StringComparison.OrdinalIgnoreCase));
                 if (opt != null && p.Colors != opt.Color)
                 {
                     p.Colors = opt.Color;
@@ -699,7 +700,7 @@ namespace ChatServeur
             var changed = new List<Patient>();
             foreach (var p in patients)
             {
-                var opt = opts.SingleOrDefault(o => o.Name == p.Exams);
+                var opt = opts.FirstOrDefault(o => string.Equals(o.Name, p.Exams, StringComparison.OrdinalIgnoreCase));
                 if (opt != null && p.Colors != opt.Color)
                 {
                     p.Colors = opt.Color;

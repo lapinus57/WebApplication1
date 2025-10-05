@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -11,6 +12,7 @@ namespace Client.Models
     public class ExamOption : INotifyPropertyChanged
     {
         private int _index;
+        private string _id = Guid.NewGuid().ToString();
         private string _name = string.Empty;
         private string _color = string.Empty;
         private string _codeMSG = string.Empty;
@@ -28,6 +30,25 @@ namespace Client.Models
                 {
                     _index = value;
                     OnPropertyChanged(nameof(Index));
+                }
+            }
+        }
+
+        public string Id
+        {
+            get => _id;
+            set
+            {
+                var sanitized = value?.Trim();
+                if (string.IsNullOrWhiteSpace(sanitized))
+                {
+                    sanitized = Guid.NewGuid().ToString();
+                }
+
+                if (_id != sanitized)
+                {
+                    _id = sanitized;
+                    OnPropertyChanged(nameof(Id));
                 }
             }
         }
@@ -217,6 +238,13 @@ namespace Client.Models
 
         public void Normalize()
         {
+            if (string.IsNullOrWhiteSpace(_id))
+            {
+                _id = Guid.NewGuid().ToString();
+                OnPropertyChanged(nameof(Id));
+            }
+
+            Id = Id;
             Name = Name;
             Description = Description;
             CodeMSG = CodeMSG;
@@ -252,5 +280,36 @@ namespace Client.Models
                 Description = Name;
             }
         }
+
+        public static ExamOption? FindByIdentifier(IEnumerable<ExamOption>? options, string? identifier)
+        {
+            if (options is null)
+            {
+                return null;
+            }
+
+            var normalized = NormalizeIdentifier(identifier);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return null;
+            }
+
+            return options.FirstOrDefault(option =>
+                       string.Equals(NormalizeIdentifier(option.Id), normalized, StringComparison.OrdinalIgnoreCase))
+                   ?? options.FirstOrDefault(option =>
+                       string.Equals(NormalizeIdentifier(option.Name), normalized, StringComparison.OrdinalIgnoreCase))
+                   ?? options.FirstOrDefault(option =>
+                       string.Equals(NormalizeIdentifier(option.Description), normalized, StringComparison.OrdinalIgnoreCase))
+                   ?? options.FirstOrDefault(option =>
+                       string.Equals(NormalizeIdentifier(option.CodeMSG), normalized, StringComparison.OrdinalIgnoreCase))
+                   ?? options.FirstOrDefault(option =>
+                       string.Equals(NormalizeIdentifier(option.Annotation), normalized, StringComparison.OrdinalIgnoreCase))
+                   ?? options.FirstOrDefault(option =>
+                       string.Equals(NormalizeIdentifier(option.EndAnnotation), normalized, StringComparison.OrdinalIgnoreCase))
+                   ?? options.FirstOrDefault(option =>
+                       string.Equals(NormalizeIdentifier(option.Floor), normalized, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static string NormalizeIdentifier(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 }

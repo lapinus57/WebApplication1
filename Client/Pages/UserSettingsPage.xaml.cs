@@ -409,7 +409,7 @@ namespace Client.Pages
             OnPropertyChanged(nameof(SelectedExam));
         }
 
-        private static string NormalizeExamValue(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+        private static string NormalizeExamValue(string? value) => ExamOption.NormalizeIdentifier(value);
     }
 }
 
