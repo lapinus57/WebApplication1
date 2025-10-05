@@ -446,13 +446,21 @@ namespace Client.ViewModel
             return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
         }
 
+        public void ValidateExamSelections(IEnumerable<ExamOption> availableOptions)
+        {
+            ValidateExamSelectionsInternal(availableOptions);
+        }
+
         private void ValidateExamSelections()
+        {
+            ValidateExamSelectionsInternal(ExamOption.Load());
+        }
+
+        private void ValidateExamSelectionsInternal(IEnumerable<ExamOption> availableOptions)
         {
             try
             {
-                var validNames = BuildValidExamNameMap();
-
-                
+                var validNames = BuildValidExamNameMap(availableOptions);
 
                 ValidateExamSelection(_shiftF9Exam, value => ShiftF9Exam = value, validNames);
                 ValidateExamSelection(_ctrlF9Exam, value => CtrlF9Exam = value, validNames);
@@ -469,11 +477,16 @@ namespace Client.ViewModel
             }
         }
 
-        private static Dictionary<string, string> BuildValidExamNameMap()
+        private static Dictionary<string, string> BuildValidExamNameMap(IEnumerable<ExamOption> options)
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var option in ExamOption.Load())
+            if (options is null)
+            {
+                return map;
+            }
+
+            foreach (var option in options)
             {
                 if (option is null)
                 {

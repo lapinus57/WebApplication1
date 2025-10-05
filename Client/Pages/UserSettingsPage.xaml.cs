@@ -1,16 +1,19 @@
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
+using Client.Helpers;
+using Client.Models;
 using Client.ViewModel;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using System.Diagnostics;
-using Client.Models;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 using Windows.Storage;
 using WinRT.Interop;
 using System;
 using System.IO;
-using System.Linq;
 using Microsoft.UI.Xaml.Markup;
 
 namespace Client.Pages
@@ -26,8 +29,73 @@ namespace Client.Pages
         {
             this.InitializeComponent();
             this.DataContext = ViewModelSettings;
+            this.Loaded += UserSettingsPage_Loaded;
+            this.Unloaded += UserSettingsPage_Unloaded;
             ViewModelSettings.Load();
             Debug.WriteLine($"[UserSettingsPage] ViewModel instance: {ViewModelSettings.GetHashCode()}");
+        }
+
+        private async void UserSettingsPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
+            await RefreshExamOptionsAsync();
+        }
+
+        private void UserSettingsPage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            App.ChatService.ExamOptionsUpdated -= ChatService_ExamOptionsUpdated;
+        }
+
+        private void ChatService_ExamOptionsUpdated(IEnumerable<ExamOption> options)
+        {
+            if (options is null)
+            {
+                return;
+            }
+
+            DispatcherQueue?.TryEnqueue(() => UpdateExamOptions(options));
+        }
+
+        private async Task RefreshExamOptionsAsync()
+        {
+            try
+            {
+                var serverOptions = await App.ChatService.GetExamOptionsAsync();
+                if (serverOptions?.Any() == true)
+                {
+                    UpdateExamOptions(serverOptions);
+                }
+                else
+                {
+                    ViewModelSettings.ValidateExamSelections(ExamOptions);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("UserSettingsPage.RefreshExamOptionsAsync failed", ex);
+            }
+        }
+
+        private void UpdateExamOptions(IEnumerable<ExamOption> options)
+        {
+            var sanitized = options
+                .Where(option => option is not null)
+                .Select(option =>
+                {
+                    option.Normalize();
+                    return option;
+                })
+                .OrderBy(option => option.Index)
+                .ToList();
+
+            ExamOptions.Clear();
+            foreach (var option in sanitized)
+            {
+                ExamOptions.Add(option);
+            }
+
+            ExamOption.Save(ExamOptions);
+            ViewModelSettings.ValidateExamSelections(ExamOptions);
         }
         private void Back_Click(object sender, RoutedEventArgs e)
         {
