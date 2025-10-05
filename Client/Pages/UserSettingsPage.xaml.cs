@@ -16,6 +16,7 @@ using WinRT.Interop;
 using System;
 using System.IO;
 using Microsoft.UI.Xaml.Markup;
+using System.ComponentModel;
 
 namespace Client.Pages
 {
@@ -36,6 +37,7 @@ namespace Client.Pages
             this.Unloaded += UserSettingsPage_Unloaded;
             Logger.Log($"[UserSettingsPage] Constructed with {ExamOptions.Count} cached exam option(s).");
             ViewModelSettings.Load();
+            BuildExamShortcutGroups();
             Logger.Log($"[UserSettingsPage] Initialized with {ExamOptions.Count} cached exam option(s).");
             Debug.WriteLine($"[UserSettingsPage] ViewModel instance: {ViewModelSettings.GetHashCode()}");
         }
@@ -55,6 +57,66 @@ namespace Client.Pages
             Logger.Log("[UserSettingsPage] Unloaded.");
             App.ChatService.ExamOptionsUpdated -= ChatService_ExamOptionsUpdated;
             Logger.Log("[UserSettingsPage] Page unloaded.");
+            DisposeExamShortcutGroups();
+            ExamShortcutGroups.Clear();
+        }
+
+        private void BuildExamShortcutGroups()
+        {
+            DisposeExamShortcutGroups();
+            ExamShortcutGroups.Clear();
+
+            var root = ViewModelSettings;
+
+            ExamShortcutGroups.Add(new ExamShortcutGroup(
+                "F9",
+                new[]
+                {
+                    CreateShortcutEntry(root, "Maj F9", nameof(SettingsViewModel.ShiftF9Exam), vm => vm.ShiftF9Exam, (vm, value) => vm.ShiftF9Exam = value),
+                    CreateShortcutEntry(root, "Ctrl F9", nameof(SettingsViewModel.CtrlF9Exam), vm => vm.CtrlF9Exam, (vm, value) => vm.CtrlF9Exam = value)
+                }));
+
+            ExamShortcutGroups.Add(new ExamShortcutGroup(
+                "F10",
+                new[]
+                {
+                    CreateShortcutEntry(root, "Maj F10", nameof(SettingsViewModel.ShiftF10Exam), vm => vm.ShiftF10Exam, (vm, value) => vm.ShiftF10Exam = value),
+                    CreateShortcutEntry(root, "Ctrl F10", nameof(SettingsViewModel.CtrlF10Exam), vm => vm.CtrlF10Exam, (vm, value) => vm.CtrlF10Exam = value)
+                }));
+
+            ExamShortcutGroups.Add(new ExamShortcutGroup(
+                "F11",
+                new[]
+                {
+                    CreateShortcutEntry(root, "Maj F11", nameof(SettingsViewModel.ShiftF11Exam), vm => vm.ShiftF11Exam, (vm, value) => vm.ShiftF11Exam = value),
+                    CreateShortcutEntry(root, "Ctrl F11", nameof(SettingsViewModel.CtrlF11Exam), vm => vm.CtrlF11Exam, (vm, value) => vm.CtrlF11Exam = value)
+                }));
+
+            ExamShortcutGroups.Add(new ExamShortcutGroup(
+                "F12",
+                new[]
+                {
+                    CreateShortcutEntry(root, "Maj F12", nameof(SettingsViewModel.ShiftF12Exam), vm => vm.ShiftF12Exam, (vm, value) => vm.ShiftF12Exam = value),
+                    CreateShortcutEntry(root, "Ctrl F12", nameof(SettingsViewModel.CtrlF12Exam), vm => vm.CtrlF12Exam, (vm, value) => vm.CtrlF12Exam = value)
+                }));
+        }
+
+        private static ExamShortcutEntry CreateShortcutEntry(
+            SettingsViewModel root,
+            string header,
+            string propertyName,
+            Func<SettingsViewModel, string> getter,
+            Action<SettingsViewModel, string> setter)
+        {
+            return new ExamShortcutEntry(root, header, propertyName, getter, setter);
+        }
+
+        private void DisposeExamShortcutGroups()
+        {
+            foreach (var group in ExamShortcutGroups)
+            {
+                group.Dispose();
+            }
         }
 
         private void ChatService_ExamOptionsUpdated(IEnumerable<ExamOption> options)
@@ -325,6 +387,88 @@ namespace Client.Pages
         private void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public sealed class ExamShortcutGroup : IDisposable
+    {
+        public ExamShortcutGroup(string title, IEnumerable<ExamShortcutEntry> entries)
+        {
+            Title = title;
+            Entries = new ObservableCollection<ExamShortcutEntry>(entries ?? Enumerable.Empty<ExamShortcutEntry>());
+        }
+
+        public string Title { get; }
+
+        public ObservableCollection<ExamShortcutEntry> Entries { get; }
+
+        public void Dispose()
+        {
+            foreach (var entry in Entries)
+            {
+                entry.Dispose();
+            }
+        }
+    }
+
+    public sealed class ExamShortcutEntry : INotifyPropertyChanged, IDisposable
+    {
+        private readonly Func<SettingsViewModel, string> _getter;
+        private readonly Action<SettingsViewModel, string> _setter;
+        private readonly string _viewModelPropertyName;
+
+        public ExamShortcutEntry(
+            SettingsViewModel root,
+            string header,
+            string viewModelPropertyName,
+            Func<SettingsViewModel, string> getter,
+            Action<SettingsViewModel, string> setter)
+        {
+            Root = root ?? throw new ArgumentNullException(nameof(root));
+            Header = header;
+            _viewModelPropertyName = viewModelPropertyName ?? string.Empty;
+            _getter = getter ?? throw new ArgumentNullException(nameof(getter));
+            _setter = setter ?? throw new ArgumentNullException(nameof(setter));
+
+            Root.PropertyChanged += RootOnPropertyChanged;
+        }
+
+        public string Header { get; }
+
+        public SettingsViewModel Root { get; }
+
+        public string SelectedExam
+        {
+            get => _getter(Root);
+            set
+            {
+                var normalized = value ?? string.Empty;
+                if (!string.Equals(_getter(Root), normalized, StringComparison.Ordinal))
+                {
+                    _setter(Root, normalized);
+                    OnPropertyChanged(nameof(SelectedExam));
+                }
+            }
+        }
+
+        private void RootOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(e.PropertyName) || string.Equals(e.PropertyName, _viewModelPropertyName, StringComparison.Ordinal))
+            {
+                OnPropertyChanged(nameof(SelectedExam));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public void Dispose()
+        {
+            Root.PropertyChanged -= RootOnPropertyChanged;
         }
     }
 }
