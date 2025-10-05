@@ -505,6 +505,8 @@ namespace Client.ViewModel
                     continue;
                 }
 
+                option.Normalize();
+
                 var name = NormalizeExamValue(option.Name);
                 if (string.IsNullOrWhiteSpace(name))
                 {
@@ -512,15 +514,25 @@ namespace Client.ViewModel
                 }
 
                 map[name] = name;
-
-                var description = NormalizeExamValue(option.Description);
-                if (!string.IsNullOrEmpty(description) && !map.ContainsKey(description))
-                {
-                    map[description] = name;
-                }
+                TryRegisterAlias(map, option.Description, name);
+                TryRegisterAlias(map, option.CodeMSG, name);
+                TryRegisterAlias(map, option.Annotation, name);
+                TryRegisterAlias(map, option.EndAnnotation, name);
+                TryRegisterAlias(map, option.Floor, name);
             }
 
             return map;
+        }
+
+        private static void TryRegisterAlias(IDictionary<string, string> map, string? value, string normalizedName)
+        {
+            var alias = NormalizeExamValue(value);
+            if (string.IsNullOrWhiteSpace(alias) || map.ContainsKey(alias))
+            {
+                return;
+            }
+
+            map[alias] = normalizedName;
         }
 
         private static void ValidateExamSelection(string currentValue, Action<string> setter, IReadOnlyDictionary<string, string> validNames, string propertyName)
