@@ -20,6 +20,10 @@
         <DataTemplate x:Key="AvatarTemplate">
             <Image Source="{Binding}" Width="60" Height="60"/>
         </DataTemplate>
+
+        <DataTemplate x:Key="ExamOptionTemplate" x:DataType="models:ExamOption">
+            <TextBlock Text="{x:Bind DisplayLabel}"/>
+        </DataTemplate>
     </Page.Resources>
     <ScrollViewer>
         <StackPanel Padding="20" Spacing="20">

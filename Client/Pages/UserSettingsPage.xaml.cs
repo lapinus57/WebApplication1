@@ -36,8 +36,7 @@ namespace Client.Pages
             this.Unloaded += UserSettingsPage_Unloaded;
             Logger.Log($"[UserSettingsPage] Constructed with {ExamOptions.Count} cached exam option(s).");
             ViewModelSettings.Load();
-            InitializeShortcutGroups();
-            RefreshShortcutEntries();
+            Logger.Log($"[UserSettingsPage] Initialized with {ExamOptions.Count} cached exam option(s).");
             Debug.WriteLine($"[UserSettingsPage] ViewModel instance: {ViewModelSettings.GetHashCode()}");
         }
 
@@ -47,6 +46,7 @@ namespace Client.Pages
             ViewModelSettings.PropertyChanged -= ViewModelSettings_PropertyChanged;
             ViewModelSettings.PropertyChanged += ViewModelSettings_PropertyChanged;
             App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
+            Logger.Log("[UserSettingsPage] Page loaded.");
             await RefreshExamOptionsAsync();
         }
 
@@ -54,7 +54,7 @@ namespace Client.Pages
         {
             Logger.Log("[UserSettingsPage] Unloaded.");
             App.ChatService.ExamOptionsUpdated -= ChatService_ExamOptionsUpdated;
-            ViewModelSettings.PropertyChanged -= ViewModelSettings_PropertyChanged;
+            Logger.Log("[UserSettingsPage] Page unloaded.");
         }
 
         private void ChatService_ExamOptionsUpdated(IEnumerable<ExamOption> options)
@@ -112,7 +112,7 @@ namespace Client.Pages
             Logger.Log($"[UserSettingsPage] Exam options updated. Total count: {ExamOptions.Count}.");
             ExamOption.Save(ExamOptions);
             ViewModelSettings.ValidateExamSelections(ExamOptions);
-            RefreshShortcutEntries();
+            Logger.Log($"[UserSettingsPage] Exam options updated. Count={ExamOptions.Count}.");
         }
         private void Back_Click(object sender, RoutedEventArgs e)
         {

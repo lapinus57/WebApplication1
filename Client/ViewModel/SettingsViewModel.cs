@@ -537,7 +537,7 @@ namespace Client.ViewModel
             var lookupKey = NormalizeExamValue(currentValue);
             if (string.IsNullOrWhiteSpace(lookupKey))
             {
-                Logger.Log($"[SettingsViewModel] {propertyName} contains only whitespace. Clearing setting.");
+                Logger.Log($"[SettingsViewModel] Clearing exam shortcut because value '{currentValue}' is whitespace.");
                 setter(string.Empty);
                 return;
             }
@@ -546,7 +546,7 @@ namespace Client.ViewModel
             {
                 if (!string.Equals(currentValue, normalized, StringComparison.Ordinal))
                 {
-                    Logger.Log($"[SettingsViewModel] {propertyName} normalized from '{currentValue}' to '{normalized}'.");
+                    Logger.Log($"[SettingsViewModel] Normalized exam shortcut from '{currentValue}' to '{normalized}'.");
                     setter(normalized);
                 }
                 else
@@ -556,7 +556,7 @@ namespace Client.ViewModel
             }
             else
             {
-                Logger.Log($"[SettingsViewModel] {propertyName} value '{currentValue}' not found in available exam options. Clearing setting.");
+                Logger.Log($"[SettingsViewModel] Exam shortcut value '{currentValue}' not found. Clearing selection.");
                 setter(string.Empty);
             }
         }
