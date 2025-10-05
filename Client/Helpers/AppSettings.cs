@@ -101,14 +101,14 @@ namespace Client.Helpers
             var safeValue = value ?? string.Empty;
             _settings[key] = JsonValue.Create(safeValue);
             Save();
-            SettingsChanged?.Invoke();
+            NotifySettingsChanged();
         }
 
         public static void SetObject<T>(string key, T value)
         {
             _settings[key] = JsonSerializer.SerializeToNode(value);
             Save();
-            SettingsChanged?.Invoke();
+            NotifySettingsChanged();
         }
 
         public static string Export()
@@ -158,6 +158,27 @@ namespace Client.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Sauvegarde échouée : {ex.Message}");
+            }
+        }
+
+        private static void NotifySettingsChanged()
+        {
+            var handlers = SettingsChanged;
+            if (handlers is null)
+            {
+                return;
+            }
+
+            foreach (var handler in handlers.GetInvocationList())
+            {
+                try
+                {
+                    (handler as Action)?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogException("[AppSettings] SettingsChanged handler failed", ex);
+                }
             }
         }
 

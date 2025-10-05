@@ -974,7 +974,10 @@ namespace Client.Services
         public async Task SaveUserSettingsAsync(string username, string json)
         {
             if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
+            {
+                Debug.WriteLine("SaveUserSettingsAsync ignoré : connexion SignalR indisponible.");
+                return;
+            }
 
             try
             {
