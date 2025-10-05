@@ -375,10 +375,7 @@ namespace Client.ViewModel
             {
                 var validNames = BuildValidExamNameMap();
 
-                if (validNames.Count == 0)
-                {
-                    return;
-                }
+                
 
                 ValidateExamSelection(_shiftF9Exam, value => ShiftF9Exam = value, validNames);
                 ValidateExamSelection(_ctrlF9Exam, value => CtrlF9Exam = value, validNames);
