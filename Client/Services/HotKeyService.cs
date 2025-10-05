@@ -213,11 +213,66 @@ namespace Client.Services
             eyeCombo.SelectedIndex = 0;
 
             var floorCombo = new ComboBox { Width = 600, ItemsSource = rooms };
+            var commentBox = new TextBox { PlaceholderText = "Commentaire", Width = 600 };
+            string? appliedAnnotation = string.Empty;
+
+            void ApplyExamDefaults(ExamOption? option)
+            {
+                if (option is null)
+                {
+                    return;
+                }
+
+                var floor = option.Floor?.Trim();
+                if (!string.IsNullOrWhiteSpace(floor))
+                {
+                    var existing = rooms.FirstOrDefault(r =>
+                        string.Equals(r, floor, StringComparison.OrdinalIgnoreCase));
+                    if (existing is null)
+                    {
+                        rooms.Add(floor);
+                        existing = floor;
+                    }
+
+                    floorCombo.SelectedItem = existing;
+                }
+
+                if (!string.IsNullOrWhiteSpace(option.Annotation))
+                {
+                    if (string.IsNullOrWhiteSpace(commentBox.Text) ||
+                        string.Equals(commentBox.Text, appliedAnnotation, StringComparison.Ordinal))
+                    {
+                        commentBox.Text = option.Annotation;
+                        appliedAnnotation = option.Annotation;
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(appliedAnnotation) &&
+                         string.Equals(commentBox.Text, appliedAnnotation, StringComparison.Ordinal))
+                {
+                    commentBox.Text = string.Empty;
+                    appliedAnnotation = string.Empty;
+                }
+            }
+
+            commentBox.TextChanged += (s, _) =>
+            {
+                if (!string.Equals(commentBox.Text, appliedAnnotation, StringComparison.Ordinal))
+                {
+                    appliedAnnotation = commentBox.Text;
+                }
+            };
+
             var examOpt = options.FirstOrDefault(o =>
                 string.Equals(o?.Name?.Trim(), sanitizedExamName, StringComparison.OrdinalIgnoreCase));
-            if (examOpt != null && rooms.Contains(examOpt.Floor))
-                floorCombo.SelectedItem = examOpt.Floor;
-            var commentBox = new TextBox { PlaceholderText = "Commentaire", Width = 600 };
+            ApplyExamDefaults(examOpt);
+
+            examCombo.SelectionChanged += (s, _) =>
+            {
+                if (examCombo.SelectedItem is ExamOption selected)
+                {
+                    ApplyExamDefaults(selected);
+                }
+            };
 
             // Extract patient name either from parameter or active window title
             if (string.IsNullOrWhiteSpace(patientName))
