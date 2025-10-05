@@ -6,11 +6,13 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Client.Helpers;
 using Client.Models;
+using System.Runtime.Versioning;
 
 namespace Client.ViewModel
 {
     public class SettingsViewModel : INotifyPropertyChanged
     {
+        [SupportedOSPlatform("windows")]
         private bool _isOldSchoolMode;
         private double _messageFontSize = 14;
         private string _appTheme = "Dark";

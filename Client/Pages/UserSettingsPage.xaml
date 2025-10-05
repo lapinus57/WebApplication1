@@ -175,7 +175,7 @@
                                                                    FontWeight="SemiBold"
                                                                    HorizontalAlignment="Center" />
                                                         <ComboBox Width="150"
-                                                                  ItemsSource="{x:Bind ElementName=PageRoot, Path=ExamOptions}"
+                                                                  ItemsSource="{Binding  ElementName=PageRoot, Path=ExamOptions}"
                                                                   ItemTemplate="{StaticResource ExamOptionTemplate}"
                                                                   DisplayMemberPath="DisplayLabel"
                                                                   SelectedValuePath="Name"
