@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,7 +26,6 @@ namespace Client.Pages
         public ObservableCollection<ExamShortcutGroup> ExamShortcutGroups { get; } = new();
 
         private readonly ObservableCollection<string> _defaultAvatars = new();
-        private readonly Dictionary<string, ExamShortcutEntry> _shortcutEntryMap = new(StringComparer.OrdinalIgnoreCase);
 
         public UserSettingsPage()
         {
@@ -45,8 +43,6 @@ namespace Client.Pages
         private async void UserSettingsPage_Loaded(object sender, RoutedEventArgs e)
         {
             Logger.Log($"[UserSettingsPage] Loaded. Current shortcut groups: {ExamShortcutGroups.Count}.");
-            ViewModelSettings.PropertyChanged -= ViewModelSettings_PropertyChanged;
-            ViewModelSettings.PropertyChanged += ViewModelSettings_PropertyChanged;
             App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
             Logger.Log("[UserSettingsPage] Page loaded.");
             await RefreshExamOptionsAsync();
@@ -273,121 +269,6 @@ namespace Client.Pages
             }
         }
 
-        private void InitializeShortcutGroups()
-        {
-            ExamShortcutGroups.Clear();
-            _shortcutEntryMap.Clear();
-
-            ExamShortcutGroups.Add(new ExamShortcutGroup("F9", new[]
-            {
-                CreateShortcutEntry("Maj F9", nameof(SettingsViewModel.ShiftF9Exam), () => ViewModelSettings.ShiftF9Exam, value => ViewModelSettings.ShiftF9Exam = value),
-                CreateShortcutEntry("Ctrl F9", nameof(SettingsViewModel.CtrlF9Exam), () => ViewModelSettings.CtrlF9Exam, value => ViewModelSettings.CtrlF9Exam = value)
-            }));
-
-            ExamShortcutGroups.Add(new ExamShortcutGroup("F10", new[]
-            {
-                CreateShortcutEntry("Maj F10", nameof(SettingsViewModel.ShiftF10Exam), () => ViewModelSettings.ShiftF10Exam, value => ViewModelSettings.ShiftF10Exam = value),
-                CreateShortcutEntry("Ctrl F10", nameof(SettingsViewModel.CtrlF10Exam), () => ViewModelSettings.CtrlF10Exam, value => ViewModelSettings.CtrlF10Exam = value)
-            }));
-
-            ExamShortcutGroups.Add(new ExamShortcutGroup("F11", new[]
-            {
-                CreateShortcutEntry("Maj F11", nameof(SettingsViewModel.ShiftF11Exam), () => ViewModelSettings.ShiftF11Exam, value => ViewModelSettings.ShiftF11Exam = value),
-                CreateShortcutEntry("Ctrl F11", nameof(SettingsViewModel.CtrlF11Exam), () => ViewModelSettings.CtrlF11Exam, value => ViewModelSettings.CtrlF11Exam = value)
-            }));
-
-            ExamShortcutGroups.Add(new ExamShortcutGroup("F12", new[]
-            {
-                CreateShortcutEntry("Maj F12", nameof(SettingsViewModel.ShiftF12Exam), () => ViewModelSettings.ShiftF12Exam, value => ViewModelSettings.ShiftF12Exam = value),
-                CreateShortcutEntry("Ctrl F12", nameof(SettingsViewModel.CtrlF12Exam), () => ViewModelSettings.CtrlF12Exam, value => ViewModelSettings.CtrlF12Exam = value)
-            }));
-
-            Logger.Log($"[UserSettingsPage] Initialized {ExamShortcutGroups.Count} shortcut group(s).");
-        }
-
-        private ExamShortcutEntry CreateShortcutEntry(string label, string propertyName, Func<string> getter, Action<string> setter)
-        {
-            var entry = new ExamShortcutEntry(label, getter, setter);
-            _shortcutEntryMap[propertyName] = entry;
-            return entry;
-        }
-
-        private void RefreshShortcutEntries()
-        {
-            foreach (var entry in _shortcutEntryMap.Values)
-            {
-                entry.Refresh();
-            }
-        }
-
-        private void ViewModelSettings_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(e.PropertyName))
-            {
-                Logger.Log("[UserSettingsPage] ViewModelSettings signaled full refresh.");
-                RefreshShortcutEntries();
-                return;
-            }
-
-            if (_shortcutEntryMap.TryGetValue(e.PropertyName, out var entry))
-            {
-                Logger.Log($"[UserSettingsPage] ViewModel property '{e.PropertyName}' changed. Refreshing shortcut entry.");
-                entry.Refresh();
-            }
-        }
-    }
-    public sealed class ExamShortcutGroup
-    {
-        public ExamShortcutGroup(string title, IEnumerable<ExamShortcutEntry> shortcuts)
-        {
-            Title = title;
-            Shortcuts = new ObservableCollection<ExamShortcutEntry>(shortcuts ?? Enumerable.Empty<ExamShortcutEntry>());
-        }
-
-        public string Title { get; }
-
-        public ObservableCollection<ExamShortcutEntry> Shortcuts { get; }
-    }
-
-    public sealed class ExamShortcutEntry : INotifyPropertyChanged
-    {
-        private readonly Func<string> _getter;
-        private readonly Action<string> _setter;
-
-        public ExamShortcutEntry(string label, Func<string> getter, Action<string> setter)
-        {
-            Label = label;
-            _getter = getter ?? throw new ArgumentNullException(nameof(getter));
-            _setter = setter ?? throw new ArgumentNullException(nameof(setter));
-        }
-
-        public string Label { get; }
-
-        public string Value
-        {
-            get => _getter();
-            set
-            {
-                var sanitized = value?.Trim() ?? string.Empty;
-                if (!string.Equals(_getter(), sanitized, StringComparison.Ordinal))
-                {
-                    _setter(sanitized);
-                    OnPropertyChanged(nameof(Value));
-                }
-            }
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        public void Refresh()
-        {
-            OnPropertyChanged(nameof(Value));
-        }
-
-        private void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
     }
 
     public sealed class ExamShortcutGroup : IDisposable
