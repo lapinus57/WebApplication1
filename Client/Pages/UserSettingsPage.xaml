@@ -161,7 +161,7 @@
                                               ItemsSource="{x:Bind ExamOptions}"
                                               ItemTemplate="{StaticResource ExamOptionTemplate}"
                                               DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Description"
+                                              SelectedValuePath="Name"
                                               SelectedValue="{x:Bind ViewModelSettings.ShiftF9Exam, Mode=TwoWay}"/>
                                 </StackPanel>
                             </Border>
