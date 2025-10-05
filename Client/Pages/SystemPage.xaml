@@ -7,12 +7,15 @@
 		<StackPanel Padding="20" Spacing="20">
 			<Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
 			<TextBlock Text="Système" FontSize="24" FontWeight="Bold"/>
-			<Border CornerRadius="8" Padding="20">
+                        <Border CornerRadius="8" Padding="20">
                                 <StackPanel Spacing="10">
                                         <TextBlock Text="Nom de la salle"/>
-                                        <TextBox x:Name="RoomBox" Text="{x:Bind RoomName, Mode=TwoWay}"/>
-                                        <ToggleSwitch x:Name="TimeModSwitch" Header="Afficher la modification du temps" IsOn="{x:Bind ShowTimeModification, Mode=TwoWay}"/>
-                                        <ToggleSwitch x:Name="ReminderPageSwitch" Header="Afficher la page de rappel" IsOn="{x:Bind ShowReminderPage, Mode=TwoWay}"/>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <TextBox x:Name="RoomBox" Text="{x:Bind RoomName, Mode=TwoWay}" IsReadOnly="True" IsTabStop="False"/>
+                                                <Button Grid.Column="1" Content="Renommer" Click="RenameRoom_Click"/>
+                                        </Grid>
+                                        <ToggleSwitch x:Name="TimeModSwitch" Header="Afficher la modification du temps" IsOn="{x:Bind ShowTimeModification, Mode=TwoWay}" Toggled="TimeModSwitch_Toggled"/>
+                                        <ToggleSwitch x:Name="ReminderPageSwitch" Header="Afficher la page de rappel" IsOn="{x:Bind ShowReminderPage, Mode=TwoWay}" Toggled="ReminderPageSwitch_Toggled"/>
                                         <TextBlock Text="Utilisateur par défaut"/>
                                         <ComboBox ItemsSource="{x:Bind Users}" SelectedItem="{x:Bind DefaultUser, Mode=TwoWay}"/>
                                         <ToggleSwitch Header="Se connecter avec le dernier utilisateur" IsOn="{x:Bind ConnectLastUser, Mode=TwoWay}"/>
