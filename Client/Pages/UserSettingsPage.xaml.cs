@@ -151,26 +151,41 @@ namespace Client.Pages
 
         private void UpdateExamOptions(IEnumerable<ExamOption> options)
         {
-            var sanitized = options
-                .Where(option => option is not null)
-                .Select(option =>
-                {
-                    option.Normalize();
-                    return option;
-                })
-                .OrderBy(option => option.Index)
-                .ToList();
-
-            ExamOptions.Clear();
-            foreach (var option in sanitized)
+            foreach (var group in ExamShortcutGroups)
             {
-                ExamOptions.Add(option);
+                group.BeginExamOptionsUpdate();
             }
 
-            Logger.Log($"[UserSettingsPage] Exam options updated. Total count: {ExamOptions.Count}.");
-            ExamOption.Save(ExamOptions);
-            ViewModelSettings.ValidateExamSelections(ExamOptions);
-            Logger.Log($"[UserSettingsPage] Exam options updated. Count={ExamOptions.Count}.");
+            try
+            {
+                var sanitized = options
+                    .Where(option => option is not null)
+                    .Select(option =>
+                    {
+                        option.Normalize();
+                        return option;
+                    })
+                    .OrderBy(option => option.Index)
+                    .ToList();
+
+                ExamOptions.Clear();
+                foreach (var option in sanitized)
+                {
+                    ExamOptions.Add(option);
+                }
+
+                Logger.Log($"[UserSettingsPage] Exam options updated. Total count: {ExamOptions.Count}.");
+                ExamOption.Save(ExamOptions);
+                ViewModelSettings.ValidateExamSelections(ExamOptions);
+                Logger.Log($"[UserSettingsPage] Exam options updated. Count={ExamOptions.Count}.");
+            }
+            finally
+            {
+                foreach (var group in ExamShortcutGroups)
+                {
+                    group.EndExamOptionsUpdate();
+                }
+            }
         }
         private void Back_Click(object sender, RoutedEventArgs e)
         {
@@ -290,6 +305,22 @@ namespace Client.Pages
                 entry.Dispose();
             }
         }
+
+        public void BeginExamOptionsUpdate()
+        {
+            foreach (var entry in Entries)
+            {
+                entry.BeginExamOptionsUpdate();
+            }
+        }
+
+        public void EndExamOptionsUpdate()
+        {
+            foreach (var entry in Entries)
+            {
+                entry.EndExamOptionsUpdate();
+            }
+        }
     }
 
     public sealed class ExamShortcutEntry : INotifyPropertyChanged, IDisposable
@@ -322,13 +353,24 @@ namespace Client.Pages
 
         public ObservableCollection<ExamOption> AvailableExamOptions { get; }
 
+        private bool _isUpdatingExamOptions;
+
         public string SelectedExam
         {
             get => _getter(Root);
             set
             {
-                var normalized = value ?? string.Empty;
-                if (!string.Equals(_getter(Root), normalized, StringComparison.Ordinal))
+                var normalized = NormalizeExamValue(value);
+                var currentValue = _getter(Root);
+
+                if (_isUpdatingExamOptions &&
+                    string.IsNullOrEmpty(normalized) &&
+                    !string.IsNullOrEmpty(currentValue))
+                {
+                    return;
+                }
+
+                if (!string.Equals(currentValue, normalized, StringComparison.Ordinal))
                 {
                     _setter(Root, normalized);
                     OnPropertyChanged(nameof(SelectedExam));
@@ -355,6 +397,19 @@ namespace Client.Pages
         {
             Root.PropertyChanged -= RootOnPropertyChanged;
         }
+
+        public void BeginExamOptionsUpdate()
+        {
+            _isUpdatingExamOptions = true;
+        }
+
+        public void EndExamOptionsUpdate()
+        {
+            _isUpdatingExamOptions = false;
+            OnPropertyChanged(nameof(SelectedExam));
+        }
+
+        private static string NormalizeExamValue(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 }
 
