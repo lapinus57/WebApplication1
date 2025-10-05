@@ -1,5 +1,6 @@
 <Page
     x:Class="Client.Pages.UserSettingsPage"
+    x:Name="Root"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -7,6 +8,8 @@
     xmlns:vm="using:Client.ViewModel"
     xmlns:helpers="using:Client.Helpers"
     xmlns:models="using:Client.Models"
+    xmlns:pages="using:Client.Pages"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <Page.Resources>
@@ -147,104 +150,36 @@
             <Border CornerRadius="8" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="Raccourcis patient" FontSize="18" FontWeight="Bold"/>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <StackPanel Spacing="10">
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Maj F9" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.ShiftF9Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Ctrl F9" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.CtrlF9Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                        <StackPanel Spacing="10">
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Maj F10" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.ShiftF10Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Ctrl F10" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.CtrlF10Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                        <StackPanel Spacing="10">
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Maj F11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.ShiftF11Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Ctrl F11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.CtrlF11Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                        <StackPanel Spacing="10">
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Maj F12" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.ShiftF12Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                            <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Width="200">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="Ctrl F12" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <ComboBox Width="150"
-                                              ItemsSource="{x:Bind ExamOptions}"
-                                              ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                              DisplayMemberPath="DisplayLabel"
-                                              SelectedValuePath="Name"
-                                              SelectedValue="{x:Bind ViewModelSettings.CtrlF12Exam, Mode=TwoWay}"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </StackPanel>
+                    <ItemsControl ItemsSource="{x:Bind Root.ExamShortcutGroups}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <controls:WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" ItemWidth="220" ItemHeight="Auto" Margin="0"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pages:ExamShortcutGroup">
+                                <Border BorderThickness="1" BorderBrush="Gray" Padding="10" CornerRadius="4" Margin="0,0,10,10" Width="220">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <ItemsControl ItemsSource="{x:Bind Shortcuts}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="pages:ExamShortcutEntry">
+                                                    <StackPanel Spacing="4">
+                                                        <TextBlock Text="{x:Bind Label}" HorizontalAlignment="Center"/>
+                                                        <ComboBox Width="180"
+                                                                  ItemsSource="{x:Bind Root.ExamOptions}"
+                                                                  DisplayMemberPath="DisplayLabel"
+                                                                  SelectedValuePath="Name"
+                                                                  SelectedValue="{x:Bind Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
         </StackPanel>

@@ -390,6 +390,7 @@ namespace Client.ViewModel
 
         public void Load()
         {
+            Logger.Log("[SettingsViewModel] Loading settings.");
             var style = AppSettings.Get("ChatDisplayStyle", "Modern");
             _isOldSchoolMode = style == "OldSchool";
             if (double.TryParse(AppSettings.Get("MessageFontSize", "14"), out var size))
@@ -447,6 +448,7 @@ namespace Client.ViewModel
                 pic.Initials = _initials;
             }
             OnPropertyChanged(string.Empty);
+            Logger.Log("[SettingsViewModel] Settings loaded.");
         }
 
         private static string NormalizeExamValue(string? value)
@@ -470,18 +472,18 @@ namespace Client.ViewModel
             {
                 var validNames = BuildValidExamNameMap(availableOptions);
 
-                ValidateExamSelection(_shiftF9Exam, value => ShiftF9Exam = value, validNames);
-                ValidateExamSelection(_ctrlF9Exam, value => CtrlF9Exam = value, validNames);
-                ValidateExamSelection(_shiftF10Exam, value => ShiftF10Exam = value, validNames);
-                ValidateExamSelection(_ctrlF10Exam, value => CtrlF10Exam = value, validNames);
-                ValidateExamSelection(_shiftF11Exam, value => ShiftF11Exam = value, validNames);
-                ValidateExamSelection(_ctrlF11Exam, value => CtrlF11Exam = value, validNames);
-                ValidateExamSelection(_shiftF12Exam, value => ShiftF12Exam = value, validNames);
-                ValidateExamSelection(_ctrlF12Exam, value => CtrlF12Exam = value, validNames);
+                ValidateExamSelection(_shiftF9Exam, value => ShiftF9Exam = value, validNames, nameof(ShiftF9Exam));
+                ValidateExamSelection(_ctrlF9Exam, value => CtrlF9Exam = value, validNames, nameof(CtrlF9Exam));
+                ValidateExamSelection(_shiftF10Exam, value => ShiftF10Exam = value, validNames, nameof(ShiftF10Exam));
+                ValidateExamSelection(_ctrlF10Exam, value => CtrlF10Exam = value, validNames, nameof(CtrlF10Exam));
+                ValidateExamSelection(_shiftF11Exam, value => ShiftF11Exam = value, validNames, nameof(ShiftF11Exam));
+                ValidateExamSelection(_ctrlF11Exam, value => CtrlF11Exam = value, validNames, nameof(CtrlF11Exam));
+                ValidateExamSelection(_shiftF12Exam, value => ShiftF12Exam = value, validNames, nameof(ShiftF12Exam));
+                ValidateExamSelection(_ctrlF12Exam, value => CtrlF12Exam = value, validNames, nameof(CtrlF12Exam));
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore validation failures – settings remain unchanged if exam options cannot be loaded.
+                Logger.LogException("[SettingsViewModel] ValidateExamSelectionsInternal failed", ex);
             }
         }
 
@@ -519,7 +521,7 @@ namespace Client.ViewModel
             return map;
         }
 
-        private static void ValidateExamSelection(string currentValue, Action<string> setter, IReadOnlyDictionary<string, string> validNames)
+        private static void ValidateExamSelection(string currentValue, Action<string> setter, IReadOnlyDictionary<string, string> validNames, string propertyName)
         {
             if (setter is null)
             {
@@ -528,6 +530,7 @@ namespace Client.ViewModel
 
             if (string.IsNullOrWhiteSpace(currentValue))
             {
+                Logger.Log($"[SettingsViewModel] {propertyName} is empty during validation.");
                 return;
             }
 
@@ -545,6 +548,10 @@ namespace Client.ViewModel
                 {
                     Logger.Log($"[SettingsViewModel] Normalized exam shortcut from '{currentValue}' to '{normalized}'.");
                     setter(normalized);
+                }
+                else
+                {
+                    Logger.Log($"[SettingsViewModel] {propertyName} validated with value '{normalized}'.");
                 }
             }
             else
