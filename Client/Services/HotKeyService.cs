@@ -177,7 +177,7 @@ namespace Client.Services
             }, IntPtr.Zero);
             return foundTitle;
         }
-        public static async Task ShowPatientDialogAsync(string examName, string? patientName = null)
+        public static async Task ShowPatientDialogAsync(string? examIdentifier, string? patientName = null)
         {
             var options = ExamOption.Load();
             var rooms = RoomList.Load();
@@ -197,13 +197,12 @@ namespace Client.Services
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var nameBox = new TextBox { PlaceholderText = "Nom du patient" ,Width = 600};
-            var sanitizedExamName = examName?.Trim();
+            var sanitizedExamIdentifier = examIdentifier?.Trim();
             var examCombo = new ComboBox
             {
                 ItemsSource = options,
                 DisplayMemberPath = nameof(ExamOption.DisplayLabel),
-                SelectedValuePath = nameof(ExamOption.Name),
-                SelectedValue = sanitizedExamName,
+                SelectedValuePath = nameof(ExamOption.Id),
                 Width = 600
             };
             var eyeCombo = new ComboBox { Width = 600 };
@@ -262,8 +261,17 @@ namespace Client.Services
                 }
             };
 
-            var examOpt = options.FirstOrDefault(o =>
-                string.Equals(o?.Name?.Trim(), sanitizedExamName, StringComparison.OrdinalIgnoreCase));
+            var examOpt = ExamOption.FindByIdentifier(options, sanitizedExamIdentifier);
+            if (examOpt is not null)
+            {
+                examCombo.SelectedValue = examOpt.Id;
+            }
+            else if (!string.IsNullOrEmpty(sanitizedExamIdentifier) &&
+                     options.Any(o => string.Equals(o.Id, sanitizedExamIdentifier, StringComparison.OrdinalIgnoreCase)))
+            {
+                examCombo.SelectedValue = sanitizedExamIdentifier;
+            }
+
             ApplyExamDefaults(examOpt);
 
             examCombo.SelectionChanged += (s, _) =>
@@ -315,8 +323,9 @@ namespace Client.Services
                 PatientStringHelper.ExtractInfoFromInput(inputName,
                     out var titleBox, out var lastNameBox, out var firstNameBox);
 
-                var selectedExam = examCombo.SelectedValue as string ?? string.Empty;
-                var opt = options.FirstOrDefault(o => o.Name == selectedExam);
+                var selectedExamId = examCombo.SelectedValue as string ?? string.Empty;
+                var opt = ExamOption.FindByIdentifier(options, selectedExamId);
+                var resolvedExamName = opt?.Name ?? sanitizedExamIdentifier ?? string.Empty;
 
                 var patient = new Patient
                 {
@@ -325,7 +334,7 @@ namespace Client.Services
                     Title = titleBox,
                     LastName = lastNameBox,
                     FirstName = firstNameBox,
-                    Exams = selectedExam,
+                    Exams = resolvedExamName,
                     Eye = (eyeCombo.SelectedItem as ComboBoxItem)?.Content as string ?? string.Empty,
                     Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim(),
                     Position = floorCombo.SelectedItem as string ?? string.Empty,
@@ -365,12 +374,13 @@ namespace Client.Services
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var nameBox = new TextBox { Width = 600, Text = $"{patient.Title} {patient.LastName} {patient.FirstName}".Trim() };
+            var selectedExam = ExamOption.FindByIdentifier(options, patient.Exams);
             var examCombo = new ComboBox
             {
                 ItemsSource = options,
-                DisplayMemberPath = "Name",
-                SelectedValuePath = "Name",
-                SelectedValue = patient.Exams,
+                DisplayMemberPath = nameof(ExamOption.DisplayLabel),
+                SelectedValuePath = nameof(ExamOption.Id),
+                SelectedValue = selectedExam?.Id,
                 Width = 600
             };
             var eyeCombo = new ComboBox { Width = 600 };
@@ -400,13 +410,13 @@ namespace Client.Services
                 PatientStringHelper.ExtractInfoFromInput(inputName,
                     out var titleBox, out var lastNameBox, out var firstNameBox);
 
-                var selectedExam = examCombo.SelectedValue as string ?? string.Empty;
-                var opt = options.FirstOrDefault(o => o.Name == selectedExam);
+                var selectedExamId = examCombo.SelectedValue as string ?? string.Empty;
+                var opt = ExamOption.FindByIdentifier(options, selectedExamId);
 
                 patient.Title = titleBox;
                 patient.LastName = lastNameBox;
                 patient.FirstName = firstNameBox;
-                patient.Exams = selectedExam;
+                patient.Exams = opt?.Name ?? patient.Exams;
                 patient.Eye = (eyeCombo.SelectedItem as ComboBoxItem)?.Content as string ?? string.Empty;
                 patient.Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim();
                 patient.Position = floorCombo.SelectedItem as string ?? string.Empty;
@@ -459,13 +469,15 @@ namespace Client.Services
             };
             await dialog.ShowAsync();
         }
-        public static async Task DeclarePatientAsync(string examName, string patientName)
+        public static async Task DeclarePatientAsync(string examIdentifier, string patientName)
         {
             var options = ExamOption.Load();
-            var opt = options.FirstOrDefault(o => o.Name.Equals(examName, StringComparison.OrdinalIgnoreCase));
+            var opt = ExamOption.FindByIdentifier(options, examIdentifier);
 
             PatientStringHelper.ExtractInfoFromInput(patientName.Trim(),
                 out var title, out var lastName, out var firstName);
+
+            var resolvedExamName = opt?.Name ?? examIdentifier;
 
             var patient = new Patient
             {
@@ -474,7 +486,7 @@ namespace Client.Services
                 Title = title,
                 LastName = lastName,
                 FirstName = firstName,
-                Exams = examName,
+                Exams = resolvedExamName ?? string.Empty,
                 Eye = "ODG",
                 Annotation = opt?.Annotation ?? string.Empty,
                 Position = opt?.Floor ?? string.Empty,

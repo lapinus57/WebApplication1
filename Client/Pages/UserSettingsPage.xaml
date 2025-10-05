@@ -177,7 +177,7 @@
                                                         <ComboBox Width="150"
                                                                   ItemsSource="{x:Bind AvailableExamOptions, Mode=OneWay}"
                                                                   ItemTemplate="{StaticResource ExamOptionTemplate}"
-                                                                  SelectedValuePath="Name"
+                                                                  SelectedValuePath="Id"
                                                                   SelectedValue="{x:Bind SelectedExam, Mode=TwoWay}" />
                                                     </StackPanel>
                                                 </DataTemplate>

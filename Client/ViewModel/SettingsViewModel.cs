@@ -453,10 +453,7 @@ namespace Client.ViewModel
             Logger.Log("[SettingsViewModel] Settings loaded.");
         }
 
-        private static string NormalizeExamValue(string? value)
-        {
-            return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
-        }
+        private static string NormalizeExamValue(string? value) => ExamOption.NormalizeIdentifier(value);
 
         public void ValidateExamSelections(IEnumerable<ExamOption> availableOptions)
         {
@@ -472,16 +469,16 @@ namespace Client.ViewModel
         {
             try
             {
-                var validNames = BuildValidExamNameMap(availableOptions);
+                var validIdentifiers = BuildValidExamIdentifierMap(availableOptions);
 
-                ValidateExamSelection(_shiftF9Exam, value => ShiftF9Exam = value, validNames, nameof(ShiftF9Exam));
-                ValidateExamSelection(_ctrlF9Exam, value => CtrlF9Exam = value, validNames, nameof(CtrlF9Exam));
-                ValidateExamSelection(_shiftF10Exam, value => ShiftF10Exam = value, validNames, nameof(ShiftF10Exam));
-                ValidateExamSelection(_ctrlF10Exam, value => CtrlF10Exam = value, validNames, nameof(CtrlF10Exam));
-                ValidateExamSelection(_shiftF11Exam, value => ShiftF11Exam = value, validNames, nameof(ShiftF11Exam));
-                ValidateExamSelection(_ctrlF11Exam, value => CtrlF11Exam = value, validNames, nameof(CtrlF11Exam));
-                ValidateExamSelection(_shiftF12Exam, value => ShiftF12Exam = value, validNames, nameof(ShiftF12Exam));
-                ValidateExamSelection(_ctrlF12Exam, value => CtrlF12Exam = value, validNames, nameof(CtrlF12Exam));
+                ValidateExamSelection(_shiftF9Exam, value => ShiftF9Exam = value, validIdentifiers, nameof(ShiftF9Exam));
+                ValidateExamSelection(_ctrlF9Exam, value => CtrlF9Exam = value, validIdentifiers, nameof(CtrlF9Exam));
+                ValidateExamSelection(_shiftF10Exam, value => ShiftF10Exam = value, validIdentifiers, nameof(ShiftF10Exam));
+                ValidateExamSelection(_ctrlF10Exam, value => CtrlF10Exam = value, validIdentifiers, nameof(CtrlF10Exam));
+                ValidateExamSelection(_shiftF11Exam, value => ShiftF11Exam = value, validIdentifiers, nameof(ShiftF11Exam));
+                ValidateExamSelection(_ctrlF11Exam, value => CtrlF11Exam = value, validIdentifiers, nameof(CtrlF11Exam));
+                ValidateExamSelection(_shiftF12Exam, value => ShiftF12Exam = value, validIdentifiers, nameof(ShiftF12Exam));
+                ValidateExamSelection(_ctrlF12Exam, value => CtrlF12Exam = value, validIdentifiers, nameof(CtrlF12Exam));
             }
             catch (Exception ex)
             {
@@ -489,7 +486,7 @@ namespace Client.ViewModel
             }
         }
 
-        private static Dictionary<string, string> BuildValidExamNameMap(IEnumerable<ExamOption> options)
+        private static Dictionary<string, string> BuildValidExamIdentifierMap(IEnumerable<ExamOption> options)
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -507,32 +504,33 @@ namespace Client.ViewModel
 
                 option.Normalize();
 
-                var name = NormalizeExamValue(option.Name);
-                if (string.IsNullOrWhiteSpace(name))
+                var identifier = NormalizeExamValue(option.Id);
+                if (string.IsNullOrWhiteSpace(identifier))
                 {
                     continue;
                 }
 
-                map[name] = name;
-                TryRegisterAlias(map, option.Description, name);
-                TryRegisterAlias(map, option.CodeMSG, name);
-                TryRegisterAlias(map, option.Annotation, name);
-                TryRegisterAlias(map, option.EndAnnotation, name);
-                TryRegisterAlias(map, option.Floor, name);
+                map[identifier] = identifier;
+                TryRegisterAlias(map, option.Name, identifier);
+                TryRegisterAlias(map, option.Description, identifier);
+                TryRegisterAlias(map, option.CodeMSG, identifier);
+                TryRegisterAlias(map, option.Annotation, identifier);
+                TryRegisterAlias(map, option.EndAnnotation, identifier);
+                TryRegisterAlias(map, option.Floor, identifier);
             }
 
             return map;
         }
 
-        private static void TryRegisterAlias(IDictionary<string, string> map, string? value, string normalizedName)
+        private static void TryRegisterAlias(IDictionary<string, string> map, string? value, string normalizedIdentifier)
         {
             var alias = NormalizeExamValue(value);
-            if (string.IsNullOrWhiteSpace(alias) || map.ContainsKey(alias))
+            if (string.IsNullOrWhiteSpace(alias) || map.ContainsKey(alias) || string.IsNullOrWhiteSpace(normalizedIdentifier))
             {
                 return;
             }
 
-            map[alias] = normalizedName;
+            map[alias] = normalizedIdentifier;
         }
 
         private static void ValidateExamSelection(string currentValue, Action<string> setter, IReadOnlyDictionary<string, string> validNames, string propertyName)

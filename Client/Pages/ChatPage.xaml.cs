@@ -426,9 +426,9 @@ namespace Client.Pages
                 {
                     var name = text.Substring(exam.CodeMSG.Length).Trim();
                     if (string.IsNullOrEmpty(name))
-                        _ = HotKeyService.ShowPatientDialogAsync(exam.Name);
+                        _ = HotKeyService.ShowPatientDialogAsync(exam.Id);
                     else
-                        _ = HotKeyService.DeclarePatientAsync(exam.Name, name);
+                        _ = HotKeyService.DeclarePatientAsync(exam.Id, name);
                     InputBox.Text = string.Empty;
                     return;
                 }
@@ -495,7 +495,7 @@ namespace Client.Pages
                     var title = TestTitles[Random.Shared.Next(TestTitles.Length)];
                     var fullName = $"{title} {lastName} {firstName}".Trim();
 
-                    await HotKeyService.DeclarePatientAsync(exam.Name, fullName);
+                    await HotKeyService.DeclarePatientAsync(exam.Id, fullName);
                 }
             }
             catch (Exception ex)
