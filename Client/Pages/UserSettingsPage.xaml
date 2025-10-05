@@ -152,7 +152,7 @@
                     <ItemsControl ItemsSource="{x:Bind ExamShortcutGroups}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="2" />
+                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="4" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
