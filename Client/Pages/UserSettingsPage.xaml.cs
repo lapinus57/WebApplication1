@@ -32,18 +32,21 @@ namespace Client.Pages
             this.Loaded += UserSettingsPage_Loaded;
             this.Unloaded += UserSettingsPage_Unloaded;
             ViewModelSettings.Load();
+            Logger.Log($"[UserSettingsPage] Initialized with {ExamOptions.Count} cached exam option(s).");
             Debug.WriteLine($"[UserSettingsPage] ViewModel instance: {ViewModelSettings.GetHashCode()}");
         }
 
         private async void UserSettingsPage_Loaded(object sender, RoutedEventArgs e)
         {
             App.ChatService.ExamOptionsUpdated += ChatService_ExamOptionsUpdated;
+            Logger.Log("[UserSettingsPage] Page loaded.");
             await RefreshExamOptionsAsync();
         }
 
         private void UserSettingsPage_Unloaded(object sender, RoutedEventArgs e)
         {
             App.ChatService.ExamOptionsUpdated -= ChatService_ExamOptionsUpdated;
+            Logger.Log("[UserSettingsPage] Page unloaded.");
         }
 
         private void ChatService_ExamOptionsUpdated(IEnumerable<ExamOption> options)
@@ -96,6 +99,7 @@ namespace Client.Pages
 
             ExamOption.Save(ExamOptions);
             ViewModelSettings.ValidateExamSelections(ExamOptions);
+            Logger.Log($"[UserSettingsPage] Exam options updated. Count={ExamOptions.Count}.");
         }
         private void Back_Click(object sender, RoutedEventArgs e)
         {

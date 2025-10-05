@@ -269,6 +269,7 @@ namespace Client.ViewModel
                 if (_ctrlF9Exam != normalized)
                 {
                     _ctrlF9Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] CtrlF9Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF9Exam));
                     Set("CtrlF9Exam", normalized);
                 }
@@ -284,6 +285,7 @@ namespace Client.ViewModel
                 if (_shiftF9Exam != normalized)
                 {
                     _shiftF9Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] ShiftF9Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF9Exam));
                     Set("ShiftF9Exam", normalized);
                 }
@@ -299,6 +301,7 @@ namespace Client.ViewModel
                 if (_ctrlF10Exam != normalized)
                 {
                     _ctrlF10Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] CtrlF10Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF10Exam));
                     Set("CtrlF10Exam", normalized);
                 }
@@ -314,6 +317,7 @@ namespace Client.ViewModel
                 if (_shiftF10Exam != normalized)
                 {
                     _shiftF10Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] ShiftF10Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF10Exam));
                     Set("ShiftF10Exam", normalized);
                 }
@@ -329,6 +333,7 @@ namespace Client.ViewModel
                 if (_ctrlF11Exam != normalized)
                 {
                     _ctrlF11Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] CtrlF11Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF11Exam));
                     Set("CtrlF11Exam", normalized);
                 }
@@ -344,6 +349,7 @@ namespace Client.ViewModel
                 if (_shiftF11Exam != normalized)
                 {
                     _shiftF11Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] ShiftF11Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF11Exam));
                     Set("ShiftF11Exam", normalized);
                 }
@@ -359,6 +365,7 @@ namespace Client.ViewModel
                 if (_ctrlF12Exam != normalized)
                 {
                     _ctrlF12Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] CtrlF12Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF12Exam));
                     Set("CtrlF12Exam", normalized);
                 }
@@ -374,6 +381,7 @@ namespace Client.ViewModel
                 if (_shiftF12Exam != normalized)
                 {
                     _shiftF12Exam = normalized;
+                    Logger.Log($"[SettingsViewModel] ShiftF12Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF12Exam));
                     Set("ShiftF12Exam", normalized);
                 }
@@ -526,6 +534,7 @@ namespace Client.ViewModel
             var lookupKey = NormalizeExamValue(currentValue);
             if (string.IsNullOrWhiteSpace(lookupKey))
             {
+                Logger.Log($"[SettingsViewModel] Clearing exam shortcut because value '{currentValue}' is whitespace.");
                 setter(string.Empty);
                 return;
             }
@@ -534,11 +543,13 @@ namespace Client.ViewModel
             {
                 if (!string.Equals(currentValue, normalized, StringComparison.Ordinal))
                 {
+                    Logger.Log($"[SettingsViewModel] Normalized exam shortcut from '{currentValue}' to '{normalized}'.");
                     setter(normalized);
                 }
             }
             else
             {
+                Logger.Log($"[SettingsViewModel] Exam shortcut value '{currentValue}' not found. Clearing selection.");
                 setter(string.Empty);
             }
         }
