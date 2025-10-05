@@ -197,12 +197,13 @@ namespace Client.Services
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var nameBox = new TextBox { PlaceholderText = "Nom du patient" ,Width = 600};
+            var sanitizedExamName = examName?.Trim();
             var examCombo = new ComboBox
             {
                 ItemsSource = options,
-                DisplayMemberPath = "Name",
-                SelectedValuePath = "Name",
-                SelectedValue = examName,
+                DisplayMemberPath = nameof(ExamOption.DisplayLabel),
+                SelectedValuePath = nameof(ExamOption.Name),
+                SelectedValue = sanitizedExamName,
                 Width = 600
             };
             var eyeCombo = new ComboBox { Width = 600 };
@@ -212,7 +213,8 @@ namespace Client.Services
             eyeCombo.SelectedIndex = 0;
 
             var floorCombo = new ComboBox { Width = 600, ItemsSource = rooms };
-            var examOpt = options.FirstOrDefault(o => o.Name == examName);
+            var examOpt = options.FirstOrDefault(o =>
+                string.Equals(o?.Name?.Trim(), sanitizedExamName, StringComparison.OrdinalIgnoreCase));
             if (examOpt != null && rooms.Contains(examOpt.Floor))
                 floorCombo.SelectedItem = examOpt.Floor;
             var commentBox = new TextBox { PlaceholderText = "Commentaire", Width = 600 };
