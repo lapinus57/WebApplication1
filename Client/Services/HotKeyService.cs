@@ -215,9 +215,24 @@ namespace Client.Services
             var floorCombo = new ComboBox { Width = 600, ItemsSource = rooms };
             var examOpt = options.FirstOrDefault(o =>
                 string.Equals(o?.Name?.Trim(), sanitizedExamName, StringComparison.OrdinalIgnoreCase));
-            if (examOpt != null && rooms.Contains(examOpt.Floor))
-                floorCombo.SelectedItem = examOpt.Floor;
+            if (examOpt != null)
+            {
+                if (!string.IsNullOrWhiteSpace(examOpt.Floor))
+                {
+                    if (!rooms.Any(r => string.Equals(r, examOpt.Floor, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        rooms.Add(examOpt.Floor);
+                    }
+
+                    floorCombo.SelectedItem = rooms.FirstOrDefault(r =>
+                        string.Equals(r, examOpt.Floor, StringComparison.OrdinalIgnoreCase)) ?? examOpt.Floor;
+                }
+            }
             var commentBox = new TextBox { PlaceholderText = "Commentaire", Width = 600 };
+            if (!string.IsNullOrWhiteSpace(examOpt?.Annotation))
+            {
+                commentBox.Text = examOpt.Annotation.Trim();
+            }
 
             // Extract patient name either from parameter or active window title
             if (string.IsNullOrWhiteSpace(patientName))
