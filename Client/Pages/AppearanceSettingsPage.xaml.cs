@@ -25,7 +25,7 @@ namespace Client.Pages
 
             currentSettings = AppSettings.GetObject<AppColorSettings>("Colors");
 
-            if (FindName("TitleBarPicker") is ColorPicker tb)
+            if (FindName("TitleBarAccentPicker") is ColorPicker tb)
                 tb.Color = ColorUtils.FromHex(currentSettings.TitleBarColor);
             if (FindName("NavPicker") is ColorPicker np)
                 np.Color = ColorUtils.FromHex(currentSettings.NavigationViewColor);
@@ -33,8 +33,6 @@ namespace Client.Pages
                 mb.Color = ColorUtils.FromHex(currentSettings.MyMessageColor);
             if (FindName("OtherBubblePicker") is ColorPicker ob)
                 ob.Color = ColorUtils.FromHex(currentSettings.OtherMessageColor);
-            if (FindName("AccentDark1Picker") is ColorPicker ad)
-                ad.Color = ColorUtils.FromHex(currentSettings.SystemAccentColorDark1);
             if (FindName("ThemeCombo") is ComboBox theme)
             {
                 theme.SelectedIndex = ViewModelSettings.AppTheme switch
@@ -46,13 +44,16 @@ namespace Client.Pages
             }
         }
 
-        private void TitleBarColor_Changed(ColorPicker sender, ColorChangedEventArgs args)
+        private void TitleBarAccentColor_Changed(ColorPicker sender, ColorChangedEventArgs args)
         {
             currentSettings.TitleBarColor = ColorUtils.ToHex(args.NewColor);
             var textColorTitleBar = ColorUtils.GetContrastingTextColor(args.NewColor);
             currentSettings.TextTitleBarColor = ColorUtils.ToHex(textColorTitleBar);
+            currentSettings.SystemAccentColorDark1 = ColorUtils.ToHex(args.NewColor);
             AppSettings.SetObject("Colors", currentSettings);
             UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
+            UpdateResourceBrush("SystemAccentColorDark1", args.NewColor);
+            UpdateResourceBrush("AccentColor", args.NewColor);
             if (App.MainWindow.Content is FrameworkElement root)
             {
                 var titleBar = (Grid)root.FindName("AppTitleBar");
@@ -146,20 +147,6 @@ namespace Client.Pages
             }
         }
 
-        private void AccentDark1Color_Changed(ColorPicker sender, ColorChangedEventArgs args)
-        {
-            currentSettings.SystemAccentColorDark1 = ColorUtils.ToHex(args.NewColor);
-            AppSettings.SetObject("Colors", currentSettings);
-            UpdateResourceBrush("SystemAccentColorDark1", args.NewColor);
-            if (App.MainWindow.Content is FrameworkElement root)
-            {
-                var titleBar = (Grid)root.FindName("AppTitleBar");
-                var nav = (NavigationView)root.FindName("nvSample");
-                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
-                ApplyColors(currentSettings, titleBar, nav, titleText);
-            }
-        }
-
         private void SaveSettings_Click(object sender, RoutedEventArgs e)
         {
             AppSettings.SetObject("Colors", currentSettings);
@@ -187,6 +174,7 @@ namespace Client.Pages
             UpdateResourceBrush("TitleBarColor", titleColor);
             UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
             UpdateResourceBrush("SystemAccentColor", titleColor);
+            UpdateResourceBrush("AccentColor", titleColor);
             UpdateResourceBrush("SystemAccentColorLight3", navColor);
             UpdateResourceBrush("MyMessageColor", myColor);
             UpdateResourceBrush("TextMyMessageColor", textMyColor);
