@@ -61,6 +61,27 @@ namespace Client.Services
             ServerAddress = cfg.ServerAddress;
             var machine = MachineConfig.Load();
             RoomName = machine.RoomName;
+            AppSettings.SettingsChanged += OnSettingsChanged;
+        }
+
+        private void OnSettingsChanged()
+        {
+            if (Dispatcher is DispatcherQueue dispatcher && !dispatcher.HasThreadAccess)
+            {
+                dispatcher.TryEnqueue(RefreshUserAccentColors);
+            }
+            else
+            {
+                RefreshUserAccentColors();
+            }
+        }
+
+        private void RefreshUserAccentColors()
+        {
+            foreach (var user in ConnectedUsers)
+            {
+                user.RefreshAccentAwareColor();
+            }
         }
 
         public event Action<ChatMessageModel>? OnMessageReceived;

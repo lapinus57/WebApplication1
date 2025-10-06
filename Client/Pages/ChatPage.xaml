@@ -220,7 +220,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
                 <Image Source="{x:Bind Avatar}" Width="32" Height="32"/>
                 <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
-                           Foreground="{x:Bind ColorUserName, Converter={StaticResource StringToColorConverter}}"/>
+                           Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}"/>
             </StackPanel>
         </DataTemplate>
 
@@ -413,8 +413,9 @@
                                 ContextFlyout="{StaticResource UserContextMenu}">
                             <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                             <StackPanel>
-                                <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind ColorUserName}" FontWeight="Bold"/>
-                                <TextBlock Text="{x:Bind RoomsDisplay, Mode=OneWay, FallbackValue='Offline'}"/>
+                                <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}" FontWeight="Bold"/>
+                                <TextBlock Text="{x:Bind RoomsDisplay, Mode=OneWay, FallbackValue='Offline'}"
+                                           Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}"/>
                             </StackPanel>
                         </StackPanel>
                     </DataTemplate>

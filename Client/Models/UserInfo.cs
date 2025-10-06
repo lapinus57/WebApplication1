@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Client.Helpers;
 
 namespace Client.Models
 {
@@ -10,10 +11,13 @@ namespace Client.Models
         public string Username { get; set; } = string.Empty;
         public string Avatar { get; set; } = string.Empty;
         private ObservableCollection<string> _rooms = new();
+        private string _colorUserName = string.Empty;
+        private string _accentAwareColorUserName = string.Empty;
 
         public UserInfo()
         {
             _rooms.CollectionChanged += Rooms_CollectionChanged;
+            UpdateAccentAwareColor();
         }
 
         public ObservableCollection<string> Rooms
@@ -34,7 +38,32 @@ namespace Client.Models
             }
         }
 
-        public string ColorUserName { get; set; } = string.Empty;
+        public string ColorUserName
+        {
+            get => _colorUserName;
+            set
+            {
+                var newValue = value ?? string.Empty;
+                if (_colorUserName != newValue)
+                {
+                    _colorUserName = newValue;
+                    OnPropertyChanged(nameof(ColorUserName));
+                    UpdateAccentAwareColor();
+                }
+            }
+        }
+        public string AccentAwareColorUserName
+        {
+            get => _accentAwareColorUserName;
+            private set
+            {
+                if (_accentAwareColorUserName != value)
+                {
+                    _accentAwareColorUserName = value;
+                    OnPropertyChanged(nameof(AccentAwareColorUserName));
+                }
+            }
+        }
         public string DisplayName { get; set; } = string.Empty;
 
         private bool _isOnline;
@@ -72,6 +101,20 @@ namespace Client.Models
         {
             IsOnline = _rooms.Count > 0;
             OnPropertyChanged(nameof(RoomsDisplay));
+        }
+
+        public void RefreshAccentAwareColor()
+        {
+            UpdateAccentAwareColor();
+        }
+
+        private void UpdateAccentAwareColor()
+        {
+            var colors = AppSettings.GetObject<AppColorSettings>("Colors");
+            var accent = ColorUtils.FromHex(colors.TitleBarColor);
+            var original = ColorUtils.FromHex(_colorUserName);
+            var adjusted = ColorUtils.EnsureContrast(original, accent);
+            AccentAwareColorUserName = ColorUtils.ToHex(adjusted);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
