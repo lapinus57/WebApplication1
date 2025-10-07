@@ -378,16 +378,27 @@ namespace Client.Pages
             if (_ignoreSelectionChanged)
                 return;
 
+            foreach (var removed in e.RemovedItems.OfType<UserInfo>())
+            {
+                removed.SetAccentSelection(false);
+            }
+
             if (UsersList.SelectedItem is UserInfo selected)
             {
                 if (selected.Username == App.UserName)
                 {
+                    selected.SetAccentSelection(false);
                     _ignoreSelectionChanged = true;
                     UsersList.SelectedItem = App.LastUserChanged ?? AppSettings.CurrentSelectedUser;
                     _ignoreSelectionChanged = false;
+                    if (UsersList.SelectedItem is UserInfo fallback)
+                    {
+                        fallback.SetAccentSelection(true);
+                    }
                     return;
                 }
 
+                selected.SetAccentSelection(true);
                 App.LastUserChanged = selected;
                 AppSettings.CurrentSelectedUser = selected;
                 InputBox.Focus(FocusState.Programmatic);
