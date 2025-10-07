@@ -54,6 +54,7 @@ namespace Client.Pages
             UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
             UpdateResourceBrush("SystemAccentColorDark1", args.NewColor);
             UpdateResourceBrush("AccentColor", args.NewColor);
+            UpdateResourceBrush("SystemControlHighlightAccentBrush", args.NewColor);
             if (App.MainWindow.Content is FrameworkElement root)
             {
                 var titleBar = (Grid)root.FindName("AppTitleBar");
@@ -176,6 +177,7 @@ namespace Client.Pages
             UpdateResourceBrush("SystemAccentColor", titleColor);
             UpdateResourceBrush("AccentColor", titleColor);
             UpdateResourceBrush("SystemAccentColorLight3", navColor);
+            UpdateResourceBrush("SystemControlHighlightAccentBrush", titleColor);
             UpdateResourceBrush("MyMessageColor", myColor);
             UpdateResourceBrush("TextMyMessageColor", textMyColor);
             UpdateResourceBrush("OtherMessageColor", otherColor);
