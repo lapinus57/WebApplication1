@@ -13,6 +13,7 @@ namespace Client.Models
         private ObservableCollection<string> _rooms = new();
         private string _colorUserName = string.Empty;
         private string _accentAwareColorUserName = string.Empty;
+        private bool _usesAccentContrast;
 
         public UserInfo()
         {
@@ -108,8 +109,23 @@ namespace Client.Models
             UpdateAccentAwareColor();
         }
 
+        public void SetAccentSelection(bool isSelected)
+        {
+            if (_usesAccentContrast != isSelected)
+            {
+                _usesAccentContrast = isSelected;
+                UpdateAccentAwareColor();
+            }
+        }
+
         private void UpdateAccentAwareColor()
         {
+            if (!_usesAccentContrast || string.IsNullOrWhiteSpace(_colorUserName))
+            {
+                AccentAwareColorUserName = _colorUserName;
+                return;
+            }
+
             var colors = AppSettings.GetObject<AppColorSettings>("Colors");
             var accent = ColorUtils.FromHex(colors.TitleBarColor);
             var original = ColorUtils.FromHex(_colorUserName);
