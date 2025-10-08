@@ -859,13 +859,42 @@ namespace Client.Pages
             if (string.Equals(oldExam, "AT", StringComparison.OrdinalIgnoreCase))
                 return;
 
+            var wasTaken = patient.IsTaken;
+            var options = ExamOption.Load();
+            var holdOption = ExamOption.FindByIdentifier(options, "AT");
+
             patient.Exams = "AT";
             if (!string.IsNullOrWhiteSpace(oldExam))
             {
                 patient.Annotation = $"{oldExam} FAIT";
             }
 
+            if (holdOption != null)
+            {
+                if (!string.IsNullOrWhiteSpace(holdOption.Color))
+                {
+                    patient.Colors = holdOption.Color;
+                }
+
+                if (!string.IsNullOrWhiteSpace(holdOption.Floor))
+                {
+                    patient.Position = holdOption.Floor;
+                }
+            }
+
+            if (wasTaken)
+            {
+                patient.IsTaken = false;
+                patient.PickUpTime = null;
+            }
+
             UpdatePatientViews();
+
+            if (wasTaken)
+            {
+                await _service.SetPatientTakenAsync(patient.Id, false);
+            }
+
             await _service.UpdatePatientAsync(patient);
         }
 
