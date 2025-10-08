@@ -37,6 +37,7 @@ namespace Client.Pages
         private bool _ignoreSelectionChanged;
         private bool _ignoreOrderChange;
         private bool _isApplyingSlashCommand;
+        private readonly bool _showSlashCommands;
         private ScrollViewer? _messagesScrollViewer;
         private readonly List<SlashCommandInfo> _slashCommands = new()
         {
@@ -72,6 +73,7 @@ namespace Client.Pages
             _service = App.ChatService;
             var cfg = MachineConfig.Load();
             ShowTimeModification = cfg.ShowTimeModification;
+            _showSlashCommands = cfg.ShowSlashCommands;
             DataContext = this;
 
             BuildRooms();
@@ -1128,6 +1130,12 @@ namespace Client.Pages
         {
             if (SlashCommandsFlyout == null)
                 return;
+
+            if (!_showSlashCommands)
+            {
+                HideSlashCommandsFlyout();
+                return;
+            }
 
             if (_isApplyingSlashCommand)
             {

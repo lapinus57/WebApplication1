@@ -16,10 +16,12 @@ namespace Client.Pages
         private bool _isLoaded;
         private bool _suppressTimeToggle;
         private bool _suppressReminderToggle;
+        private bool _suppressSlashToggle;
 
         public string RoomName { get; set; } = string.Empty;
         public bool ShowTimeModification { get; set; }
         public bool ShowReminderPage { get; set; }
+        public bool ShowSlashCommands { get; set; }
         public List<string> Users { get; set; } = new();
         public string DefaultUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
@@ -34,6 +36,7 @@ namespace Client.Pages
             RoomName = _config.RoomName;
             DefaultUser = _config.DefaultUser;
             ConnectLastUser = _config.ConnectLastUser;
+            ShowSlashCommands = _config.ShowSlashCommands;
 
             var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
             if (Directory.Exists(folder))
@@ -64,6 +67,7 @@ namespace Client.Pages
             _config.RoomName = RoomName;
             _config.ShowTimeModification = ShowTimeModification;
             _config.ShowReminderPage = ShowReminderPage;
+            _config.ShowSlashCommands = ShowSlashCommands;
             _config.DefaultUser = DefaultUser;
             _config.ConnectLastUser = ConnectLastUser;
             MachineConfig.Save(_config);
@@ -180,6 +184,40 @@ namespace Client.Pages
             }
 
             ShowReminderPage = toggle.IsOn;
+        }
+
+        private async void SlashCommandsSwitch_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!_isLoaded || _suppressSlashToggle)
+                return;
+
+            if (sender is not ToggleSwitch toggle)
+                return;
+
+            if (toggle.IsOn)
+            {
+                if (!await EnsurePasswordAsync(toggle))
+                {
+                    _suppressSlashToggle = true;
+                    toggle.IsOn = false;
+                    _suppressSlashToggle = false;
+                    ShowSlashCommands = false;
+                    return;
+                }
+            }
+            else
+            {
+                if (!await ConfirmDisableAsync("Êtes-vous sûr de masquer la liste des commandes ?", toggle))
+                {
+                    _suppressSlashToggle = true;
+                    toggle.IsOn = true;
+                    _suppressSlashToggle = false;
+                    ShowSlashCommands = true;
+                    return;
+                }
+            }
+
+            ShowSlashCommands = toggle.IsOn;
         }
 
         private async Task<bool> EnsurePasswordAsync(FrameworkElement? element)
