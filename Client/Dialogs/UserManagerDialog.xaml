@@ -5,6 +5,7 @@
     xmlns:local="using:Client.Dialogs"
     xmlns:models="using:Client.Models"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    x:Name="Dialog"
     Title="Gestion des utilisateurs"
     PrimaryButtonText="Fermer"
     DefaultButton="Primary"
@@ -30,13 +31,13 @@
                                         Content="Renommer"
                                         Click="RenameLocal_Click"
                                         Tag="{x:Bind Username}"
-                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                        IsEnabled="{x:Bind ElementName=Dialog, Path=CanManageUser(Username)}" />
                                     <Button
                                         Grid.Column="2"
                                         Content="Supprimer"
                                         Click="DeleteLocal_Click"
                                         Tag="{x:Bind Username}"
-                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                        IsEnabled="{x:Bind ElementName=Dialog, Path=CanManageUser(Username)}" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
@@ -61,13 +62,13 @@
                                         Content="Renommer"
                                         Click="RenameServer_Click"
                                         Tag="{x:Bind Username}"
-                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                        IsEnabled="{x:Bind ElementName=Dialog, Path=CanManageUser(Username)}" />
                                     <Button
                                         Grid.Column="2"
                                         Content="Supprimer"
                                         Click="DeleteServer_Click"
                                         Tag="{x:Bind Username}"
-                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                        IsEnabled="{x:Bind ElementName=Dialog, Path=CanManageUser(Username)}" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
