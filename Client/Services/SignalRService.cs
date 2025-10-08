@@ -64,6 +64,28 @@ namespace Client.Services
             AppSettings.SettingsChanged += OnSettingsChanged;
         }
 
+        private static string GetLocalDataFolderPath()
+            => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+
+        private static string GetLocalUsersFilePath(bool ensureDirectory)
+        {
+            var folder = GetLocalDataFolderPath();
+            if (ensureDirectory && !Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+            return Path.Combine(folder, "users.json");
+        }
+
+        private static async Task WriteUsersToDiskAsync(IEnumerable<UserInfo> users)
+        {
+            var path = GetLocalUsersFilePath(true);
+            var json = JsonConvert.SerializeObject(users, Formatting.Indented);
+            await File.WriteAllTextAsync(path, json);
+        }
+
+        private static bool IsProtectedUser(string username)
+            => string.Equals(username, "A Tous", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(username, "Secrétariat", StringComparison.OrdinalIgnoreCase);
+
         private void OnSettingsChanged()
         {
             if (Dispatcher is DispatcherQueue dispatcher && !dispatcher.HasThreadAccess)
@@ -776,8 +798,9 @@ namespace Client.Services
         {
             try
             {
-                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", "users.json");
-                if (File.Exists(path))
+                var path = GetLocalUsersFilePath(false);
+                var folder = Path.GetDirectoryName(path)!;
+                if (Directory.Exists(folder) && File.Exists(path))
                 {
                     var json = await File.ReadAllTextAsync(path);
                     var users = JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
@@ -800,9 +823,7 @@ namespace Client.Services
         {
             try
             {
-                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", "users.json");
-                var json = JsonConvert.SerializeObject(ConnectedUsers.ToList(), Formatting.Indented);
-                await File.WriteAllTextAsync(path, json);
+                await WriteUsersToDiskAsync(ConnectedUsers.ToList());
             }
             catch (Exception ex)
             {
@@ -810,11 +831,128 @@ namespace Client.Services
             }
         }
 
+        public async Task<bool> RenameLocalUserAsync(string oldName, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+                return false;
+
+            oldName = oldName.Trim();
+            newName = newName.Trim();
+
+            if (string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (IsProtectedUser(oldName) || IsProtectedUser(newName))
+                return false;
+
+            try
+            {
+                var users = await LoadUsersFromDiskAsync();
+                var existing = users.FirstOrDefault(u => string.Equals(u.Username, oldName, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
+                    return false;
+
+                if (users.Any(u => string.Equals(u.Username, newName, StringComparison.OrdinalIgnoreCase)))
+                    return false;
+
+                var originalDisplay = existing.DisplayName;
+                existing.Username = newName;
+                if (string.IsNullOrWhiteSpace(originalDisplay) || string.Equals(originalDisplay, oldName, StringComparison.OrdinalIgnoreCase))
+                    existing.DisplayName = newName;
+
+                await WriteUsersToDiskAsync(users);
+
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    var item = ConnectedUsers.FirstOrDefault(u => string.Equals(u.Username, oldName, StringComparison.OrdinalIgnoreCase));
+                    if (item != null)
+                    {
+                        item.Username = newName;
+                        if (string.IsNullOrWhiteSpace(item.DisplayName) || string.Equals(item.DisplayName, oldName, StringComparison.OrdinalIgnoreCase))
+                            item.DisplayName = newName;
+                    }
+                });
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SignalRService] RenameLocalUserAsync erreur : {ex.Message}");
+            }
+
+            return false;
+        }
+
+        public async Task<bool> DeleteLocalUserAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username) || IsProtectedUser(username))
+                return false;
+
+            username = username.Trim();
+
+            try
+            {
+                var users = await LoadUsersFromDiskAsync();
+                var removed = users.RemoveAll(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
+                if (removed == 0)
+                    return false;
+
+                await WriteUsersToDiskAsync(users);
+
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    var item = ConnectedUsers.FirstOrDefault(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
+                    if (item != null)
+                        ConnectedUsers.Remove(item);
+                });
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SignalRService] DeleteLocalUserAsync erreur : {ex.Message}");
+            }
+
+            return false;
+        }
+
+        public async Task<bool> RenameServerUserAsync(string oldName, string newName)
+        {
+            if (Connection == null || Connection.State != HubConnectionState.Connected)
+                return false;
+
+            try
+            {
+                return await Connection.InvokeAsync<bool>("RenameKnownUser", oldName, newName);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SignalRService] RenameServerUserAsync erreur : {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteServerUserAsync(string username)
+        {
+            if (Connection == null || Connection.State != HubConnectionState.Connected)
+                return false;
+
+            try
+            {
+                return await Connection.InvokeAsync<bool>("DeleteKnownUser", username);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SignalRService] DeleteServerUserAsync erreur : {ex.Message}");
+                return false;
+            }
+        }
+
         public void ClearLocalData()
         {
             try
             {
-                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                var folder = GetLocalDataFolderPath();
                 if (Directory.Exists(folder))
                 {
                     foreach (var file in Directory.GetFiles(folder, "chat_*.json"))

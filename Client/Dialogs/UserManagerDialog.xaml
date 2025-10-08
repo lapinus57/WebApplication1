@@ -1,0 +1,80 @@
+<ContentDialog
+    x:Class="Client.Dialogs.UserManagerDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Client.Dialogs"
+    xmlns:models="using:Client.Models"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    Title="Gestion des utilisateurs"
+    PrimaryButtonText="Fermer"
+    DefaultButton="Primary"
+    x:DefaultBindMode="OneWay">
+
+    <StackPanel Spacing="16" MinWidth="420">
+        <TextBlock Text="Gérez les utilisateurs enregistrés localement ou sur le serveur." TextWrapping="WrapWholeWords" />
+
+        <muxc:TabView>
+            <muxc:TabViewItem Header="Local">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Utilisateurs stockés localement" FontWeight="SemiBold" />
+                    <ListView ItemsSource="{x:Bind LocalUsers}" Height="260">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:UserInfo">
+                                <Grid ColumnDefinitions="* Auto Auto" ColumnSpacing="12" Padding="0,4,0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind RoomsDisplay}" Foreground="Gray" FontSize="12" />
+                                    </StackPanel>
+                                    <Button
+                                        Grid.Column="1"
+                                        Content="Renommer"
+                                        Click="RenameLocal_Click"
+                                        Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                    <Button
+                                        Grid.Column="2"
+                                        Content="Supprimer"
+                                        Click="DeleteLocal_Click"
+                                        Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock Text="{x:Bind LocalStatus}" Foreground="Gray" TextWrapping="WrapWholeWords" />
+                </StackPanel>
+            </muxc:TabViewItem>
+
+            <muxc:TabViewItem Header="Serveur">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Utilisateurs connus par le serveur" FontWeight="SemiBold" />
+                    <ListView ItemsSource="{x:Bind ServerUsers}" Height="260">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:UserInfo">
+                                <Grid ColumnDefinitions="* Auto Auto" ColumnSpacing="12" Padding="0,4,0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind RoomsDisplay}" Foreground="Gray" FontSize="12" />
+                                    </StackPanel>
+                                    <Button
+                                        Grid.Column="1"
+                                        Content="Renommer"
+                                        Click="RenameServer_Click"
+                                        Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                    <Button
+                                        Grid.Column="2"
+                                        Content="Supprimer"
+                                        Click="DeleteServer_Click"
+                                        Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanManageUser(Username)}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock Text="{x:Bind ServerStatus}" Foreground="Gray" TextWrapping="WrapWholeWords" />
+                </StackPanel>
+            </muxc:TabViewItem>
+        </muxc:TabView>
+    </StackPanel>
+</ContentDialog>
