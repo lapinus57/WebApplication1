@@ -20,6 +20,11 @@ namespace Client.Helpers
         /// </summary>
         public bool ShowReminderPage { get; set; }
 
+        /// <summary>
+        /// Show the slash command helper list in the chat input.
+        /// </summary>
+        public bool ShowSlashCommands { get; set; } = true;
+
         public static string FilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat", "machine.json");
