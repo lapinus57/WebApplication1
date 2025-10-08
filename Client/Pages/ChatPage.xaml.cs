@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Client.Models;
 using Client.Services;
+using Client.Dialogs;
 using Client.Helpers;
 using Client;
 using System.Text;
@@ -37,6 +38,7 @@ namespace Client.Pages
         private bool _ignoreSelectionChanged;
         private bool _ignoreOrderChange;
         private bool _isApplyingSlashCommand;
+        private readonly bool _showSlashCommands;
         private ScrollViewer? _messagesScrollViewer;
         private readonly List<SlashCommandInfo> _slashCommands = new()
         {
@@ -46,6 +48,7 @@ namespace Client.Pages
             new SlashCommandInfo("/clearallpatientday", "Supprimer tous les patients du jour"),
             new SlashCommandInfo("/clearallmessageday", "Supprimer tous les messages du jour"),
             new SlashCommandInfo("/generatemessage", "Générer des messages de démonstration"),
+            new SlashCommandInfo("/usermanager", "Gérer les utilisateurs locaux et serveur"),
         };
         private static readonly string[] TestFirstNames = new[]
         {
@@ -72,6 +75,7 @@ namespace Client.Pages
             _service = App.ChatService;
             var cfg = MachineConfig.Load();
             ShowTimeModification = cfg.ShowTimeModification;
+            _showSlashCommands = cfg.ShowSlashCommands;
             DataContext = this;
 
             BuildRooms();
@@ -474,10 +478,32 @@ namespace Client.Pages
                     _ = _service.GenerateSampleMessagesAsync();
                     InputBox.Text = string.Empty;
                 }
+                else if (string.Equals(text, "/usermanager", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = ShowUserManagerDialogAsync();
+                    InputBox.Text = string.Empty;
+                }
                 else
                 {
                     Send_Click(sender, e);
                 }
+            }
+        }
+
+        private async Task ShowUserManagerDialogAsync()
+        {
+            try
+            {
+                var dialog = new UserManagerDialog
+                {
+                    XamlRoot = XamlRoot
+                };
+
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ChatPage] Erreur ouverture UserManager : {ex.Message}");
             }
         }
 
@@ -1128,6 +1154,12 @@ namespace Client.Pages
         {
             if (SlashCommandsFlyout == null)
                 return;
+
+            if (!_showSlashCommands)
+            {
+                HideSlashCommandsFlyout();
+                return;
+            }
 
             if (_isApplyingSlashCommand)
             {
