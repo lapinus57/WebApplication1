@@ -22,22 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Pages\AppearanceSettingsPage.xaml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Page Include="Pages\AppearanceSettingsPage.xaml">
-      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-    </Page>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Page Include="Dialogs\UserManagerDialog.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
