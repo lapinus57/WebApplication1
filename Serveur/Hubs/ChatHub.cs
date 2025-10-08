@@ -45,6 +45,54 @@ namespace ChatServeur
             }
         };
 
+        private static bool IsProtectedUser(string username)
+            => BaseUsers.Any(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
+
+        private static bool TryGetUserEntry(string username, out string actualKey, out UserInfo user)
+        {
+            foreach (var pair in AllUsers)
+            {
+                if (string.Equals(pair.Key, username, StringComparison.OrdinalIgnoreCase))
+                {
+                    actualKey = pair.Key;
+                    user = pair.Value;
+                    return true;
+                }
+            }
+
+            actualKey = string.Empty;
+            user = null!;
+            return false;
+        }
+
+        private static bool TryGetConnectionEntry(string username, out string actualKey, out HashSet<string> connections)
+        {
+            foreach (var pair in _userToConnectionId)
+            {
+                if (string.Equals(pair.Key, username, StringComparison.OrdinalIgnoreCase))
+                {
+                    actualKey = pair.Key;
+                    connections = pair.Value;
+                    return true;
+                }
+            }
+
+            actualKey = string.Empty;
+            connections = null!;
+            return false;
+        }
+
+        private static string? FindMember(HashSet<string> members, string username)
+        {
+            foreach (var member in members)
+            {
+                if (string.Equals(member, username, StringComparison.OrdinalIgnoreCase))
+                    return member;
+            }
+
+            return null;
+        }
+
         private void EnsureUsersLoaded()
         {
             if (_usersLoaded)
@@ -643,6 +691,145 @@ namespace ChatServeur
             EnsureUsersLoaded();
             var userList = BaseUsers.Concat(AllUsers.Values).ToList();
             return Task.FromResult(userList);
+        }
+
+        public async Task<bool> RenameKnownUser(string oldName, string newName)
+        {
+            EnsureUsersLoaded();
+
+            if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+                return false;
+
+            oldName = oldName.Trim();
+            newName = newName.Trim();
+
+            if (string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (IsProtectedUser(oldName) || IsProtectedUser(newName))
+                return false;
+
+            if (!TryGetUserEntry(oldName, out var actualOldKey, out var user))
+                return false;
+
+            if (TryGetUserEntry(newName, out _, out _))
+                return false;
+
+            var originalDisplay = user.DisplayName;
+
+            if (TryGetConnectionEntry(actualOldKey, out var connectionKey, out var connections) && connections.Count > 0)
+            {
+                _userToConnectionId.Remove(connectionKey);
+                _userToConnectionId[newName] = connections;
+
+                foreach (var conn in connections)
+                {
+                    if (ConnectedUsers.TryGetValue(conn, out var connectedUser))
+                    {
+                        connectedUser.Username = newName;
+                        if (string.IsNullOrWhiteSpace(connectedUser.DisplayName) || string.Equals(connectedUser.DisplayName, actualOldKey, StringComparison.OrdinalIgnoreCase))
+                            connectedUser.DisplayName = newName;
+                        ConnectedUsers[conn] = connectedUser;
+                    }
+                }
+            }
+
+            AllUsers.Remove(actualOldKey);
+            user.Username = newName;
+            if (string.IsNullOrWhiteSpace(originalDisplay) || string.Equals(originalDisplay, actualOldKey, StringComparison.OrdinalIgnoreCase))
+                user.DisplayName = newName;
+            AllUsers[newName] = user;
+
+            foreach (var key in GroupMembers.Keys.ToList())
+            {
+                var members = GroupMembers[key];
+                var existing = FindMember(members, actualOldKey);
+                if (existing != null)
+                {
+                    members.Remove(existing);
+                    members.Add(newName);
+                }
+            }
+
+            var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == actualOldKey);
+            if (dbUser != null)
+            {
+                dbUser.Username = newName;
+                if (string.IsNullOrWhiteSpace(dbUser.DisplayName) || string.Equals(dbUser.DisplayName, actualOldKey, StringComparison.OrdinalIgnoreCase))
+                    dbUser.DisplayName = newName;
+                _db.KnownUsers.Update(dbUser);
+            }
+
+            var memberships = await _db.GroupMemberships.Where(m => m.Username == actualOldKey).ToListAsync();
+            if (memberships.Count > 0)
+            {
+                foreach (var membership in memberships)
+                    membership.Username = newName;
+                _db.GroupMemberships.UpdateRange(memberships);
+            }
+
+            var settings = await _db.UserSettings.FirstOrDefaultAsync(s => s.Username == actualOldKey);
+            if (settings != null)
+            {
+                settings.Username = newName;
+                _db.UserSettings.Update(settings);
+            }
+
+            await _db.SaveChangesAsync();
+
+            var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+            await Clients.All.SendAsync("UserListUpdated", userList);
+
+            return true;
+        }
+
+        public async Task<bool> DeleteKnownUser(string username)
+        {
+            EnsureUsersLoaded();
+
+            if (string.IsNullOrWhiteSpace(username))
+                return false;
+
+            username = username.Trim();
+
+            if (IsProtectedUser(username))
+                return false;
+
+            if (!TryGetUserEntry(username, out var actualKey, out _))
+                return false;
+
+            if (TryGetConnectionEntry(actualKey, out _, out var connections) && connections.Count > 0)
+                return false;
+
+            AllUsers.Remove(actualKey);
+            _userToConnectionId.Remove(actualKey);
+
+            foreach (var key in GroupMembers.Keys.ToList())
+            {
+                var members = GroupMembers[key];
+                var existing = FindMember(members, actualKey);
+                if (existing != null)
+                    members.Remove(existing);
+            }
+
+            var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == actualKey);
+            if (dbUser != null)
+                _db.KnownUsers.Remove(dbUser);
+
+            var memberships = await _db.GroupMemberships.Where(m => m.Username == actualKey).ToListAsync();
+            if (memberships.Count > 0)
+                _db.GroupMemberships.RemoveRange(memberships);
+
+            var settings = await _db.UserSettings.FirstOrDefaultAsync(s => s.Username == actualKey);
+            if (settings != null)
+                _db.UserSettings.Remove(settings);
+
+            await _db.SaveChangesAsync();
+
+            var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+            await Clients.All.SendAsync("UserListUpdated", userList);
+
+            return true;
         }
 
         public async Task SaveExamOptions(IEnumerable<ExamOption> options)
