@@ -41,7 +41,7 @@ namespace Client.Dialogs
             private set
             {
                 var dispatcher = DispatcherQueue
-                    ?? XamlRoot?.DispatcherQueue
+                    ?? (XamlRoot?.Content as FrameworkElement)?.DispatcherQueue
                     ?? App.MainWindow?.DispatcherQueue;
 
                 if (dispatcher is not null && !dispatcher.HasThreadAccess)
