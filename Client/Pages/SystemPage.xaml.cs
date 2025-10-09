@@ -2,6 +2,7 @@
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -24,7 +25,7 @@ namespace Client.Pages
         public bool ShowTimeModification { get; set; }
         public bool ShowReminderPage { get; set; }
         public bool ShowSlashCommands { get; set; }
-        public List<string> Users { get; set; } = new();
+        public ObservableCollection<string> Users { get; } = new();
         public string DefaultUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
 
@@ -40,14 +41,8 @@ namespace Client.Pages
             ConnectLastUser = _config.ConnectLastUser;
             ShowSlashCommands = _config.ShowSlashCommands;
 
-            var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
-            if (Directory.Exists(folder))
-            {
-                var files = Directory.GetFiles(folder, "*_settings.json");
-                Users = files.Select(f => Path.GetFileName(f).Replace("_settings.json", "")).ToList();
-            }
-            if (!Users.Contains(DefaultUser) && !string.IsNullOrWhiteSpace(DefaultUser))
-                Users.Add(DefaultUser);
+            var initialUsers = LoadUsernamesFromSettingsFiles();
+            UpdateUsersCollection(initialUsers);
 
             DataContext = this;
             Loaded += SystemPage_Loaded;
@@ -243,54 +238,40 @@ namespace Client.Pages
 
         private async Task RefreshLocalUserListAsync()
         {
-            if (App.ChatService is null)
+            var comparer = StringComparer.OrdinalIgnoreCase;
+            var names = new List<string>();
+
+            if (App.ChatService is not null)
             {
-                Debug.WriteLine("[SystemPage] ChatService indisponible pour charger les utilisateurs.");
-                return;
+                try
+                {
+                    var localUsers = await App.ChatService.LoadUsersFromDiskAsync();
+                    names = localUsers
+                        .Select(u => u.Username?.Trim())
+                        .Where(u => !string.IsNullOrWhiteSpace(u))
+                        .Distinct(comparer)
+                        .OrderBy(u => u, comparer)
+                        .ToList();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[SystemPage] Impossible de charger les utilisateurs via le service : {ex.Message}");
+                }
             }
 
-            try
+            if (names.Count == 0)
             {
-                var localUsers = await App.ChatService.LoadUsersFromDiskAsync();
-                var names = localUsers
-                    .Select(u => u.Username?.Trim())
-                    .Where(u => !string.IsNullOrWhiteSpace(u))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(u => u, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (!string.IsNullOrWhiteSpace(DefaultUser) &&
-                    !names.Any(u => string.Equals(u, DefaultUser, StringComparison.OrdinalIgnoreCase)))
+                var fallback = LoadUsernamesFromSettingsFiles();
+                if (fallback.Count == 0)
                 {
-                    DefaultUser = names.FirstOrDefault() ?? string.Empty;
+                    UpdateUsersCollection(names);
+                    return;
                 }
 
-                Users = names;
-
-                if (UsersComboBox is not null)
-                {
-                    UsersComboBox.ItemsSource = null;
-                    UsersComboBox.ItemsSource = Users;
-
-                    if (!string.IsNullOrWhiteSpace(DefaultUser))
-                    {
-                        var selected = Users.FirstOrDefault(u => string.Equals(u, DefaultUser, StringComparison.OrdinalIgnoreCase));
-                        UsersComboBox.SelectedItem = selected ?? Users.FirstOrDefault();
-                        DefaultUser = UsersComboBox.SelectedItem as string ?? string.Empty;
-                    }
-                    else
-                    {
-                        UsersComboBox.SelectedItem = null;
-                        DefaultUser = string.Empty;
-                    }
-                }
-
-                _config.DefaultUser = DefaultUser;
+                names = fallback;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SystemPage] Impossible de rafraîchir la liste des utilisateurs : {ex.Message}");
-            }
+
+            UpdateUsersCollection(names);
         }
 
         private async Task<bool> EnsurePasswordAsync(FrameworkElement? element)
@@ -368,6 +349,65 @@ namespace Client.Pages
                 return fe.XamlRoot;
 
             return null;
+        }
+
+        private void UpdateUsersCollection(IEnumerable<string> names)
+        {
+            var comparer = StringComparer.OrdinalIgnoreCase;
+            var finalNames = names
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(comparer)
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(DefaultUser) &&
+                !finalNames.Any(name => comparer.Equals(name, DefaultUser)))
+            {
+                finalNames.Add(DefaultUser);
+            }
+
+            finalNames.Sort(comparer);
+
+            Users.Clear();
+            foreach (var user in finalNames)
+                Users.Add(user);
+
+            var selectedName = string.IsNullOrWhiteSpace(DefaultUser)
+                ? finalNames.FirstOrDefault()
+                : finalNames.FirstOrDefault(name => comparer.Equals(name, DefaultUser))
+                    ?? finalNames.FirstOrDefault();
+
+            DefaultUser = selectedName ?? string.Empty;
+
+            if (UsersComboBox is not null)
+            {
+                UsersComboBox.ItemsSource = Users;
+                UsersComboBox.SelectedItem = string.IsNullOrEmpty(DefaultUser) ? null : DefaultUser;
+            }
+
+            _config.DefaultUser = DefaultUser;
+        }
+
+        private static List<string> LoadUsernamesFromSettingsFiles()
+        {
+            try
+            {
+                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                if (!Directory.Exists(folder))
+                    return new List<string>();
+
+                return Directory
+                    .GetFiles(folder, "*_settings.json")
+                    .Select(file => Path.GetFileName(file).Replace("_settings.json", string.Empty))
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SystemPage] Lecture des utilisateurs locaux impossible : {ex.Message}");
+                return new List<string>();
+            }
         }
     }
 }
