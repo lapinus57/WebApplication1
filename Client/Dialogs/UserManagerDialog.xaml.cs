@@ -10,6 +10,8 @@ using Client.Services;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Windows.UI.Text;
 
 namespace Client.Dialogs
 {
@@ -192,10 +194,10 @@ namespace Client.Dialogs
                 return;
 
             Debug.WriteLine($"[UserManagerDialog] RenameLocal_Click for {username}");
-            await RenameLocalAsync(username);
+            await RenameLocalAsync(username, button);
         }
 
-        private async Task RenameLocalAsync(string username)
+        private async Task RenameLocalAsync(string username, Button? anchor)
         {
             Debug.WriteLine($"[UserManagerDialog] RenameLocalAsync start for {username}. IsBusy={IsBusy}");
             if (IsProtectedUser(username) || IsBusy)
@@ -204,7 +206,13 @@ namespace Client.Dialogs
                 return;
             }
 
-            var newName = await PromptForNameAsync(username, "Renommer l'utilisateur local");
+            if (anchor is null)
+            {
+                Debug.WriteLine("[UserManagerDialog] RenameLocalAsync aborted: anchor button missing.");
+                return;
+            }
+
+            var newName = await PromptForNameAsync(username, "Renommer l'utilisateur local", anchor);
             if (string.IsNullOrWhiteSpace(newName) || string.Equals(newName, username, StringComparison.OrdinalIgnoreCase))
             {
                 LocalStatus = "Renommage annulé.";
@@ -243,10 +251,10 @@ namespace Client.Dialogs
                 return;
 
             Debug.WriteLine($"[UserManagerDialog] DeleteLocal_Click for {username}");
-            await DeleteLocalAsync(username);
+            await DeleteLocalAsync(username, button);
         }
 
-        private async Task DeleteLocalAsync(string username)
+        private async Task DeleteLocalAsync(string username, Button? anchor)
         {
             Debug.WriteLine($"[UserManagerDialog] DeleteLocalAsync start for {username}. IsBusy={IsBusy}");
             if (IsProtectedUser(username) || IsBusy)
@@ -255,7 +263,13 @@ namespace Client.Dialogs
                 return;
             }
 
-            if (!await ConfirmDeleteAsync(username, false))
+            if (anchor is null)
+            {
+                Debug.WriteLine("[UserManagerDialog] DeleteLocalAsync aborted: anchor button missing.");
+                return;
+            }
+
+            if (!await ConfirmDeleteAsync(username, false, anchor))
             {
                 Debug.WriteLine($"[UserManagerDialog] DeleteLocalAsync cancelled for {username}");
                 return;
@@ -292,10 +306,10 @@ namespace Client.Dialogs
                 return;
 
             Debug.WriteLine($"[UserManagerDialog] RenameServer_Click for {username}");
-            await RenameServerAsync(username);
+            await RenameServerAsync(username, button);
         }
 
-        private async Task RenameServerAsync(string username)
+        private async Task RenameServerAsync(string username, Button? anchor)
         {
             Debug.WriteLine($"[UserManagerDialog] RenameServerAsync start for {username}. IsBusy={IsBusy}");
             if (IsProtectedUser(username) || IsBusy)
@@ -304,7 +318,13 @@ namespace Client.Dialogs
                 return;
             }
 
-            var newName = await PromptForNameAsync(username, "Renommer l'utilisateur serveur");
+            if (anchor is null)
+            {
+                Debug.WriteLine("[UserManagerDialog] RenameServerAsync aborted: anchor button missing.");
+                return;
+            }
+
+            var newName = await PromptForNameAsync(username, "Renommer l'utilisateur serveur", anchor);
             if (string.IsNullOrWhiteSpace(newName) || string.Equals(newName, username, StringComparison.OrdinalIgnoreCase))
             {
                 ServerStatus = "Renommage annulé.";
@@ -345,10 +365,10 @@ namespace Client.Dialogs
                 return;
 
             Debug.WriteLine($"[UserManagerDialog] DeleteServer_Click for {username}");
-            await DeleteServerAsync(username);
+            await DeleteServerAsync(username, button);
         }
 
-        private async Task DeleteServerAsync(string username)
+        private async Task DeleteServerAsync(string username, Button? anchor)
         {
             Debug.WriteLine($"[UserManagerDialog] DeleteServerAsync start for {username}. IsBusy={IsBusy}");
             if (IsProtectedUser(username) || IsBusy)
@@ -357,7 +377,13 @@ namespace Client.Dialogs
                 return;
             }
 
-            if (!await ConfirmDeleteAsync(username, true))
+            if (anchor is null)
+            {
+                Debug.WriteLine("[UserManagerDialog] DeleteServerAsync aborted: anchor button missing.");
+                return;
+            }
+
+            if (!await ConfirmDeleteAsync(username, true, anchor))
             {
                 Debug.WriteLine($"[UserManagerDialog] DeleteServerAsync cancelled for {username}");
                 return;
@@ -389,57 +415,146 @@ namespace Client.Dialogs
             }
         }
 
-        private async Task<string?> PromptForNameAsync(string currentName, string title)
+        private async Task<string?> PromptForNameAsync(string currentName, string title, Button anchor)
         {
             Debug.WriteLine($"[UserManagerDialog] PromptForNameAsync for {currentName} with title '{title}'");
+
+            var tcs = new TaskCompletionSource<string?>();
+            var flyout = new Flyout
+            {
+                Placement = FlyoutPlacementMode.Bottom,
+                AreOpenCloseAnimationsEnabled = true
+            };
+
+            var panel = new StackPanel { Spacing = 8, Width = 260 };
+            panel.Children.Add(new TextBlock
+            {
+                Text = title,
+                TextWrapping = TextWrapping.WrapWholeWords,
+                FontWeight = FontWeights.SemiBold
+            });
+
             var box = new TextBox
             {
                 Text = currentName,
                 PlaceholderText = "Nouveau nom"
             };
+            panel.Children.Add(box);
 
-            var dialog = new ContentDialog
+            var buttons = new StackPanel
             {
-                Title = title,
-                PrimaryButtonText = "Valider",
-                CloseButtonText = "Annuler",
-                DefaultButton = ContentDialogButton.Primary,
-                Content = box,
-                XamlRoot = XamlRoot
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Spacing = 8
             };
 
-            var result = await dialog.ShowAsync();
-            Debug.WriteLine($"[UserManagerDialog] PromptForNameAsync result: {result}");
-            if (result == ContentDialogResult.Primary)
+            var confirm = new Button { Content = "Valider" };
+            var cancel = new Button { Content = "Annuler" };
+            buttons.Children.Add(confirm);
+            buttons.Children.Add(cancel);
+            panel.Children.Add(buttons);
+
+            var completed = false;
+
+            confirm.Click += (_, _) =>
             {
                 var text = box.Text?.Trim();
+                completed = true;
+                flyout.Hide();
                 Debug.WriteLine($"[UserManagerDialog] PromptForNameAsync text: '{text}'");
-                return string.IsNullOrWhiteSpace(text) ? null : text;
-            }
+                tcs.TrySetResult(string.IsNullOrWhiteSpace(text) ? null : text);
+            };
 
-            return null;
+            cancel.Click += (_, _) =>
+            {
+                completed = true;
+                flyout.Hide();
+                tcs.TrySetResult(null);
+            };
+
+            flyout.Closed += (_, _) =>
+            {
+                if (!completed)
+                    tcs.TrySetResult(null);
+            };
+
+            flyout.Content = panel;
+            flyout.ShowAt(anchor);
+
+            anchor.DispatcherQueue?.TryEnqueue(() => box.Focus(FocusState.Programmatic));
+
+            var result = await tcs.Task;
+            Debug.WriteLine($"[UserManagerDialog] PromptForNameAsync result: '{result}'");
+            return result;
         }
 
-        private async Task<bool> ConfirmDeleteAsync(string username, bool server)
+        private async Task<bool> ConfirmDeleteAsync(string username, bool server, Button anchor)
         {
             Debug.WriteLine($"[UserManagerDialog] ConfirmDeleteAsync for {username}. Server={server}");
             var text = server
                 ? $"Supprimer « {username} » des utilisateurs serveur ?"
                 : $"Supprimer « {username} » du cache local ?";
 
-            var dialog = new ContentDialog
+            var tcs = new TaskCompletionSource<bool>();
+            var flyout = new Flyout
             {
-                Title = "Confirmation",
-                Content = new TextBlock { Text = text, TextWrapping = TextWrapping.WrapWholeWords },
-                PrimaryButtonText = "Supprimer",
-                CloseButtonText = "Annuler",
-                DefaultButton = ContentDialogButton.Close,
-                XamlRoot = XamlRoot
+                Placement = FlyoutPlacementMode.Bottom,
+                AreOpenCloseAnimationsEnabled = true
             };
 
-            var result = await dialog.ShowAsync();
+            var panel = new StackPanel { Spacing = 8, Width = 260 };
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Confirmation",
+                FontWeight = FontWeights.SemiBold
+            });
+            panel.Children.Add(new TextBlock
+            {
+                Text = text,
+                TextWrapping = TextWrapping.WrapWholeWords
+            });
+
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Spacing = 8
+            };
+
+            var confirm = new Button { Content = "Supprimer" };
+            var cancel = new Button { Content = "Annuler" };
+            buttons.Children.Add(confirm);
+            buttons.Children.Add(cancel);
+            panel.Children.Add(buttons);
+
+            var completed = false;
+
+            confirm.Click += (_, _) =>
+            {
+                completed = true;
+                flyout.Hide();
+                tcs.TrySetResult(true);
+            };
+
+            cancel.Click += (_, _) =>
+            {
+                completed = true;
+                flyout.Hide();
+                tcs.TrySetResult(false);
+            };
+
+            flyout.Closed += (_, _) =>
+            {
+                if (!completed)
+                    tcs.TrySetResult(false);
+            };
+
+            flyout.Content = panel;
+            flyout.ShowAt(anchor);
+
+            var result = await tcs.Task;
             Debug.WriteLine($"[UserManagerDialog] ConfirmDeleteAsync result: {result}");
-            return result == ContentDialogResult.Primary;
+            return result;
         }
 
         public bool CanManageUser(string username) => !IsProtectedUser(username);

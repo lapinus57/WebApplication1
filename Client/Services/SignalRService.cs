@@ -846,7 +846,10 @@ namespace Client.Services
                         var users = JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
                         Debug.WriteLine($"{logPrefix}-LOAD-RAW Count={users.Count}");
 
-                        foreach (var u in users)
+                        var filteredUsers = FilterLocalUsersWithSettings(users, folder);
+                        Debug.WriteLine($"{logPrefix}-LOAD-FILTERED Count={filteredUsers.Count}");
+
+                        foreach (var u in filteredUsers)
                         {
                             if (u.Rooms.Count == 0)
                                 u.IsOnline = false;
@@ -854,8 +857,8 @@ namespace Client.Services
                             u.CanRenameLocalUser = !IsProtectedUser(u.Username);
                         }
 
-                        Debug.WriteLine($"{logPrefix}-LOAD-SUCCESS Count={users.Count}");
-                        return users;
+                        Debug.WriteLine($"{logPrefix}-LOAD-SUCCESS Count={filteredUsers.Count}");
+                        return filteredUsers;
                     }
                     catch (IOException ioEx) when (attempt < maxAttempts)
                     {
@@ -871,6 +874,34 @@ namespace Client.Services
 
             Debug.WriteLine($"{logPrefix}-LOAD-EMPTY Retour d'une liste vide.");
             return new();
+        }
+
+        private static List<UserInfo> FilterLocalUsersWithSettings(IEnumerable<UserInfo> users, string folder)
+        {
+            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+                return new();
+
+            var result = new List<UserInfo>();
+            foreach (var user in users)
+            {
+                if (string.IsNullOrWhiteSpace(user.Username))
+                    continue;
+
+                var safeName = user.Username.Trim();
+                if (safeName.Length == 0)
+                    continue;
+
+                var settingsPath = Path.Combine(folder, $"{safeName}_settings.json");
+                if (!File.Exists(settingsPath))
+                {
+                    Debug.WriteLine($"[SignalRService][UM-LOCAL] Skipping {user.Username} - missing settings file {settingsPath}");
+                    continue;
+                }
+
+                result.Add(user);
+            }
+
+            return result;
         }
 
         public async Task SaveUsersToDiskAsync()
