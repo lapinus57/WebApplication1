@@ -261,7 +261,7 @@
                             <TextBlock Text="{x:Bind FirstName}" Foreground="{x:Bind ForegroundColor}"/>
                         </StackPanel>
                         <TextBlock Grid.Column="1"
-                                   Text="{x:Bind OperatorName}"
+                                   Text="{x:Bind Examinator}"
                                    Foreground="{x:Bind ForegroundColor}"
                                    HorizontalAlignment="Right"/>
                     </Grid>
@@ -270,7 +270,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
@@ -284,7 +284,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{x:Bind Position}" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="0" Text="{x:Bind Position}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
                         <TextBlock Grid.Column="1" Text="{x:Bind TimeSinceHoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}" HorizontalAlignment="Right"/>
                     </Grid>
                 </Grid>
