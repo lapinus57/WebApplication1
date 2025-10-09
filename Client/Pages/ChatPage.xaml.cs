@@ -969,6 +969,7 @@ namespace Client.Pages
                 var newValue = !patient.IsTaken;
                 patient.IsTaken = newValue;
                 patient.PickUpTime = newValue ? DateTime.Now : null;
+                _service.RefreshPatientHoldTimeInfo(patient);
                 UpdatePatientViews();
                 await _service.SetPatientTakenAsync(patient.Id, newValue);
             }
@@ -1012,6 +1013,7 @@ namespace Client.Pages
                 patient.PickUpTime = null;
             }
 
+            _service.RefreshPatientHoldTimeInfo(patient);
             UpdatePatientViews();
 
             if (wasTaken)
@@ -1048,6 +1050,7 @@ namespace Client.Pages
                     }
 
                     patient.HoldTime = newTime;
+                    _service.RefreshPatientHoldTimeInfo(patient);
                     UpdatePatientViews();
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
                 }
@@ -1067,6 +1070,7 @@ namespace Client.Pages
                     var avgTicks = (h1.Ticks + h2.Ticks) / 2;
                     var newTime = new DateTime(avgTicks);
                     patient.HoldTime = newTime;
+                    _service.RefreshPatientHoldTimeInfo(patient);
                     UpdatePatientViews();
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
                 }
@@ -1086,6 +1090,7 @@ namespace Client.Pages
                     var avgTicks = (h1.Ticks + h2.Ticks) / 2;
                     var newTime = new DateTime(avgTicks);
                     patient.HoldTime = newTime;
+                    _service.RefreshPatientHoldTimeInfo(patient);
                     UpdatePatientViews();
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
                 }

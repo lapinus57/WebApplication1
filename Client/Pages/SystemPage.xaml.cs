@@ -28,6 +28,7 @@ namespace Client.Pages
         public ObservableCollection<string> Users { get; } = new();
         public string DefaultUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
+        public double PickupAlertThresholdMinutes { get; set; }
 
         public SystemPage()
         {
@@ -40,11 +41,13 @@ namespace Client.Pages
             DefaultUser = _config.DefaultUser;
             ConnectLastUser = _config.ConnectLastUser;
             ShowSlashCommands = _config.ShowSlashCommands;
+            PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
 
             var initialUsers = LoadUsernamesFromSettingsFiles();
             UpdateUsersCollection(initialUsers);
 
             DataContext = this;
+            PickupAlertBox.Value = PickupAlertThresholdMinutes;
             Loaded += SystemPage_Loaded;
         }
 
@@ -68,9 +71,13 @@ namespace Client.Pages
             _config.ShowSlashCommands = ShowSlashCommands;
             _config.DefaultUser = DefaultUser;
             _config.ConnectLastUser = ConnectLastUser;
+            _config.PickupAlertThresholdMinutes = (int)Math.Max(0, Math.Round(PickupAlertThresholdMinutes));
+            PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
+            PickupAlertBox.Value = PickupAlertThresholdMinutes;
             MachineConfig.Save(_config);
             App.ChatService.RoomName = RoomName;
             await App.ChatService.UpdateRoomNameAsync(RoomName);
+            App.ChatService.PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
         }
 
         private async void RenameRoom_Click(object sender, RoutedEventArgs e)

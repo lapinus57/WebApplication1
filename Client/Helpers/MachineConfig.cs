@@ -25,6 +25,11 @@ namespace Client.Helpers
         /// </summary>
         public bool ShowSlashCommands { get; set; } = true;
 
+        /// <summary>
+        /// Delay in minutes before highlighting waiting patients.
+        /// </summary>
+        public int PickupAlertThresholdMinutes { get; set; }
+
         public static string FilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat", "machine.json");

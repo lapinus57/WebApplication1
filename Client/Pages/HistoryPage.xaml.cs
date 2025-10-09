@@ -8,6 +8,7 @@ using Client.Models;
 using Client.Services;
 using Client.Helpers;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Dispatching;
 using System;
 
 namespace Client.Pages
@@ -19,6 +20,7 @@ namespace Client.Pages
         public ObservableCollection<string> Rooms { get; } = RoomList.Load();
         private ObservableCollection<string> RoomsWithAll { get; } = new();
         private readonly SignalRService _service;
+        private DispatcherQueueTimer? _holdTimeTimer;
 
         public bool ShowTimeModification { get; private set; }
         public Visibility TimeModificationVisibility => ShowTimeModification ? Visibility.Visible : Visibility.Collapsed;
@@ -31,12 +33,19 @@ namespace Client.Pages
             ShowTimeModification = cfg.ShowTimeModification;
             DataContext = this;
             Loaded += HistoryPage_Loaded;
+            Unloaded += HistoryPage_Unloaded;
             Rooms.CollectionChanged += Rooms_CollectionChanged;
         }
 
         private async void HistoryPage_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadPatientsAsync();
+            StartHoldTimeTimer();
+        }
+
+        private void HistoryPage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            StopHoldTimeTimer();
         }
 
         private async Task LoadPatientsAsync()
@@ -44,12 +53,18 @@ namespace Client.Pages
             var notArchived = await _service.GetPatientsAsync();
             NonArchivedPatients.Clear();
             foreach (var p in notArchived.OrderBy(p => p.HoldTime))
+            {
+                App.ChatService.RefreshPatientHoldTimeInfo(p);
                 NonArchivedPatients.Add(p);
+            }
 
             var archived = await _service.GetArchivedPatientsAsync();
             ArchivedPatients.Clear();
             foreach (var p in archived.OrderBy(p => p.HoldTime))
+            {
+                App.ChatService.RefreshPatientHoldTimeInfo(p);
                 ArchivedPatients.Add(p);
+            }
 
             BuildRooms();
         }
@@ -66,6 +81,7 @@ namespace Client.Pages
                 var newValue = !patient.IsTaken;
                 patient.IsTaken = newValue;
                 patient.PickUpTime = newValue ? DateTime.Now : null;
+                App.ChatService.RefreshPatientHoldTimeInfo(patient);
                 BuildRooms();
                 await _service.SetPatientTakenAsync(patient.Id, newValue);
             }
@@ -194,6 +210,7 @@ namespace Client.Pages
                     }
 
                     patient.HoldTime = newTime;
+                    App.ChatService.RefreshPatientHoldTimeInfo(patient);
                     BuildRooms();
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
                 }
@@ -213,6 +230,7 @@ namespace Client.Pages
                     var avgTicks = (h1.Ticks + h2.Ticks) / 2;
                     var newTime = new DateTime(avgTicks);
                     patient.HoldTime = newTime;
+                    App.ChatService.RefreshPatientHoldTimeInfo(patient);
                     BuildRooms();
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
                 }
@@ -232,9 +250,53 @@ namespace Client.Pages
                     var avgTicks = (h1.Ticks + h2.Ticks) / 2;
                     var newTime = new DateTime(avgTicks);
                     patient.HoldTime = newTime;
+                    App.ChatService.RefreshPatientHoldTimeInfo(patient);
                     BuildRooms();
                     await _service.UpdatePatientHoldTimeAsync(patient.Id, newTime);
                 }
+            }
+        }
+
+        private void StartHoldTimeTimer()
+        {
+            if (_holdTimeTimer is null)
+            {
+                _holdTimeTimer = DispatcherQueue.CreateTimer();
+                _holdTimeTimer.Interval = TimeSpan.FromSeconds(30);
+                _holdTimeTimer.Tick += HoldTimeTimer_Tick;
+            }
+
+            _holdTimeTimer.Start();
+            RefreshDisplayedHoldTimes();
+        }
+
+        private void StopHoldTimeTimer()
+        {
+            if (_holdTimeTimer is null)
+            {
+                return;
+            }
+
+            _holdTimeTimer.Tick -= HoldTimeTimer_Tick;
+            _holdTimeTimer.Stop();
+            _holdTimeTimer = null;
+        }
+
+        private void HoldTimeTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            RefreshDisplayedHoldTimes();
+        }
+
+        private void RefreshDisplayedHoldTimes()
+        {
+            foreach (var patient in NonArchivedPatients.ToList())
+            {
+                App.ChatService.RefreshPatientHoldTimeInfo(patient);
+            }
+
+            foreach (var patient in ArchivedPatients.ToList())
+            {
+                App.ChatService.RefreshPatientHoldTimeInfo(patient);
             }
         }
 
