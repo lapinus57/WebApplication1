@@ -12,6 +12,10 @@ namespace Client.Models
            ColorUtils.ToHex(
                ColorUtils.GetContrastingTextColor(
                    ColorUtils.FromHex(Colors)));
+
+        public string PickupAttentionForeground => RequiresPickupAttention
+            ? "#FFFF5555"
+            : ForegroundColor;
         public string LastName { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string Exams { get; set; } = string.Empty;
@@ -53,6 +57,7 @@ namespace Client.Models
             _pickupAlertThresholdMinutes = Math.Max(0, pickupAlertThresholdMinutes);
             OnPropertyChanged(nameof(TimeSinceHoldTimeFormatted));
             OnPropertyChanged(nameof(RequiresPickupAttention));
+            OnPropertyChanged(nameof(PickupAttentionForeground));
         }
 
         public string ToggleExamLabel => IsTaken

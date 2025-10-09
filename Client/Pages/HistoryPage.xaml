@@ -65,7 +65,7 @@
                         <TextBlock Grid.Column="0" Text="{x:Bind Position}" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
                         <TextBlock Grid.Column="1"
                                    Text="{x:Bind TimeSinceHoldTimeFormatted, Mode=OneWay}"
-                                   Foreground="{x:Bind RequiresPickupAttention ? \"#FFFF5555\" : ForegroundColor, Mode=OneWay}"
+                                   Foreground="{x:Bind PickupAttentionForeground, Mode=OneWay}"
                                    FontWeight="{x:Bind RequiresPickupAttention ? FontWeights.Bold : FontWeights.Normal, Mode=OneWay}"
                                    HorizontalAlignment="Right"/>
                     </Grid>
@@ -155,7 +155,7 @@
                         <TextBlock Grid.Column="0" Text="{x:Bind Position}" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
                         <TextBlock Grid.Column="1"
                                    Text="{x:Bind TimeSinceHoldTimeFormatted, Mode=OneWay}"
-                                   Foreground="{x:Bind RequiresPickupAttention ? \"#FFFF5555\" : ForegroundColor, Mode=OneWay}"
+                                   Foreground="{x:Bind PickupAttentionForeground, Mode=OneWay}"
                                    FontWeight="{x:Bind RequiresPickupAttention ? FontWeights.Bold : FontWeights.Normal, Mode=OneWay}"
                                    HorizontalAlignment="Right"/>
                     </Grid>
