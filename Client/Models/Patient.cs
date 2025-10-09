@@ -27,6 +27,28 @@ namespace Client.Models
 
         public string HoldTimeFormatted => HoldTime.ToString("HH:mm");
         public string? PickUpTimeFormatted => PickUpTime?.ToString("HH:mm");
+        public string TimeSinceHoldTimeFormatted
+        {
+            get
+            {
+                var span = DateTime.Now - HoldTime;
+
+                if (span < TimeSpan.Zero)
+                {
+                    span = TimeSpan.Zero;
+                }
+
+                if (span.TotalDays >= 1)
+                {
+                    var days = (int)span.TotalDays;
+                    return $"{days}j {span:hh\\:mm}";
+                }
+
+                return span.TotalHours >= 1
+                    ? span.ToString("hh\\:mm")
+                    : span.ToString("mm\\:ss");
+            }
+        }
 
         public string ToggleExamLabel => IsTaken
             ? $"Annuler {Exams} de {FirstName} {LastName}"
