@@ -141,7 +141,14 @@ namespace Client.Dialogs
                 var users = await _service.GetAllUsersAsync();
                 Debug.WriteLine($"[UserManagerDialog] Server users loaded: {users.Count()}");
                 ServerUsers.Clear();
-                foreach (var user in users.OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase))
+                var filteredUsers = users
+                    .Where(u => !IsProtectedUser(u.Username))
+                    .OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                Debug.WriteLine($"[UserManagerDialog] Server users after filtering protected accounts: {filteredUsers.Count}");
+
+                foreach (var user in filteredUsers)
                 {
                     var clone = CloneUser(user);
                     clone.CanRenameLocalUser = CanManageUser(clone.Username);
