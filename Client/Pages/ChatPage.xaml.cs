@@ -494,17 +494,56 @@ namespace Client.Pages
         {
             try
             {
-                var dialog = new UserManagerDialog
+                if (DispatcherQueue != null && !DispatcherQueue.HasThreadAccess)
                 {
-                    XamlRoot = XamlRoot
-                };
+                    var tcs = new TaskCompletionSource<bool>();
+                    if (!DispatcherQueue.TryEnqueue(async () =>
+                    {
+                        try
+                        {
+                            await ShowUserManagerDialogCoreAsync();
+                            tcs.TrySetResult(true);
+                        }
+                        catch (Exception queueEx)
+                        {
+                            tcs.TrySetException(queueEx);
+                        }
+                    }))
+                    {
+                        await ShowUserManagerDialogCoreAsync();
+                        return;
+                    }
 
-                await dialog.ShowAsync();
+                    await tcs.Task;
+                    return;
+                }
+
+                await ShowUserManagerDialogCoreAsync();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ChatPage] Erreur ouverture UserManager : {ex.Message}");
             }
+        }
+
+        private async Task ShowUserManagerDialogCoreAsync()
+        {
+            var xamlRoot = XamlRoot;
+            if (xamlRoot == null && App.MainWindow?.Content is FrameworkElement rootElement)
+                xamlRoot = rootElement.XamlRoot;
+
+            if (xamlRoot == null)
+            {
+                Debug.WriteLine("[ChatPage] Impossible d'ouvrir UserManager : XamlRoot introuvable.");
+                return;
+            }
+
+            var dialog = new UserManagerDialog
+            {
+                XamlRoot = xamlRoot
+            };
+
+            await dialog.ShowAsync();
         }
 
         private async Task AddTestPatientsAsync()
