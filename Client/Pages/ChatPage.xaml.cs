@@ -151,11 +151,11 @@ namespace Client.Pages
                     Messages.Add(msg);
 
                 var result = await _service.LoadTodayMessagesAsync(App.UserName);
-                if (result.Success)
+                if (result.Success && result.Value is { } resultMessages)
                 {
                     foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
                         Messages.Remove(item);
-                    foreach (var msg in result.Value)
+                    foreach (var msg in resultMessages)
                         Messages.Add(msg);
 
                     await _service.SaveTodayMessagesToDiskAsync();
@@ -331,7 +331,7 @@ namespace Client.Pages
             return count;
         }
 
-        private bool ShouldKeepMessage(object item, UserInfo? selected)
+        private bool ShouldKeepMessage(object? item, UserInfo? selected)
         {
             if (item is not ChatMessageModel msg)
                 return true;
@@ -707,15 +707,15 @@ namespace Client.Pages
                 _currentDate = _currentDate.AddDays(-1);
                 tryCount++;
 
-                var result = await _service.LoadMessagesForDateAsync(App.UserName, _currentDate);
+                  var result = await _service.LoadMessagesForDateAsync(App.UserName, _currentDate);
 
-                if (result.Success && result.Value.Any())
-                {
-                    int insertIndex = 1;
-                    foreach (var msg in result.Value.OrderBy(m => m.Timestamp))
-                    {
-                        Messages.Insert(insertIndex++, msg);
-                    }
+                  if (result.Success && result.Value is { } messages && messages.Any())
+                  {
+                      int insertIndex = 1;
+                      foreach (var msg in messages.OrderBy(m => m.Timestamp))
+                      {
+                          Messages.Insert(insertIndex++, msg);
+                      }
 
                     return;
                 }
@@ -1644,7 +1644,7 @@ namespace Client.Pages
         {
             var toRemove = collection.OfType<T>().ToList();
             foreach (var item in toRemove)
-                collection.Remove(item);
+                collection.Remove(item!);
         }
     }
 }

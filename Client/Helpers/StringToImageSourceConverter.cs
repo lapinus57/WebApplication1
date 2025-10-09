@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
@@ -18,7 +19,7 @@ namespace Client.Helpers
                 {
                 }
             }
-            return null;
+            return DependencyProperty.UnsetValue;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -27,7 +28,7 @@ namespace Client.Helpers
             {
                 return img.UriSource.AbsoluteUri;
             }
-            return null;
+            return DependencyProperty.UnsetValue;
         }
     }
 }

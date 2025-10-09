@@ -38,6 +38,9 @@ namespace Client.Services
         private const uint KEYEVENTF_KEYUP = 0x0002;
         public string RoomName { get; set; } = string.Empty;
 
+        private static XamlRoot? GetMainWindowXamlRoot()
+            => App.MainWindow?.Content is FrameworkElement root ? root.XamlRoot : null;
+
         [StructLayout(LayoutKind.Sequential)]
         private struct KBDLLHOOKSTRUCT
         {
@@ -182,12 +185,16 @@ namespace Client.Services
             var options = ExamOption.Load();
             var rooms = RoomList.Load();
 
+            var xamlRoot = GetMainWindowXamlRoot();
+            if (xamlRoot is null)
+                return;
+
             var dialog = new ContentDialog
             {
                 Title = "Ajout d'un patient",
                 PrimaryButtonText = "Valider",
                 CloseButtonText = "Annuler",
-                XamlRoot = App.MainWindow.Content.XamlRoot,
+                XamlRoot = xamlRoot,
             };
 
             var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
@@ -359,12 +366,16 @@ namespace Client.Services
             var options = ExamOption.Load();
             var rooms = RoomList.Load();
 
+            var xamlRoot = GetMainWindowXamlRoot();
+            if (xamlRoot is null)
+                return;
+
             var dialog = new ContentDialog
             {
                 Title = "Modifier un patient",
                 PrimaryButtonText = "Valider",
                 CloseButtonText = "Annuler",
-                XamlRoot = App.MainWindow.Content.XamlRoot,
+                XamlRoot = xamlRoot,
             };
 
             var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
@@ -457,6 +468,10 @@ namespace Client.Services
             foreach (var log in logs.OrderBy(l => l.Timestamp))
                 sb.AppendLine($"{log.Timestamp:dd/MM HH:mm} - {log.Username} - {log.Action} {log.Details}");
 
+            var xamlRoot = GetMainWindowXamlRoot();
+            if (xamlRoot is null)
+                return;
+
             var dialog = new ContentDialog
             {
                 Title = "Informations patient",
@@ -465,7 +480,7 @@ namespace Client.Services
                 {
                     Content = new TextBlock { Text = sb.ToString(), TextWrapping = TextWrapping.Wrap }
                 },
-                XamlRoot = App.MainWindow.Content.XamlRoot,
+                XamlRoot = xamlRoot,
             };
             await dialog.ShowAsync();
         }
@@ -615,14 +630,14 @@ namespace Client.Services
                         {
                             var exam = AppSettings.Get(key, string.Empty);
 
-                            App.MainWindow?.DispatcherQueue?.TryEnqueue(() =>
+                            App.MainWindow?.DispatcherQueue?.TryEnqueue(async () =>
                             {
                                 BringMainWindowToForeground();
                                 if (App.MainWindow is MainWindow mw)
                                 {
-                                    var chat = mw.ShowChatPage();
-                                    ShowPatientDialogAsync(exam);
-                            }
+                                    mw.ShowChatPage();
+                                    await ShowPatientDialogAsync(exam);
+                                }
                             });
 
                         }
