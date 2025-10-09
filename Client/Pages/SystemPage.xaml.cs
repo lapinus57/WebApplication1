@@ -2,9 +2,11 @@
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Client.Dialogs;
 using Client.Helpers;
 
 namespace Client.Pages
@@ -51,9 +53,10 @@ namespace Client.Pages
             Loaded += SystemPage_Loaded;
         }
 
-        private void SystemPage_Loaded(object sender, RoutedEventArgs e)
+        private async void SystemPage_Loaded(object sender, RoutedEventArgs e)
         {
             _isLoaded = true;
+            await RefreshLocalUserListAsync();
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
@@ -218,6 +221,76 @@ namespace Client.Pages
             }
 
             ShowSlashCommands = toggle.IsOn;
+        }
+
+        private async void ManageUsers_Click(object sender, RoutedEventArgs e)
+        {
+            if (!await EnsurePasswordAsync(sender as FrameworkElement))
+                return;
+
+            var xamlRoot = GetXamlRoot(sender as FrameworkElement);
+            if (xamlRoot is null)
+                return;
+
+            var dialog = new UserManagerDialog
+            {
+                XamlRoot = xamlRoot
+            };
+
+            await dialog.ShowAsync();
+            await RefreshLocalUserListAsync();
+        }
+
+        private async Task RefreshLocalUserListAsync()
+        {
+            if (App.ChatService is null)
+            {
+                Debug.WriteLine("[SystemPage] ChatService indisponible pour charger les utilisateurs.");
+                return;
+            }
+
+            try
+            {
+                var localUsers = await App.ChatService.LoadUsersFromDiskAsync();
+                var names = localUsers
+                    .Select(u => u.Username?.Trim())
+                    .Where(u => !string.IsNullOrWhiteSpace(u))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(u => u, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (!string.IsNullOrWhiteSpace(DefaultUser) &&
+                    !names.Any(u => string.Equals(u, DefaultUser, StringComparison.OrdinalIgnoreCase)))
+                {
+                    DefaultUser = names.FirstOrDefault() ?? string.Empty;
+                }
+
+                Users = names;
+
+                if (UsersComboBox is not null)
+                {
+                    UsersComboBox.ItemsSource = null;
+                    UsersComboBox.ItemsSource = Users;
+
+                    if (!string.IsNullOrWhiteSpace(DefaultUser))
+                    {
+                        var selected = Users.FirstOrDefault(u => string.Equals(u, DefaultUser, StringComparison.OrdinalIgnoreCase));
+                        UsersComboBox.SelectedItem = selected ?? Users.FirstOrDefault();
+                        DefaultUser = UsersComboBox.SelectedItem as string ?? string.Empty;
+                    }
+                    else
+                    {
+                        UsersComboBox.SelectedItem = null;
+                        DefaultUser = string.Empty;
+                    }
+                }
+
+                _config.DefaultUser = DefaultUser;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SystemPage] Impossible de rafraîchir la liste des utilisateurs : {ex.Message}");
+            }
         }
 
         private async Task<bool> EnsurePasswordAsync(FrameworkElement? element)
