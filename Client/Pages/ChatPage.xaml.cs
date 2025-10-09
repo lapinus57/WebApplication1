@@ -81,28 +81,35 @@ namespace Client.Pages
             TryRestoreUserSelection();
             await WaitForConnectionReady();
 
-            if (!_service.IsHistoryLoaded && !_messages.Any(m => m is ChatMessageModel))
+            if (!_service.IsHistoryLoaded && !_messages.OfType<ChatMessageModel>().Any())
             {
                 _messages.Clear();
                 _messages.Add(new LoadMorePlaceholder());
 
                 var cachedMessages = await _service.LoadTodayMessagesFromDiskAsync();
                 foreach (var msg in cachedMessages)
-                    _messages.Add(msg);
+                {
+                    if (msg is not null)
+                    {
+                        _messages.Add(msg);
+                    }
+                }
 
                 var result = await _service.LoadTodayMessagesAsync(_service.Username);
                 if (result.Success && result.Value is { } loadedMessages)
                 {
-                    foreach (var item in _messages.OfType<ChatMessageModel>().ToList())
+                    foreach (var message in _messages.OfType<ChatMessageModel>().ToList())
                     {
-                        if (item is not null)
-                        {
-                            _messages.Remove(item);
-                        }
+                        _messages.Remove(message);
                     }
 
                     foreach (var msg in loadedMessages)
-                        _messages.Add(msg);
+                    {
+                        if (msg is not null)
+                        {
+                            _messages.Add(msg);
+                        }
+                    }
 
                     await _service.SaveTodayMessagesToDiskAsync();
                 }
@@ -122,6 +129,11 @@ namespace Client.Pages
         {
             DispatcherQueue.TryEnqueue(async () =>
             {
+                if (chat is null)
+                {
+                    return;
+                }
+
                 // Avoid adding a duplicate message if one with the same
                 // sender, recipient, content and timestamp already exists
                 var existing = _messages
@@ -212,9 +224,15 @@ namespace Client.Pages
                 _messages.Clear();
                 _messages.Add(new LoadMorePlaceholder());
 
-                foreach (var msg in history)
+                if (history is not null)
                 {
-                    _messages.Add(msg);
+                    foreach (var msg in history)
+                    {
+                        if (msg is not null)
+                        {
+                            _messages.Add(msg);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -295,7 +313,10 @@ namespace Client.Pages
                     int insertIndex = 1;
                     foreach (var msg in moreMessages.OrderBy(m => m.Timestamp))
                     {
-                        _messages.Insert(insertIndex++, msg);
+                        if (msg is not null)
+                        {
+                            _messages.Insert(insertIndex++, msg);
+                        }
                     }
 
                     return;
@@ -305,7 +326,7 @@ namespace Client.Pages
             if (tryCount >= maxDaysToTry)
             {
                 var loadMore = _messages.FirstOrDefault(x => x is LoadMorePlaceholder);
-                if (loadMore != null)
+                if (loadMore is not null)
                     _messages.Remove(loadMore);
                 _messages.Insert(0, new EmptyPlaceholder());
             }
@@ -377,7 +398,10 @@ namespace Client.Pages
             if (MessagesList.Items.Count > 0)
             {
                 var last = MessagesList.Items[MessagesList.Items.Count - 1];
-                MessagesList.ScrollIntoView(last);
+                if (last is not null)
+                {
+                    MessagesList.ScrollIntoView(last);
+                }
             }
         }
 
