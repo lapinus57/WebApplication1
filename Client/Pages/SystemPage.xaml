@@ -18,7 +18,14 @@
                                         <ToggleSwitch x:Name="ReminderPageSwitch" Header="Afficher la page de rappel" IsOn="{x:Bind ShowReminderPage, Mode=TwoWay}" Toggled="ReminderPageSwitch_Toggled"/>
                                         <ToggleSwitch x:Name="SlashCommandsSwitch" Header="Afficher la liste des commandes" IsOn="{x:Bind ShowSlashCommands, Mode=TwoWay}" Toggled="SlashCommandsSwitch_Toggled"/>
                                         <TextBlock Text="Utilisateur par défaut"/>
-                                        <ComboBox ItemsSource="{x:Bind Users}" SelectedItem="{x:Bind DefaultUser, Mode=TwoWay}"/>
+                                        <ComboBox
+                                            x:Name="UsersComboBox"
+                                            ItemsSource="{x:Bind Users}"
+                                            SelectedItem="{x:Bind DefaultUser, Mode=TwoWay}"/>
+                                        <Button
+                                            Content="Gérer les utilisateurs enregistrés"
+                                            Click="ManageUsers_Click"
+                                            HorizontalAlignment="Left"/>
                                         <ToggleSwitch Header="Se connecter avec le dernier utilisateur" IsOn="{x:Bind ConnectLastUser, Mode=TwoWay}"/>
                                         <Button Content="Sauvegarder" Click="Save_Click" HorizontalAlignment="Left"/>
                                 </StackPanel>

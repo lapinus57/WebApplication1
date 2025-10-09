@@ -2,9 +2,12 @@
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Client.Dialogs;
 using Client.Helpers;
 
 namespace Client.Pages
@@ -22,7 +25,7 @@ namespace Client.Pages
         public bool ShowTimeModification { get; set; }
         public bool ShowReminderPage { get; set; }
         public bool ShowSlashCommands { get; set; }
-        public List<string> Users { get; set; } = new();
+        public ObservableCollection<string> Users { get; } = new();
         public string DefaultUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
 
@@ -38,22 +41,17 @@ namespace Client.Pages
             ConnectLastUser = _config.ConnectLastUser;
             ShowSlashCommands = _config.ShowSlashCommands;
 
-            var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
-            if (Directory.Exists(folder))
-            {
-                var files = Directory.GetFiles(folder, "*_settings.json");
-                Users = files.Select(f => Path.GetFileName(f).Replace("_settings.json", "")).ToList();
-            }
-            if (!Users.Contains(DefaultUser) && !string.IsNullOrWhiteSpace(DefaultUser))
-                Users.Add(DefaultUser);
+            var initialUsers = LoadUsernamesFromSettingsFiles();
+            UpdateUsersCollection(initialUsers);
 
             DataContext = this;
             Loaded += SystemPage_Loaded;
         }
 
-        private void SystemPage_Loaded(object sender, RoutedEventArgs e)
+        private async void SystemPage_Loaded(object sender, RoutedEventArgs e)
         {
             _isLoaded = true;
+            await RefreshLocalUserListAsync();
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
@@ -220,6 +218,62 @@ namespace Client.Pages
             ShowSlashCommands = toggle.IsOn;
         }
 
+        private async void ManageUsers_Click(object sender, RoutedEventArgs e)
+        {
+            if (!await EnsurePasswordAsync(sender as FrameworkElement))
+                return;
+
+            var xamlRoot = GetXamlRoot(sender as FrameworkElement);
+            if (xamlRoot is null)
+                return;
+
+            var dialog = new UserManagerDialog
+            {
+                XamlRoot = xamlRoot
+            };
+
+            await dialog.ShowAsync();
+            await RefreshLocalUserListAsync();
+        }
+
+        private async Task RefreshLocalUserListAsync()
+        {
+            var comparer = StringComparer.OrdinalIgnoreCase;
+            var names = new List<string>();
+
+            if (App.ChatService is not null)
+            {
+                try
+                {
+                    var localUsers = await App.ChatService.LoadUsersFromDiskAsync();
+                    names = localUsers
+                        .Select(u => u.Username?.Trim())
+                        .Where(u => !string.IsNullOrWhiteSpace(u))
+                        .Distinct(comparer)
+                        .OrderBy(u => u, comparer)
+                        .ToList();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[SystemPage] Impossible de charger les utilisateurs via le service : {ex.Message}");
+                }
+            }
+
+            if (names.Count == 0)
+            {
+                var fallback = LoadUsernamesFromSettingsFiles();
+                if (fallback.Count == 0)
+                {
+                    UpdateUsersCollection(names);
+                    return;
+                }
+
+                names = fallback;
+            }
+
+            UpdateUsersCollection(names);
+        }
+
         private async Task<bool> EnsurePasswordAsync(FrameworkElement? element)
         {
             var xamlRoot = GetXamlRoot(element);
@@ -295,6 +349,65 @@ namespace Client.Pages
                 return fe.XamlRoot;
 
             return null;
+        }
+
+        private void UpdateUsersCollection(IEnumerable<string> names)
+        {
+            var comparer = StringComparer.OrdinalIgnoreCase;
+            var finalNames = names
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(comparer)
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(DefaultUser) &&
+                !finalNames.Any(name => comparer.Equals(name, DefaultUser)))
+            {
+                finalNames.Add(DefaultUser);
+            }
+
+            finalNames.Sort(comparer);
+
+            Users.Clear();
+            foreach (var user in finalNames)
+                Users.Add(user);
+
+            var selectedName = string.IsNullOrWhiteSpace(DefaultUser)
+                ? finalNames.FirstOrDefault()
+                : finalNames.FirstOrDefault(name => comparer.Equals(name, DefaultUser))
+                    ?? finalNames.FirstOrDefault();
+
+            DefaultUser = selectedName ?? string.Empty;
+
+            if (UsersComboBox is not null)
+            {
+                UsersComboBox.ItemsSource = Users;
+                UsersComboBox.SelectedItem = string.IsNullOrEmpty(DefaultUser) ? null : DefaultUser;
+            }
+
+            _config.DefaultUser = DefaultUser;
+        }
+
+        private static List<string> LoadUsernamesFromSettingsFiles()
+        {
+            try
+            {
+                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                if (!Directory.Exists(folder))
+                    return new List<string>();
+
+                return Directory
+                    .GetFiles(folder, "*_settings.json")
+                    .Select(file => Path.GetFileName(file).Replace("_settings.json", string.Empty))
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SystemPage] Lecture des utilisateurs locaux impossible : {ex.Message}");
+                return new List<string>();
+            }
         }
     }
 }
