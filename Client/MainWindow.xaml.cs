@@ -60,7 +60,7 @@ namespace Client
             if (args.SelectedItem is NavigationViewItem item)
             {
                 var tag = item.Tag?.ToString();
-                Type pageType = tag switch
+                Type? pageType = tag switch
                 {
                     "ChatPage" => typeof(Pages.ChatPage),
                     "HistoryPage" => typeof(Pages.HistoryPage),
@@ -76,7 +76,7 @@ namespace Client
                 }
             }
         }
-        public Pages.ChatPage ShowChatPage()
+        public Pages.ChatPage? ShowChatPage()
         {
             var chatItem = nvSample.MenuItems.OfType<NavigationViewItem>()
                 .FirstOrDefault(item => (string)item.Tag == "ChatPage");

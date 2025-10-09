@@ -57,9 +57,9 @@ namespace Client.Pages
             UpdateResourceBrush("SystemControlHighlightAccentBrush", args.NewColor);
             if (App.MainWindow.Content is FrameworkElement root)
             {
-                var titleBar = (Grid)root.FindName("AppTitleBar");
-                var nav = (NavigationView)root.FindName("nvSample");
-                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
+                var titleBar = root.FindName("AppTitleBar") as Grid;
+                var nav = root.FindName("nvSample") as NavigationView;
+                var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
                 TitleBarZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.TitleBarColor));
                 ApplyColors(currentSettings, titleBar, nav, titleText);
             }
@@ -73,7 +73,7 @@ namespace Client.Pages
             AppSettings.SetObject("Colors", currentSettings);
             if (App.MainWindow.Content is FrameworkElement root)
             {
-                var nav = (NavigationView)root.FindName("nvSample");
+                var nav = root.FindName("nvSample") as NavigationView;
                 NavZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.NavigationViewColor));
                 ApplyNavigationColors(currentSettings, nav);
             }
@@ -116,9 +116,9 @@ namespace Client.Pages
             AppSettings.SetObject("Colors", currentSettings);
             if (App.MainWindow.Content is FrameworkElement root)
             {
-                var titleBar = (Grid)root.FindName("AppTitleBar");
-                var nav = (NavigationView)root.FindName("nvSample");
-                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
+                var titleBar = root.FindName("AppTitleBar") as Grid;
+                var nav = root.FindName("nvSample") as NavigationView;
+                var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
                 MyMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.MyMessageColor));
                 ApplyColors(currentSettings, titleBar, nav, titleText);
             }
@@ -132,9 +132,9 @@ namespace Client.Pages
             AppSettings.SetObject("Colors", currentSettings);
             if (App.MainWindow.Content is FrameworkElement root)
             {
-                var titleBar = (Grid)root.FindName("AppTitleBar");
-                var nav = (NavigationView)root.FindName("nvSample");
-                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
+                var titleBar = root.FindName("AppTitleBar") as Grid;
+                var nav = root.FindName("nvSample") as NavigationView;
+                var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
                 OtherMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.OtherMessageColor));
                 ApplyColors(currentSettings, titleBar, nav, titleText);
             }
@@ -153,9 +153,9 @@ namespace Client.Pages
             AppSettings.SetObject("Colors", currentSettings);
             if (App.MainWindow.Content is FrameworkElement root)
             {
-                var titleBar = (Grid)root.FindName("AppTitleBar");
-                var nav = (NavigationView)root.FindName("nvSample");
-                var titleText = (TextBlock)root.FindName("TitleBarTextBlock");
+                var titleBar = root.FindName("AppTitleBar") as Grid;
+                var nav = root.FindName("nvSample") as NavigationView;
+                var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
                 ApplyColors(currentSettings, titleBar, nav, titleText);
             }
         }

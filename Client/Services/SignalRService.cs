@@ -25,12 +25,18 @@ namespace Client.Services
 {
     public class SignalRService
     {
-        public HubConnection Connection { get; private set; }
-        public DispatcherQueue Dispatcher { get; set; }
+        public HubConnection? Connection { get; private set; }
+        public DispatcherQueue? Dispatcher { get; set; }
         public ObservableCollection<UserInfo> ConnectedUsers { get; } = new();
         public ObservableCollection<Patient> Patients { get; } = new();
         public ObservableCollection<object> Messages { get; } = new();
         public string RoomName { get; set; } = string.Empty;
+
+        private HubConnection? GetActiveConnection()
+            => Connection is { State: HubConnectionState.Connected } connection ? connection : null;
+
+        private HubConnection GetRequiredConnection()
+            => GetActiveConnection() ?? throw new InvalidOperationException("Connexion SignalR non établie.");
 
         private bool _initialized;
         private bool _historyLoaded;
@@ -152,16 +158,16 @@ namespace Client.Services
             return avatar;
         }
 
-        private string? ToClientAvatar(string? avatar)
+        private string ToClientAvatar(string? avatar)
         {
             if (string.IsNullOrWhiteSpace(avatar))
-                return null;
+                return string.Empty;
             if (Uri.TryCreate(avatar, UriKind.RelativeOrAbsolute, out var uri))
             {
                 if (!uri.IsAbsoluteUri && avatar.StartsWith("/"))
                     return $"{ServerAddress}{avatar}";
             }
-            return avatar;
+            return avatar ?? string.Empty;
         }
 
         public async Task InitializeAsync()
@@ -272,11 +278,13 @@ namespace Client.Services
                 }
             }
 
-            Connection = new HubConnectionBuilder()
+            var connection = new HubConnectionBuilder()
                 .WithUrl($"{ServerAddress}/chatHub")
                 .Build();
 
-            Connection.Closed += async (error) =>
+            Connection = connection;
+
+            connection.Closed += async (error) =>
             {
                 if (EnableReconnect)
                 {
@@ -308,7 +316,7 @@ namespace Client.Services
                     StartReconnectTimer();
             };
 
-            Connection.On<UserInfo>("UserConnected", user =>
+            connection.On<UserInfo>("UserConnected", user =>
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
@@ -330,7 +338,7 @@ namespace Client.Services
             });
 
 
-            Connection.On<List<UserInfo>>("UserListUpdated", users =>
+            connection.On<List<UserInfo>>("UserListUpdated", users =>
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
@@ -365,7 +373,7 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<List<string>>("UserListOrder", order =>
+            connection.On<List<string>>("UserListOrder", order =>
             {
                 Dispatcher?.TryEnqueue(() =>
                 {
@@ -382,7 +390,7 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<int, string, string, string, string, string, DateTime>("ReceiveMessage", (id, user, room, destinataire, msg, avatar, time) =>
+            connection.On<int, string, string, string, string, string, DateTime>("ReceiveMessage", (id, user, room, destinataire, msg, avatar, time) =>
             {
                 var senderColor = ConnectedUsers.FirstOrDefault(u => u.Username == user)?.ColorUserName ?? "Black";
                 var destColor = ConnectedUsers.FirstOrDefault(u => u.Username == destinataire)?.ColorUserName ?? "Black";
@@ -409,7 +417,7 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<string, string>("ReceiveCall", (caller, room) =>
+            connection.On<string, string>("ReceiveCall", (caller, room) =>
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
@@ -418,7 +426,7 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<int>("MessageDeleted", id =>
+            connection.On<int>("MessageDeleted", id =>
             {
                 Dispatcher?.TryEnqueue(async () =>
                 {
@@ -431,7 +439,7 @@ namespace Client.Services
             });
 
 
-            Connection.On<Patient>("NewPatient", patient =>
+            connection.On<Patient>("NewPatient", patient =>
             {
                 Dispatcher?.TryEnqueue(() =>
                 {
@@ -440,7 +448,7 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<string>("PatientRemoved", id =>
+            connection.On<string>("PatientRemoved", id =>
             {
                 Dispatcher?.TryEnqueue(() =>
                 {
@@ -451,7 +459,7 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<Patient>("PatientUpdated", patient =>
+            connection.On<Patient>("PatientUpdated", patient =>
             {
                 Dispatcher?.TryEnqueue(() =>
                 {
@@ -469,17 +477,17 @@ namespace Client.Services
                 });
             });
 
-            Connection.On<IEnumerable<ExamOption>>("ExamOptionsUpdated", opts =>
+            connection.On<IEnumerable<ExamOption>>("ExamOptionsUpdated", opts =>
             {
                 ExamOptionsUpdated?.Invoke(opts);
             });
 
-            Connection.On<IEnumerable<string>>("RoomsUpdated", rooms =>
+            connection.On<IEnumerable<string>>("RoomsUpdated", rooms =>
             {
                 RoomsUpdated?.Invoke(rooms);
             });
 
-            Connection.On<string, string>("UserSettingsUpdated", (username, json) =>
+            connection.On<string, string>("UserSettingsUpdated", (username, json) =>
             {
                 Dispatcher?.TryEnqueue(() =>
                 {
@@ -506,8 +514,8 @@ namespace Client.Services
 
             try
             {
-                await Connection.StartAsync();
-                await Connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color);
+                await connection.StartAsync();
+                await connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color);
                 StopReconnectTimer();
             }
             catch (Exception ex)
@@ -556,31 +564,33 @@ namespace Client.Services
 
         public async Task SendMessage(string sender, string roomname, string destinataire, string message, string avatar, DateTime timemessage)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
-            await Connection.InvokeAsync("SendMessage", sender, roomname, destinataire, message, ToServerAvatar(avatar), timemessage);
+            var connection = GetRequiredConnection();
+            await connection.InvokeAsync("SendMessage", sender, roomname, destinataire, message, ToServerAvatar(avatar), timemessage);
 
         }
 
         public async Task CallUser(string sender, string roomname, string destinataire)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
-            await Connection.InvokeAsync("CallUser", sender, roomname, destinataire);
+            var connection = GetRequiredConnection();
+            await connection.InvokeAsync("CallUser", sender, roomname, destinataire);
         }
 
         public async Task<Result<List<ChatMessageModel>>> LoadTodayMessagesAsync(string username)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            var connection = GetActiveConnection();
+            if (connection is null)
             {
                 var connected = await TryReconnectAsync();
                 if (!connected)
                     return Result<List<ChatMessageModel>>.Fail("Serveur injoignable.");
+                connection = GetActiveConnection();
+                if (connection is null)
+                    return Result<List<ChatMessageModel>>.Fail("Connexion indisponible.");
             }
 
             try
             {
-                var raw = await Connection.InvokeAsync<List<ChatMessageModel>>("GetTodayMessages", username);
+                var raw = await connection.InvokeAsync<List<ChatMessageModel>>("GetTodayMessages", username);
 
                 var messages = raw.Select(m => new ChatMessageModel
                 {
@@ -607,12 +617,13 @@ namespace Client.Services
         }
         public async Task<Result<List<ChatMessageModel>>> LoadMessagesForDateAsync(string username, DateTime date)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            var connection = GetActiveConnection();
+            if (connection is null)
                 return Result<List<ChatMessageModel>>.Fail("Déconnecté");
 
             try
             {
-                var raw = await Connection.InvokeAsync<List<ChatMessageModel>>("GetMessagesForDate", username, date);
+                var raw = await connection.InvokeAsync<List<ChatMessageModel>>("GetMessagesForDate", username, date);
 
                 return Result<List<ChatMessageModel>>.Ok(
                     raw.Select(m => new ChatMessageModel
@@ -723,37 +734,43 @@ namespace Client.Services
 
         public async Task DeclarePatient(Patient p)
         {
-            await Connection.InvokeAsync("DeclarePatient", p);
+            var connection = GetRequiredConnection();
+            await connection.InvokeAsync("DeclarePatient", p);
         }
 
         public async Task RemovePatientAsync(string id)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
-                await Connection.InvokeAsync("RemovePatient", id);
+            var connection = GetActiveConnection();
+            if (connection != null)
+                await connection.InvokeAsync("RemovePatient", id);
         }
 
         public async Task SetPatientTakenAsync(string id, bool isTaken)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
-                await Connection.InvokeAsync("UpdatePatientIsTaken", id, isTaken);
+            var connection = GetActiveConnection();
+            if (connection != null)
+                await connection.InvokeAsync("UpdatePatientIsTaken", id, isTaken);
         }
 
         public async Task UpdatePatientHoldTimeAsync(string id, DateTime newTime)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
-                await Connection.InvokeAsync("UpdatePatientHoldTime", id, newTime);
+            var connection = GetActiveConnection();
+            if (connection != null)
+                await connection.InvokeAsync("UpdatePatientHoldTime", id, newTime);
         }
 
         public async Task UpdatePatientAsync(Patient patient)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
-                await Connection.InvokeAsync("UpdatePatient", patient);
+            var connection = GetActiveConnection();
+            if (connection != null)
+                await connection.InvokeAsync("UpdatePatient", patient);
         }
 
         public async Task DeleteMessageAsync(int id)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
-                await Connection.InvokeAsync("DeleteMessage", id);
+            var connection = GetActiveConnection();
+            if (connection != null)
+                await connection.InvokeAsync("DeleteMessage", id);
         }
         public async Task<List<ChatMessageModel>> LoadTodayMessagesFromDiskAsync()
         {

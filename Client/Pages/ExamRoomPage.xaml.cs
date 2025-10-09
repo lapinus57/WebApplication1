@@ -27,7 +27,6 @@ namespace Client.Pages
         public ObservableCollection<string> Rooms { get; } = RoomList.Load();
 
         private bool _syncing;
-        private bool _hasChanges;
 
         public ExamRoomPage()
         {
@@ -41,7 +40,7 @@ namespace Client.Pages
             this.Unloaded += ExamRoomPage_Unloaded;
         }
 
-        private async void ExamRoomPage_Unloaded(object sender, RoutedEventArgs e)
+        private void ExamRoomPage_Unloaded(object sender, RoutedEventArgs e)
         {
             App.ChatService.ExamOptionsUpdated -= ChatService_ExamOptionsUpdated;
             App.ChatService.RoomsUpdated -= ChatService_RoomsUpdated;
@@ -260,7 +259,6 @@ namespace Client.Pages
                 Rooms.CollectionChanged += Rooms_CollectionChanged;
                 RoomList.Save(Rooms);
 
-                _hasChanges = false;
             }
             catch (Exception ex)
             {
@@ -307,7 +305,6 @@ namespace Client.Pages
         private void Option_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (_syncing) return;
-            _hasChanges = true;
             ExamOption.Save(Options);
         }
 
@@ -338,14 +335,12 @@ namespace Client.Pages
             foreach (var opt in Options)
                 opt.Index = index++;
 
-            _hasChanges = true;
             ExamOption.Save(Options);
         }
 
         private void Rooms_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             if (_syncing) return;
-            _hasChanges = true;
             RoomList.Save(Rooms);
         }
         private void Back_Click(object sender, RoutedEventArgs e)
@@ -419,7 +414,6 @@ namespace Client.Pages
                 {
                     await App.ChatService.SendExamOptionsSilentAsync(Options);
                     await App.ChatService.SendRoomsSilentAsync(Rooms);
-                    _hasChanges = false;
                 }
             }
             catch (Exception ex)

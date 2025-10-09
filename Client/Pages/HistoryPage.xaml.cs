@@ -105,9 +105,9 @@ namespace Client.Pages
 
         private void Pivot_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (sender == NotArchivedPivot && ArchivedPivot.SelectedIndex != NotArchivedPivot.SelectedIndex)
+            if (ReferenceEquals(sender, NotArchivedPivot) && ArchivedPivot.SelectedIndex != NotArchivedPivot.SelectedIndex)
                 ArchivedPivot.SelectedIndex = NotArchivedPivot.SelectedIndex;
-            else if (sender == ArchivedPivot && NotArchivedPivot.SelectedIndex != ArchivedPivot.SelectedIndex)
+            else if (ReferenceEquals(sender, ArchivedPivot) && NotArchivedPivot.SelectedIndex != ArchivedPivot.SelectedIndex)
                 NotArchivedPivot.SelectedIndex = ArchivedPivot.SelectedIndex;
         }
 
