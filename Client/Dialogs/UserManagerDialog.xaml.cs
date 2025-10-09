@@ -17,6 +17,9 @@ namespace Client.Dialogs
     {
         private readonly SignalRService _service;
 
+        private const string LocalLoadErrorCode = "UM-LOCAL-ERR-001";
+        private const string ServerLoadErrorCode = "UM-SERVER-ERR-001";
+
         public ObservableCollection<UserInfo> LocalUsers { get; } = new();
         public ObservableCollection<UserInfo> ServerUsers { get; } = new();
 
@@ -110,13 +113,21 @@ namespace Client.Dialogs
             Debug.WriteLine("[UserManagerDialog] RefreshLocalAsync start");
             try
             {
-                var users = await _service.LoadUsersFromDiskAsync();
-                Debug.WriteLine($"[UserManagerDialog] Local users loaded: {users.Count()}");
                 LocalUsers.Clear();
-                foreach (var user in users.OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase))
+
+                var users = await _service.LoadUsersFromDiskAsync();
+                var userList = users
+                    .OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                Debug.WriteLine($"[UserManagerDialog] Local users loaded: {users.Count}");
+                Debug.WriteLine($"[UserManagerDialog] Local users after ordering: {userList.Count}");
+
+                foreach (var user in userList)
                 {
                     var clone = CloneUser(user);
                     clone.CanRenameLocalUser = CanManageUser(clone.Username);
+                    Debug.WriteLine($"[UserManagerDialog] Local user added: Username={clone.Username} Rooms={string.Join('|', clone.Rooms)} CanRename={clone.CanRenameLocalUser}");
                     LocalUsers.Add(clone);
                 }
 
@@ -127,8 +138,9 @@ namespace Client.Dialogs
             }
             catch (Exception ex)
             {
-                LocalStatus = $"Erreur de chargement local : {ex.Message}";
-                Debug.WriteLine($"[UserManagerDialog] Error loading local users: {ex}");
+                LocalUsers.Clear();
+                LocalStatus = $"{LocalLoadErrorCode} - Erreur de chargement local : {ex.Message}";
+                Debug.WriteLine($"[UserManagerDialog] Error loading local users ({LocalLoadErrorCode}): {ex}");
             }
             Debug.WriteLine("[UserManagerDialog] RefreshLocalAsync end");
         }
@@ -138,9 +150,10 @@ namespace Client.Dialogs
             Debug.WriteLine("[UserManagerDialog] RefreshServerAsync start");
             try
             {
-                var users = await _service.GetAllUsersAsync();
-                Debug.WriteLine($"[UserManagerDialog] Server users loaded: {users.Count()}");
                 ServerUsers.Clear();
+
+                var users = await _service.GetAllUsersAsync();
+                Debug.WriteLine($"[UserManagerDialog] Server users loaded: {users.Count}");
                 var filteredUsers = users
                     .Where(u => !IsProtectedUser(u.Username))
                     .OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase)
@@ -152,6 +165,7 @@ namespace Client.Dialogs
                 {
                     var clone = CloneUser(user);
                     clone.CanRenameLocalUser = CanManageUser(clone.Username);
+                    Debug.WriteLine($"[UserManagerDialog] Server user added: Username={clone.Username} Rooms={string.Join('|', clone.Rooms)} CanRename={clone.CanRenameLocalUser}");
                     ServerUsers.Add(clone);
                 }
 
@@ -162,8 +176,9 @@ namespace Client.Dialogs
             }
             catch (Exception ex)
             {
-                ServerStatus = $"Erreur de chargement serveur : {ex.Message}";
-                Debug.WriteLine($"[UserManagerDialog] Error loading server users: {ex}");
+                ServerUsers.Clear();
+                ServerStatus = $"{ServerLoadErrorCode} - Erreur de chargement serveur : {ex.Message}";
+                Debug.WriteLine($"[UserManagerDialog] Error loading server users ({ServerLoadErrorCode}): {ex}");
             }
             Debug.WriteLine("[UserManagerDialog] RefreshServerAsync end");
         }

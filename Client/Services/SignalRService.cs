@@ -820,28 +820,56 @@ namespace Client.Services
 
         public async Task<List<UserInfo>> LoadUsersFromDiskAsync()
         {
+            const string logPrefix = "[SignalRService][UM-LOCAL]";
+
             try
             {
                 var path = GetLocalUsersFilePath(false);
-                var folder = Path.GetDirectoryName(path)!;
-                if (Directory.Exists(folder) && File.Exists(path))
-                {
-                    var json = await File.ReadAllTextAsync(path);
-                    var users = JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
-                    foreach (var u in users)
-                    {
-                        if (u.Rooms.Count == 0)
-                            u.IsOnline = false;
+                var folder = Path.GetDirectoryName(path) ?? string.Empty;
+                var folderExists = !string.IsNullOrEmpty(folder) && Directory.Exists(folder);
+                var fileExists = folderExists && File.Exists(path);
 
-                        u.CanRenameLocalUser = !IsProtectedUser(u.Username);
+                Debug.WriteLine($"{logPrefix}-LOAD-START Path={path} FolderExists={folderExists} FileExists={fileExists}");
+
+                if (!folderExists || !fileExists)
+                {
+                    Debug.WriteLine($"{logPrefix}-LOAD-NOTFOUND Aucun fichier local users.json trouvé.");
+                    return new();
+                }
+
+                const int maxAttempts = 3;
+                for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    try
+                    {
+                        var json = await File.ReadAllTextAsync(path);
+                        var users = JsonConvert.DeserializeObject<List<UserInfo>>(json) ?? new();
+                        Debug.WriteLine($"{logPrefix}-LOAD-RAW Count={users.Count}");
+
+                        foreach (var u in users)
+                        {
+                            if (u.Rooms.Count == 0)
+                                u.IsOnline = false;
+
+                            u.CanRenameLocalUser = !IsProtectedUser(u.Username);
+                        }
+
+                        Debug.WriteLine($"{logPrefix}-LOAD-SUCCESS Count={users.Count}");
+                        return users;
                     }
-                    return users;
+                    catch (IOException ioEx) when (attempt < maxAttempts)
+                    {
+                        Debug.WriteLine($"{logPrefix}-LOAD-IORETRY Attempt={attempt} Error={ioEx.Message}");
+                        await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt));
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur lecture users cache : {ex.Message}");
+                Debug.WriteLine($"{logPrefix}-LOAD-ERROR {ex}");
             }
+
+            Debug.WriteLine($"{logPrefix}-LOAD-EMPTY Retour d'une liste vide.");
             return new();
         }
 
@@ -1138,26 +1166,44 @@ namespace Client.Services
 
         public async Task<List<UserInfo>> GetAllUsersAsync()
         {
+            const string logPrefix = "[SignalRService][UM-SERVER]";
+
             if (!TryGetActiveConnection(out var connection))
             {
+                Debug.WriteLine($"{logPrefix}-CONNECTION-MISSING Aucune connexion SignalR active.");
                 var connected = await TryReconnectAsync();
+                Debug.WriteLine($"{logPrefix}-CONNECTION-RETRY Result={connected}");
                 if (!connected || !TryGetActiveConnection(out connection))
+                {
+                    Debug.WriteLine($"{logPrefix}-CONNECTION-FAILED Impossible d'obtenir une connexion.");
                     return new List<UserInfo>();
+                }
             }
 
             try
             {
+                Debug.WriteLine($"{logPrefix}-LOAD-REQUEST Envoi de la requête GetAllUsers.");
                 var users = await connection.InvokeAsync<List<UserInfo>>("GetAllUsers");
+                var count = users?.Count ?? 0;
+                Debug.WriteLine($"{logPrefix}-LOAD-RESPONSE Count={count}");
+
+                if (users == null)
+                {
+                    Debug.WriteLine($"{logPrefix}-LOAD-NULL La réponse GetAllUsers est nulle.");
+                    return new List<UserInfo>();
+                }
+
                 foreach (var user in users)
                 {
                     user.CanRenameLocalUser = !IsProtectedUser(user.Username);
                 }
 
+                Debug.WriteLine($"{logPrefix}-LOAD-SUCCESS Count={users.Count}");
                 return users;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération utilisateurs : {ex.Message}");
+                Debug.WriteLine($"{logPrefix}-LOAD-ERROR {ex}");
                 return new List<UserInfo>();
             }
         }
