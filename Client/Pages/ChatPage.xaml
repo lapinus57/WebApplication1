@@ -247,33 +247,46 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
 
-                    <!-- Première ligne : Titre, Nom, Prénom -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
-                        <TextBlock Text="{x:Bind LastName}" Margin="4,0" Foreground="{x:Bind ForegroundColor}"/>
-                        <TextBlock Text="{x:Bind FirstName}" Foreground="{x:Bind ForegroundColor}"/>
-                    </StackPanel>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" Margin="0,0,8,0">
+                            <TextBlock Text="{x:Bind Title}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
+                            <TextBlock Text="{x:Bind LastName}" Margin="4,0" Foreground="{x:Bind ForegroundColor}"/>
+                            <TextBlock Text="{x:Bind FirstName}" Foreground="{x:Bind ForegroundColor}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1"
+                                   Text="{x:Bind OperatorName}"
+                                   Foreground="{x:Bind ForegroundColor}"
+                                   HorizontalAlignment="Right"/>
+                    </Grid>
 
-                    <!-- Examinator à droite de la première ligne -->
-                    <TextBlock Grid.Row="0" Grid.Column="1"
-                       Text="{x:Bind Examinator}" Foreground="{x:Bind ForegroundColor}"
-                       HorizontalAlignment="Right"/>
+                    <Grid Grid.Row="1" Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="1" Text="{x:Bind Annotation}" Foreground="{x:Bind ForegroundColor}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="2" Text="{x:Bind Eye}" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="3" Text="{x:Bind HoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}" FontWeight="Bold" HorizontalAlignment="Right"/>
+                    </Grid>
 
-                    <!-- Deuxième ligne : examens, œil, annotation et heure -->
-                    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{x:Bind Exams}" FontWeight="Bold" Foreground="{x:Bind ForegroundColor}"/>
-                        <TextBlock Text="{x:Bind Eye}" Foreground="{x:Bind ForegroundColor}"/>
-                        <TextBlock Text="{x:Bind Annotation}" Foreground="{x:Bind ForegroundColor}"/>
-                    </StackPanel>
-                    <TextBlock Grid.Row="1" Grid.Column="1"
-                       Text="{x:Bind HoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}"
-                       FontWeight="Bold" HorizontalAlignment="Right"/>
+                    <Grid Grid.Row="2" Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{x:Bind Position}" Foreground="{x:Bind ForegroundColor}" Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="1" Text="{x:Bind TimeSinceHoldTimeFormatted}" Foreground="{x:Bind ForegroundColor}" HorizontalAlignment="Right"/>
+                    </Grid>
                 </Grid>
             </Border>
         </DataTemplate>
