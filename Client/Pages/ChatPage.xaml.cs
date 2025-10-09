@@ -287,7 +287,7 @@ namespace Client.Pages
             for (int i = 0; i < newItems.Count; i++)
             {
                 var item = newItems[i];
-                if (!ShouldKeepMessage(item, selected))
+                if (item is null || !ShouldKeepMessage(item, selected))
                     continue;
 
                 var messageIndex = startingIndex >= 0 ? startingIndex + i : Messages.IndexOf(item);
@@ -333,6 +333,9 @@ namespace Client.Pages
 
         private bool ShouldKeepMessage(object? item, UserInfo? selected)
         {
+            if (item is null)
+                return false;
+
             if (item is not ChatMessageModel msg)
                 return true;
 
@@ -628,9 +631,15 @@ namespace Client.Pages
         {
             var username = App.UserName;
 
+            if (_service.Connection is not HubConnection connection)
+            {
+                Debug.WriteLine("Erreur chargement historique : connexion SignalR indisponible.");
+                return;
+            }
+
             try
             {
-                var history = await _service.Connection.InvokeAsync<List<ChatMessageModel>>("GetHistory", username, withUser);
+                var history = await connection.InvokeAsync<List<ChatMessageModel>>("GetHistory", username, withUser);
 
                 Messages.Clear();
                 Messages.Add(new LoadMorePlaceholder());
@@ -674,7 +683,13 @@ namespace Client.Pages
                 var groupName = groupNameBox.Text;
                 var password = passwordBox.Password;
 
-                var response = await App.ChatService.Connection.InvokeAsync<string>("JoinProtectedGroup", groupName, password);
+                if (App.ChatService.Connection is not HubConnection connection)
+                {
+                    Debug.WriteLine("JoinProtectedGroup: connexion SignalR indisponible.");
+                    return;
+                }
+
+                var response = await connection.InvokeAsync<string>("JoinProtectedGroup", groupName, password);
                 Debug.WriteLine($"🔐 Groupe {groupName} : {response}");
                 await _service.RefreshGroupsAsync();
                 ApplySavedUserOrder();
