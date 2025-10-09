@@ -88,6 +88,15 @@ namespace Client.Services
             return Path.Combine(folder, "users.json");
         }
 
+        private static string GetUserSettingsFilePath(string username)
+        {
+            var safeName = (username ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(safeName))
+                throw new ArgumentException("Le nom d'utilisateur est invalide.", nameof(username));
+
+            return Path.Combine(GetLocalDataFolderPath(), $"{safeName}_settings.json");
+        }
+
         private static async Task WriteUsersToDiskAsync(IEnumerable<UserInfo> users)
         {
             var path = GetLocalUsersFilePath(true);
@@ -941,11 +950,40 @@ namespace Client.Services
                     return false;
 
                 var originalDisplay = existing.DisplayName;
+                var oldSettingsPath = GetUserSettingsFilePath(oldName);
+                var newSettingsPath = GetUserSettingsFilePath(newName);
+
                 existing.Username = newName;
                 if (string.IsNullOrWhiteSpace(originalDisplay) || string.Equals(originalDisplay, oldName, StringComparison.OrdinalIgnoreCase))
                     existing.DisplayName = newName;
 
                 await WriteUsersToDiskAsync(users);
+
+                try
+                {
+                    if (File.Exists(oldSettingsPath))
+                    {
+                        var settingsDirectory = Path.GetDirectoryName(newSettingsPath);
+                        if (!string.IsNullOrEmpty(settingsDirectory) && !Directory.Exists(settingsDirectory))
+                        {
+                            Directory.CreateDirectory(settingsDirectory);
+                        }
+
+                        if (File.Exists(newSettingsPath))
+                            throw new IOException($"Le fichier {newSettingsPath} existe déjà.");
+
+                        File.Move(oldSettingsPath, newSettingsPath);
+                    }
+                }
+                catch (Exception settingsEx)
+                {
+                    Debug.WriteLine($"[SignalRService] RenameLocalUserAsync erreur renommage settings : {settingsEx.Message}");
+
+                    existing.Username = oldName;
+                    existing.DisplayName = originalDisplay;
+                    await WriteUsersToDiskAsync(users);
+                    return false;
+                }
 
                 Dispatcher?.TryEnqueue(() =>
                 {
@@ -978,11 +1016,30 @@ namespace Client.Services
             try
             {
                 var users = await LoadUsersFromDiskAsync();
-                var removed = users.RemoveAll(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
-                if (removed == 0)
+                var index = users.FindIndex(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
+                if (index < 0)
                     return false;
 
+                var removedUser = users[index];
+                users.RemoveAt(index);
+
                 await WriteUsersToDiskAsync(users);
+
+                try
+                {
+                    var settingsPath = GetUserSettingsFilePath(username);
+                    if (File.Exists(settingsPath))
+                    {
+                        File.Delete(settingsPath);
+                    }
+                }
+                catch (Exception settingsEx)
+                {
+                    Debug.WriteLine($"[SignalRService] DeleteLocalUserAsync erreur suppression settings : {settingsEx.Message}");
+                    users.Insert(index, removedUser);
+                    await WriteUsersToDiskAsync(users);
+                    return false;
+                }
 
                 Dispatcher?.TryEnqueue(() =>
                 {
