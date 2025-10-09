@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,6 +38,12 @@ namespace Client.Services
 
         private HubConnection GetRequiredConnection()
             => GetActiveConnection() ?? throw new InvalidOperationException("Connexion SignalR non établie.");
+
+        private bool TryGetActiveConnection([NotNullWhen(true)] out HubConnection? connection)
+        {
+            connection = GetActiveConnection();
+            return connection is not null;
+        }
 
         private bool _initialized;
         private bool _historyLoaded;
@@ -935,12 +942,12 @@ namespace Client.Services
 
         public async Task<bool> RenameServerUserAsync(string oldName, string newName)
         {
-            if (Connection == null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
                 return false;
 
             try
             {
-                return await Connection.InvokeAsync<bool>("RenameKnownUser", oldName, newName);
+                return await connection.InvokeAsync<bool>("RenameKnownUser", oldName, newName);
             }
             catch (Exception ex)
             {
@@ -951,12 +958,12 @@ namespace Client.Services
 
         public async Task<bool> DeleteServerUserAsync(string username)
         {
-            if (Connection == null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
                 return false;
 
             try
             {
-                return await Connection.InvokeAsync<bool>("DeleteKnownUser", username);
+                return await connection.InvokeAsync<bool>("DeleteKnownUser", username);
             }
             catch (Exception ex)
             {
@@ -992,12 +999,11 @@ namespace Client.Services
         }
         public async Task SendExamOptionsAsync(IEnumerable<ExamOption> options)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
+            var connection = GetRequiredConnection();
 
             try
             {
-                await Connection.InvokeAsync("SaveExamOptions", options);
+                await connection.InvokeAsync("SaveExamOptions", options);
             }
             catch (Exception ex)
             {
@@ -1007,12 +1013,11 @@ namespace Client.Services
 
         public async Task SendExamOptionsSilentAsync(IEnumerable<ExamOption> options)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
+            var connection = GetRequiredConnection();
 
             try
             {
-                await Connection.InvokeAsync("SaveExamOptionsSilent", options);
+                await connection.InvokeAsync("SaveExamOptionsSilent", options);
             }
             catch (Exception ex)
             {
@@ -1022,12 +1027,11 @@ namespace Client.Services
 
         public async Task SendRoomsAsync(IEnumerable<string> rooms)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
+            var connection = GetRequiredConnection();
 
             try
             {
-                await Connection.InvokeAsync("SaveRooms", rooms);
+                await connection.InvokeAsync("SaveRooms", rooms);
             }
             catch (Exception ex)
             {
@@ -1037,12 +1041,11 @@ namespace Client.Services
 
         public async Task SendRoomsSilentAsync(IEnumerable<string> rooms)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
-                throw new InvalidOperationException("Connexion SignalR non établie.");
+            var connection = GetRequiredConnection();
 
             try
             {
-                await Connection.InvokeAsync("SaveRoomsSilent", rooms);
+                await connection.InvokeAsync("SaveRoomsSilent", rooms);
             }
             catch (Exception ex)
             {
@@ -1052,10 +1055,10 @@ namespace Client.Services
 
         public async Task SendReminderAsync(ReminderConfig config)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected)
+                if (!connected || !TryGetActiveConnection(out connection))
                 {
                     Debug.WriteLine("Impossible d'envoyer le rappel : connexion SignalR non établie.");
                     return;
@@ -1064,7 +1067,7 @@ namespace Client.Services
 
             try
             {
-                await Connection.InvokeAsync("SaveReminder", config);
+                await connection.InvokeAsync("SaveReminder", config);
             }
             catch (Exception ex)
             {
@@ -1074,15 +1077,16 @@ namespace Client.Services
 
         public async Task<ReminderConfig?> GetReminderAsync()
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return null;
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return null;
             }
 
             try
             {
-                return await Connection.InvokeAsync<ReminderConfig>("GetReminder");
+                return await connection.InvokeAsync<ReminderConfig>("GetReminder");
             }
             catch (Exception ex)
             {
@@ -1092,15 +1096,16 @@ namespace Client.Services
         }
         public async Task<List<ExamOption>> GetExamOptionsAsync()
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new List<ExamOption>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new List<ExamOption>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<List<ExamOption>>("GetExamOptions");
+                return await connection.InvokeAsync<List<ExamOption>>("GetExamOptions");
             }
             catch (Exception ex)
             {
@@ -1111,15 +1116,16 @@ namespace Client.Services
 
         public async Task<List<string>> GetRoomsAsync()
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new List<string>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new List<string>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<List<string>>("GetRooms");
+                return await connection.InvokeAsync<List<string>>("GetRooms");
             }
             catch (Exception ex)
             {
@@ -1130,15 +1136,16 @@ namespace Client.Services
 
         public async Task<List<UserInfo>> GetAllUsersAsync()
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new List<UserInfo>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new List<UserInfo>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<List<UserInfo>>("GetAllUsers");
+                return await connection.InvokeAsync<List<UserInfo>>("GetAllUsers");
             }
             catch (Exception ex)
             {
@@ -1149,7 +1156,7 @@ namespace Client.Services
 
         public async Task SaveUserSettingsAsync(string username, string json)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 Debug.WriteLine("SaveUserSettingsAsync ignoré : connexion SignalR indisponible.");
                 return;
@@ -1157,7 +1164,7 @@ namespace Client.Services
 
             try
             {
-                await Connection.InvokeAsync("SaveUserSettings", username, json);
+                await connection.InvokeAsync("SaveUserSettings", username, json);
             }
             catch (Exception ex)
             {
@@ -1167,15 +1174,16 @@ namespace Client.Services
 
         public async Task<string> GetUserSettingsAsync(string username)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return string.Empty;
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return string.Empty;
             }
 
             try
             {
-                return await Connection.InvokeAsync<string?>("GetUserSettings", username) ?? string.Empty;
+                return await connection.InvokeAsync<string?>("GetUserSettings", username) ?? string.Empty;
             }
             catch (Exception ex)
             {
@@ -1186,15 +1194,16 @@ namespace Client.Services
 
         public async Task<Dictionary<string, string>> GetMissingUserSettingsAsync(IEnumerable<string> knownUsers)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new Dictionary<string, string>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new Dictionary<string, string>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<Dictionary<string, string>>("GetMissingUserSettings", knownUsers);
+                return await connection.InvokeAsync<Dictionary<string, string>>("GetMissingUserSettings", knownUsers);
             }
             catch (Exception ex)
             {
@@ -1206,15 +1215,16 @@ namespace Client.Services
 
         public async Task<List<Patient>> GetPatientsAsync()
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new List<Patient>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new List<Patient>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<List<Patient>>("GetPatients");
+                return await connection.InvokeAsync<List<Patient>>("GetPatients");
             }
             catch (Exception ex)
             {
@@ -1226,168 +1236,169 @@ namespace Client.Services
         public async Task UpdateRoomNameAsync(string roomName)
         {
             RoomName = roomName;
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("SetRoomName", roomName);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur mise à jour nom de salle : {ex.Message}");
-                }
+                await connection.InvokeAsync("SetRoomName", roomName);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur mise à jour nom de salle : {ex.Message}");
             }
         }
 
         public async Task UpdateColorUserNameAsync(string color)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("SetColorUserName", color);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur mise à jour couleur utilisateur : {ex.Message}");
-                }
+                await connection.InvokeAsync("SetColorUserName", color);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur mise à jour couleur utilisateur : {ex.Message}");
             }
         }
 
         public async Task<string?> UploadAvatarAsync(string fileName, string base64)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return null;
+
+            try
             {
-                try
-                {
-                    return await Connection.InvokeAsync<string>("UploadAvatar", fileName, base64);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur envoi avatar : {ex.Message}");
-                }
+                return await connection.InvokeAsync<string>("UploadAvatar", fileName, base64);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur envoi avatar : {ex.Message}");
             }
             return null;
         }
 
         public async Task<List<string>> GetAvailableAvatarsAsync()
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return new List<string>();
+
+            try
             {
-                try
-                {
-                    var avatars = await Connection.InvokeAsync<List<string>>("GetAvailableAvatars");
-                    return avatars.Select(ToClientAvatar).ToList();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur récupération avatars : {ex.Message}");
-                }
+                var avatars = await connection.InvokeAsync<List<string>>("GetAvailableAvatars");
+                return avatars.Select(ToClientAvatar).ToList();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération avatars : {ex.Message}");
             }
             return new List<string>();
         }
 
         public async Task UpdateAvatarAsync(string avatar)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("SetAvatar", ToServerAvatar(avatar));
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur mise à jour avatar : {ex.Message}");
-                }
+                await connection.InvokeAsync("SetAvatar", ToServerAvatar(avatar));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur mise à jour avatar : {ex.Message}");
             }
         }
 
         public async Task ArchiveTakenPatientsAsync()
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("ArchiveTakenPatients");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur archivage patients : {ex.Message}");
-                }
+                await connection.InvokeAsync("ArchiveTakenPatients");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur archivage patients : {ex.Message}");
             }
         }
 
         public async Task ClearTodayPatientsAsync()
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("ClearTodayPatients");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur suppression patients du jour : {ex.Message}");
-                }
+                await connection.InvokeAsync("ClearTodayPatients");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur suppression patients du jour : {ex.Message}");
             }
         }
 
         public async Task ClearTodayMessagesAsync()
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("ClearTodayMessages");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur suppression messages du jour : {ex.Message}");
-                }
+                await connection.InvokeAsync("ClearTodayMessages");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur suppression messages du jour : {ex.Message}");
             }
         }
 
         public async Task GenerateSampleMessagesAsync()
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("GenerateSampleMessages");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur génération messages : {ex.Message}");
-                }
+                await connection.InvokeAsync("GenerateSampleMessages");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur génération messages : {ex.Message}");
             }
         }
 
         public async Task UnarchiveAllPatientsAsync()
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("UnarchiveAllPatients");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur désarchivage patients : {ex.Message}");
-                }
+                await connection.InvokeAsync("UnarchiveAllPatients");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur désarchivage patients : {ex.Message}");
             }
         }
 
         public async Task<List<Patient>> GetArchivedPatientsAsync()
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new List<Patient>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new List<Patient>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<List<Patient>>("GetArchivedPatients");
+                return await connection.InvokeAsync<List<Patient>>("GetArchivedPatients");
             }
             catch (Exception ex)
             {
@@ -1398,29 +1409,30 @@ namespace Client.Services
 
         public async Task UnarchivePatientAsync(string id)
         {
-            if (Connection != null && Connection.State == HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            try
             {
-                try
-                {
-                    await Connection.InvokeAsync("UnarchivePatient", id);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Erreur désarchivage patient : {ex.Message}");
-                }
+                await connection.InvokeAsync("UnarchivePatient", id);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur désarchivage patient : {ex.Message}");
             }
         }
         public async Task<List<PatientLog>> GetPatientLogsAsync(string patientId)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new List<PatientLog>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new List<PatientLog>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<List<PatientLog>>("GetPatientLogs", patientId);
+                return await connection.InvokeAsync<List<PatientLog>>("GetPatientLogs", patientId);
             }
             catch (Exception ex)
             {
@@ -1432,15 +1444,16 @@ namespace Client.Services
 
         public async Task<Dictionary<string, List<string>>> GetAllGroupsAsync()
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return new Dictionary<string, List<string>>();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return new Dictionary<string, List<string>>();
             }
 
             try
             {
-                return await Connection.InvokeAsync<Dictionary<string, List<string>>>("GetAllGroupMembers");
+                return await connection.InvokeAsync<Dictionary<string, List<string>>>("GetAllGroupMembers");
             }
             catch (Exception ex)
             {
@@ -1451,15 +1464,16 @@ namespace Client.Services
 
         public async Task RenameGroupAsync(string oldName, string newName)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return;
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return;
             }
 
             try
             {
-                await Connection.InvokeAsync("RenameGroup", oldName, newName);
+                await connection.InvokeAsync("RenameGroup", oldName, newName);
             }
             catch (Exception ex)
             {
@@ -1469,15 +1483,16 @@ namespace Client.Services
 
         public async Task ChangeGroupPasswordAsync(string groupName, string password)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return;
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return;
             }
 
             try
             {
-                await Connection.InvokeAsync("ChangeGroupPassword", groupName, password);
+                await connection.InvokeAsync("ChangeGroupPassword", groupName, password);
             }
             catch (Exception ex)
             {
@@ -1487,15 +1502,16 @@ namespace Client.Services
 
         public async Task RemoveUserFromGroupAsync(string groupName, string username)
         {
-            if (Connection is null || Connection.State != HubConnectionState.Connected)
+            if (!TryGetActiveConnection(out var connection))
             {
                 var connected = await TryReconnectAsync();
-                if (!connected) return;
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return;
             }
 
             try
             {
-                await Connection.InvokeAsync("RemoveUserFromGroup", groupName, username);
+                await connection.InvokeAsync("RemoveUserFromGroup", groupName, username);
             }
             catch (Exception ex)
             {
