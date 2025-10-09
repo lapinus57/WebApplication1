@@ -21,7 +21,12 @@
                     <ListView ItemsSource="{x:Bind LocalUsers}" Height="260">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:UserInfo">
-                                <Grid ColumnDefinitions="* Auto Auto" ColumnSpacing="12" Padding="0,4,0,4">
+                                <Grid ColumnSpacing="12" Padding="0,4,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
                                         <TextBlock Text="{x:Bind RoomsDisplay}" Foreground="Gray" FontSize="12" />
@@ -54,7 +59,12 @@
                     <ListView ItemsSource="{x:Bind ServerUsers}" Height="260">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:UserInfo">
-                                <Grid ColumnDefinitions="* Auto Auto" ColumnSpacing="12" Padding="0,4,0,4">
+                                <Grid ColumnSpacing="12" Padding="0,4,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
                                         <TextBlock Text="{x:Bind RoomsDisplay}" Foreground="Gray" FontSize="12" />
