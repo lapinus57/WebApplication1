@@ -138,5 +138,7 @@ namespace Client.Models
         private void OnPropertyChanged(string propertyName)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
+        // Propriétés manquantes pour la correction XLS0432
+        public bool CanRenameLocalUser { get; set; }
     }
 }

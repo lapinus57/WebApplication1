@@ -588,26 +588,7 @@ namespace Client.Pages
 
             return tcs.Task;
         }
-
-        private async Task ShowUserManagerDialogCoreAsync()
-        {
-            var xamlRoot = XamlRoot;
-            if (xamlRoot == null && App.MainWindow?.Content is FrameworkElement rootElement)
-                xamlRoot = rootElement.XamlRoot;
-
-            if (xamlRoot == null)
-            {
-                Debug.WriteLine("[ChatPage] Impossible d'ouvrir UserManager : XamlRoot introuvable.");
-                return;
-            }
-
-            var dialog = new UserManagerDialog
-            {
-                XamlRoot = xamlRoot
-            };
-
-            await dialog.ShowAsync();
-        }
+      
 
         private async Task AddTestPatientsAsync()
         {

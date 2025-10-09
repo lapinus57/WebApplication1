@@ -31,12 +31,14 @@
                                         Content="Renommer"
                                         Click="RenameLocal_Click"
                                         Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanRenameLocalUser, Mode=OneWay}"
                                         />
                                     <Button
                                         Grid.Column="2"
                                         Content="Supprimer"
                                         Click="DeleteLocal_Click"
                                         Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanRenameLocalUser, Mode=OneWay}"
                                         />
                                 </Grid>
                             </DataTemplate>
@@ -62,12 +64,14 @@
                                         Content="Renommer"
                                         Click="RenameServer_Click"
                                         Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanRenameLocalUser, Mode=OneWay}"
                                         />
                                     <Button
                                         Grid.Column="2"
                                         Content="Supprimer"
                                         Click="DeleteServer_Click"
                                         Tag="{x:Bind Username}"
+                                        IsEnabled="{x:Bind CanRenameLocalUser, Mode=OneWay}"
                                          />
                                 </Grid>
                             </DataTemplate>
