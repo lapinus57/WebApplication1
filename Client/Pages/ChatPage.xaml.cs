@@ -40,6 +40,7 @@ namespace Client.Pages
         private bool _isApplyingSlashCommand;
         private readonly bool _showSlashCommands;
         private ScrollViewer? _messagesScrollViewer;
+        private bool _isUserManagerDialogOpen;
         private readonly List<SlashCommandInfo> _slashCommands = new()
         {
             new SlashCommandInfo("/getallroom", "Afficher toutes les salles et leurs membres"),
@@ -494,36 +495,98 @@ namespace Client.Pages
         {
             try
             {
-                if (DispatcherQueue != null && !DispatcherQueue.HasThreadAccess)
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    if (!DispatcherQueue.TryEnqueue(async () =>
-                    {
-                        try
-                        {
-                            await ShowUserManagerDialogCoreAsync();
-                            tcs.TrySetResult(true);
-                        }
-                        catch (Exception queueEx)
-                        {
-                            tcs.TrySetException(queueEx);
-                        }
-                    }))
-                    {
-                        await ShowUserManagerDialogCoreAsync();
-                        return;
-                    }
+                var dispatcher = DispatcherQueue
+                    ?? App.MainWindow?.DispatcherQueue
+                    ?? DispatcherQueue.GetForCurrentThread();
 
-                    await tcs.Task;
+                if (dispatcher == null)
+                {
+                    Debug.WriteLine("[ChatPage] Impossible d'ouvrir UserManager : aucun dispatcher disponible.");
                     return;
                 }
+
+                if (!dispatcher.HasThreadAccess)
+                {
+                    await RunOnDispatcherAsync(dispatcher, ShowUserManagerDialogCoreAsync);
+                    return;
+                }
+
 
                 await ShowUserManagerDialogCoreAsync();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[ChatPage] Erreur ouverture UserManager : {ex.Message}");
+                Debug.WriteLine($"[ChatPage] Erreur ouverture UserManager : {ex}");
             }
+        }
+
+        private async Task ShowUserManagerDialogCoreAsync()
+        {
+            if (_isUserManagerDialogOpen)
+            {
+                Debug.WriteLine("[ChatPage] UserManager déjà ouvert, requête ignorée.");
+                return;
+            }
+
+            var xamlRoot = ResolveUserManagerXamlRoot();
+            if (xamlRoot == null)
+            {
+                Debug.WriteLine("[ChatPage] Impossible d'ouvrir UserManager : XamlRoot introuvable.");
+                return;
+            }
+
+            var dialog = new UserManagerDialog
+            {
+                XamlRoot = xamlRoot
+            };
+
+            try
+            {
+                _isUserManagerDialogOpen = true;
+                await dialog.ShowAsync();
+            }
+            finally
+            {
+                _isUserManagerDialogOpen = false;
+            }
+        }
+
+        private XamlRoot? ResolveUserManagerXamlRoot()
+        {
+            if (XamlRoot != null)
+            {
+                return XamlRoot;
+            }
+
+            if (App.MainWindow?.Content is FrameworkElement rootElement)
+            {
+                return rootElement.XamlRoot;
+            }
+
+            return null;
+        }
+
+        private static Task RunOnDispatcherAsync(DispatcherQueue dispatcher, Func<Task> asyncAction)
+        {
+            var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            if (!dispatcher.TryEnqueue(async () =>
+            {
+                try
+                {
+                    await asyncAction();
+                    tcs.TrySetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            }))
+            {
+                tcs.TrySetException(new InvalidOperationException("Impossible d'enfiler l'action sur le dispatcher."));
+            }
+
+            return tcs.Task;
         }
 
         private async Task ShowUserManagerDialogCoreAsync()
