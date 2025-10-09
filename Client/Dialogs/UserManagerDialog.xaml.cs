@@ -8,10 +8,12 @@ using System.Threading.Tasks;
 using Client.Models;
 using Client.Services;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Windows.UI.Text;
+
 
 namespace Client.Dialogs
 {
