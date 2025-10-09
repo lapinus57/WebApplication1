@@ -832,6 +832,8 @@ namespace Client.Services
                     {
                         if (u.Rooms.Count == 0)
                             u.IsOnline = false;
+
+                        u.CanRenameLocalUser = !IsProtectedUser(u.Username);
                     }
                     return users;
                 }
@@ -1145,7 +1147,13 @@ namespace Client.Services
 
             try
             {
-                return await connection.InvokeAsync<List<UserInfo>>("GetAllUsers");
+                var users = await connection.InvokeAsync<List<UserInfo>>("GetAllUsers");
+                foreach (var user in users)
+                {
+                    user.CanRenameLocalUser = !IsProtectedUser(user.Username);
+                }
+
+                return users;
             }
             catch (Exception ex)
             {

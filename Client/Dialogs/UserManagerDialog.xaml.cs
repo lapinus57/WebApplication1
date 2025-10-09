@@ -114,7 +114,11 @@ namespace Client.Dialogs
                 Debug.WriteLine($"[UserManagerDialog] Local users loaded: {users.Count()}");
                 LocalUsers.Clear();
                 foreach (var user in users.OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase))
-                    LocalUsers.Add(CloneUser(user));
+                {
+                    var clone = CloneUser(user);
+                    clone.CanRenameLocalUser = CanManageUser(clone.Username);
+                    LocalUsers.Add(clone);
+                }
 
                 LocalStatus = LocalUsers.Count == 0
                     ? "Aucun utilisateur local enregistré."
@@ -138,7 +142,11 @@ namespace Client.Dialogs
                 Debug.WriteLine($"[UserManagerDialog] Server users loaded: {users.Count()}");
                 ServerUsers.Clear();
                 foreach (var user in users.OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase))
-                    ServerUsers.Add(CloneUser(user));
+                {
+                    var clone = CloneUser(user);
+                    clone.CanRenameLocalUser = CanManageUser(clone.Username);
+                    ServerUsers.Add(clone);
+                }
 
                 ServerStatus = ServerUsers.Count == 0
                     ? "Aucun utilisateur connu sur le serveur."
