@@ -434,6 +434,7 @@ namespace Client.Services
                 patient.Colors = opt?.Color ?? string.Empty;
                 var date = patient.HoldTime.Date;
                 patient.HoldTime = date + timePicker.Time;
+                App.ChatService.RefreshPatientHoldTimeInfo(patient);
 
                 try
                 {

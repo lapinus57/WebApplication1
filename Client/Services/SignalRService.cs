@@ -27,7 +27,24 @@ namespace Client.Services
     public class SignalRService
     {
         public HubConnection? Connection { get; private set; }
-        public DispatcherQueue? Dispatcher { get; set; }
+        private DispatcherQueue? _dispatcher;
+        private DispatcherQueueTimer? _holdTimeUpdateTimer;
+        private int _pickupAlertThresholdMinutes;
+
+        public DispatcherQueue? Dispatcher
+        {
+            get => _dispatcher;
+            set
+            {
+                if (_dispatcher == value)
+                {
+                    return;
+                }
+
+                _dispatcher = value;
+                InitializeHoldTimeTimer();
+            }
+        }
         public ObservableCollection<UserInfo> ConnectedUsers { get; } = new();
         public ObservableCollection<Patient> Patients { get; } = new();
         public ObservableCollection<object> Messages { get; } = new();
@@ -68,12 +85,29 @@ namespace Client.Services
             set => _serverAddress = NormalizeServerAddress(value);
         }
 
+        public int PickupAlertThresholdMinutes
+        {
+            get => _pickupAlertThresholdMinutes;
+            set
+            {
+                var normalized = Math.Max(0, value);
+                if (_pickupAlertThresholdMinutes == normalized)
+                {
+                    return;
+                }
+
+                _pickupAlertThresholdMinutes = normalized;
+                RefreshAllPatientHoldTimes();
+            }
+        }
+
         public SignalRService()
         {
             var cfg = ConnectionConfig.Load();
             ServerAddress = cfg.ServerAddress;
             var machine = MachineConfig.Load();
             RoomName = machine.RoomName;
+            PickupAlertThresholdMinutes = machine.PickupAlertThresholdMinutes;
             AppSettings.SettingsChanged += OnSettingsChanged;
         }
 
@@ -126,6 +160,58 @@ namespace Client.Services
             {
                 user.RefreshAccentAwareColor();
             }
+        }
+
+        private void InitializeHoldTimeTimer()
+        {
+            if (_holdTimeUpdateTimer is { } existing)
+            {
+                existing.Tick -= HoldTimeTimer_Tick;
+                existing.Stop();
+            }
+
+            if (_dispatcher is null)
+            {
+                _holdTimeUpdateTimer = null;
+                return;
+            }
+
+            var timer = _dispatcher.CreateTimer();
+            timer.Interval = TimeSpan.FromSeconds(30);
+            timer.IsRepeating = true;
+            timer.Tick += HoldTimeTimer_Tick;
+            timer.Start();
+            _holdTimeUpdateTimer = timer;
+
+            RefreshAllPatientHoldTimes();
+        }
+
+        private void HoldTimeTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            RefreshAllPatientHoldTimes();
+        }
+
+        private void RefreshAllPatientHoldTimes()
+        {
+            foreach (var patient in Patients.ToList())
+            {
+                patient.RefreshHoldTimeInfo(_pickupAlertThresholdMinutes);
+            }
+        }
+
+        public void RefreshPatientHoldTimeInfo(Patient? patient)
+        {
+            patient?.RefreshHoldTimeInfo(_pickupAlertThresholdMinutes);
+        }
+
+        private void PreparePatient(Patient? patient)
+        {
+            if (patient is null)
+            {
+                return;
+            }
+
+            patient.RefreshHoldTimeInfo(_pickupAlertThresholdMinutes);
         }
 
         public event Action<ChatMessageModel>? OnMessageReceived;
@@ -265,7 +351,10 @@ namespace Client.Services
             var patients = await GetPatientsAsync();
             Patients.Clear();
             foreach (var p in patients)
+            {
+                PreparePatient(p);
                 Patients.Add(p);
+            }
 
             await SyncServerConfigurationAsync();
         }
@@ -459,6 +548,7 @@ namespace Client.Services
             {
                 Dispatcher?.TryEnqueue(() =>
                 {
+                    PreparePatient(patient);
                     Patients.Add(patient);
                     OnNewPatient?.Invoke(patient);
                 });
@@ -479,6 +569,7 @@ namespace Client.Services
             {
                 Dispatcher?.TryEnqueue(() =>
                 {
+                    PreparePatient(patient);
                     var existing = Patients.FirstOrDefault(p => p.Id == patient.Id);
                     if (existing != null)
                     {

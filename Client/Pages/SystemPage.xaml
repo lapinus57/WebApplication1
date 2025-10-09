@@ -17,6 +17,14 @@
                                         <ToggleSwitch x:Name="TimeModSwitch" Header="Afficher la modification du temps" IsOn="{x:Bind ShowTimeModification, Mode=TwoWay}" Toggled="TimeModSwitch_Toggled"/>
                                         <ToggleSwitch x:Name="ReminderPageSwitch" Header="Afficher la page de rappel" IsOn="{x:Bind ShowReminderPage, Mode=TwoWay}" Toggled="ReminderPageSwitch_Toggled"/>
                                         <ToggleSwitch x:Name="SlashCommandsSwitch" Header="Afficher la liste des commandes" IsOn="{x:Bind ShowSlashCommands, Mode=TwoWay}" Toggled="SlashCommandsSwitch_Toggled"/>
+                                        <TextBlock Text="Alerte de prise en charge (minutes)"/>
+                                        <NumberBox
+                                            x:Name="PickupAlertBox"
+                                            Value="{x:Bind PickupAlertThresholdMinutes, Mode=TwoWay}"
+                                            Minimum="0"
+                                            SmallChange="1"
+                                            SpinButtonPlacementMode="Compact"/>
+                                        <TextBlock Text="Mettre 0 pour désactiver l'alerte." FontStyle="Italic" Opacity="0.7"/>
                                         <TextBlock Text="Utilisateur par défaut"/>
                                         <ComboBox
                                             x:Name="UsersComboBox"
