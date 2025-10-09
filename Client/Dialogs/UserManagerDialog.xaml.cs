@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Client.Models;
 using Client.Services;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -39,6 +40,19 @@ namespace Client.Dialogs
             get => _isBusy;
             private set
             {
+                var dispatcher = DispatcherQueue
+                    ?? XamlRoot?.DispatcherQueue
+                    ?? App.MainWindow?.DispatcherQueue;
+
+                if (dispatcher is not null && !dispatcher.HasThreadAccess)
+                {
+                    if (!dispatcher.TryEnqueue(() => IsBusy = value))
+                    {
+                        Debug.WriteLine("[UserManagerDialog] Unable to marshal IsBusy change to dispatcher.");
+                    }
+                    return;
+                }
+
                 if (SetProperty(ref _isBusy, value))
                 {
                     OnPropertyChanged(nameof(IsIdle));
