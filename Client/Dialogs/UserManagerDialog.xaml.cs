@@ -118,26 +118,7 @@ namespace Client.Dialogs
             }
         }
 
-        private static UserInfo CloneUser(UserInfo user)
-        {
-            var clone = new UserInfo
-            {
-                Username = user.Username,
-                DisplayName = user.DisplayName,
-                Avatar = user.Avatar,
-                ColorUserName = user.ColorUserName,
-                Note = user.Note,
-                IsOnline = user.IsOnline,
-                CanRenameLocalUser = user.CanRenameLocalUser
-            };
-
-            var roomsToCopy = user.Rooms?.Where(room => !string.IsNullOrWhiteSpace(room))
-                ?? Enumerable.Empty<string>();
-
-            clone.Rooms = new ObservableCollection<string>(roomsToCopy);
-
-            return clone;
-        }
+        private static UserInfo CloneUser(UserInfo user) => user.Clone();
 
         private async void RenameLocal_Click(object sender, RoutedEventArgs e)
         {
