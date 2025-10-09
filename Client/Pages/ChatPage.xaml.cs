@@ -18,8 +18,9 @@ namespace Client.Pages
     public sealed partial class ChatPage : Page
     {
         private readonly SignalRService _service;
+        private readonly ObservableCollection<object> _messages;
         public ObservableCollection<UserInfo> ConnectedUsers => _service.ConnectedUsers;
-        public ObservableCollection<object> Messages => _service.Messages;
+        public ObservableCollection<object> Messages => _messages;
         public ObservableCollection<Patient> Patients => _service.Patients;
         public ObservableCollection<string> Rooms { get; } = RoomList.Load();
         private ObservableCollection<string> RoomsWithAll { get; } = new();
@@ -29,7 +30,8 @@ namespace Client.Pages
         public ChatPage()
         {
             InitializeComponent();
-            _service = App.ChatService;
+            _service = App.ChatService ?? throw new InvalidOperationException("Chat service is not initialized.");
+            _messages = _service.Messages;
             DataContext = this;
 
             BuildRooms();
@@ -79,22 +81,28 @@ namespace Client.Pages
             TryRestoreUserSelection();
             await WaitForConnectionReady();
 
-            if (!_service.IsHistoryLoaded && !Messages.OfType<ChatMessageModel>().Any())
+            if (!_service.IsHistoryLoaded && !_messages.Any(m => m is ChatMessageModel))
             {
-                Messages.Clear();
-                Messages.Add(new LoadMorePlaceholder());
+                _messages.Clear();
+                _messages.Add(new LoadMorePlaceholder());
 
                 var cachedMessages = await _service.LoadTodayMessagesFromDiskAsync();
                 foreach (var msg in cachedMessages)
-                    Messages.Add(msg);
+                    _messages.Add(msg);
 
                 var result = await _service.LoadTodayMessagesAsync(_service.Username);
-                if (result.Success)
+                if (result.Success && result.Value is { } loadedMessages)
                 {
-                    foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
-                        Messages.Remove(item);
-                    foreach (var msg in result.Value)
-                        Messages.Add(msg);
+                    foreach (var item in _messages.OfType<ChatMessageModel>().ToList())
+                    {
+                        if (item is not null)
+                        {
+                            _messages.Remove(item);
+                        }
+                    }
+
+                    foreach (var msg in loadedMessages)
+                        _messages.Add(msg);
 
                     await _service.SaveTodayMessagesToDiskAsync();
                 }
@@ -116,7 +124,7 @@ namespace Client.Pages
             {
                 // Avoid adding a duplicate message if one with the same
                 // sender, recipient, content and timestamp already exists
-                var existing = Messages
+                var existing = _messages
                     .OfType<ChatMessageModel>()
                     .Any(m => m.Sender == chat.Sender &&
                               m.Destinataire == chat.Destinataire &&
@@ -125,7 +133,7 @@ namespace Client.Pages
 
                 if (!existing)
                 {
-                    Messages.Add(chat);
+                    _messages.Add(chat);
                     ScrollToLastMessage();
                     await _service.SaveTodayMessagesToDiskAsync();
                 }
@@ -190,17 +198,23 @@ namespace Client.Pages
         private async Task LoadHistoryAsync(string withUser)
         {
             var username = _service.Username;
+            var connection = _service.Connection;
+
+            if (connection is null)
+            {
+                return;
+            }
 
             try
             {
-                var history = await _service.Connection.InvokeAsync<List<ChatMessageModel>>("GetHistory", username, withUser);
+                var history = await connection.InvokeAsync<List<ChatMessageModel>>("GetHistory", username, withUser);
 
-                Messages.Clear();
-                Messages.Add(new LoadMorePlaceholder());
+                _messages.Clear();
+                _messages.Add(new LoadMorePlaceholder());
 
                 foreach (var msg in history)
                 {
-                    Messages.Add(msg);
+                    _messages.Add(msg);
                 }
             }
             catch (Exception ex)
@@ -237,7 +251,14 @@ namespace Client.Pages
                 var groupName = groupNameBox.Text;
                 var password = passwordBox.Password;
 
-                var response = await App.ChatService.Connection.InvokeAsync<string>("JoinProtectedGroup", groupName, password);
+                var connection = App.ChatService.Connection;
+                if (connection is null)
+                {
+                    Debug.WriteLine("❌ Impossible de rejoindre le groupe : connexion indisponible.");
+                    return;
+                }
+
+                var response = await connection.InvokeAsync<string>("JoinProtectedGroup", groupName, password);
                 Debug.WriteLine($"🔐 Groupe {groupName} : {response}");
             }
         }
@@ -269,12 +290,12 @@ namespace Client.Pages
 
                 var result = await _service.LoadMessagesForDateAsync(_service.Username, _currentDate);
 
-                if (result.Success && result.Value.Any())
+                if (result.Success && result.Value is { } moreMessages && moreMessages.Any())
                 {
                     int insertIndex = 1;
-                    foreach (var msg in result.Value.OrderBy(m => m.Timestamp))
+                    foreach (var msg in moreMessages.OrderBy(m => m.Timestamp))
                     {
-                        Messages.Insert(insertIndex++, msg);
+                        _messages.Insert(insertIndex++, msg);
                     }
 
                     return;
@@ -283,13 +304,40 @@ namespace Client.Pages
 
             if (tryCount >= maxDaysToTry)
             {
-                var loadMore = Messages.FirstOrDefault(x => x is LoadMorePlaceholder);
+                var loadMore = _messages.FirstOrDefault(x => x is LoadMorePlaceholder);
                 if (loadMore != null)
-                    Messages.Remove(loadMore);
-                Messages.Insert(0, new EmptyPlaceholder());
+                    _messages.Remove(loadMore);
+                _messages.Insert(0, new EmptyPlaceholder());
             }
 
             Debug.WriteLine("📭 Aucun message trouvé dans les 30 derniers jours.");
+        }
+
+        private static bool ShouldKeepMessage(object? item, UserInfo? selected)
+        {
+            if (item is null)
+            {
+                return false;
+            }
+
+            if (item is not ChatMessageModel message)
+            {
+                // Preserve placeholders and other non-chat elements.
+                return true;
+            }
+
+            if (selected is null)
+            {
+                return true;
+            }
+
+            if (string.Equals(selected.Username, "A Tous", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return string.Equals(message.Sender, selected.Username, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(message.Destinataire, selected.Username, StringComparison.OrdinalIgnoreCase);
         }
 
         private void ApplyChatStyle(ChatStyle style)
