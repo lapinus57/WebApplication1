@@ -288,7 +288,7 @@
                         <TextBlock Grid.Column="1"
                                    Text="{x:Bind TimeSinceHoldTimeFormatted, Mode=OneWay}"
                                    Foreground="{x:Bind PickupAttentionForeground, Mode=OneWay}"
-                                   FontWeight="{x:Bind RequiresPickupAttention ? FontWeights.Bold : FontWeights.Normal, Mode=OneWay}"
+                                   FontWeight="{x:Bind PickupAttentionFontWeight, Mode=OneWay}"
                                    HorizontalAlignment="Right"/>
                     </Grid>
                 </Grid>
