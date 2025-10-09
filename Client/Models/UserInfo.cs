@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using Client.Helpers;
 
 namespace Client.Models
@@ -140,5 +141,28 @@ namespace Client.Models
 
         // Propriétés manquantes pour la correction XLS0432
         public bool CanRenameLocalUser { get; set; }
+
+        public UserInfo Clone()
+        {
+            var clone = new UserInfo
+            {
+                ConnectionId = ConnectionId,
+                Username = Username,
+                DisplayName = DisplayName,
+                Avatar = Avatar,
+                ColorUserName = ColorUserName,
+                Note = Note,
+                IsOnline = IsOnline,
+                CanRenameLocalUser = CanRenameLocalUser
+            };
+
+            var roomsToCopy = Rooms?.Where(room => !string.IsNullOrWhiteSpace(room))
+                ?? Enumerable.Empty<string>();
+
+            clone.Rooms = new ObservableCollection<string>(roomsToCopy);
+            clone.SetAccentSelection(_usesAccentContrast);
+
+            return clone;
+        }
     }
 }
