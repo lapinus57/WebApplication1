@@ -41,6 +41,7 @@ namespace Client.Pages
         private readonly bool _showSlashCommands;
         private ScrollViewer? _messagesScrollViewer;
         private bool _isUserManagerDialogOpen;
+        private bool _pendingScrollToLastMessage;
         private readonly List<SlashCommandInfo> _slashCommands = new()
         {
             new SlashCommandInfo("/getallroom", "Afficher toutes les salles et leurs membres"),
@@ -74,6 +75,7 @@ namespace Client.Pages
         {
             InitializeComponent();
             _service = App.ChatService;
+            MessagesList.LayoutUpdated += MessagesList_LayoutUpdated;
             var cfg = MachineConfig.Load();
             ShowTimeModification = cfg.ShowTimeModification;
             _showSlashCommands = cfg.ShowSlashCommands;
@@ -115,6 +117,8 @@ namespace Client.Pages
             ViewModel.ViewModel.SettingsViewModel.BubbleColorModeChanged -= ApplyBubbleColorMode;
             Patients.CollectionChanged -= Patients_CollectionChanged;
             Messages.CollectionChanged -= Messages_CollectionChanged;
+            MessagesList.LayoutUpdated -= MessagesList_LayoutUpdated;
+            _pendingScrollToLastMessage = false;
         }
 
         private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
@@ -789,51 +793,68 @@ namespace Client.Pages
                 return;
             }
 
-            _ = ScrollToLastMessageAsync();
+            _pendingScrollToLastMessage = true;
+
+            if (TryScrollToLastMessageCore())
+            {
+                _pendingScrollToLastMessage = false;
+                return;
+            }
+
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            {
+                if (TryScrollToLastMessageCore())
+                {
+                    _pendingScrollToLastMessage = false;
+                }
+            });
         }
 
-        private async Task ScrollToLastMessageAsync()
+        private void MessagesList_LayoutUpdated(object? sender, object e)
         {
-            const int maxAttempts = 5;
+            if (!_pendingScrollToLastMessage)
+                return;
 
-            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            if (TryScrollToLastMessageCore())
             {
-                await Task.Delay(50);
+                _pendingScrollToLastMessage = false;
+            }
+        }
 
-                var count = MessagesList.Items.Count;
-                if (count == 0)
-                    return;
+        private bool TryScrollToLastMessageCore()
+        {
+            if (MessagesList == null || !MessagesList.IsLoaded)
+                return false;
 
-                var lastIndex = count - 1;
-                var last = MessagesList.Items[lastIndex];
+            var count = MessagesList.Items.Count;
+            if (count == 0)
+                return true;
 
-                MessagesList.ScrollIntoView(last, ScrollIntoViewAlignment.Leading);
-                MessagesList.UpdateLayout();
+            var lastIndex = count - 1;
+            var last = MessagesList.Items[lastIndex];
 
-                if (TryGetMessagesScrollViewer() is ScrollViewer scrollViewer)
-                {
-                    var targetOffset = scrollViewer.ScrollableHeight;
-                    scrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
+            MessagesList.ScrollIntoView(last, ScrollIntoViewAlignment.Default);
 
-                    if (Math.Abs(scrollViewer.VerticalOffset - targetOffset) <= 1)
-                        return;
-                }
+            if (TryGetMessagesScrollViewer() is ScrollViewer scrollViewer)
+            {
+                var targetOffset = scrollViewer.ScrollableHeight;
+                scrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
 
-                if (MessagesList.ContainerFromIndex(lastIndex) is ListViewItem container)
-                {
-                    container.StartBringIntoView(new BringIntoViewOptions
-                    {
-                        VerticalAlignmentRatio = 1.0,
-                        AnimationDesired = true
-                    });
-                    return;
-                }
+                if (Math.Abs(scrollViewer.VerticalOffset - targetOffset) <= 0.5)
+                    return true;
             }
 
-            if (TryGetMessagesScrollViewer() is ScrollViewer fallback)
+            if (MessagesList.ContainerFromIndex(lastIndex) is ListViewItem container)
             {
-                fallback.ChangeView(null, fallback.ScrollableHeight, null, disableAnimation: true);
+                container.StartBringIntoView(new BringIntoViewOptions
+                {
+                    VerticalAlignmentRatio = 1.0,
+                    AnimationDesired = true
+                });
+                return true;
             }
+
+            return false;
         }
 
         private ScrollViewer? TryGetMessagesScrollViewer()
