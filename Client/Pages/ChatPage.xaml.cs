@@ -198,14 +198,13 @@ namespace Client.Pages
                               m.Content == chat.Content &&
                               m.Timestamp == chat.Timestamp);
 
+                AutoSelectConversationForIncomingMessage(chat);
                 if (!alreadyExists)
                 {
                     Messages.Add(chat);
-                    AutoSelectConversationForIncomingMessage(chat);
                     ScrollToLastMessage();
                     await _service.SaveTodayMessagesToDiskAsync();
                 }
-                AutoSelectConversationForIncomingMessage(chat);
             });
         }
 

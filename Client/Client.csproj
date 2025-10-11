@@ -80,13 +80,13 @@
     <PackageCertificateThumbprint>6CE002E3425FBF5FF43209D015175A964FD83406</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-    <AppxPackageDir>E:\dialoguev2\WebApplication1\Client\bin\x64\Package\net8.0-windows10.0.19041.0\win-x64\AppPackages\</AppxPackageDir>
+    <AppxPackageDir>E:\dialoguev2\WebApplication1\Client\bin\x64fi\Package\net8.0-windows10.0.19041.0\win-x64\AppPackages\</AppxPackageDir>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundle>Never</AppxBundle>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <SignAssembly>False</SignAssembly>
     <DefaultLanguage>fr-FR</DefaultLanguage>
-    <AppInstallerUri>https://github.com/lapinus57/WebApplication1/releases/latest/download/Client_x64.appinstaller</AppInstallerUri>
+    <AppInstallerUri>https://github.com/lapinus57/WebApplication1/releases/latest/download/</AppInstallerUri>
   </PropertyGroup>
 </Project>
