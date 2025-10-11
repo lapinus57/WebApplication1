@@ -133,7 +133,13 @@ namespace ChatServeur
             {
                 var uri = new Uri(avatar, UriKind.RelativeOrAbsolute);
                 if (uri.IsAbsoluteUri)
+                {
+                    if (string.Equals(uri.Scheme, "ms-appx", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(uri.Scheme, "ms-appdata", StringComparison.OrdinalIgnoreCase))
+                        return avatar;
+
                     return uri.PathAndQuery;
+                }
             }
             catch
             {

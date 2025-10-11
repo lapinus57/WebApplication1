@@ -253,10 +253,11 @@ namespace Client.Services
                 var uri = new Uri(avatar, UriKind.RelativeOrAbsolute);
                 if (uri.IsAbsoluteUri)
                 {
-                    if (uri.Host == serverUri.Host && uri.Port == serverUri.Port)
-                        return uri.PathAndQuery;
+                    if (string.Equals(uri.Scheme, "ms-appx", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(uri.Scheme, "ms-appdata", StringComparison.OrdinalIgnoreCase))
+                        return avatar;
 
-                    if (string.Equals(uri.Scheme, "ms-appx", StringComparison.OrdinalIgnoreCase))
+                    if (uri.Host == serverUri.Host && uri.Port == serverUri.Port)
                         return uri.PathAndQuery;
                 }
             }
