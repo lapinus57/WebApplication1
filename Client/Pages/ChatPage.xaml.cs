@@ -794,10 +794,21 @@ namespace Client.Pages
                 return;
             }
 
-            if (!TryScrollToLastMessageCore())
+            _pendingScrollToLastMessage = true;
+
+            if (TryScrollToLastMessageCore())
             {
-                _pendingScrollToLastMessage = true;
+                _pendingScrollToLastMessage = false;
+                return;
             }
+
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            {
+                if (TryScrollToLastMessageCore())
+                {
+                    _pendingScrollToLastMessage = false;
+                }
+            });
         }
 
         private void MessagesList_LayoutUpdated(object? sender, object e)
