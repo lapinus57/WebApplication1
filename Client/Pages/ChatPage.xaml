@@ -268,7 +268,7 @@
 
                     <Grid Grid.Row="1" Margin="0,2,0,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="50"/>
+                            <ColumnDefinition Width="90"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>

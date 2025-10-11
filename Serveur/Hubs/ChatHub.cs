@@ -220,6 +220,8 @@ namespace ChatServeur
             try
             {
                 avatar = ToRelativeAvatar(avatar);
+                if (string.IsNullOrWhiteSpace(avatar))
+                    avatar = "/Assets/utilisateur.png";
                 EnsureUsersLoaded();
                 Console.WriteLine($"[SERVER] RegisterUser : {username}");
 
@@ -349,7 +351,7 @@ namespace ChatServeur
             if (string.Equals(username, "Unknown", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            var userAvatar = "ms-appx:///Assets/earth.png";
+            var userAvatar = "ms-appx:///Assets/utilisateur.png";
             var userRoom = "A Tous";
 
             if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var caller))

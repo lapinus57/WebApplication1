@@ -423,7 +423,7 @@ namespace Client.Pages
             {
                 if (user != null)
                 {
-                    var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+                    var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png");
                     await _service.SendMessage(App.UserName, _service.RoomName, user.Username, text, avatar, DateTime.Now);
                     Debug.WriteLine($"📤 Message envoyé à {user.Username}: {text}");
                     InputBox.Text = string.Empty;
@@ -1180,7 +1180,7 @@ namespace Client.Pages
                 _ => "met en attente"
             };
 
-            var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+            var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png");
             await _service.SendMessage(App.UserName, _service.RoomName, "A Tous", response, avatar, DateTime.Now);
         }
 
@@ -1570,7 +1570,7 @@ namespace Client.Pages
         {
             if ((sender as FrameworkElement)?.DataContext is UserInfo user)
             {
-                var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+                var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png");
                 var content = $"{App.UserName} a appelé {user.Username}";
                 await _service.SendMessage(App.UserName, _service.RoomName, "A Tous", content, avatar, DateTime.Now);
                 await _service.CallUser(App.UserName, _service.RoomName, user.Username);

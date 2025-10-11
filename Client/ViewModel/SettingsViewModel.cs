@@ -18,7 +18,7 @@ namespace Client.ViewModel
         private string _appTheme = "Dark";
         private string _colorUserName = "Black";
         private string _initials = string.Empty;
-        private string _avatar = "ms-appx:///Assets/earth.png";
+        private string _avatar = "ms-appx:///Assets/utilisateur.png";
         private string _shortcutF5Refraction = string.Empty;
         private string _shortcutF5Lentilles = string.Empty;
         private string _shortcutF5Pathologies = string.Empty;

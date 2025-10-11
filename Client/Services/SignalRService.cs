@@ -307,7 +307,7 @@ namespace Client.Services
             UpdateSpecialUsers();
 
             var color = AppSettings.Get("ColorUserName", "Black");
-            var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/earth.png");
+            var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png");
             await ConnectAsync(App.UserName, avatar, RoomName, color);
 
 

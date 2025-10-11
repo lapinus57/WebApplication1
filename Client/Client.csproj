@@ -22,6 +22,7 @@
           <Content Include="Assets\earth.png" />
           <Content Include="Assets\EyeChat.png" />
           <Content Include="Assets\secretaria.png" />
+	      <Content Include="Assets\utilisateur.png" />
   </ItemGroup>
 
   <ItemGroup>

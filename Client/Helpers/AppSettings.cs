@@ -63,12 +63,42 @@ namespace Client.Helpers
                 {
                     _settings = new();
                 }
+                if (EnsureAvatarSetting())
+                {
+                    Save();
+                }
             }
             catch
             {
                 _settings = new();
             }
         }
+        private static bool EnsureAvatarSetting()
+        {
+            if (string.IsNullOrWhiteSpace(App.UserName))
+                return false;
+
+            const string defaultAvatar = "ms-appx:///Assets/utilisateur.png";
+
+            if (!_settings.TryGetValue("Avatar", out var value) || value is null)
+            {
+                _settings["Avatar"] = JsonValue.Create(defaultAvatar);
+                return true;
+            }
+
+            if (value is JsonValue jsonValue)
+            {
+                if (jsonValue.TryGetValue<string>(out var avatarValue))
+                {
+                    if (!string.IsNullOrWhiteSpace(avatarValue))
+                        return false;
+                }
+            }
+
+            _settings["Avatar"] = JsonValue.Create(defaultAvatar);
+            return true;
+        }
+
 
         public static string Get(string key, string defaultValue = "")
         {

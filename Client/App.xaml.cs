@@ -120,7 +120,11 @@ namespace Client
                     App.UserName = username;
                     AppSettings.Reload();
                     ApplySavedAppearance(root);
-                    AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
+                    AppSettings.CurrentSelectedUser = new UserInfo
+                    {
+                        Username = username,
+                        Avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png")
+                    };
 
                     if (string.IsNullOrWhiteSpace(machine.DefaultUser))
                         machine.DefaultUser = username;
@@ -140,7 +144,11 @@ namespace Client
                 App.UserName = username;
                 AppSettings.Reload();
                 ApplySavedAppearance(root);
-                AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
+                AppSettings.CurrentSelectedUser = new UserInfo
+                {
+                    Username = username,
+                    Avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png")
+                };
             }
 
             if (!string.IsNullOrWhiteSpace(machine.RoomName) )
@@ -302,7 +310,11 @@ namespace Client
             UserName = username;
             AppSettings.Reload();
             ApplySavedAppearance(root);
-            AppSettings.CurrentSelectedUser = new UserInfo { Username = username };
+            AppSettings.CurrentSelectedUser = new UserInfo
+            {
+                Username = username,
+                Avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png")
+            };
 
             var machine = MachineConfig.Load();
             machine.LastUser = username;
