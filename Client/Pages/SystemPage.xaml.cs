@@ -38,7 +38,7 @@ namespace Client.Pages
             ShowTimeModification = _config.ShowTimeModification;
             ShowReminderPage = _config.ShowReminderPage;
             RoomName = _config.RoomName;
-            DefaultUser = _config.DefaultUser;
+            DefaultUser = _config.DefaultUser?.Trim() ?? string.Empty;
             ConnectLastUser = _config.ConnectLastUser;
             ShowSlashCommands = _config.ShowSlashCommands;
             PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
@@ -362,14 +362,17 @@ namespace Client.Pages
         {
             var comparer = StringComparer.OrdinalIgnoreCase;
             var finalNames = names
+                .Select(name => name?.Trim())
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Distinct(comparer)
                 .ToList();
 
-            if (!string.IsNullOrWhiteSpace(DefaultUser) &&
-                !finalNames.Any(name => comparer.Equals(name, DefaultUser)))
+            var desiredUser = DefaultUser;
+
+            if (!string.IsNullOrWhiteSpace(desiredUser) &&
+                !finalNames.Any(name => comparer.Equals(name, desiredUser)))
             {
-                finalNames.Add(DefaultUser);
+                finalNames.Add(desiredUser);
             }
 
             finalNames.Sort(comparer);
@@ -378,17 +381,25 @@ namespace Client.Pages
             foreach (var user in finalNames)
                 Users.Add(user);
 
-            var selectedName = string.IsNullOrWhiteSpace(DefaultUser)
-                ? finalNames.FirstOrDefault()
-                : finalNames.FirstOrDefault(name => comparer.Equals(name, DefaultUser))
-                    ?? finalNames.FirstOrDefault();
+            string? selectedName;
+
+            if (string.IsNullOrWhiteSpace(desiredUser))
+            {
+                selectedName = finalNames.FirstOrDefault();
+            }
+            else
+            {
+                selectedName = finalNames.FirstOrDefault(name => comparer.Equals(name, desiredUser))
+                    ?? desiredUser;
+            }
 
             DefaultUser = selectedName ?? string.Empty;
 
             if (UsersComboBox is not null)
             {
                 UsersComboBox.ItemsSource = Users;
-                UsersComboBox.SelectedItem = string.IsNullOrEmpty(DefaultUser) ? null : DefaultUser;
+                var comboSelection = Users.FirstOrDefault(name => comparer.Equals(name, DefaultUser));
+                UsersComboBox.SelectedItem = string.IsNullOrEmpty(DefaultUser) ? null : comboSelection ?? DefaultUser;
             }
 
             _config.DefaultUser = DefaultUser;
@@ -404,7 +415,7 @@ namespace Client.Pages
 
                 return Directory
                     .GetFiles(folder, "*_settings.json")
-                    .Select(file => Path.GetFileName(file).Replace("_settings.json", string.Empty))
+                    .Select(file => Path.GetFileName(file).Replace("_settings.json", string.Empty).Trim())
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
