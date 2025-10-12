@@ -23,8 +23,9 @@ namespace Client.Helpers
                     return JsonConvert.DeserializeObject<ConnectionConfig>(json) ?? new ConnectionConfig();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[ConnectionConfig] Load failed", ex, "CLI26");
             }
             return new ConnectionConfig();
         }
@@ -37,8 +38,9 @@ namespace Client.Helpers
                 var json = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[ConnectionConfig] Save failed", ex, "CLI27");
             }
         }
     }

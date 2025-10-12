@@ -45,8 +45,9 @@ namespace Client.Helpers
                     return JsonConvert.DeserializeObject<MachineConfig>(json) ?? new MachineConfig();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[MachineConfig] Load failed", ex, "CLI21");
             }
             return new MachineConfig();
         }
@@ -59,8 +60,9 @@ namespace Client.Helpers
                 var json = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[MachineConfig] Save failed", ex, "CLI22");
             }
         }
     }

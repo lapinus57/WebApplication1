@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ChatServeur;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,7 @@ builder.Services.AddHostedService<ReminderService>();
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 var app = builder.Build();
+var logger = app.Logger;
 
 if (!app.Environment.IsDevelopment())
 {
@@ -50,15 +52,24 @@ app.UseAuthorization();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
-    db.Database.EnsureCreated();
-    EnsurePatientsTable(db);
-    EnsureArchivedColumn(db);
-    EnsureIsDeletedColumn(db);
-    EnsurePatientLogsTable(db);
-    EnsureUserSettingsTable(db);
-    EnsureReminderColumn(db);
-    EnsureKnownUsersTable(db);
-    CleanupKnownUsers(db);
+    try
+    {
+        db.Database.EnsureCreated();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER00: Failed to ensure SQLite database is created.");
+        throw;
+    }
+
+    EnsurePatientsTable(db, logger);
+    EnsureArchivedColumn(db, logger);
+    EnsureIsDeletedColumn(db, logger);
+    EnsurePatientLogsTable(db, logger);
+    EnsureUserSettingsTable(db, logger);
+    EnsureReminderColumn(db, logger);
+    EnsureKnownUsersTable(db, logger);
+    CleanupKnownUsers(db, logger);
     if (!db.ServerConfigs.Any())
     {
         db.ServerConfigs.Add(new ServerConfig());
@@ -66,13 +77,13 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-void EnsureArchivedColumn(ChatDbContext db)
+void EnsureArchivedColumn(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
     try
     {
-        if (!TableExists(connection, "Patients"))
+        if (!TableExists(connection, "Patients", logger))
         {
             return;
         }
@@ -96,19 +107,24 @@ void EnsureArchivedColumn(ChatDbContext db)
             cmd.ExecuteNonQuery();
         }
     }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER02: Failed to ensure Patients table contains IsArchived column.");
+        throw;
+    }
     finally
     {
         connection.Close();
     }
 }
 
-void EnsurePatientsTable(ChatDbContext db)
+void EnsurePatientsTable(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
     try
     {
-        if (TableExists(connection, "Patients"))
+        if (TableExists(connection, "Patients", logger))
         {
             return;
         }
@@ -134,25 +150,38 @@ void EnsurePatientsTable(ChatDbContext db)
         )";
         cmd.ExecuteNonQuery();
     }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER01: Failed to create Patients table.");
+        throw;
+    }
     finally
     {
         connection.Close();
     }
 }
 
-bool TableExists(System.Data.Common.DbConnection connection, string tableName)
+bool TableExists(System.Data.Common.DbConnection connection, string tableName, ILogger logger)
 {
-    using var cmd = connection.CreateCommand();
-    cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name=$name";
-    var parameter = cmd.CreateParameter();
-    parameter.ParameterName = "$name";
-    parameter.Value = tableName;
-    cmd.Parameters.Add(parameter);
-    var result = cmd.ExecuteScalar();
-    return result != null;
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name=$name";
+        var parameter = cmd.CreateParameter();
+        parameter.ParameterName = "$name";
+        parameter.Value = tableName;
+        cmd.Parameters.Add(parameter);
+        var result = cmd.ExecuteScalar();
+        return result != null;
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER03: Failed to check existence of table {TableName}.", tableName);
+        throw;
+    }
 }
 
-void EnsureIsDeletedColumn(ChatDbContext db)
+void EnsureIsDeletedColumn(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
@@ -177,13 +206,18 @@ void EnsureIsDeletedColumn(ChatDbContext db)
             cmd.ExecuteNonQuery();
         }
     }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER04: Failed to ensure Messages table contains IsDeleted column.");
+        throw;
+    }
     finally
     {
         connection.Close();
     }
 }
 
-void EnsureUserSettingsTable(ChatDbContext db)
+void EnsureUserSettingsTable(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
@@ -198,13 +232,18 @@ void EnsureUserSettingsTable(ChatDbContext db)
             cmd.ExecuteNonQuery();
         }
     }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER06: Failed to ensure UserSettings table exists.");
+        throw;
+    }
     finally
     {
         connection.Close();
     }
 }
 
-void EnsureReminderColumn(ChatDbContext db)
+void EnsureReminderColumn(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
@@ -229,13 +268,18 @@ void EnsureReminderColumn(ChatDbContext db)
             cmd.ExecuteNonQuery();
         }
     }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER07: Failed to ensure ServerConfigs table contains ReminderJson column.");
+        throw;
+    }
     finally
     {
         connection.Close();
     }
 }
 
-void EnsurePatientLogsTable(ChatDbContext db)
+void EnsurePatientLogsTable(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
@@ -250,19 +294,24 @@ void EnsurePatientLogsTable(ChatDbContext db)
             cmd.ExecuteNonQuery();
         }
     }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER05: Failed to ensure PatientLogs table exists.");
+        throw;
+    }
     finally
     {
         connection.Close();
     }
 }
 
-void EnsureKnownUsersTable(ChatDbContext db)
+void EnsureKnownUsersTable(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
     try
     {
-        if (TableExists(connection, "KnownUsers"))
+        if (TableExists(connection, "KnownUsers", logger))
         {
             return;
         }
@@ -281,13 +330,18 @@ void EnsureKnownUsersTable(ChatDbContext db)
         )";
         cmd.ExecuteNonQuery();
     }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER08: Failed to ensure KnownUsers table exists.");
+        throw;
+    }
     finally
     {
         connection.Close();
     }
 }
 
-void CleanupKnownUsers(ChatDbContext db)
+void CleanupKnownUsers(ChatDbContext db, ILogger logger)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
@@ -296,6 +350,11 @@ void CleanupKnownUsers(ChatDbContext db)
         using var cmd = connection.CreateCommand();
         cmd.CommandText = "DELETE FROM KnownUsers WHERE (Username IS NULL OR Username = '') AND (DisplayName IS NULL OR DisplayName = '')";
         cmd.ExecuteNonQuery();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER09: Failed to cleanup KnownUsers table.");
+        throw;
     }
     finally
     {

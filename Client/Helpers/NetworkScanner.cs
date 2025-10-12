@@ -59,8 +59,9 @@ namespace Client.Helpers
                         if (response.IsSuccessStatusCode)
                             Interlocked.CompareExchange(ref found, $"http://{ip}:{port}", null);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Logger.LogException("[NetworkScanner] Probe failed", ex, "CLI23");
                     }
                 });
 

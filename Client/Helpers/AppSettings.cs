@@ -68,8 +68,9 @@ namespace Client.Helpers
                     Save();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[AppSettings] Load failed", ex, "CLI17");
                 _settings = new();
             }
         }
@@ -122,7 +123,10 @@ namespace Client.Helpers
                     return value.Deserialize<T>() ?? new T();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.LogException("[AppSettings] GetObject failed", ex, "CLI18");
+            }
             return new T();
         }
 
@@ -147,8 +151,9 @@ namespace Client.Helpers
             {
                 return JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[AppSettings] Export failed", ex, "CLI19");
                 return string.Empty;
             }
         }
@@ -169,8 +174,9 @@ namespace Client.Helpers
                     Save();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[AppSettings] Import failed", ex, "CLI20");
             }
         }
 
@@ -188,6 +194,7 @@ namespace Client.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Sauvegarde échouée : {ex.Message}");
+                Logger.LogException("[AppSettings] Save failed", ex, "CLI10");
             }
         }
 
@@ -207,7 +214,7 @@ namespace Client.Helpers
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogException("[AppSettings] SettingsChanged handler failed", ex);
+                    Logger.LogException("[AppSettings] SettingsChanged handler failed", ex, "CLI04");
                 }
             }
         }
@@ -219,7 +226,10 @@ namespace Client.Helpers
                 if (File.Exists(FilePath))
                     File.Delete(FilePath);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.LogException("[AppSettings] DeleteSettingsFile failed", ex, "CLI11");
+            }
         }
     }
 }

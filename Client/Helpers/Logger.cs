@@ -34,10 +34,13 @@ namespace Client.Helpers
             }
         }
 
-        public static void LogException(string context, Exception exception)
+        public static void LogException(string context, Exception exception, string? errorCode = null)
         {
             var builder = new StringBuilder();
-            builder.AppendLine(context);
+            var header = string.IsNullOrWhiteSpace(errorCode)
+                ? context
+                : $"[{errorCode}] {context}";
+            builder.AppendLine(header);
             builder.AppendLine(exception.ToString());
             Log(builder.ToString());
         }
