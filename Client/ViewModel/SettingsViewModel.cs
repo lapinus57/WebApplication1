@@ -482,7 +482,7 @@ namespace Client.ViewModel
             }
             catch (Exception ex)
             {
-                Logger.LogException("[SettingsViewModel] ValidateExamSelectionsInternal failed", ex);
+                Logger.LogException("[SettingsViewModel] ValidateExamSelectionsInternal failed", ex, "CLI08");
             }
         }
 

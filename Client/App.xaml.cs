@@ -40,7 +40,7 @@ namespace Client
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ Sync settings error: {ex.Message}");
+                    Logger.LogException("[App] SettingsChanged handler failed", ex, "CLI12");
                 }
             };
         }
@@ -244,7 +244,7 @@ namespace Client
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Toast error: {ex.Message}");
+                Logger.LogException("[App] ShowNotification failed", ex, "CLI13");
             }
         }
 
@@ -267,7 +267,7 @@ namespace Client
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Sync settings error: {ex.Message}");
+                Logger.LogException("[App] SyncUserSettingsAsync failed", ex, "CLI14");
             }
         }
 
@@ -289,7 +289,7 @@ namespace Client
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Sync missing settings error: {ex.Message}");
+                Logger.LogException("[App] DownloadMissingUserSettingsAsync failed", ex, "CLI15");
             }
         }
 
@@ -303,7 +303,10 @@ namespace Client
                 if (ChatService.Connection != null)
                     await ChatService.DisconnectAsync();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.LogException("[App] ChangeUserAsync.DisconnectAsync failed", ex, "CLI16");
+            }
 
             ChatService.ClearLocalData();
 
@@ -338,7 +341,10 @@ namespace Client
                 if (ChatService.Connection != null)
                     await ChatService.DisconnectAsync();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.LogException("LogoutAsync.DisconnectAsync failed", ex, "CLI09");
+            }
 
             ChatService.ClearLocalData();
         }
@@ -349,7 +355,7 @@ namespace Client
         {
             if (e.Exception is Exception ex)
             {
-                Logger.LogException("Unhandled UI exception", ex);
+                Logger.LogException("Unhandled UI exception", ex, "CLI01");
             }
             else
             {
@@ -386,7 +392,7 @@ namespace Client
         {
             if (e.ExceptionObject is Exception ex)
             {
-                Logger.LogException("AppDomain unhandled exception", ex);
+                Logger.LogException("AppDomain unhandled exception", ex, "CLI02");
             }
             else
             {
@@ -396,7 +402,7 @@ namespace Client
 
         private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
-            Logger.LogException("Unobserved task exception", e.Exception);
+            Logger.LogException("Unobserved task exception", e.Exception, "CLI03");
             e.SetObserved();
         }
     }

@@ -145,7 +145,7 @@ namespace Client.Pages
             }
             catch (Exception ex)
             {
-                Logger.LogException("UserSettingsPage.RefreshExamOptionsAsync failed", ex);
+                Logger.LogException("UserSettingsPage.RefreshExamOptionsAsync failed", ex, "CLI07");
             }
         }
 

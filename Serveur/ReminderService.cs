@@ -31,7 +31,7 @@ namespace ChatServeur
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Erreur service rappels");
+                    _logger.LogError(ex, "SER15: Reminder service loop failed.");
                 }
 
                 var now = DateTime.Now;
@@ -53,8 +53,9 @@ namespace ChatServeur
             {
                 reminder = JsonSerializer.Deserialize<ReminderConfig>(config.ReminderJson);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "SER16: Failed to deserialize reminder configuration payload.");
                 return;
             }
             if (reminder == null || !reminder.IsEnabled)
@@ -87,8 +88,24 @@ namespace ChatServeur
                                 IsDeleted = false
                             };
                             db.Messages.Add(message);
-                            await db.SaveChangesAsync();
-                            await _hub.Clients.All.SendAsync("ReceiveMessage", message.Id, message.Sender, message.Room, message.Destinataire, message.Content, message.Avatar, message.Timestamp);
+                            try
+                            {
+                                await db.SaveChangesAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "SER17: Failed to persist reminder message {Key}.", key);
+                                continue;
+                            }
+
+                            try
+                            {
+                                await _hub.Clients.All.SendAsync("ReceiveMessage", message.Id, message.Sender, message.Room, message.Destinataire, message.Content, message.Avatar, message.Timestamp);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "SER18: Failed to broadcast reminder message {Key}.", key);
+                            }
                         }
                     }
                 }

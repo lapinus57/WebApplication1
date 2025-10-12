@@ -207,7 +207,7 @@ namespace Client.Models
             }
             catch (Exception ex)
             {
-                Logger.LogException("ExamOption.Load failed", ex);
+                Logger.LogException("ExamOption.Load failed", ex, "CLI05");
             }
             return new ObservableCollection<ExamOption>();
         }
@@ -232,7 +232,7 @@ namespace Client.Models
             }
             catch (Exception ex)
             {
-                Logger.LogException("ExamOption.Save failed", ex);
+                Logger.LogException("ExamOption.Save failed", ex, "CLI06");
             }
         }
 

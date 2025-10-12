@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +7,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace ChatServeur
 {
@@ -118,14 +118,16 @@ namespace ChatServeur
 
         private readonly ChatDbContext _db;
         private readonly IWebHostEnvironment _env;
+        private readonly ILogger<ChatHub> _logger;
 
-        public ChatHub(ChatDbContext db, IWebHostEnvironment env)
+        public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger)
         {
             _db = db;
             _env = env;
+            _logger = logger;
         }
 
-        private static string ToRelativeAvatar(string avatar)
+        private string ToRelativeAvatar(string avatar)
         {
             if (string.IsNullOrWhiteSpace(avatar))
                 return avatar;
@@ -141,8 +143,9 @@ namespace ChatServeur
                     return uri.PathAndQuery;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "SER10: Failed to normalize avatar path {Avatar}.", avatar);
             }
             return avatar;
         }
@@ -229,7 +232,7 @@ namespace ChatServeur
                 if (string.IsNullOrWhiteSpace(avatar))
                     avatar = "/Assets/utilisateur.png";
                 EnsureUsersLoaded();
-                Console.WriteLine($"[SERVER] RegisterUser : {username}");
+                _logger.LogInformation("RegisterUser invoked for {Username}.", username);
 
                 var rooms = new List<string>();
                 if (AllUsers.TryGetValue(username, out var existing) && existing.Rooms.Any())
@@ -299,7 +302,7 @@ namespace ChatServeur
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SERVER ERROR] RegisterUser : {ex.Message}");
+                _logger.LogError(ex, "SER11: Failed to register user {Username}.", username);
                 throw;
             }
         }
@@ -346,7 +349,7 @@ namespace ChatServeur
                 await Clients.Group(destinataire).SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
                 await Clients.Caller.SendAsync("ReceiveMessage", message.Id, sender, room, destinataire, content, avatar, timestamp);
             }
-            Console.WriteLine($"[SERVER] Message sent from {sender} to {destinataire} in room {room}: {content}");
+            _logger.LogInformation("Message sent from {Sender} to {Recipient} in room {Room}.", sender, destinataire, room);
         }
 
         public async Task GenerateSampleMessages()
@@ -949,8 +952,9 @@ namespace ChatServeur
             {
                 return JsonSerializer.Deserialize<List<ExamOption>>(config.ExamOptionsJson) ?? new List<ExamOption>();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "SER12: Failed to deserialize exam options configuration.");
                 return new List<ExamOption>();
             }
         }
@@ -964,8 +968,9 @@ namespace ChatServeur
             {
                 return JsonSerializer.Deserialize<List<string>>(config.RoomsJson) ?? new List<string>();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "SER13: Failed to deserialize rooms configuration.");
                 return new List<string>();
             }
         }
@@ -992,8 +997,9 @@ namespace ChatServeur
             {
                 return JsonSerializer.Deserialize<ReminderConfig>(cfg.ReminderJson) ?? new ReminderConfig();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "SER14: Failed to deserialize reminder configuration.");
                 return new ReminderConfig();
             }
         }

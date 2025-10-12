@@ -23,8 +23,9 @@ namespace Client.Helpers
                            ?? new ObservableCollection<string>();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[RoomList] Load failed", ex, "CLI24");
             }
             return new ObservableCollection<string>();
         }
@@ -37,8 +38,9 @@ namespace Client.Helpers
                 var json = JsonConvert.SerializeObject(rooms, Formatting.Indented);
                 File.WriteAllText(FilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogException("[RoomList] Save failed", ex, "CLI25");
             }
         }
     }
