@@ -88,8 +88,6 @@ namespace Client
                     XamlRoot = root.XamlRoot
                 };
 
-                ThemeHelper.ApplyDialogTheme(dialog);
-
                 var box = new TextBox();
                 dialog.Content = box;
                 var result = await dialog.ShowAsync();
@@ -112,8 +110,6 @@ namespace Client
                     PrimaryButtonText = "Valider",
                     XamlRoot = root.XamlRoot
                 };
-
-                ThemeHelper.ApplyDialogTheme(userDialog);
 
                 var userBox = new TextBox();
                 userDialog.Content = userBox;
@@ -381,8 +377,6 @@ namespace Client
                             CloseButtonText = "Fermer",
                             XamlRoot = root.XamlRoot
                         };
-
-                        ThemeHelper.ApplyDialogTheme(dialog);
 
                         await dialog.ShowAsync();
                     }
