@@ -105,6 +105,8 @@ namespace Client.Pages
                 XamlRoot = xamlRoot
             };
 
+            ThemeHelper.ApplyDialogTheme(dialog);
+
             dialog.PrimaryButtonClick += async (s, args) =>
             {
                 var trimmed = nameBox.Text.Trim();
@@ -300,6 +302,8 @@ namespace Client.Pages
                     XamlRoot = xamlRoot
                 };
 
+                ThemeHelper.ApplyDialogTheme(dialog);
+
                 var result = await dialog.ShowAsync();
                 if (result != ContentDialogResult.Primary)
                     return false;
@@ -330,6 +334,8 @@ namespace Client.Pages
                 XamlRoot = xamlRoot
             };
 
+            ThemeHelper.ApplyDialogTheme(dialog);
+
             var result = await dialog.ShowAsync();
             return result == ContentDialogResult.Primary;
         }
@@ -343,6 +349,8 @@ namespace Client.Pages
                 CloseButtonText = "Fermer",
                 XamlRoot = xamlRoot
             };
+
+            ThemeHelper.ApplyDialogTheme(dialog);
 
             await dialog.ShowAsync();
         }
