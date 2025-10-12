@@ -273,6 +273,11 @@ namespace Client.Helpers
 
         private static void Save()
         {
+            if (string.IsNullOrWhiteSpace(App.UserName))
+            {
+                return;
+            }
+
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
