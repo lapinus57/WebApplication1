@@ -1,4 +1,6 @@
+using System;
 using Client;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -11,6 +13,14 @@ namespace Client.Helpers
         {
             if (dialog is null)
             {
+                return;
+            }
+
+            var dispatcher = dialog.DispatcherQueue ?? App.MainWindow?.DispatcherQueue;
+
+            if (dispatcher is DispatcherQueue queue && !queue.HasThreadAccess)
+            {
+                queue.TryEnqueue(() => ApplyDialogTheme(dialog));
                 return;
             }
 
@@ -29,12 +39,25 @@ namespace Client.Helpers
 
             if (App.MainWindow?.Content is FrameworkElement root)
             {
-                dialog.RequestedTheme = root.ActualTheme switch
+                dialog.XamlRoot ??= root.XamlRoot;
+
+                var theme = root.RequestedTheme != ElementTheme.Default
+                    ? root.RequestedTheme
+                    : root.ActualTheme;
+
+                if (theme is ElementTheme.Dark or ElementTheme.Light)
                 {
-                    ElementTheme.Dark => ElementTheme.Dark,
-                    ElementTheme.Light => ElementTheme.Light,
-                    _ => dialog.RequestedTheme
-                };
+                    dialog.RequestedTheme = theme;
+                    return;
+                }
+            }
+
+            var themeSetting = AppSettings.Get("AppTheme", "Dark");
+            if (Enum.TryParse<ApplicationTheme>(themeSetting, out var appTheme))
+            {
+                dialog.RequestedTheme = appTheme == ApplicationTheme.Dark
+                    ? ElementTheme.Dark
+                    : ElementTheme.Light;
             }
         }
     }
