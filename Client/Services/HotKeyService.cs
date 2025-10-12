@@ -197,8 +197,6 @@ namespace Client.Services
                 XamlRoot = xamlRoot,
             };
 
-            ThemeHelper.ApplyDialogTheme(dialog);
-
             var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -380,8 +378,6 @@ namespace Client.Services
                 XamlRoot = xamlRoot,
             };
 
-            ThemeHelper.ApplyDialogTheme(dialog);
-
             var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -487,8 +483,6 @@ namespace Client.Services
                 },
                 XamlRoot = xamlRoot,
             };
-
-            ThemeHelper.ApplyDialogTheme(dialog);
             await dialog.ShowAsync();
         }
         public static async Task DeclarePatientAsync(string examIdentifier, string patientName)

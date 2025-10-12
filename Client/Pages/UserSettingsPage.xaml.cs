@@ -226,8 +226,6 @@ namespace Client.Pages
                 XamlRoot = this.XamlRoot
             };
 
-            ThemeHelper.ApplyDialogTheme(dialog);
-
             var grid = new GridView
             {
                 ItemsSource = _defaultAvatars,
