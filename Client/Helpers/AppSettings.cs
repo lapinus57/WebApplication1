@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Client.Models;
 using Client;
+using Microsoft.UI.Xaml;
 using System.Text;
 
 namespace Client.Helpers
@@ -153,20 +154,10 @@ namespace Client.Helpers
 
         private static bool EnsureColorsSetting()
         {
-            var defaultColors = new AppColorSettings
-            {
-                TitleBarColor = "#FF0078D7",
-                TextTitleBarColor = "#FFFFFFFF",
-                NavigationViewColor = "#FFE6F1FF",
-                TextNavigationViewColor = "#FF000000",
-                MyMessageColor = "#FFCCE5FF",
-                TextMyMessageColor = "#FF000000",
-                OtherMessageColor = "#FFD9F2DC",
-                TextOtherMessageColor = "#FF000000",
-                AppBackgroundColor = "#FFFFFFFF",
-                TextAppBackgroundColor = "#FF000000",
-                SystemAccentColorDark1 = "#FF0078D7"
-            };
+            var theme = Get("AppTheme", "Dark");
+            var defaultColors = string.Equals(theme, nameof(ApplicationTheme.Light), StringComparison.OrdinalIgnoreCase)
+                ? AppColorPalettes.CreateLightPalette()
+                : AppColorPalettes.CreateDarkPalette();
 
             try
             {
