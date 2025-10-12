@@ -665,6 +665,8 @@ namespace Client.Pages
                 XamlRoot = this.XamlRoot
             };
 
+            ThemeHelper.ApplyDialogTheme(dialog);
+
             var stack = new StackPanel { Spacing = 10 };
 
             var groupNameBox = new TextBox { PlaceholderText = "Nom du groupe" };
@@ -935,6 +937,8 @@ namespace Client.Pages
                     XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
                 };
 
+                ThemeHelper.ApplyDialogTheme(dialog);
+
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
@@ -1165,6 +1169,8 @@ namespace Client.Pages
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.XamlRoot
             };
+
+            ThemeHelper.ApplyDialogTheme(dialog);
 
             var result = await dialog.ShowAsync();
 
@@ -1452,6 +1458,8 @@ namespace Client.Pages
                 XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
             };
 
+            ThemeHelper.ApplyDialogTheme(dialog);
+
             await dialog.ShowAsync();
         }
 
@@ -1465,6 +1473,8 @@ namespace Client.Pages
                 CloseButtonText = "Fermer",
                 XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
             };
+
+            ThemeHelper.ApplyDialogTheme(dialog);
 
             var stack = new StackPanel { Spacing = 10 };
             var roomBox = new ComboBox { ItemsSource = groups.Keys.ToList(), PlaceholderText = "Salle" };
