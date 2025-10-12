@@ -24,15 +24,7 @@ namespace Client.Pages
             Debug.WriteLine($"[AppearanceSettingsPage] ViewModel instance: {ViewModelSettings.GetHashCode()}");
 
             currentSettings = AppSettings.GetObject<AppColorSettings>("Colors");
-
-            if (FindName("TitleBarAccentPicker") is ColorPicker tb)
-                tb.Color = ColorUtils.FromHex(currentSettings.TitleBarColor);
-            if (FindName("NavPicker") is ColorPicker np)
-                np.Color = ColorUtils.FromHex(currentSettings.NavigationViewColor);
-            if (FindName("MyBubblePicker") is ColorPicker mb)
-                mb.Color = ColorUtils.FromHex(currentSettings.MyMessageColor);
-            if (FindName("OtherBubblePicker") is ColorPicker ob)
-                ob.Color = ColorUtils.FromHex(currentSettings.OtherMessageColor);
+            RefreshColorPreview();
             if (FindName("ThemeCombo") is ComboBox theme)
             {
                 theme.SelectedIndex = ViewModelSettings.AppTheme switch
@@ -145,7 +137,26 @@ namespace Client.Pages
             if (ThemeCombo.SelectedItem is ComboBoxItem item && item.Tag is string theme)
             {
                 ViewModelSettings.AppTheme = theme;
+                currentSettings = AppSettings.GetObject<AppColorSettings>("Colors");
+                RefreshColorPreview();
             }
+        }
+
+        private void RefreshColorPreview()
+        {
+            if (FindName("TitleBarAccentPicker") is ColorPicker tb)
+                tb.Color = ColorUtils.FromHex(currentSettings.TitleBarColor);
+            if (FindName("NavPicker") is ColorPicker np)
+                np.Color = ColorUtils.FromHex(currentSettings.NavigationViewColor);
+            if (FindName("MyBubblePicker") is ColorPicker mb)
+                mb.Color = ColorUtils.FromHex(currentSettings.MyMessageColor);
+            if (FindName("OtherBubblePicker") is ColorPicker ob)
+                ob.Color = ColorUtils.FromHex(currentSettings.OtherMessageColor);
+
+            TitleBarZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.TitleBarColor));
+            NavZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.NavigationViewColor));
+            MyMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.MyMessageColor));
+            OtherMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.OtherMessageColor));
         }
 
         private void SaveSettings_Click(object sender, RoutedEventArgs e)
@@ -171,6 +182,8 @@ namespace Client.Pages
             var otherColor = ColorUtils.FromHex(colors.OtherMessageColor);
             var textOtherColor = ColorUtils.FromHex(colors.TextOtherMessageColor);
             var accentDark1 = ColorUtils.FromHex(colors.SystemAccentColorDark1);
+            var appBackgroundColor = ColorUtils.FromHex(colors.AppBackgroundColor);
+            var textAppBackgroundColor = ColorUtils.FromHex(colors.TextAppBackgroundColor);
 
             UpdateResourceBrush("TitleBarColor", titleColor);
             UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
@@ -183,6 +196,8 @@ namespace Client.Pages
             UpdateResourceBrush("OtherMessageColor", otherColor);
             UpdateResourceBrush("TextOtherMessageColor", textOtherColor);
             UpdateResourceBrush("SystemAccentColorDark1", accentDark1);
+            UpdateResourceBrush("ApplicationPageBackgroundThemeBrush", appBackgroundColor);
+            UpdateResourceBrush("TextAppBackgroundColor", textAppBackgroundColor);
 
             ApplyNavigationColors(colors, nav);
 
