@@ -152,29 +152,42 @@ namespace Client.Helpers
         {
             var updated = false;
 
-            updated |= EnsureColorValue(ref current.TitleBarColor, defaults.TitleBarColor);
-            updated |= EnsureColorValue(ref current.TextTitleBarColor, defaults.TextTitleBarColor);
-            updated |= EnsureColorValue(ref current.NavigationViewColor, defaults.NavigationViewColor);
-            updated |= EnsureColorValue(ref current.TextNavigationViewColor, defaults.TextNavigationViewColor);
-            updated |= EnsureColorValue(ref current.MyMessageColor, defaults.MyMessageColor);
-            updated |= EnsureColorValue(ref current.TextMyMessageColor, defaults.TextMyMessageColor);
-            updated |= EnsureColorValue(ref current.OtherMessageColor, defaults.OtherMessageColor);
-            updated |= EnsureColorValue(ref current.TextOtherMessageColor, defaults.TextOtherMessageColor);
-            updated |= EnsureColorValue(ref current.AppBackgroundColor, defaults.AppBackgroundColor);
-            updated |= EnsureColorValue(ref current.TextAppBackgroundColor, defaults.TextAppBackgroundColor);
-            updated |= EnsureColorValue(ref current.SystemAccentColorDark1, defaults.SystemAccentColorDark1);
+            updated |= EnsureColorValue(current, defaults, c => c.TitleBarColor, (c, value) => c.TitleBarColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.TextTitleBarColor, (c, value) => c.TextTitleBarColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.NavigationViewColor, (c, value) => c.NavigationViewColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.TextNavigationViewColor, (c, value) => c.TextNavigationViewColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.MyMessageColor, (c, value) => c.MyMessageColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.TextMyMessageColor, (c, value) => c.TextMyMessageColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.OtherMessageColor, (c, value) => c.OtherMessageColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.TextOtherMessageColor, (c, value) => c.TextOtherMessageColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.AppBackgroundColor, (c, value) => c.AppBackgroundColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.TextAppBackgroundColor, (c, value) => c.TextAppBackgroundColor = value);
+            updated |= EnsureColorValue(current, defaults, c => c.SystemAccentColorDark1, (c, value) => c.SystemAccentColorDark1 = value);
 
             return updated;
         }
 
-        private static bool EnsureColorValue(ref string value, string defaultValue)
+        private static bool EnsureColorValue(
+            AppColorSettings current,
+            AppColorSettings defaults,
+            Func<AppColorSettings, string?> getter,
+            Action<AppColorSettings, string> setter)
         {
+            var value = getter(current);
+
             if (!string.IsNullOrWhiteSpace(value))
             {
                 return false;
             }
 
-            value = defaultValue;
+            var defaultValue = getter(defaults);
+
+            if (!string.IsNullOrWhiteSpace(defaultValue))
+            {
+                setter(current, defaultValue);
+                return true;
+            }
+
             return true;
         }
 
