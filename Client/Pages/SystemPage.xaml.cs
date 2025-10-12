@@ -424,6 +424,7 @@ namespace Client.Pages
                 return Directory
                     .GetFiles(folder, "*_settings.json")
                     .Select(file => Path.GetFileName(file).Replace("_settings.json", string.Empty).Trim())
+                    .Select(AppSettings.SanitizeUserNameForFile)
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)

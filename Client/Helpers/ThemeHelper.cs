@@ -4,6 +4,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Client.Models;
 
 namespace Client.Helpers
 {
@@ -24,7 +25,9 @@ namespace Client.Helpers
                 return;
             }
 
-            if (Application.Current?.Resources is ResourceDictionary resources)
+            var appliedCustomColors = TryApplyCustomDialogColors(dialog);
+
+            if (!appliedCustomColors && Application.Current?.Resources is ResourceDictionary resources)
             {
                 if (resources.TryGetValue("ApplicationPageBackgroundThemeBrush", out var background) && background is SolidColorBrush backgroundBrush)
                 {
@@ -58,6 +61,34 @@ namespace Client.Helpers
                 dialog.RequestedTheme = appTheme == ApplicationTheme.Dark
                     ? ElementTheme.Dark
                     : ElementTheme.Light;
+            }
+        }
+
+        private static bool TryApplyCustomDialogColors(ContentDialog dialog)
+        {
+            try
+            {
+                var colors = AppSettings.GetObject<AppColorSettings>("Colors");
+                var applied = false;
+
+                if (!string.IsNullOrWhiteSpace(colors.AppBackgroundColor))
+                {
+                    dialog.Background = new SolidColorBrush(ColorUtils.FromHex(colors.AppBackgroundColor));
+                    applied = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(colors.TextAppBackgroundColor))
+                {
+                    dialog.Foreground = new SolidColorBrush(ColorUtils.FromHex(colors.TextAppBackgroundColor));
+                    applied = true;
+                }
+
+                return applied;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[ThemeHelper] Applying custom dialog colors failed", ex, "CLI23");
+                return false;
             }
         }
     }

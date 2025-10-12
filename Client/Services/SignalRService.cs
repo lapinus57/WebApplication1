@@ -124,7 +124,7 @@ namespace Client.Services
 
         private static string GetUserSettingsFilePath(string username)
         {
-            var safeName = (username ?? string.Empty).Trim();
+            var safeName = AppSettings.SanitizeUserNameForFile(username ?? string.Empty);
             if (string.IsNullOrEmpty(safeName))
                 throw new ArgumentException("Le nom d'utilisateur est invalide.", nameof(username));
 
@@ -609,10 +609,18 @@ namespace Client.Services
                     {
                         var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
                         Directory.CreateDirectory(appFolder);
-                        var path = Path.Combine(appFolder, $"{username}_settings.json");
+                        var sanitized = AppSettings.SanitizeUserNameForFile(username);
+                        if (string.IsNullOrWhiteSpace(sanitized))
+                        {
+                            return;
+                        }
+
+                        var path = Path.Combine(appFolder, $"{sanitized}_settings.json");
                         File.WriteAllText(path, json);
 
-                        if (username == App.UserName)
+                        var currentUser = AppSettings.SanitizeUserNameForFile(App.UserName);
+                        if (!string.IsNullOrWhiteSpace(currentUser) &&
+                            sanitized.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
                         {
                             AppSettings.Import(json);
                             if (App.MainWindow?.Content is FrameworkElement root)
@@ -994,8 +1002,8 @@ namespace Client.Services
                 if (string.IsNullOrWhiteSpace(user.Username))
                     continue;
 
-                var safeName = user.Username.Trim();
-                if (safeName.Length == 0)
+                var safeName = AppSettings.SanitizeUserNameForFile(user.Username);
+                if (string.IsNullOrWhiteSpace(safeName))
                     continue;
 
                 var settingsPath = Path.Combine(folder, $"{safeName}_settings.json");
