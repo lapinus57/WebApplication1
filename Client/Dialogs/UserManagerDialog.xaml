@@ -9,7 +9,9 @@
     x:Name="Dialog"
     PrimaryButtonText="Fermer"
     DefaultButton="Primary"
-    x:DefaultBindMode="OneWay">
+    x:DefaultBindMode="OneWay"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+    Foreground="{ThemeResource TextAppBackgroundColor}">
 
     <StackPanel Spacing="16" MinWidth="420">
         <TextBlock Text="Gérez les utilisateurs enregistrés localement ou sur le serveur." TextWrapping="WrapWholeWords" />

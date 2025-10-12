@@ -1570,7 +1570,8 @@ namespace Client.Pages
             if ((sender as FrameworkElement)?.DataContext is UserInfo user)
             {
                 var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png");
-                var content = $"{App.UserName} a appelé {user.Username}";
+                var room = _service.RoomName;
+                var content = $"{App.UserName} a appelé {user.Username} chez {room}";
                 await _service.SendMessage(App.UserName, _service.RoomName, "A Tous", content, avatar, DateTime.Now);
                 await _service.CallUser(App.UserName, _service.RoomName, user.Username);
             }
