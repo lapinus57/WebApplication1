@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using System;
+using System.Collections.Generic;
 using Client.Services;
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
@@ -103,6 +104,30 @@ namespace Client
             var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
             Directory.CreateDirectory(appFolder);
             var settingsFiles = Directory.GetFiles(appFolder, "*_settings.json");
+            var validSettingsFiles = new List<string>();
+
+            foreach (var file in settingsFiles)
+            {
+                var rawName = Path.GetFileNameWithoutExtension(file)?.Replace("_settings", string.Empty) ?? string.Empty;
+                var sanitized = AppSettings.SanitizeUserNameForFile(rawName);
+                if (string.IsNullOrWhiteSpace(sanitized))
+                {
+                    try
+                    {
+                        File.Delete(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException($"[App] Impossible de supprimer le fichier de paramètres invalide '{file}'", ex, "CLI24");
+                    }
+
+                    continue;
+                }
+
+                validSettingsFiles.Add(file);
+            }
+
+            settingsFiles = validSettingsFiles.ToArray();
 
             if (settingsFiles.Length == 0)
             {
@@ -143,7 +168,11 @@ namespace Client
                    ? machine.LastUser
                    : machine.DefaultUser;
                 if (string.IsNullOrWhiteSpace(username))
-                    username = Path.GetFileNameWithoutExtension(settingsFiles[0]).Replace("_settings", "");
+                {
+                    var fromFile = Path.GetFileNameWithoutExtension(settingsFiles[0])?
+                        .Replace("_settings", string.Empty) ?? string.Empty;
+                    username = AppSettings.SanitizeUserNameForFile(fromFile);
+                }
 
                 App.UserName = username;
                 AppSettings.Reload();
@@ -282,12 +311,20 @@ namespace Client
                 var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
                 Directory.CreateDirectory(appFolder);
                 var localUsers = Directory.GetFiles(appFolder, "*_settings.json")
-                    .Select(f => Path.GetFileNameWithoutExtension(f).Replace("_settings", ""))
+                    .Select(f => Path.GetFileNameWithoutExtension(f)?.Replace("_settings", string.Empty) ?? string.Empty)
+                    .Select(AppSettings.SanitizeUserNameForFile)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
                     .ToList();
                 var missing = await ChatService.GetMissingUserSettingsAsync(localUsers);
                 foreach (var kvp in missing)
                 {
-                    var path = Path.Combine(appFolder, $"{kvp.Key}_settings.json");
+                    var sanitized = AppSettings.SanitizeUserNameForFile(kvp.Key ?? string.Empty);
+                    if (string.IsNullOrWhiteSpace(sanitized))
+                    {
+                        continue;
+                    }
+
+                    var path = Path.Combine(appFolder, $"{sanitized}_settings.json");
                     File.WriteAllText(path, kvp.Value);
                 }
             }

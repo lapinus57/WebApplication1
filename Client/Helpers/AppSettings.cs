@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Client.Models;
 using Client;
+using System.Text;
 
 namespace Client.Helpers
 {
@@ -14,10 +15,46 @@ namespace Client.Helpers
 
         public static event Action? SettingsChanged;
 
-        private static string FilePath =>
-              Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        private static readonly HashSet<char> InvalidFileNameCharacters = new(Path.GetInvalidFileNameChars());
+
+        private static string? GetSettingsFilePath()
+        {
+            var username = App.UserName;
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return null;
+            }
+
+            var sanitized = SanitizeUserNameForFile(username);
+            if (string.IsNullOrWhiteSpace(sanitized))
+            {
+                return null;
+            }
+
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat",
-                $"{(App.UserName)}_settings.json");
+                $"{sanitized}_settings.json");
+        }
+
+        internal static string SanitizeUserNameForFile(string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder(username.Length);
+            foreach (var character in username.Trim())
+            {
+                if (!InvalidFileNameCharacters.Contains(character))
+                {
+                    builder.Append(character);
+                }
+            }
+
+            return builder.ToString();
+        }
 
         private static UserInfo? _currentUser;
         public static UserInfo? CurrentSelectedUser
@@ -52,10 +89,17 @@ namespace Client.Helpers
         {
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-                if (File.Exists(FilePath))
+                var filePath = GetSettingsFilePath();
+                if (string.IsNullOrEmpty(filePath))
                 {
-                    var json = File.ReadAllText(FilePath);
+                    _settings = new();
+                    return;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+                if (File.Exists(filePath))
+                {
+                    var json = File.ReadAllText(filePath);
                     _settings = JsonSerializer.Deserialize<Dictionary<string, JsonNode?>>(json)
                                 ?? new();
                 }
@@ -273,19 +317,20 @@ namespace Client.Helpers
 
         private static void Save()
         {
-            if (string.IsNullOrWhiteSpace(App.UserName))
-            {
-                return;
-            }
-
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+                var filePath = GetSettingsFilePath();
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    return;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
                 var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
                 {
                     WriteIndented = true
                 });
-                File.WriteAllText(FilePath, json);
+                File.WriteAllText(filePath, json);
             }
             catch (Exception ex)
             {
@@ -319,8 +364,14 @@ namespace Client.Helpers
         {
             try
             {
-                if (File.Exists(FilePath))
-                    File.Delete(FilePath);
+                var filePath = GetSettingsFilePath();
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    return;
+                }
+
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
             }
             catch (Exception ex)
             {

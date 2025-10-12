@@ -125,7 +125,12 @@ namespace Client
             var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
             Directory.CreateDirectory(appFolder);
             var settingsFiles = Directory.GetFiles(appFolder, "*_settings.json");
-            var users = settingsFiles.Select(f => Path.GetFileNameWithoutExtension(f).Replace("_settings", "")).ToList();
+            var users = settingsFiles
+                .Select(f => Path.GetFileNameWithoutExtension(f)?.Replace("_settings", string.Empty) ?? string.Empty)
+                .Select(AppSettings.SanitizeUserNameForFile)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             var dialog = new ContentDialog
             {
