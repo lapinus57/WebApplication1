@@ -173,6 +173,8 @@ namespace Client.Pages
                     XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
                 };
 
+                ThemeHelper.ApplyDialogTheme(dialog);
+
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
