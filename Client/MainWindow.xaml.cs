@@ -135,6 +135,8 @@ namespace Client
                 XamlRoot = this.Content.XamlRoot
             };
 
+            ThemeHelper.ApplyDialogTheme(dialog);
+
             var stack = new StackPanel { Spacing = 10 };
             var combo = new ComboBox { ItemsSource = users, PlaceholderText = "Utilisateur" };
             var newBox = new TextBox { PlaceholderText = "Nouvel utilisateur" };

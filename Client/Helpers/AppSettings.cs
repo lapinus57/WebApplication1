@@ -63,7 +63,8 @@ namespace Client.Helpers
                 {
                     _settings = new();
                 }
-                if (EnsureAvatarSetting())
+
+                if (EnsureDefaultSettings())
                 {
                     Save();
                 }
@@ -74,29 +75,106 @@ namespace Client.Helpers
                 _settings = new();
             }
         }
-        private static bool EnsureAvatarSetting()
+
+        private static bool EnsureDefaultSettings()
         {
             if (string.IsNullOrWhiteSpace(App.UserName))
                 return false;
 
-            const string defaultAvatar = "ms-appx:///Assets/utilisateur.png";
+            var updated = false;
 
-            if (!_settings.TryGetValue("Avatar", out var value) || value is null)
-            {
-                _settings["Avatar"] = JsonValue.Create(defaultAvatar);
-                return true;
-            }
+            updated |= EnsureStringSetting("SelectedUser", "A Tous");
+            updated |= EnsureStringSetting("Avatar", "ms-appx:///Assets/utilisateur.png");
+            updated |= EnsureStringSetting("ChatDisplayStyle", "Modern");
+            updated |= EnsureStringSetting("AppTheme", "Dark");
 
-            if (value is JsonValue jsonValue)
+            updated |= EnsureColorsSetting();
+
+            return updated;
+        }
+
+        private static bool EnsureStringSetting(string key, string defaultValue)
+        {
+            if (_settings.TryGetValue(key, out var value) && value is JsonValue jsonValue)
             {
-                if (jsonValue.TryGetValue<string>(out var avatarValue))
+                if (jsonValue.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text))
                 {
-                    if (!string.IsNullOrWhiteSpace(avatarValue))
-                        return false;
+                    return false;
                 }
             }
 
-            _settings["Avatar"] = JsonValue.Create(defaultAvatar);
+            _settings[key] = JsonValue.Create(defaultValue);
+            return true;
+        }
+
+        private static bool EnsureColorsSetting()
+        {
+            var defaultColors = new AppColorSettings
+            {
+                TitleBarColor = "#FF0078D7",
+                TextTitleBarColor = "#FFFFFFFF",
+                NavigationViewColor = "#FFE6F1FF",
+                TextNavigationViewColor = "#FF000000",
+                MyMessageColor = "#FFCCE5FF",
+                TextMyMessageColor = "#FF000000",
+                OtherMessageColor = "#FFD9F2DC",
+                TextOtherMessageColor = "#FF000000",
+                AppBackgroundColor = "#FFFFFFFF",
+                TextAppBackgroundColor = "#FF000000",
+                SystemAccentColorDark1 = "#FF0078D7"
+            };
+
+            try
+            {
+                if (_settings.TryGetValue("Colors", out var node) && node is not null)
+                {
+                    var current = node.Deserialize<AppColorSettings>() ?? new AppColorSettings();
+                    var changed = ApplyColorDefaults(current, defaultColors);
+                    if (!changed)
+                    {
+                        return false;
+                    }
+
+                    _settings["Colors"] = JsonSerializer.SerializeToNode(current);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[AppSettings] EnsureColorsSetting failed", ex, "CLI21");
+            }
+
+            _settings["Colors"] = JsonSerializer.SerializeToNode(defaultColors);
+            return true;
+        }
+
+        private static bool ApplyColorDefaults(AppColorSettings current, AppColorSettings defaults)
+        {
+            var updated = false;
+
+            updated |= EnsureColorValue(ref current.TitleBarColor, defaults.TitleBarColor);
+            updated |= EnsureColorValue(ref current.TextTitleBarColor, defaults.TextTitleBarColor);
+            updated |= EnsureColorValue(ref current.NavigationViewColor, defaults.NavigationViewColor);
+            updated |= EnsureColorValue(ref current.TextNavigationViewColor, defaults.TextNavigationViewColor);
+            updated |= EnsureColorValue(ref current.MyMessageColor, defaults.MyMessageColor);
+            updated |= EnsureColorValue(ref current.TextMyMessageColor, defaults.TextMyMessageColor);
+            updated |= EnsureColorValue(ref current.OtherMessageColor, defaults.OtherMessageColor);
+            updated |= EnsureColorValue(ref current.TextOtherMessageColor, defaults.TextOtherMessageColor);
+            updated |= EnsureColorValue(ref current.AppBackgroundColor, defaults.AppBackgroundColor);
+            updated |= EnsureColorValue(ref current.TextAppBackgroundColor, defaults.TextAppBackgroundColor);
+            updated |= EnsureColorValue(ref current.SystemAccentColorDark1, defaults.SystemAccentColorDark1);
+
+            return updated;
+        }
+
+        private static bool EnsureColorValue(ref string value, string defaultValue)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            value = defaultValue;
             return true;
         }
 

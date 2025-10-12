@@ -448,6 +448,8 @@ namespace Client.Pages
                 XamlRoot = this.XamlRoot
             };
 
+            ThemeHelper.ApplyDialogTheme(dialog);
+
             await dialog.ShowAsync();
         }
 
@@ -469,6 +471,8 @@ namespace Client.Pages
                     CloseButtonText = "Annuler",
                     XamlRoot = this.XamlRoot
                 };
+
+                ThemeHelper.ApplyDialogTheme(dialog);
 
                 var box = new TextBox { Text = room };
                 dialog.Content = box;
