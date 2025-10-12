@@ -444,7 +444,13 @@
                   Grid.Column="1"
                   ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
                   SelectionMode="None"
-                  ItemsSource="{x:Bind FilteredMessages}"/>
+                    ItemsSource="{x:Bind FilteredMessages}">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsStackPanel ItemsUpdatingScrollMode="KeepLastItemInView" />
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+        </ListView>
 
 
         <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Spacing="8">
