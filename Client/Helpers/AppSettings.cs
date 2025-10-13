@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Client.Models;
 using Client;
-using Microsoft.UI.Xaml;
 using System.Text;
 
 namespace Client.Helpers
@@ -109,10 +108,6 @@ namespace Client.Helpers
                     _settings = new();
                 }
 
-                if (EnsureDefaultSettings())
-                {
-                    Save();
-                }
             }
             catch (Exception ex)
             {
@@ -120,112 +115,6 @@ namespace Client.Helpers
                 _settings = new();
             }
         }
-
-        private static bool EnsureDefaultSettings()
-        {
-            if (string.IsNullOrWhiteSpace(App.UserName))
-                return false;
-
-            var updated = false;
-
-            updated |= EnsureStringSetting("SelectedUser", "A Tous");
-            updated |= EnsureStringSetting("Avatar", "ms-appx:///Assets/utilisateur.png");
-            updated |= EnsureStringSetting("ChatDisplayStyle", "Modern");
-            updated |= EnsureStringSetting("AppTheme", "Dark");
-
-            updated |= EnsureColorsSetting();
-
-            return updated;
-        }
-
-        private static bool EnsureStringSetting(string key, string defaultValue)
-        {
-            if (_settings.TryGetValue(key, out var value) && value is JsonValue jsonValue)
-            {
-                if (jsonValue.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text))
-                {
-                    return false;
-                }
-            }
-
-            _settings[key] = JsonValue.Create(defaultValue);
-            return true;
-        }
-
-        private static bool EnsureColorsSetting()
-        {
-            var theme = Get("AppTheme", "Dark");
-            var defaultColors = string.Equals(theme, nameof(ApplicationTheme.Light), StringComparison.OrdinalIgnoreCase)
-                ? AppColorPalettes.CreateLightPalette()
-                : AppColorPalettes.CreateDarkPalette();
-
-            try
-            {
-                if (_settings.TryGetValue("Colors", out var node) && node is not null)
-                {
-                    var current = node.Deserialize<AppColorSettings>() ?? new AppColorSettings();
-                    var changed = ApplyColorDefaults(current, defaultColors);
-                    if (!changed)
-                    {
-                        return false;
-                    }
-
-                    _settings["Colors"] = JsonSerializer.SerializeToNode(current);
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException("[AppSettings] EnsureColorsSetting failed", ex, "CLI21");
-            }
-
-            _settings["Colors"] = JsonSerializer.SerializeToNode(defaultColors);
-            return true;
-        }
-
-        private static bool ApplyColorDefaults(AppColorSettings current, AppColorSettings defaults)
-        {
-            var updated = false;
-
-            updated |= EnsureColorValue(current, defaults, c => c.TitleBarColor, (c, value) => c.TitleBarColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.TextTitleBarColor, (c, value) => c.TextTitleBarColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.NavigationViewColor, (c, value) => c.NavigationViewColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.TextNavigationViewColor, (c, value) => c.TextNavigationViewColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.MyMessageColor, (c, value) => c.MyMessageColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.TextMyMessageColor, (c, value) => c.TextMyMessageColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.OtherMessageColor, (c, value) => c.OtherMessageColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.TextOtherMessageColor, (c, value) => c.TextOtherMessageColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.AppBackgroundColor, (c, value) => c.AppBackgroundColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.TextAppBackgroundColor, (c, value) => c.TextAppBackgroundColor = value);
-            updated |= EnsureColorValue(current, defaults, c => c.SystemAccentColorDark1, (c, value) => c.SystemAccentColorDark1 = value);
-
-            return updated;
-        }
-
-        private static bool EnsureColorValue(
-            AppColorSettings current,
-            AppColorSettings defaults,
-            Func<AppColorSettings, string?> getter,
-            Action<AppColorSettings, string> setter)
-        {
-            var value = getter(current);
-
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return false;
-            }
-
-            var defaultValue = getter(defaults);
-
-            if (!string.IsNullOrWhiteSpace(defaultValue))
-            {
-                setter(current, defaultValue);
-                return true;
-            }
-
-            return true;
-        }
-
 
         public static string Get(string key, string defaultValue = "")
         {
