@@ -586,19 +586,22 @@ namespace Client.ViewModel
             Grid? titleBar = null;
             NavigationView? nav = null;
             TextBlock? titleText = null;
+            ElementTheme? targetTheme = null;
 
             if (App.MainWindow?.Content is FrameworkElement root)
             {
-                root.RequestedTheme = appTheme == ApplicationTheme.Dark
+                targetTheme = appTheme == ApplicationTheme.Dark
                     ? ElementTheme.Dark
                     : ElementTheme.Light;
+
+                root.RequestedTheme = targetTheme.Value;
 
                 titleBar = root.FindName("AppTitleBar") as Grid;
                 nav = root.FindName("nvSample") as NavigationView;
                 titleText = root.FindName("TitleBarTextBlock") as TextBlock;
             }
 
-            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
+            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText, targetTheme);
         }
 
         private static AppColorSettings EnsureThemePalette(ApplicationTheme appTheme)
