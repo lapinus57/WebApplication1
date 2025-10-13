@@ -53,11 +53,13 @@ namespace Client
             HotKeys.Start();
 
             var theme = AppSettings.Get("AppTheme", "Dark");
+            ElementTheme? targetTheme = null;
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
+                targetTheme = appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
                 if (m_window.Content is FrameworkElement rootElement)
                 {
-                    rootElement.RequestedTheme = appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+                    rootElement.RequestedTheme = targetTheme.Value;
                 }
             }
             m_window.Closed += (_, __) => HotKeys.Dispose();
@@ -196,10 +198,11 @@ namespace Client
         public static void ApplySavedAppearance(FrameworkElement root)
         {
             var theme = AppSettings.Get("AppTheme", "Dark");
+            ElementTheme? targetTheme = null;
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
-                root.RequestedTheme =
-                    appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+                targetTheme = appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+                root.RequestedTheme = targetTheme.Value;
             }
 
             var colors = AppSettings.GetObject<AppColorSettings>("Colors");
@@ -219,7 +222,7 @@ namespace Client
 
             }
 
-            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
+            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText, targetTheme);
         }
 
         private void ChatService_OnMessageReceived(ChatMessageModel chat)
