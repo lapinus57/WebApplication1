@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Client.Helpers;
 using Client.Models;
-using Client.Pages;
 using System.Runtime.Versioning;
 
 namespace Client.ViewModel
@@ -576,56 +575,14 @@ namespace Client.ViewModel
 
         private static void ApplyTheme(string theme)
         {
-            if (!Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
+            if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
-                return;
+                if (App.MainWindow?.Content is FrameworkElement root)
+                {
+                    root.RequestedTheme =
+                        appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+                }
             }
-
-            var colors = EnsureThemePalette(appTheme);
-
-            Grid? titleBar = null;
-            NavigationView? nav = null;
-            TextBlock? titleText = null;
-            ElementTheme? targetTheme = null;
-
-            if (App.MainWindow?.Content is FrameworkElement root)
-            {
-                targetTheme = appTheme == ApplicationTheme.Dark
-                    ? ElementTheme.Dark
-                    : ElementTheme.Light;
-
-                root.RequestedTheme = targetTheme.Value;
-
-                titleBar = root.FindName("AppTitleBar") as Grid;
-                nav = root.FindName("nvSample") as NavigationView;
-                titleText = root.FindName("TitleBarTextBlock") as TextBlock;
-            }
-
-            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText, targetTheme);
-        }
-
-        private static AppColorSettings EnsureThemePalette(ApplicationTheme appTheme)
-        {
-            var colors = AppSettings.GetObject<AppColorSettings>("Colors") ?? new AppColorSettings();
-            var targetPalette = appTheme == ApplicationTheme.Dark
-                ? AppColorPalettes.CreateDarkPalette()
-                : AppColorPalettes.CreateLightPalette();
-            var oppositePalette = appTheme == ApplicationTheme.Dark
-                ? AppColorPalettes.CreateLightPalette()
-                : AppColorPalettes.CreateDarkPalette();
-
-            if (AppColorPalettes.AreEquivalent(colors, targetPalette))
-            {
-                return colors;
-            }
-
-            if (AppColorPalettes.AreEquivalent(colors, oppositePalette))
-            {
-                AppSettings.SetObject("Colors", targetPalette);
-                return targetPalette;
-            }
-
-            return colors;
         }
 
         private void OnPropertyChanged(string propertyName)

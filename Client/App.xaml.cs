@@ -53,13 +53,12 @@ namespace Client
             HotKeys.Start();
 
             var theme = AppSettings.Get("AppTheme", "Dark");
-            ElementTheme? targetTheme = null;
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
-                targetTheme = appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
                 if (m_window.Content is FrameworkElement rootElement)
                 {
-                    rootElement.RequestedTheme = targetTheme.Value;
+                    rootElement.RequestedTheme =
+                        appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
                 }
             }
             m_window.Closed += (_, __) => HotKeys.Dispose();
@@ -90,8 +89,6 @@ namespace Client
                     PrimaryButtonText = "Valider",
                     XamlRoot = root.XamlRoot
                 };
-
-                ThemeHelper.ApplyDialogTheme(dialog);
 
                 var box = new TextBox();
                 dialog.Content = box;
@@ -139,8 +136,6 @@ namespace Client
                     PrimaryButtonText = "Valider",
                     XamlRoot = root.XamlRoot
                 };
-
-                ThemeHelper.ApplyDialogTheme(userDialog);
 
                 var userBox = new TextBox();
                 userDialog.Content = userBox;
@@ -198,11 +193,10 @@ namespace Client
         public static void ApplySavedAppearance(FrameworkElement root)
         {
             var theme = AppSettings.Get("AppTheme", "Dark");
-            ElementTheme? targetTheme = null;
             if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
             {
-                targetTheme = appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
-                root.RequestedTheme = targetTheme.Value;
+                root.RequestedTheme =
+                    appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
             }
 
             var colors = AppSettings.GetObject<AppColorSettings>("Colors");
@@ -222,7 +216,7 @@ namespace Client
 
             }
 
-            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText, targetTheme);
+            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
         }
 
         private void ChatService_OnMessageReceived(ChatMessageModel chat)
@@ -421,8 +415,6 @@ namespace Client
                             CloseButtonText = "Fermer",
                             XamlRoot = root.XamlRoot
                         };
-
-                        ThemeHelper.ApplyDialogTheme(dialog);
 
                         await dialog.ShowAsync();
                     }
