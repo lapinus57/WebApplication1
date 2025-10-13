@@ -44,19 +44,17 @@ namespace Client.Pages
             currentSettings.SystemAccentColorDark1 = ColorUtils.ToHex(args.NewColor);
             AppSettings.SetObject("Colors", currentSettings);
 
-            var theme = GetCurrentTheme();
-
-            UpdateResourceBrush("TextTitleBarColor", textColorTitleBar, theme);
-            UpdateResourceBrush("SystemAccentColorDark1", args.NewColor, theme);
-            UpdateResourceBrush("AccentColor", args.NewColor, theme);
-            UpdateResourceBrush("SystemControlHighlightAccentBrush", args.NewColor, theme);
+            UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
+            UpdateResourceBrush("SystemAccentColorDark1", args.NewColor);
+            UpdateResourceBrush("AccentColor", args.NewColor);
+            UpdateResourceBrush("SystemControlHighlightAccentBrush", args.NewColor);
             if (App.MainWindow.Content is FrameworkElement root)
             {
                 var titleBar = root.FindName("AppTitleBar") as Grid;
                 var nav = root.FindName("nvSample") as NavigationView;
                 var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
                 TitleBarZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.TitleBarColor));
-                ApplyColors(currentSettings, titleBar, nav, titleText, theme);
+                ApplyColors(currentSettings, titleBar, nav, titleText);
             }
         }
 
@@ -66,29 +64,28 @@ namespace Client.Pages
             var textNavColor = ColorUtils.GetContrastingTextColor(args.NewColor);
             currentSettings.TextNavigationViewColor = ColorUtils.ToHex(textNavColor);
             AppSettings.SetObject("Colors", currentSettings);
-            var theme = GetCurrentTheme();
             if (App.MainWindow.Content is FrameworkElement root)
             {
                 var nav = root.FindName("nvSample") as NavigationView;
                 NavZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.NavigationViewColor));
-                ApplyNavigationColors(currentSettings, nav, theme);
+                ApplyNavigationColors(currentSettings, nav);
             }
         }
 
-        private static void ApplyNavigationColors(AppColorSettings colors, NavigationView? nav = null, ElementTheme? theme = null)
+        private static void ApplyNavigationColors(AppColorSettings colors, NavigationView? nav = null)
         {
             var navColor = ColorUtils.FromHex(colors.NavigationViewColor);
             var textNavColor = ColorUtils.FromHex(colors.TextNavigationViewColor);
             var pointerNavColor = ColorUtils.GetContrastingTextColor(textNavColor);
 
-            UpdateResourceBrush("NavigationViewColor", navColor, theme);
-            UpdateResourceBrush("NavigationViewItemForeground", textNavColor, theme);
-            UpdateResourceBrush("NavigationViewItemForegroundSelected", textNavColor, theme);
-            UpdateResourceBrush("NavigationViewItemIconForeground", textNavColor, theme);
-            UpdateResourceBrush("NavigationViewItemIconForegroundSelected", textNavColor, theme);
-            UpdateResourceBrush("NavigationViewItemForegroundPointerOver", pointerNavColor, theme);
-            UpdateResourceBrush("NavigationViewItemIconForegroundPointerOver", pointerNavColor, theme);
-            UpdateResourceBrush("PivotHeaderForeground", textNavColor, theme);
+            UpdateResourceBrush("NavigationViewColor", navColor);
+            UpdateResourceBrush("NavigationViewItemForeground", textNavColor);
+            UpdateResourceBrush("NavigationViewItemForegroundSelected", textNavColor);
+            UpdateResourceBrush("NavigationViewItemIconForeground", textNavColor);
+            UpdateResourceBrush("NavigationViewItemIconForegroundSelected", textNavColor);
+            UpdateResourceBrush("NavigationViewItemForegroundPointerOver", pointerNavColor);
+            UpdateResourceBrush("NavigationViewItemIconForegroundPointerOver", pointerNavColor);
+            UpdateResourceBrush("PivotHeaderForeground", textNavColor);
 
             nav?.DispatcherQueue.TryEnqueue(() =>
             {
@@ -110,14 +107,13 @@ namespace Client.Pages
             var textColor = ColorUtils.GetContrastingTextColor(args.NewColor);
             currentSettings.TextMyMessageColor = ColorUtils.ToHex(textColor);
             AppSettings.SetObject("Colors", currentSettings);
-            var theme = GetCurrentTheme();
             if (App.MainWindow.Content is FrameworkElement root)
             {
                 var titleBar = root.FindName("AppTitleBar") as Grid;
                 var nav = root.FindName("nvSample") as NavigationView;
                 var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
                 MyMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.MyMessageColor));
-                ApplyColors(currentSettings, titleBar, nav, titleText, theme);
+                ApplyColors(currentSettings, titleBar, nav, titleText);
             }
         }
 
@@ -127,14 +123,13 @@ namespace Client.Pages
             var textColor = ColorUtils.GetContrastingTextColor(args.NewColor);
             currentSettings.TextOtherMessageColor = ColorUtils.ToHex(textColor);
             AppSettings.SetObject("Colors", currentSettings);
-            var theme = GetCurrentTheme();
             if (App.MainWindow.Content is FrameworkElement root)
             {
                 var titleBar = root.FindName("AppTitleBar") as Grid;
                 var nav = root.FindName("nvSample") as NavigationView;
                 var titleText = root.FindName("TitleBarTextBlock") as TextBlock;
                 OtherMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.OtherMessageColor));
-                ApplyColors(currentSettings, titleBar, nav, titleText, theme);
+                ApplyColors(currentSettings, titleBar, nav, titleText);
             }
         }
 
@@ -181,8 +176,7 @@ namespace Client.Pages
             AppColorSettings colors,
             Grid? titleBar = null,
             NavigationView? nav = null,
-            TextBlock? titleTextBlock = null,
-            ElementTheme? theme = null)
+            TextBlock? titleTextBlock = null)
         {
             var titleColor = ColorUtils.FromHex(colors.TitleBarColor);
             var textColorTitleBar = ColorUtils.FromHex(colors.TextTitleBarColor);
@@ -193,95 +187,40 @@ namespace Client.Pages
             var otherColor = ColorUtils.FromHex(colors.OtherMessageColor);
             var textOtherColor = ColorUtils.FromHex(colors.TextOtherMessageColor);
             var accentDark1 = ColorUtils.FromHex(colors.SystemAccentColorDark1);
-            var appBackgroundColor = ColorUtils.FromHex(colors.AppBackgroundColor);
-            var textAppBackgroundColor = ColorUtils.FromHex(colors.TextAppBackgroundColor);
+            UpdateResourceBrush("TitleBarColor", titleColor);
+            UpdateResourceBrush("TextTitleBarColor", textColorTitleBar);
+            UpdateResourceBrush("SystemAccentColor", titleColor);
+            UpdateResourceBrush("AccentColor", titleColor);
+            UpdateResourceBrush("SystemAccentColorLight3", navColor);
+            UpdateResourceBrush("SystemControlHighlightAccentBrush", titleColor);
+            UpdateResourceBrush("MyMessageColor", myColor);
+            UpdateResourceBrush("TextMyMessageColor", textMyColor);
+            UpdateResourceBrush("OtherMessageColor", otherColor);
+            UpdateResourceBrush("TextOtherMessageColor", textOtherColor);
+            UpdateResourceBrush("SystemAccentColorDark1", accentDark1);
 
-            var targetTheme = theme ?? GetCurrentTheme();
-
-            UpdateResourceBrush("TitleBarColor", titleColor, targetTheme);
-            UpdateResourceBrush("TextTitleBarColor", textColorTitleBar, targetTheme);
-            UpdateResourceBrush("SystemAccentColor", titleColor, targetTheme);
-            UpdateResourceBrush("AccentColor", titleColor, targetTheme);
-            UpdateResourceBrush("SystemAccentColorLight3", navColor, targetTheme);
-            UpdateResourceBrush("SystemControlHighlightAccentBrush", titleColor, targetTheme);
-            UpdateResourceBrush("MyMessageColor", myColor, targetTheme);
-            UpdateResourceBrush("TextMyMessageColor", textMyColor, targetTheme);
-            UpdateResourceBrush("OtherMessageColor", otherColor, targetTheme);
-            UpdateResourceBrush("TextOtherMessageColor", textOtherColor, targetTheme);
-            UpdateResourceBrush("SystemAccentColorDark1", accentDark1, targetTheme);
-            UpdateResourceBrush("ApplicationPageBackgroundThemeBrush", appBackgroundColor, targetTheme);
-            UpdateResourceBrush("TextAppBackgroundColor", textAppBackgroundColor, targetTheme);
-
-            ApplyNavigationColors(colors, nav, targetTheme);
+            ApplyNavigationColors(colors, nav);
 
             titleBar?.DispatcherQueue.TryEnqueue(() => titleBar.Background = new SolidColorBrush(titleColor));
 
             titleTextBlock?.DispatcherQueue.TryEnqueue(() => titleTextBlock.Foreground = new SolidColorBrush(textColorTitleBar));
         }
 
-        private static void UpdateResourceBrush(string key, Windows.UI.Color color, ElementTheme? theme = null)
+        private static void UpdateResourceBrush(string key, Windows.UI.Color color)
         {
             var resources = Application.Current.Resources;
-            if (theme is ElementTheme.Dark or ElementTheme.Light)
+            if (resources[key] is SolidColorBrush brush)
             {
-                var themeKey = theme.ToString();
-                if (themeKey is not null && resources.ThemeDictionaries.TryGetValue(themeKey, out var themeResources)
-                    && themeResources is ResourceDictionary themeDictionary)
-                {
-                    if (TryUpdateResource(themeDictionary, key, color))
-                    {
-                        return;
-                    }
-                }
+                brush.Color = color;
             }
-
-            TryUpdateResource(resources, key, color, allowAdd: true);
-        }
-
-        private static bool TryUpdateResource(ResourceDictionary dictionary, string key, Windows.UI.Color color, bool allowAdd = false)
-        {
-            if (dictionary.TryGetValue(key, out var value))
+            else if (resources[key] is Windows.UI.Color)
             {
-                switch (value)
-                {
-                    case SolidColorBrush brush:
-                        brush.Color = color;
-                        return true;
-                    case Windows.UI.Color:
-                        dictionary[key] = color;
-                        return true;
-                    default:
-                        dictionary[key] = new SolidColorBrush(color);
-                        return true;
-                }
+                resources[key] = color;
             }
-
-            if (allowAdd)
+            else
             {
-                dictionary[key] = new SolidColorBrush(color);
-                return true;
+                resources[key] = new SolidColorBrush(color);
             }
-
-            return false;
-        }
-
-        private static ElementTheme? GetCurrentTheme()
-        {
-            if (App.MainWindow?.Content is FrameworkElement root)
-            {
-                var currentTheme = root.RequestedTheme;
-                if (currentTheme == ElementTheme.Default)
-                {
-                    currentTheme = root.ActualTheme;
-                }
-
-                if (currentTheme is ElementTheme.Dark or ElementTheme.Light)
-                {
-                    return currentTheme;
-                }
-            }
-
-            return null;
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
