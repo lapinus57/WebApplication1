@@ -598,11 +598,11 @@ namespace Client.ViewModel
                 titleText = root.FindName("TitleBarTextBlock") as TextBlock;
             }
 
-            var theme = appTheme == ApplicationTheme.Dark
+            var elementTheme = appTheme == ApplicationTheme.Dark
                 ? ElementTheme.Dark
                 : ElementTheme.Light;
 
-            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText, theme);
+            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText, elementTheme);
         }
 
         private static AppColorSettings EnsureThemePalette(ApplicationTheme appTheme)
