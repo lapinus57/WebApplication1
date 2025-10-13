@@ -219,11 +219,7 @@ namespace Client
 
             }
 
-            var targetTheme = root.RequestedTheme is ElementTheme.Default
-                ? root.ActualTheme
-                : root.RequestedTheme;
-
-            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText, targetTheme);
+            AppearanceSettingsPage.ApplyColors(colors, titleBar, nav, titleText);
         }
 
         private void ChatService_OnMessageReceived(ChatMessageModel chat)
