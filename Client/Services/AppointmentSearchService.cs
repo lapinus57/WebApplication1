@@ -291,17 +291,39 @@ namespace Client.Services
 
         private HashSet<DateTime> BuildExcludedDateSet(IEnumerable<AppointmentEntry> excludedEntries)
         {
-            var excludedDates = new HashSet<DateTime>();
             var releaseMonths = Math.Max(0, _config.ExcludedDayReleaseMonths);
             var releaseThreshold = releaseMonths > 0 ? DateTime.Today.AddMonths(releaseMonths) : (DateTime?)null;
+
+            var dayStates = new Dictionary<DateTime, (bool Morning, bool Afternoon)>();
 
             foreach (var entry in excludedEntries)
             {
                 var date = entry.SlotStart.Date;
-                if (releaseThreshold.HasValue && date <= releaseThreshold.Value)
-                    continue;
+                if (!dayStates.TryGetValue(date, out var state))
+                {
+                    state = (false, false);
+                }
 
-                excludedDates.Add(date);
+                var time = entry.SlotStart.TimeOfDay;
+                if (time < _config.AfternoonStart)
+                    state.Morning = true;
+                if (time >= _config.AfternoonStart)
+                    state.Afternoon = true;
+
+                dayStates[date] = state;
+            }
+
+            var excludedDates = new HashSet<DateTime>();
+            foreach (var (date, state) in dayStates)
+            {
+                if (state.Morning && state.Afternoon)
+                {
+                    excludedDates.Add(date);
+                    continue;
+                }
+
+                if (releaseThreshold.HasValue && date > releaseThreshold.Value && (state.Morning || state.Afternoon))
+                    excludedDates.Add(date);
             }
 
             return excludedDates;
