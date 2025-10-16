@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.OleDb;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -173,6 +174,11 @@ namespace Client.Services
                 message += $" Fournisseurs testés : {string.Join(", ", triedProviders)}.";
             }
 
+            if (Environment.Is64BitProcess && IsMdbDatabase())
+            {
+                message += " La base de données cible est un fichier .mdb. Le fournisseur Microsoft Jet intégré à Windows n'est disponible que pour les applications 32 bits : lancez la version x86 du client pour éviter d'installer un fournisseur supplémentaire.";
+            }
+
             throw new InvalidOperationException(message, lastProviderError);
         }
 
@@ -187,16 +193,34 @@ namespace Client.Services
                     yield return configured;
             }
 
-            foreach (var fallback in new[]
-                     {
-                         "Microsoft.ACE.OLEDB.16.0",
-                         "Microsoft.ACE.OLEDB.12.0",
-                         "Microsoft.Jet.OLEDB.4.0"
-                     })
+            foreach (var fallback in EnumerateFallbackProviders())
             {
                 if (yielded.Add(fallback))
                     yield return fallback;
             }
+        }
+
+        private IEnumerable<string> EnumerateFallbackProviders()
+        {
+            if (IsMdbDatabase())
+            {
+                yield return "Microsoft.Jet.OLEDB.4.0";
+            }
+
+            yield return "Microsoft.ACE.OLEDB.16.0";
+            yield return "Microsoft.ACE.OLEDB.12.0";
+
+            if (!IsMdbDatabase())
+            {
+                yield return "Microsoft.Jet.OLEDB.4.0";
+            }
+        }
+
+        private bool IsMdbDatabase()
+        {
+            var extension = Path.GetExtension(_config.DatabasePath);
+            return !string.IsNullOrWhiteSpace(extension)
+                   && extension.Equals(".mdb", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsProviderNotRegistered(Exception exception)
