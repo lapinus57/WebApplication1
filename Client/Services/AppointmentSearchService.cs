@@ -143,9 +143,13 @@ namespace Client.Services
 
         private string BuildConnectionString()
         {
+            var provider = string.IsNullOrWhiteSpace(_machineConfig.AccessOleDbProvider)
+                ? "Microsoft.ACE.OLEDB.12.0"
+                : _machineConfig.AccessOleDbProvider;
+
             var builder = new OleDbConnectionStringBuilder
             {
-                Provider = "Microsoft.ACE.OLEDB.12.0",
+                Provider = provider,
                 ["Data Source"] = _config.DatabasePath,
                 ["Persist Security Info"] = true
             };

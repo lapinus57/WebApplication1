@@ -31,6 +31,7 @@ namespace Client.Pages
         public bool ConnectLastUser { get; set; }
         public double PickupAlertThresholdMinutes { get; set; }
         public AppointmentSearchConfig AppointmentConfig { get; private set; } = new();
+        public string AccessOleDbProvider { get; set; } = string.Empty;
         public string AccessWorkgroupPath { get; set; } = string.Empty;
         public string AccessUserName { get; set; } = string.Empty;
         public string AccessPassword { get; set; } = string.Empty;
@@ -47,6 +48,7 @@ namespace Client.Pages
             ConnectLastUser = _config.ConnectLastUser;
             ShowSlashCommands = _config.ShowSlashCommands;
             PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
+            AccessOleDbProvider = _config.AccessOleDbProvider;
             AccessWorkgroupPath = _config.AccessWorkgroupPath;
             AccessUserName = _config.AccessUserName;
             AccessPassword = _config.AccessPassword;
@@ -98,6 +100,7 @@ namespace Client.Pages
             _config.DefaultUser = DefaultUser;
             _config.ConnectLastUser = ConnectLastUser;
             _config.PickupAlertThresholdMinutes = (int)Math.Max(0, Math.Round(PickupAlertThresholdMinutes));
+            _config.AccessOleDbProvider = AccessOleDbProvider?.Trim() ?? string.Empty;
             _config.AccessWorkgroupPath = AccessWorkgroupPath?.Trim() ?? string.Empty;
             _config.AccessUserName = AccessUserName?.Trim() ?? string.Empty;
             _config.AccessPassword = AccessPassword ?? string.Empty;

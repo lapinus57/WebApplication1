@@ -84,6 +84,8 @@
                                                         <TimePicker Time="{x:Bind AppointmentConfig.FoAfternoonLimit, Mode=TwoWay}" />
                                                 </StackPanel>
                                         </StackPanel>
+                                        <TextBlock Text="Fournisseur OLE DB" />
+                                        <TextBox Text="{x:Bind AccessOleDbProvider, Mode=TwoWay}" />
                                         <TextBlock Text="Chemin system.mdw (local)" />
                                         <TextBox Text="{x:Bind AccessWorkgroupPath, Mode=TwoWay}" />
                                         <TextBlock Text="Utilisateur Access" />
