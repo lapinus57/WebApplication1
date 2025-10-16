@@ -37,10 +37,7 @@ namespace Client.Services
 
             var (startDate, endDate) = GetSearchRange(anchorDate, mode);
             var existingAppointments = await LoadExistingAppointmentsAsync(startDate, endDate, cancellationToken).ConfigureAwait(false);
-            var excludedDates = existingAppointments
-                .Where(e => e.IsExcludedDayMarker)
-                .Select(e => e.SlotStart.Date)
-                .ToHashSet();
+            var excludedDates = BuildExcludedDateSet(existingAppointments.Where(e => e.IsExcludedDayMarker));
             var groupedAppointments = GroupAppointments(existingAppointments.Where(e => !e.IsExcludedDayMarker));
 
             var slots = new List<AppointmentSlotInfo>();
@@ -290,6 +287,24 @@ namespace Client.Services
                 list.Add(entry.ColorCode);
             }
             return dict;
+        }
+
+        private HashSet<DateTime> BuildExcludedDateSet(IEnumerable<AppointmentEntry> excludedEntries)
+        {
+            var excludedDates = new HashSet<DateTime>();
+            var releaseMonths = Math.Max(0, _config.ExcludedDayReleaseMonths);
+            var releaseThreshold = releaseMonths > 0 ? DateTime.Today.AddMonths(releaseMonths) : (DateTime?)null;
+
+            foreach (var entry in excludedEntries)
+            {
+                var date = entry.SlotStart.Date;
+                if (releaseThreshold.HasValue && date <= releaseThreshold.Value)
+                    continue;
+
+                excludedDates.Add(date);
+            }
+
+            return excludedDates;
         }
 
         private IEnumerable<TimeSpan> EnumerateDailySlots(TimeSpan slotLength)
