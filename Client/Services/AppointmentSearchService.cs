@@ -37,7 +37,11 @@ namespace Client.Services
 
             var (startDate, endDate) = GetSearchRange(anchorDate, mode);
             var existingAppointments = await LoadExistingAppointmentsAsync(startDate, endDate, cancellationToken).ConfigureAwait(false);
-            var groupedAppointments = GroupAppointments(existingAppointments);
+            var excludedDates = existingAppointments
+                .Where(e => e.IsExcludedDayMarker)
+                .Select(e => e.SlotStart.Date)
+                .ToHashSet();
+            var groupedAppointments = GroupAppointments(existingAppointments.Where(e => !e.IsExcludedDayMarker));
 
             var slots = new List<AppointmentSlotInfo>();
             var baseLimit = Math.Max(1, _config.MaxAppointmentsPerSlot);
@@ -48,6 +52,12 @@ namespace Client.Services
             var slotLength = TimeSpan.FromMinutes(Math.Max(1, _config.SlotLengthMinutes));
             for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
             {
+                if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                    continue;
+
+                if (excludedDates.Contains(date))
+                    continue;
+
                 foreach (var slotTime in EnumerateDailySlots(slotLength))
                 {
                     var slotDateTime = date + slotTime;
@@ -125,6 +135,7 @@ namespace Client.Services
                 var dateValue = reader.GetValue(0);
                 var timeValue = reader.GetValue(1);
                 var colorValue = reader.GetValue(2);
+                var isExcludedMarker = IsExcludedDayMarker(colorValue);
 
                 if (!TryGetDate(dateValue, out var date))
                     continue;
@@ -134,7 +145,7 @@ namespace Client.Services
                 var slotDateTime = date.Date + time;
                 slotDateTime = NormalizeToSlot(slotDateTime);
                 var colorCode = ConvertToColor(colorValue);
-                entries.Add(new AppointmentEntry(slotDateTime, colorCode));
+                entries.Add(new AppointmentEntry(slotDateTime, colorCode, isExcludedMarker));
             }
 
             return entries;
@@ -431,7 +442,17 @@ namespace Client.Services
             return 0;
         }
 
-        private readonly record struct AppointmentEntry(DateTime SlotStart, int ColorCode);
+        private static bool IsExcludedDayMarker(object? value)
+        {
+            if (value is string str)
+            {
+                return str.Contains("~$0$", StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false;
+        }
+
+        private readonly record struct AppointmentEntry(DateTime SlotStart, int ColorCode, bool IsExcludedDayMarker);
     }
 
     public enum SearchMode
