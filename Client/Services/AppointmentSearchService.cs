@@ -111,9 +111,7 @@ namespace Client.Services
             CancellationToken cancellationToken)
         {
             var entries = new List<AppointmentEntry>();
-            var connectionString = BuildConnectionString();
-            await using var connection = new OleDbConnection(connectionString);
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
             await using var command = connection.CreateCommand();
             command.CommandText = $"SELECT [{_config.DateColumn}], [{_config.TimeColumn}], [{_config.ColorColumn}] FROM [{_config.TableName}] WHERE [{_config.DateColumn}] BETWEEN ? AND ?";
@@ -141,12 +139,84 @@ namespace Client.Services
             return entries;
         }
 
-        private string BuildConnectionString()
+        private async Task<OleDbConnection> OpenConnectionAsync(CancellationToken cancellationToken)
         {
-            var provider = string.IsNullOrWhiteSpace(_machineConfig.AccessOleDbProvider)
-                ? "Microsoft.ACE.OLEDB.12.0"
-                : _machineConfig.AccessOleDbProvider;
+            var triedProviders = new List<string>();
+            Exception? lastProviderError = null;
 
+            foreach (var provider in EnumerateCandidateProviders())
+            {
+                triedProviders.Add(provider);
+                var connectionString = BuildConnectionString(provider);
+                var connection = new OleDbConnection(connectionString);
+
+                try
+                {
+                    await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                    return connection;
+                }
+                catch (InvalidOperationException ex) when (IsProviderNotRegistered(ex))
+                {
+                    lastProviderError = ex;
+                    await connection.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    await connection.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+            }
+
+            var message = "Aucun fournisseur OLE DB Access compatible n'a été trouvé. Installez Microsoft Access Database Engine 2016 (ACE OLE DB 16.0) ou configurez un fournisseur valide dans les paramètres de machine.";
+            if (triedProviders.Count > 0)
+            {
+                message += $" Fournisseurs testés : {string.Join(", ", triedProviders)}.";
+            }
+
+            throw new InvalidOperationException(message, lastProviderError);
+        }
+
+        private IEnumerable<string> EnumerateCandidateProviders()
+        {
+            var configured = (_machineConfig.AccessOleDbProvider ?? string.Empty).Trim();
+            var yielded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                if (yielded.Add(configured))
+                    yield return configured;
+            }
+
+            foreach (var fallback in new[]
+                     {
+                         "Microsoft.ACE.OLEDB.16.0",
+                         "Microsoft.ACE.OLEDB.12.0",
+                         "Microsoft.Jet.OLEDB.4.0"
+                     })
+            {
+                if (yielded.Add(fallback))
+                    yield return fallback;
+            }
+        }
+
+        private static bool IsProviderNotRegistered(Exception exception)
+        {
+            while (exception != null)
+            {
+                if (exception is InvalidOperationException &&
+                    exception.Message.IndexOf("is not registered", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+
+                exception = exception.InnerException;
+            }
+
+            return false;
+        }
+
+        private string BuildConnectionString(string provider)
+        {
             var builder = new OleDbConnectionStringBuilder
             {
                 Provider = provider,
