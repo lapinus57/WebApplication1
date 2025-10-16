@@ -31,6 +31,11 @@ namespace Client.Helpers
         public int PickupAlertThresholdMinutes { get; set; }
 
         /// <summary>
+        /// OLE DB provider to use when connecting to the Access database.
+        /// </summary>
+        public string AccessOleDbProvider { get; set; } = "Microsoft.ACE.OLEDB.12.0";
+
+        /// <summary>
         /// Local path to the Access system database (system.mdw).
         /// </summary>
         public string AccessWorkgroupPath { get; set; } = string.Empty;
