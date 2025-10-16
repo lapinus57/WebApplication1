@@ -18,5 +18,6 @@ namespace ChatServeur
         public TimeSpan AfternoonEnd { get; set; } = TimeSpan.FromHours(18);
         public TimeSpan FoMorningLimit { get; set; } = TimeSpan.FromHours(10);
         public TimeSpan FoAfternoonLimit { get; set; } = TimeSpan.FromHours(16.5);
+        public int ExcludedDayReleaseMonths { get; set; } = 3;
     }
 }
