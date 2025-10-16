@@ -299,9 +299,6 @@ namespace Client.Services
             foreach (var entry in excludedEntries)
             {
                 var date = entry.SlotStart.Date;
-                if (releaseThreshold.HasValue && date <= releaseThreshold.Value)
-                    continue;
-
                 if (!dayStates.TryGetValue(date, out var state))
                 {
                     state = (false, false);
@@ -320,6 +317,12 @@ namespace Client.Services
             foreach (var (date, state) in dayStates)
             {
                 if (state.Morning && state.Afternoon)
+                {
+                    excludedDates.Add(date);
+                    continue;
+                }
+
+                if (releaseThreshold.HasValue && date > releaseThreshold.Value && (state.Morning || state.Afternoon))
                     excludedDates.Add(date);
             }
 
