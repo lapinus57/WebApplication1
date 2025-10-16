@@ -25,6 +25,71 @@
                                             SmallChange="1"
                                             SpinButtonPlacementMode="Compact"/>
                                         <TextBlock Text="Mettre 0 pour désactiver l'alerte." FontStyle="Italic" Opacity="0.7"/>
+                                        <TextBlock Text="Paramètres recherche RDV" FontSize="18" FontWeight="Bold" Margin="0,16,0,0"/>
+                                        <TextBlock Text="Chemin base Access (partagé)" />
+                                        <TextBox Text="{x:Bind AppointmentConfig.DatabasePath, Mode=TwoWay}" />
+                                        <TextBlock Text="Nom de la table" />
+                                        <TextBox Text="{x:Bind AppointmentConfig.TableName, Mode=TwoWay}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Colonne date" />
+                                                        <TextBox Text="{x:Bind AppointmentConfig.DateColumn, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Colonne heure" />
+                                                        <TextBox Text="{x:Bind AppointmentConfig.TimeColumn, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Colonne couleur" />
+                                                        <TextBox Text="{x:Bind AppointmentConfig.ColorColumn, Mode=TwoWay}" />
+                                                </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="RDV max/¼ h" />
+                                                        <NumberBox Value="{x:Bind AppointmentConfig.MaxAppointmentsPerSlot, Mode=TwoWay}" Minimum="1" SmallChange="1"/>
+                                                </StackPanel>
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Overload supplémentaire" />
+                                                        <NumberBox Value="{x:Bind AppointmentConfig.OverloadExtraAppointments, Mode=TwoWay}" Minimum="1" SmallChange="1"/>
+                                                </StackPanel>
+                                        </StackPanel>
+                                        <TextBlock Text="Horaires de travail" FontWeight="SemiBold"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Début matin" />
+                                                        <TimePicker Time="{x:Bind AppointmentConfig.MorningStart, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Fin matin" />
+                                                        <TimePicker Time="{x:Bind AppointmentConfig.MorningEnd, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Début après-midi" />
+                                                        <TimePicker Time="{x:Bind AppointmentConfig.AfternoonStart, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="Fin après-midi" />
+                                                        <TimePicker Time="{x:Bind AppointmentConfig.AfternoonEnd, Mode=TwoWay}" />
+                                                </StackPanel>
+                                        </StackPanel>
+                                        <TextBlock Text="Limites FO" FontWeight="SemiBold"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="FO matin" />
+                                                        <TimePicker Time="{x:Bind AppointmentConfig.FoMorningLimit, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <StackPanel Width="200">
+                                                        <TextBlock Text="FO après-midi" />
+                                                        <TimePicker Time="{x:Bind AppointmentConfig.FoAfternoonLimit, Mode=TwoWay}" />
+                                                </StackPanel>
+                                        </StackPanel>
+                                        <TextBlock Text="Chemin system.mdw (local)" />
+                                        <TextBox Text="{x:Bind AccessWorkgroupPath, Mode=TwoWay}" />
+                                        <TextBlock Text="Utilisateur Access" />
+                                        <TextBox Text="{x:Bind AccessUserName, Mode=TwoWay}" />
+                                        <TextBlock Text="Mot de passe Access" />
+                                        <PasswordBox x:Name="AccessPasswordBox" PasswordChanged="AccessPasswordBox_PasswordChanged" />
                                         <TextBlock Text="Utilisateur par défaut"/>
                                         <ComboBox
                                             x:Name="UsersComboBox"

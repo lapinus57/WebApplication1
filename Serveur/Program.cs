@@ -68,6 +68,7 @@ using (var scope = app.Services.CreateScope())
     EnsurePatientLogsTable(db, logger);
     EnsureUserSettingsTable(db, logger);
     EnsureReminderColumn(db, logger);
+    EnsureAppointmentSearchColumn(db, logger);
     EnsureKnownUsersTable(db, logger);
     CleanupKnownUsers(db, logger);
     if (!db.ServerConfigs.Any())
@@ -271,6 +272,42 @@ void EnsureReminderColumn(ChatDbContext db, ILogger logger)
     catch (Exception ex)
     {
         logger.LogError(ex, "SER07: Failed to ensure ServerConfigs table contains ReminderJson column.");
+        throw;
+    }
+    finally
+    {
+        connection.Close();
+    }
+}
+
+void EnsureAppointmentSearchColumn(ChatDbContext db, ILogger logger)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
+        using var reader = cmd.ExecuteReader();
+        bool exists = false;
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), "AppointmentSearchJson", StringComparison.OrdinalIgnoreCase))
+            {
+                exists = true;
+                break;
+            }
+        }
+        reader.Close();
+        if (!exists)
+        {
+            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN AppointmentSearchJson TEXT NOT NULL DEFAULT ''";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER15: Failed to ensure ServerConfigs table contains AppointmentSearchJson column.");
         throw;
     }
     finally

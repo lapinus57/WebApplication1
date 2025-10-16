@@ -30,6 +30,21 @@ namespace Client.Helpers
         /// </summary>
         public int PickupAlertThresholdMinutes { get; set; }
 
+        /// <summary>
+        /// Local path to the Access system database (system.mdw).
+        /// </summary>
+        public string AccessWorkgroupPath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional user name for the Access workgroup.
+        /// </summary>
+        public string AccessUserName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional password for the Access workgroup.
+        /// </summary>
+        public string AccessPassword { get; set; } = string.Empty;
+
         public static string FilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "EyeChat", "machine.json");
