@@ -1004,6 +1004,35 @@ namespace ChatServeur
             }
         }
 
+        public async Task SaveAppointmentSearchConfig(AppointmentSearchConfig config)
+        {
+            var json = JsonSerializer.Serialize(config);
+            var cfg = await _db.ServerConfigs.SingleOrDefaultAsync();
+            if (cfg == null)
+            {
+                cfg = new ServerConfig();
+                _db.ServerConfigs.Add(cfg);
+            }
+            cfg.AppointmentSearchJson = json;
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task<AppointmentSearchConfig> GetAppointmentSearchConfig()
+        {
+            var cfg = await _db.ServerConfigs.SingleOrDefaultAsync();
+            if (cfg == null || string.IsNullOrEmpty(cfg.AppointmentSearchJson))
+                return new AppointmentSearchConfig();
+            try
+            {
+                return JsonSerializer.Deserialize<AppointmentSearchConfig>(cfg.AppointmentSearchJson) ?? new AppointmentSearchConfig();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SER16: Failed to deserialize appointment search configuration.");
+                return new AppointmentSearchConfig();
+            }
+        }
+
         public async Task DeclarePatient(Patient patient)
         {
             patient.IsArchived = false;

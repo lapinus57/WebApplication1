@@ -30,6 +30,7 @@ namespace Client.Services
         private DispatcherQueue? _dispatcher;
         private DispatcherQueueTimer? _holdTimeUpdateTimer;
         private int _pickupAlertThresholdMinutes;
+        public AppointmentSearchConfig? AppointmentConfig { get; private set; }
 
         public DispatcherQueue? Dispatcher
         {
@@ -1316,6 +1317,51 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur récupération rappel : {ex.Message}");
                 return null;
+            }
+        }
+
+        public async Task SaveAppointmentSearchConfigAsync(AppointmentSearchConfig config)
+        {
+            AppointmentConfig = config;
+
+            if (!TryGetActiveConnection(out var connection))
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected || !TryGetActiveConnection(out connection))
+                {
+                    Debug.WriteLine("Impossible d'envoyer la configuration RDV : connexion SignalR non établie.");
+                    return;
+                }
+            }
+
+            try
+            {
+                await connection.InvokeAsync("SaveAppointmentSearchConfig", config);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur envoi configuration RDV : {ex.Message}");
+            }
+        }
+
+        public async Task<AppointmentSearchConfig?> GetAppointmentSearchConfigAsync()
+        {
+            if (!TryGetActiveConnection(out var connection))
+            {
+                var connected = await TryReconnectAsync();
+                if (!connected || !TryGetActiveConnection(out connection))
+                    return AppointmentConfig;
+            }
+
+            try
+            {
+                AppointmentConfig = await connection.InvokeAsync<AppointmentSearchConfig>("GetAppointmentSearchConfig");
+                return AppointmentConfig;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur récupération configuration RDV : {ex.Message}");
+                return AppointmentConfig;
             }
         }
         public async Task<List<ExamOption>> GetExamOptionsAsync()
