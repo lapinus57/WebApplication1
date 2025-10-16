@@ -60,7 +60,7 @@ namespace Client.Services
                         cancellationToken.ThrowIfCancellationRequested();
 
                     groupedAppointments.TryGetValue(slotDateTime, out var colorsForSlot);
-                    var colorList = colorsForSlot ?? Array.Empty<int>();
+                    var colorList = colorsForSlot ?? new List<int>();
                     var currentCount = colorList.Count;
 
                     if (!IsSlotAllowed(colorList, currentCount, baseLimit, overloadLimit, canClimb))
