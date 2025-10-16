@@ -85,6 +85,7 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Chat" Tag="ChatPage" Icon="LeaveChat" />
                 <NavigationViewItem Content="Historique" Tag="HistoryPage" Icon="People" />
+                <NavigationViewItem Content="Recherche RDV" Tag="AppointmentSearchPage" Icon="CalendarDay" />
             </NavigationView.MenuItems>
             <Frame x:Name="contentFrame" Padding="-2" />
         </NavigationView>

@@ -64,6 +64,7 @@ namespace Client
                 {
                     "ChatPage" => typeof(Pages.ChatPage),
                     "HistoryPage" => typeof(Pages.HistoryPage),
+                    "AppointmentSearchPage" => typeof(Pages.AppointmentSearchPage),
                     _ => null
                 };
                 if (pageType != null && contentFrame.CurrentSourcePageType != pageType)
