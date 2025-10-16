@@ -70,12 +70,14 @@ namespace Client.Services
                     groupedAppointments.TryGetValue(slotDateTime, out var colorsForSlot);
                     var colorList = colorsForSlot ?? new List<int>();
                     var currentCount = colorList.Count;
+                    var redCount = colorList.Count(color => color == 255);
+                    var effectiveCount = Math.Max(0, currentCount - redCount);
 
-                    if (!IsSlotAllowed(colorList, currentCount, baseLimit, overloadLimit, canClimb))
+                    if (!IsSlotAllowed(colorList, effectiveCount, baseLimit, overloadLimit, canClimb))
                         continue;
 
-                    var redRelaxation = currentCount >= baseLimit && colorList.Contains(255);
-                    var overloadUsed = allowOverload && currentCount >= baseLimit;
+                    var redRelaxation = currentCount >= baseLimit && redCount > 0;
+                    var overloadUsed = allowOverload && effectiveCount >= baseLimit;
 
                     slots.Add(new AppointmentSlotInfo
                     {
@@ -364,7 +366,12 @@ namespace Client.Services
             return true;
         }
 
-        private bool IsSlotAllowed(IReadOnlyCollection<int> colors, int currentCount, int baseLimit, int overloadLimit, bool canClimb)
+        private bool IsSlotAllowed(
+            IReadOnlyCollection<int> colors,
+            int effectiveCount,
+            int baseLimit,
+            int overloadLimit,
+            bool canClimb)
         {
             if (!canClimb)
             {
@@ -374,12 +381,12 @@ namespace Client.Services
             }
 
             var overloadAllowed = overloadLimit > baseLimit;
-            if (currentCount < baseLimit)
+            if (effectiveCount < baseLimit)
                 return true;
 
             var hasRed = colors.Contains(255);
 
-            if (currentCount == baseLimit)
+            if (effectiveCount == baseLimit)
             {
                 if (hasRed)
                     return true;
@@ -391,10 +398,10 @@ namespace Client.Services
             if (!overloadAllowed)
                 return false;
 
-            if (currentCount < overloadLimit)
+            if (effectiveCount < overloadLimit)
                 return true;
 
-            if (currentCount == overloadLimit && hasRed)
+            if (effectiveCount == overloadLimit && hasRed)
                 return true;
 
             return false;
