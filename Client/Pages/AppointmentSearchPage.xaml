@@ -3,9 +3,10 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:Client.Models"
+    xmlns:helpers="using:Client.Helpers"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <Page.Resources>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Page.Resources>
     <ScrollViewer>
         <StackPanel Padding="20" Spacing="16">
@@ -55,7 +56,10 @@
                                 <TextBlock Text="{x:Bind DisplayDate}" FontWeight="SemiBold" />
                                 <TextBlock Text="{x:Bind Summary}" />
                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <TextBlock Text="{x:Bind ExistingAppointments, Mode=OneWay, StringFormat='RDV existants: {0}'}" />
+                                    <TextBlock>
+                                        <Run Text="RDV existants : " />
+                                        <Run Text="{x:Bind ExistingAppointments, Mode=OneWay}" />
+                                    </TextBlock>
                                     <TextBlock Text="Overload en cours" Visibility="{x:Bind UsesOverloadCapacity, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     <TextBlock Text="Tolérance rouge" Visibility="{x:Bind RedRelaxationApplied, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 </StackPanel>
