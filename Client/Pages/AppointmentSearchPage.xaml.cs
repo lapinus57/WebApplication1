@@ -158,6 +158,11 @@ namespace Client.Pages
 
                 if (int.TryParse(tag, out var months))
                 {
+                    if (ReferenceDatePicker is null)
+                    {
+                        return;
+                    }
+
                     _suppressHorizonUpdate = true;
                     ReferenceDatePicker.Date = DateTimeOffset.Now.AddMonths(months);
                     _suppressHorizonUpdate = false;

@@ -6,7 +6,7 @@ namespace Client.Models
     {
         public string DatabasePath { get; set; } = string.Empty;
         public string TableName { get; set; } = "Ag_rdv";
-        public string DateColumn { get; set; } = "DateRdv";
+        public string DateColumn { get; set; } = "Date";
         public string TimeColumn { get; set; } = "Heure";
         public string ColorColumn { get; set; } = "Marque";
         public int SlotLengthMinutes { get; set; } = 15;
