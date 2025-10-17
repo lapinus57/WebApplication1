@@ -475,8 +475,18 @@ namespace Client.Services
                 if (value is byte b)
                     return b;
 
-                if (value is string str && int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out i))
-                    return i;
+                if (value is string str)
+                {
+                    str = str.Trim();
+
+                    if (str.Length > 1 && str.StartsWith("$", StringComparison.Ordinal) && str.EndsWith("$", StringComparison.Ordinal))
+                    {
+                        str = str.Substring(1, str.Length - 2).Trim();
+                    }
+
+                    if (int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out i))
+                        return i;
+                }
             }
             catch (Exception ex)
             {
