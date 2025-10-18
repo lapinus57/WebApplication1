@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -8,6 +9,11 @@ using Client.Models;
 using Client.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using Windows.Storage.Provider;
+using WinRT.Interop;
+using System.Text;
 
 namespace Client.Pages
 {
@@ -49,6 +55,7 @@ namespace Client.Pages
         {
             try
             {
+                DateRangeText.Text = string.Empty;
                 var cfg = await App.ChatService.GetAppointmentSearchConfigAsync();
                 _config = cfg ?? new AppointmentSearchConfig();
                 if (!_config.IsValid())
@@ -69,6 +76,7 @@ namespace Client.Pages
 
         private async Task RunSearchAsync(bool allowOverload, bool resetOffset)
         {
+            DateRangeText.Text = string.Empty;
             if (_config == null || !_config.IsValid())
             {
                 await ShowDialogAsync("Configuration manquante", "Les paramètres de connexion à la base Access ne sont pas définis.");
@@ -94,6 +102,9 @@ namespace Client.Pages
 
             var anchorDate = ReferenceDatePicker.Date.Value.Date;
             var mode = GetSelectedMode();
+            var targetAnchor = anchorDate.AddMonths(_searchOffsetMonths);
+            var (rangeStart, rangeEnd) = ComputeSearchRange(targetAnchor, mode);
+            DateRangeText.Text = $"Période analysée : {rangeStart:dd/MM/yyyy} au {rangeEnd:dd/MM/yyyy}";
             var canClimb = ClimbToggle.IsOn;
             var isFo = FoToggle.IsOn;
             var token = _searchToken.Token;
@@ -157,6 +168,10 @@ namespace Client.Pages
             HolidayCombo.IsEnabled = isEnabled;
             HolidayZoneCombo.IsEnabled = isEnabled;
             SearchFurtherButton.IsEnabled = isEnabled;
+            if (ExportButton is not null)
+            {
+                ExportButton.IsEnabled = isEnabled && Results.Any();
+            }
         }
 
         private SearchMode GetSelectedMode()
@@ -311,6 +326,112 @@ namespace Client.Pages
         {
             _searchOffsetMonths++;
             await RunSearchAsync(false, false);
+        }
+
+        private (DateTime start, DateTime end) ComputeSearchRange(DateTime anchor, SearchMode mode)
+        {
+            var start = anchor;
+            var end = anchor;
+            if (mode == SearchMode.Around)
+            {
+                start = anchor.Date.AddDays(-7);
+                end = anchor.Date.AddDays(14).AddHours(23).AddMinutes(59);
+            }
+            else
+            {
+                start = anchor.Date;
+                end = anchor.Date.AddDays(21).AddHours(23).AddMinutes(59);
+            }
+
+            return (start, end);
+        }
+
+        private async void Export_Click(object sender, RoutedEventArgs e)
+        {
+            if (!Results.Any())
+            {
+                await ShowDialogAsync("Aucun résultat", "Il n'y a pas de résultats à exporter.");
+                return;
+            }
+
+            if (App.MainWindow is null)
+            {
+                await ShowDialogAsync("Export impossible", "La fenêtre principale n'est pas disponible.");
+                return;
+            }
+
+            var picker = new FileSavePicker();
+            picker.FileTypeChoices.Add("Fichier CSV", new List<string> { ".csv" });
+            picker.SuggestedFileName = $"RDV_{DateTime.Now:yyyyMMdd_HHmm}";
+
+            var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSaveFileAsync();
+            if (file == null)
+                return;
+
+            try
+            {
+                var content = BuildCsvExportContent();
+                CachedFileManager.DeferUpdates(file);
+                await FileIO.WriteTextAsync(file, content);
+                await CachedFileManager.CompleteUpdatesAsync(file);
+            }
+            catch (Exception ex)
+            {
+                await ShowDialogAsync("Erreur d'export", $"Impossible d'exporter les résultats : {ex.Message}");
+            }
+        }
+
+        private string BuildCsvExportContent()
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine("Date;Nombre de personnes;Créneaux;Détail;Overload;Tolérance rouge;RDV existants");
+
+            var orderedResults = Results
+                .OrderBy(r => r.Day == DateTime.MinValue ? DateTime.MaxValue : r.Day)
+                .ThenBy(r => r.Slots.FirstOrDefault()?.Slot.SlotStart ?? DateTime.MaxValue)
+                .ToList();
+
+            foreach (var result in orderedResults)
+            {
+                var orderedSlots = result.Slots
+                    .OrderBy(s => s.Slot.SlotStart)
+                    .ToList();
+
+                var day = orderedSlots.FirstOrDefault()?.Slot.SlotStart.Date ?? result.Day;
+                var dateText = day == DateTime.MinValue ? string.Empty : day.ToString("dd/MM/yyyy");
+                var slotTimes = string.Join(", ", orderedSlots.Select(s => s.Slot.TimeLabel));
+                var detailedSlots = string.Join(" | ", orderedSlots.Select(s => $"{s.Slot.TimeLabel} : {s.Slot.Summary}"));
+                var overload = result.UsesOverload ? "Oui" : "Non";
+                var redRelax = result.UsesRedRelaxation ? "Oui" : "Non";
+
+                builder.AppendLine(string.Join(";", new[]
+                {
+                    EscapeCsv(dateText),
+                    EscapeCsv(result.PersonCount.ToString()),
+                    EscapeCsv(slotTimes),
+                    EscapeCsv(result.Detail),
+                    EscapeCsv(overload),
+                    EscapeCsv(redRelax),
+                    EscapeCsv(detailedSlots)
+                }));
+            }
+
+            return builder.ToString();
+        }
+
+        private static string EscapeCsv(string value)
+        {
+            value ??= string.Empty;
+            if (value.Contains('"') || value.Contains(';') || value.Contains('\n') || value.Contains('\r'))
+            {
+                value = value.Replace("\"", "\"\"");
+                return $"\"{value}\"";
+            }
+
+            return value;
         }
     }
 }
