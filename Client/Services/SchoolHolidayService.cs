@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Client.Helpers;
 using Client.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Client.Services
 {
@@ -238,10 +239,71 @@ namespace Client.Services
             public DateTime? EndDate { get; set; }
 
             [JsonProperty("zones")]
+            [JsonConverter(typeof(SingleOrArrayConverter))]
             public List<string>? Zones { get; set; }
 
             [JsonProperty("location")]
             public string? Location { get; set; }
+        }
+
+        private sealed class SingleOrArrayConverter : JsonConverter<List<string>?>
+        {
+            public override List<string>? ReadJson(JsonReader reader, Type objectType, List<string>? existingValue, bool hasExistingValue, JsonSerializer serializer)
+            {
+                if (reader.TokenType == JsonToken.Null)
+                {
+                    return null;
+                }
+
+                if (reader.TokenType == JsonToken.StartArray)
+                {
+                    var array = JArray.Load(reader);
+                    var results = new List<string>();
+                    foreach (var item in array)
+                    {
+                        if (item.Type == JTokenType.String)
+                        {
+                            var text = item.Value<string>();
+                            if (!string.IsNullOrWhiteSpace(text))
+                            {
+                                results.Add(text);
+                            }
+                        }
+                    }
+
+                    return results;
+                }
+
+                if (reader.TokenType == JsonToken.String)
+                {
+                    var value = (string?)reader.Value;
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        return new List<string>();
+                    }
+
+                    return new List<string> { value };
+                }
+
+                if (reader.TokenType == JsonToken.StartObject)
+                {
+                    var token = JObject.Load(reader);
+                    var text = token.Type == JTokenType.String ? token.Value<string>() : token.ToString();
+                    if (string.IsNullOrWhiteSpace(text))
+                    {
+                        return new List<string>();
+                    }
+
+                    return new List<string> { text! };
+                }
+
+                throw new JsonSerializationException($"Unexpected token {reader.TokenType} when parsing zones.");
+            }
+
+            public override void WriteJson(JsonWriter writer, List<string>? value, JsonSerializer serializer)
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }
