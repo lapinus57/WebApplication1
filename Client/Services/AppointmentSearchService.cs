@@ -15,11 +15,16 @@ namespace Client.Services
     {
         private readonly AppointmentSearchConfig _config;
         private readonly MachineConfig _machineConfig;
+        private readonly ISchoolHolidayService _holidayService;
 
-        public AppointmentSearchService(AppointmentSearchConfig config, MachineConfig machineConfig)
+        public AppointmentSearchService(
+            AppointmentSearchConfig config,
+            MachineConfig machineConfig,
+            ISchoolHolidayService holidayService)
         {
             _config = config;
             _machineConfig = machineConfig;
+            _holidayService = holidayService;
         }
 
         public async Task<IReadOnlyList<AppointmentSlotInfo>> FindAvailableSlotsAsync(
@@ -28,6 +33,8 @@ namespace Client.Services
             bool canClimb,
             bool isFo,
             bool allowOverload,
+            AppointmentSearchFilters filters,
+            int monthOffset,
             CancellationToken cancellationToken)
         {
             if (!_config.IsValid())
@@ -35,7 +42,9 @@ namespace Client.Services
                 throw new InvalidOperationException("La configuration de recherche des rendez-vous est incomplète.");
             }
 
-            var (startDate, endDate) = GetSearchRange(anchorDate, mode);
+            filters ??= new AppointmentSearchFilters();
+
+            var (startDate, endDate) = GetSearchRange(anchorDate.AddMonths(monthOffset), mode);
             var existingAppointments = await LoadExistingAppointmentsAsync(startDate, endDate, cancellationToken).ConfigureAwait(false);
             var excludedDates = BuildExcludedDateSet(existingAppointments.Where(e => e.IsExcludedDayMarker));
             var groupedAppointments = GroupAppointments(existingAppointments.Where(e => !e.IsExcludedDayMarker));
@@ -55,6 +64,18 @@ namespace Client.Services
                 if (excludedDates.Contains(date))
                     continue;
 
+                if (filters.PreferredDay.HasValue && filters.PreferredDay.Value != date.DayOfWeek)
+                    continue;
+
+                if (filters.HolidayFilter != SchoolHolidayFilter.Any)
+                {
+                    var isHoliday = _holidayService.IsSchoolHoliday(date, filters.HolidayZone);
+                    if (filters.HolidayFilter == SchoolHolidayFilter.OnlyDuring && !isHoliday)
+                        continue;
+                    if (filters.HolidayFilter == SchoolHolidayFilter.Exclude && isHoliday)
+                        continue;
+                }
+
                 foreach (var slotTime in EnumerateDailySlots(slotLength))
                 {
                     var slotDateTime = date + slotTime;
@@ -62,6 +83,15 @@ namespace Client.Services
                         continue;
 
                     if (!IsWithinWorkingHours(slotTime, isFo))
+                        continue;
+
+                    var dayPart = slotTime < _config.AfternoonStart
+                        ? SlotDayPart.Morning
+                        : SlotDayPart.Afternoon;
+
+                    if (filters.TimePreference == TimeOfDayPreference.Morning && dayPart != SlotDayPart.Morning)
+                        continue;
+                    if (filters.TimePreference == TimeOfDayPreference.Afternoon && dayPart != SlotDayPart.Afternoon)
                         continue;
 
                     if (cancellationToken.IsCancellationRequested)
@@ -78,6 +108,10 @@ namespace Client.Services
 
                     var redRelaxation = currentCount >= baseLimit && redCount > 0;
                     var overloadUsed = allowOverload && effectiveCount >= baseLimit;
+                    var capacityLimit = overloadUsed ? overloadLimit : baseLimit;
+                    var availableCapacity = Math.Max(0, capacityLimit - effectiveCount);
+                    if (availableCapacity <= 0)
+                        continue;
 
                     slots.Add(new AppointmentSlotInfo
                     {
@@ -87,7 +121,9 @@ namespace Client.Services
                             .GroupBy(c => c)
                             .ToDictionary(g => g.Key, g => g.Count()),
                         UsesOverloadCapacity = overloadUsed,
-                        RedRelaxationApplied = redRelaxation
+                        RedRelaxationApplied = redRelaxation,
+                        AvailableCapacity = availableCapacity,
+                        DayPart = dayPart
                     });
                 }
             }
