@@ -34,7 +34,6 @@ namespace Client.Services
             bool isFo,
             bool allowOverload,
             AppointmentSearchFilters filters,
-            int monthOffset,
             CancellationToken cancellationToken)
         {
             if (!_config.IsValid())
@@ -44,7 +43,7 @@ namespace Client.Services
 
             filters ??= new AppointmentSearchFilters();
 
-            var (startDate, endDate) = GetSearchRange(anchorDate.AddMonths(monthOffset), mode);
+            var (startDate, endDate) = GetSearchRange(anchorDate, mode);
             var existingAppointments = await LoadExistingAppointmentsAsync(startDate, endDate, cancellationToken).ConfigureAwait(false);
             var excludedDates = BuildExcludedDateSet(existingAppointments.Where(e => e.IsExcludedDayMarker));
             var groupedAppointments = GroupAppointments(existingAppointments.Where(e => !e.IsExcludedDayMarker));

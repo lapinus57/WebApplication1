@@ -90,6 +90,7 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button x:Name="SearchBeforeButton" Content="Chercher avant" Click="SearchBefore_Click" />
                 <Button x:Name="SearchButton" Content="Chercher" Click="Search_Click" />
                 <Button x:Name="SearchOverloadButton" Content="Chercher (overload)" Click="SearchOverload_Click" />
                 <Button x:Name="SearchFurtherButton" Content="Chercher plus loin" Click="SearchFurther_Click" />
