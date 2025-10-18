@@ -25,6 +25,9 @@ namespace Client.Pages
         private bool _suppressHorizonUpdate;
         private readonly ISchoolHolidayService _holidayService = new SchoolHolidayService();
         private int _searchOffsetMonths;
+        private DateTime? _lastRangeStart;
+        private DateTime? _lastRangeEnd;
+        private const int OverlapMarginDays = 1;
 
         public ObservableCollection<AppointmentSearchResult> Results { get; } = new();
 
@@ -94,6 +97,8 @@ namespace Client.Pages
             if (resetOffset)
             {
                 _searchOffsetMonths = 0;
+                _lastRangeStart = null;
+                _lastRangeEnd = null;
             }
 
             _searchToken?.Cancel();
@@ -102,8 +107,7 @@ namespace Client.Pages
 
             var anchorDate = ReferenceDatePicker.Date.Value.Date;
             var mode = GetSelectedMode();
-            var targetAnchor = anchorDate.AddMonths(_searchOffsetMonths);
-            var (rangeStart, rangeEnd) = ComputeSearchRange(targetAnchor, mode);
+            var (rangeStart, rangeEnd, targetAnchor) = PrepareSearchRange(anchorDate, mode);
             DateRangeText.Text = $"Période analysée : {rangeStart:dd/MM/yyyy} au {rangeEnd:dd/MM/yyyy}";
             var canClimb = ClimbToggle.IsOn;
             var isFo = FoToggle.IsOn;
@@ -117,8 +121,11 @@ namespace Client.Pages
             try
             {
                 var service = new AppointmentSearchService(_config, _machineConfig, _holidayService);
-                var slots = await service.FindAvailableSlotsAsync(anchorDate, mode, canClimb, isFo, allowOverload, filters, _searchOffsetMonths, token);
+                var slots = await service.FindAvailableSlotsAsync(targetAnchor, mode, canClimb, isFo, allowOverload, filters, token);
                 var groupedResults = AppointmentGroupBuilder.BuildResults(slots, filters);
+
+                _lastRangeStart = rangeStart;
+                _lastRangeEnd = rangeEnd;
 
                 foreach (var result in groupedResults)
                 {
@@ -127,9 +134,13 @@ namespace Client.Pages
 
                 if (groupedResults.Any())
                 {
-                    var offsetText = _searchOffsetMonths > 0
-                        ? $" (recherche décalée de {_searchOffsetMonths} mois)"
-                        : string.Empty;
+                    var offsetText = $" (ancre au {targetAnchor:dd/MM/yyyy})";
+                    if (_searchOffsetMonths != 0)
+                    {
+                        var direction = _searchOffsetMonths > 0 ? "vers le futur" : "vers le passé";
+                        var months = Math.Abs(_searchOffsetMonths);
+                        offsetText = $" (ancre au {targetAnchor:dd/MM/yyyy}, décalée de {months} mois {direction})";
+                    }
                     StatusText.Text = $"{groupedResults.Count} proposition(s) trouvée(s){offsetText}.";
                 }
                 else
@@ -160,6 +171,7 @@ namespace Client.Pages
             ModeCombo.IsEnabled = isEnabled;
             ClimbToggle.IsEnabled = isEnabled;
             FoToggle.IsEnabled = isEnabled;
+            SearchBeforeButton.IsEnabled = isEnabled;
             SearchButton.IsEnabled = isEnabled;
             SearchOverloadButton.IsEnabled = isEnabled;
             PersonCountCombo.IsEnabled = isEnabled;
@@ -322,10 +334,44 @@ namespace Client.Pages
             await RunSearchAsync(true, true);
         }
 
+        private async void SearchBefore_Click(object sender, RoutedEventArgs e)
+        {
+            _searchOffsetMonths--;
+            await RunSearchAsync(false, false);
+        }
+
         private async void SearchFurther_Click(object sender, RoutedEventArgs e)
         {
             _searchOffsetMonths++;
             await RunSearchAsync(false, false);
+        }
+
+        private (DateTime start, DateTime end, DateTime anchor) PrepareSearchRange(DateTime anchorDate, SearchMode mode)
+        {
+            var targetAnchor = anchorDate.AddMonths(_searchOffsetMonths);
+            var (rangeStart, rangeEnd) = ComputeSearchRange(targetAnchor, mode);
+
+            if (_lastRangeEnd.HasValue)
+            {
+                var desiredStart = _lastRangeEnd.Value.AddDays(-OverlapMarginDays);
+                while (rangeStart > desiredStart)
+                {
+                    targetAnchor = targetAnchor.AddDays(-1);
+                    (rangeStart, rangeEnd) = ComputeSearchRange(targetAnchor, mode);
+                }
+            }
+
+            if (_lastRangeStart.HasValue)
+            {
+                var desiredEnd = _lastRangeStart.Value.AddDays(OverlapMarginDays);
+                while (rangeEnd < desiredEnd)
+                {
+                    targetAnchor = targetAnchor.AddDays(1);
+                    (rangeStart, rangeEnd) = ComputeSearchRange(targetAnchor, mode);
+                }
+            }
+
+            return (rangeStart, rangeEnd, targetAnchor);
         }
 
         private (DateTime start, DateTime end) ComputeSearchRange(DateTime anchor, SearchMode mode)
