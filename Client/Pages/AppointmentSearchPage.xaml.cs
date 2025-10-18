@@ -17,8 +17,10 @@ namespace Client.Pages
         private MachineConfig _machineConfig = MachineConfig.Load();
         private CancellationTokenSource? _searchToken;
         private bool _suppressHorizonUpdate;
+        private readonly ISchoolHolidayService _holidayService = new SchoolHolidayService();
+        private int _searchOffsetMonths;
 
-        public ObservableCollection<AppointmentSlotInfo> Results { get; } = new();
+        public ObservableCollection<AppointmentSearchResult> Results { get; } = new();
 
         public AppointmentSearchPage()
         {
@@ -65,7 +67,7 @@ namespace Client.Pages
             }
         }
 
-        private async Task RunSearchAsync(bool allowOverload)
+        private async Task RunSearchAsync(bool allowOverload, bool resetOffset)
         {
             if (_config == null || !_config.IsValid())
             {
@@ -81,6 +83,11 @@ namespace Client.Pages
 
             _machineConfig = MachineConfig.Load();
 
+            if (resetOffset)
+            {
+                _searchOffsetMonths = 0;
+            }
+
             _searchToken?.Cancel();
             _searchToken?.Dispose();
             _searchToken = new CancellationTokenSource();
@@ -90,6 +97,7 @@ namespace Client.Pages
             var canClimb = ClimbToggle.IsOn;
             var isFo = FoToggle.IsOn;
             var token = _searchToken.Token;
+            var filters = BuildFilters();
 
             ToggleInputs(false);
             StatusText.Text = "Recherche en cours...";
@@ -97,16 +105,26 @@ namespace Client.Pages
 
             try
             {
-                var service = new AppointmentSearchService(_config, _machineConfig);
-                var slots = await service.FindAvailableSlotsAsync(anchorDate, mode, canClimb, isFo, allowOverload, token);
-                foreach (var slot in slots)
+                var service = new AppointmentSearchService(_config, _machineConfig, _holidayService);
+                var slots = await service.FindAvailableSlotsAsync(anchorDate, mode, canClimb, isFo, allowOverload, filters, _searchOffsetMonths, token);
+                var groupedResults = AppointmentGroupBuilder.BuildResults(slots, filters);
+
+                foreach (var result in groupedResults)
                 {
-                    Results.Add(slot);
+                    Results.Add(result);
                 }
 
-                StatusText.Text = slots.Any()
-                    ? $"{slots.Count} créneaux disponibles."
-                    : "Aucun créneau ne respecte les contraintes.";
+                if (groupedResults.Any())
+                {
+                    var offsetText = _searchOffsetMonths > 0
+                        ? $" (recherche décalée de {_searchOffsetMonths} mois)"
+                        : string.Empty;
+                    StatusText.Text = $"{groupedResults.Count} proposition(s) trouvée(s){offsetText}.";
+                }
+                else
+                {
+                    StatusText.Text = "Aucun créneau ne respecte les contraintes.";
+                }
             }
             catch (OperationCanceledException)
             {
@@ -133,6 +151,12 @@ namespace Client.Pages
             FoToggle.IsEnabled = isEnabled;
             SearchButton.IsEnabled = isEnabled;
             SearchOverloadButton.IsEnabled = isEnabled;
+            PersonCountCombo.IsEnabled = isEnabled;
+            DayPreferenceCombo.IsEnabled = isEnabled;
+            DayPartCombo.IsEnabled = isEnabled;
+            HolidayCombo.IsEnabled = isEnabled;
+            HolidayZoneCombo.IsEnabled = isEnabled;
+            SearchFurtherButton.IsEnabled = isEnabled;
         }
 
         private SearchMode GetSelectedMode()
@@ -145,6 +169,82 @@ namespace Client.Pages
                 }
             }
             return SearchMode.Around;
+        }
+
+        private AppointmentSearchFilters BuildFilters()
+        {
+            var filters = new AppointmentSearchFilters
+            {
+                PersonCount = GetSelectedPersonCount(),
+                PreferredDay = GetPreferredDay(),
+                TimePreference = GetTimePreference(),
+                HolidayFilter = GetHolidayFilter(),
+                HolidayZone = GetHolidayZone()
+            };
+            return filters;
+        }
+
+        private int GetSelectedPersonCount()
+        {
+            if (PersonCountCombo.SelectedItem is ComboBoxItem item && item.Tag is string tag && int.TryParse(tag, out var count))
+            {
+                return Math.Clamp(count, 1, 4);
+            }
+
+            return 1;
+        }
+
+        private DayOfWeek? GetPreferredDay()
+        {
+            if (DayPreferenceCombo.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+            {
+                if (string.Equals(tag, "Any", StringComparison.OrdinalIgnoreCase))
+                    return null;
+
+                if (Enum.TryParse<DayOfWeek>(tag, true, out var day))
+                    return day;
+            }
+
+            return null;
+        }
+
+        private TimeOfDayPreference GetTimePreference()
+        {
+            if (DayPartCombo.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+            {
+                if (Enum.TryParse<TimeOfDayPreference>(tag, true, out var preference))
+                {
+                    return preference;
+                }
+            }
+
+            return TimeOfDayPreference.Any;
+        }
+
+        private SchoolHolidayFilter GetHolidayFilter()
+        {
+            if (HolidayCombo.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+            {
+                if (Enum.TryParse<SchoolHolidayFilter>(tag, true, out var filter))
+                {
+                    return filter;
+                }
+            }
+
+            return SchoolHolidayFilter.Any;
+        }
+
+        private SchoolHolidayZone GetHolidayZone()
+        {
+            if (HolidayZoneCombo.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+            {
+                if (Enum.TryParse<SchoolHolidayZone>(tag, true, out var zone))
+                {
+                    return zone;
+                }
+            }
+
+            return SchoolHolidayZone.Any;
         }
 
         private void HorizonCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -199,12 +299,18 @@ namespace Client.Pages
 
         private async void Search_Click(object sender, RoutedEventArgs e)
         {
-            await RunSearchAsync(false);
+            await RunSearchAsync(false, true);
         }
 
         private async void SearchOverload_Click(object sender, RoutedEventArgs e)
         {
-            await RunSearchAsync(true);
+            await RunSearchAsync(true, true);
+        }
+
+        private async void SearchFurther_Click(object sender, RoutedEventArgs e)
+        {
+            _searchOffsetMonths++;
+            await RunSearchAsync(false, false);
         }
     }
 }

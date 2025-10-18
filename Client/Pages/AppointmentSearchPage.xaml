@@ -41,27 +41,87 @@
                 <ToggleSwitch x:Name="FoToggle" Header="FO" />
             </StackPanel>
 
+            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Stretch">
+                <StackPanel Width="180" Spacing="8">
+                    <TextBlock Text="Nombre de personnes" FontWeight="SemiBold" />
+                    <ComboBox x:Name="PersonCountCombo" SelectedIndex="0">
+                        <ComboBoxItem Content="1 personne" Tag="1" />
+                        <ComboBoxItem Content="2 personnes" Tag="2" />
+                        <ComboBoxItem Content="3 personnes" Tag="3" />
+                        <ComboBoxItem Content="4 personnes" Tag="4" />
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Width="180" Spacing="8">
+                    <TextBlock Text="Préférence de jour" FontWeight="SemiBold" />
+                    <ComboBox x:Name="DayPreferenceCombo" SelectedIndex="0">
+                        <ComboBoxItem Content="Peu importe" Tag="Any" />
+                        <ComboBoxItem Content="Lundi" Tag="Monday" />
+                        <ComboBoxItem Content="Mardi" Tag="Tuesday" />
+                        <ComboBoxItem Content="Mercredi" Tag="Wednesday" />
+                        <ComboBoxItem Content="Jeudi" Tag="Thursday" />
+                        <ComboBoxItem Content="Vendredi" Tag="Friday" />
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Width="180" Spacing="8">
+                    <TextBlock Text="Moment de la journée" FontWeight="SemiBold" />
+                    <ComboBox x:Name="DayPartCombo" SelectedIndex="0">
+                        <ComboBoxItem Content="Peu importe" Tag="Any" />
+                        <ComboBoxItem Content="Matin" Tag="Morning" />
+                        <ComboBoxItem Content="Après-midi" Tag="Afternoon" />
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Width="220" Spacing="8">
+                    <TextBlock Text="Vacances scolaires" FontWeight="SemiBold" />
+                    <ComboBox x:Name="HolidayCombo" SelectedIndex="0">
+                        <ComboBoxItem Content="Peu importe" Tag="Any" />
+                        <ComboBoxItem Content="Uniquement pendant" Tag="OnlyDuring" />
+                        <ComboBoxItem Content="Exclure" Tag="Exclude" />
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Width="180" Spacing="8">
+                    <TextBlock Text="Zone académique" FontWeight="SemiBold" />
+                    <ComboBox x:Name="HolidayZoneCombo" SelectedIndex="0">
+                        <ComboBoxItem Content="Toutes zones" Tag="Any" />
+                        <ComboBoxItem Content="Zone A" Tag="ZoneA" />
+                        <ComboBoxItem Content="Zone B" Tag="ZoneB" />
+                        <ComboBoxItem Content="Zone C" Tag="ZoneC" />
+                    </ComboBox>
+                </StackPanel>
+            </StackPanel>
+
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button x:Name="SearchButton" Content="Chercher" Click="Search_Click" />
                 <Button x:Name="SearchOverloadButton" Content="Chercher (overload)" Click="SearchOverload_Click" />
+                <Button x:Name="SearchFurtherButton" Content="Chercher plus loin" Click="SearchFurther_Click" />
             </StackPanel>
 
             <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
 
             <ListView x:Name="ResultsList" ItemsSource="{x:Bind Results}" SelectionMode="None">
                 <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="models:AppointmentSlotInfo">
+                    <DataTemplate x:DataType="models:AppointmentSearchResult">
                         <Border CornerRadius="6" Padding="12" Margin="0,6" Background="{ThemeResource NavigationViewColor}">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Bind DisplayDate}" FontWeight="SemiBold" />
-                                <TextBlock Text="{x:Bind Summary}" />
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{x:Bind Header}" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Bind Detail}" TextWrapping="Wrap" />
+                                <ItemsControl ItemsSource="{x:Bind Slots}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="models:AppointmentResultSlot">
+                                            <StackPanel Margin="0,4,0,0" Spacing="2">
+                                                <TextBlock Text="{x:Bind TimeLabel}" FontWeight="SemiBold" />
+                                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                                    <TextBlock Text="{x:Bind PersonSummary}" />
+                                                    <TextBlock Text="{x:Bind ExistingSummary}" />
+                                                    <TextBlock Text="{x:Bind RemainingCapacity}" />
+                                                </StackPanel>
+                                                <TextBlock Text="{x:Bind SlotSummary}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <TextBlock>
-                                        <Run Text="RDV existants : " />
-                                        <Run Text="{x:Bind ExistingAppointments, Mode=OneWay}" />
-                                    </TextBlock>
-                                    <TextBlock Text="Overload en cours" Visibility="{x:Bind UsesOverloadCapacity, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                    <TextBlock Text="Tolérance rouge" Visibility="{x:Bind RedRelaxationApplied, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <TextBlock Text="Overload en cours" Visibility="{x:Bind UsesOverload, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <TextBlock Text="Tolérance rouge" Visibility="{x:Bind UsesRedRelaxation, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
