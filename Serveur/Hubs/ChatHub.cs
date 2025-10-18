@@ -1143,8 +1143,9 @@ namespace ChatServeur
 
         public async Task<List<Patient>> GetArchivedPatients()
         {
+            var today = DateTime.Today;
             return await _db.Patients
-                .Where(p => p.IsArchived)
+                .Where(p => p.IsArchived && p.HoldTime.Date == today)
                 .OrderBy(p => p.HoldTime)
                 .ToListAsync();
         }
