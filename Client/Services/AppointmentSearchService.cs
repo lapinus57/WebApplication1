@@ -50,9 +50,10 @@ namespace Client.Services
             var groupedAppointments = GroupAppointments(existingAppointments.Where(e => !e.IsExcludedDayMarker));
 
             var slots = new List<AppointmentSlotInfo>();
-            var baseLimit = Math.Max(1, _config.MaxAppointmentsPerSlot);
+            const int absoluteSlotCapacity = 2;
+            var baseLimit = Math.Min(absoluteSlotCapacity, Math.Max(1, _config.MaxAppointmentsPerSlot));
             var overloadLimit = allowOverload
-                ? baseLimit + Math.Max(1, _config.OverloadExtraAppointments)
+                ? Math.Min(absoluteSlotCapacity, baseLimit + Math.Max(0, _config.OverloadExtraAppointments))
                 : baseLimit;
 
             var slotLength = TimeSpan.FromMinutes(Math.Max(1, _config.SlotLengthMinutes));

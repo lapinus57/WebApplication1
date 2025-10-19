@@ -49,6 +49,24 @@ namespace Client.Services
             return false;
         }
 
+        public bool HasKnownData(SchoolHolidayZone zone)
+        {
+            EnsureLoaded();
+
+            lock (_syncRoot)
+            {
+                foreach (var targetZone in EnumerateTargetZones(zone))
+                {
+                    if (_periodsByZone.TryGetValue(targetZone, out var periods) && periods.Count > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private void EnsureLoaded()
         {
             var task = Volatile.Read(ref _loadTask);

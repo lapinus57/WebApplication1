@@ -51,6 +51,7 @@ namespace Client.Pages
             {
                 var cfg = await App.ChatService.GetAppointmentSearchConfigAsync();
                 _config = cfg ?? new AppointmentSearchConfig();
+                _config.EnforceClientSlotLimits();
                 if (!_config.IsValid())
                 {
                     StatusText.Text = "Configuration incomplète. Veuillez vérifier les paramètres système.";
@@ -98,6 +99,18 @@ namespace Client.Pages
             var isFo = FoToggle.IsOn;
             var token = _searchToken.Token;
             var filters = BuildFilters();
+
+            if (filters.HolidayFilter != SchoolHolidayFilter.Any && !_holidayService.HasKnownData(filters.HolidayZone))
+            {
+                var message = filters.HolidayZone switch
+                {
+                    SchoolHolidayZone.ZoneB => "Les dates de vacances scolaires pour la zone B ne sont pas connues.",
+                    _ => "Les dates de vacances scolaires ne sont pas connues pour la zone sélectionnée."
+                };
+                StatusText.Text = message;
+                await ShowDialogAsync("Vacances scolaires", message);
+                return;
+            }
 
             ToggleInputs(false);
             StatusText.Text = "Recherche en cours...";

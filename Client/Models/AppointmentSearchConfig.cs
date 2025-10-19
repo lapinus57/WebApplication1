@@ -30,5 +30,11 @@ namespace Client.Models
                 && SlotLengthMinutes > 0
                 && MaxAppointmentsPerSlot > 0;
         }
+
+        public void EnforceClientSlotLimits()
+        {
+            MaxAppointmentsPerSlot = Math.Max(1, Math.Min(2, MaxAppointmentsPerSlot));
+            OverloadExtraAppointments = 0;
+        }
     }
 }

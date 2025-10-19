@@ -77,6 +77,7 @@ namespace Client.Pages
             {
                 var cfg = await App.ChatService.GetAppointmentSearchConfigAsync();
                 AppointmentConfig = cfg ?? new AppointmentSearchConfig();
+                AppointmentConfig.EnforceClientSlotLimits();
                 this.Bindings.Update();
             }
             catch (Exception ex)
@@ -112,6 +113,7 @@ namespace Client.Pages
             App.ChatService.PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
             AccessPasswordBox.Password = AccessPassword;
 
+            AppointmentConfig.EnforceClientSlotLimits();
             try
             {
                 await App.ChatService.SaveAppointmentSearchConfigAsync(AppointmentConfig);

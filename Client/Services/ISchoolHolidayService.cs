@@ -6,5 +6,6 @@ namespace Client.Services
     public interface ISchoolHolidayService
     {
         bool IsSchoolHoliday(DateTime date, SchoolHolidayZone zone);
+        bool HasKnownData(SchoolHolidayZone zone);
     }
 }

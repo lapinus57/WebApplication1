@@ -79,12 +79,9 @@
                     </ComboBox>
                 </StackPanel>
                 <StackPanel Width="180" Spacing="8">
-                    <TextBlock Text="Zone académique" FontWeight="SemiBold" />
+                    <TextBlock Text="Zone académique (B)" FontWeight="SemiBold" />
                     <ComboBox x:Name="HolidayZoneCombo" SelectedIndex="0">
-                        <ComboBoxItem Content="Toutes zones" Tag="Any" />
-                        <ComboBoxItem Content="Zone A" Tag="ZoneA" />
                         <ComboBoxItem Content="Zone B" Tag="ZoneB" />
-                        <ComboBoxItem Content="Zone C" Tag="ZoneC" />
                     </ComboBox>
                 </StackPanel>
             </StackPanel>
