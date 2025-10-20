@@ -53,6 +53,7 @@ namespace Client.Services
 
         private IntPtr _hookID = IntPtr.Zero;
         private LowLevelKeyboardProc? _proc;
+        private static ContentDialog? _activePatientDialog;
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -189,6 +190,18 @@ namespace Client.Services
             if (xamlRoot is null)
                 return;
 
+            if (_activePatientDialog is ContentDialog openedDialog)
+            {
+                try
+                {
+                    openedDialog.Hide();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[HotKeyService] Failed to hide existing patient dialog: {ex.Message}");
+                }
+            }
+
             var dialog = new ContentDialog
             {
                 Title = "Ajout d'un patient",
@@ -196,6 +209,8 @@ namespace Client.Services
                 CloseButtonText = "Annuler",
                 XamlRoot = xamlRoot,
             };
+
+            _activePatientDialog = dialog;
 
             var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -322,41 +337,51 @@ namespace Client.Services
 
             dialog.Content = grid;
 
-            var result = await dialog.ShowAsync();
-
-            if (result == ContentDialogResult.Primary)
+            try
             {
-                var inputName = nameBox.Text.Trim();
-                PatientStringHelper.ExtractInfoFromInput(inputName,
-                    out var titleBox, out var lastNameBox, out var firstNameBox);
+                var result = await dialog.ShowAsync();
 
-                var selectedExamId = examCombo.SelectedValue as string ?? string.Empty;
-                var opt = ExamOption.FindByIdentifier(options, selectedExamId);
-                var resolvedExamName = opt?.Name ?? sanitizedExamIdentifier ?? string.Empty;
-
-                var patient = new Patient
+                if (result == ContentDialogResult.Primary)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    Colors = opt?.Color ?? string.Empty,
-                    Title = titleBox,
-                    LastName = lastNameBox,
-                    FirstName = firstNameBox,
-                    Exams = resolvedExamName,
-                    Eye = (eyeCombo.SelectedItem as ComboBoxItem)?.Content as string ?? string.Empty,
-                    Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim(),
-                    Position = floorCombo.SelectedItem as string ?? string.Empty,
-                    HoldTime = DateTime.Now,
-                    Examinator = App.UserName,
-                   
-                };
+                    var inputName = nameBox.Text.Trim();
+                    PatientStringHelper.ExtractInfoFromInput(inputName,
+                        out var titleBox, out var lastNameBox, out var firstNameBox);
 
-                try
-                {
-                    await App.ChatService.DeclarePatient(patient);
+                    var selectedExamId = examCombo.SelectedValue as string ?? string.Empty;
+                    var opt = ExamOption.FindByIdentifier(options, selectedExamId);
+                    var resolvedExamName = opt?.Name ?? sanitizedExamIdentifier ?? string.Empty;
+
+                    var patient = new Patient
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Colors = opt?.Color ?? string.Empty,
+                        Title = titleBox,
+                        LastName = lastNameBox,
+                        FirstName = firstNameBox,
+                        Exams = resolvedExamName,
+                        Eye = (eyeCombo.SelectedItem as ComboBoxItem)?.Content as string ?? string.Empty,
+                        Annotation = string.IsNullOrWhiteSpace(commentBox.Text) ? opt?.Annotation ?? string.Empty : commentBox.Text.Trim(),
+                        Position = floorCombo.SelectedItem as string ?? string.Empty,
+                        HoldTime = DateTime.Now,
+                        Examinator = App.UserName,
+
+                    };
+
+                    try
+                    {
+                        await App.ChatService.DeclarePatient(patient);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
+            }
+            finally
+            {
+                if (ReferenceEquals(_activePatientDialog, dialog))
                 {
-                    Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
+                    _activePatientDialog = null;
                 }
             }
         }
