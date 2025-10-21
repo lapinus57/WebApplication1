@@ -25,7 +25,7 @@ namespace Client.Helpers
                 if (matchTitleName.Success)
                 {
                     string titre = matchTitleName.Groups[1].Value;
-                    string nom = matchTitleName.Groups["name"].Value;
+                    string nom = RemoveMaidenName(matchTitleName.Groups["name"].Value);
                     string prenom = matchTitleName.Groups["firstName"].Value;
 
                     patientTitle = string.IsNullOrWhiteSpace(titre) ? string.Empty : titre.Trim();
@@ -81,10 +81,19 @@ namespace Client.Helpers
             }
 
             string firstNameRaw = tokens[^1];
-            string lastNameRaw = string.Join(' ', tokens, 0, tokens.Length - 1);
+            string lastNameRaw = RemoveMaidenName(string.Join(' ', tokens, 0, tokens.Length - 1));
 
             patientLastName = NormalizeLastName(lastNameRaw);
             patientFirstName = NormalizeFirstName(firstNameRaw);
+        }
+
+        private static string RemoveMaidenName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var cleaned = Regex.Replace(value, @"\s+n[eé]e\s+[\p{L}'\-\s]+", string.Empty, RegexOptions.IgnoreCase);
+            return cleaned.Trim();
         }
 
         private static string NormalizeLastName(string value)
