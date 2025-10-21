@@ -92,12 +92,12 @@ namespace Client.Models
 
         /// <summary>
         /// Returns a comma separated list of rooms the user is connected to.
-        /// "A Tous" and "Secrétariat" never display the "Offline" label.
+        /// "A Tous" and "Secrétariat" never display the "Hors ligne" label.
         /// </summary>
         public string RoomsDisplay
             => Username == "A Tous" || Username == "Secrétariat"
                 ? string.Join(", ", Rooms)
-                : Rooms.Count == 0 ? "Offline" : string.Join(", ", Rooms);
+                : Rooms.Count == 0 ? "Hors ligne" : string.Join(", ", Rooms);
 
         private void Rooms_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {

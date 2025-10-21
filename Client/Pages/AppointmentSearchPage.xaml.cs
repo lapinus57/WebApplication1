@@ -433,7 +433,7 @@ namespace Client.Pages
         private string BuildCsvExportContent()
         {
             var builder = new StringBuilder();
-            builder.AppendLine("Date;Nombre de personnes;Créneaux;Détail;Overload;Tolérance rouge;RDV existants");
+            builder.AppendLine("Date;Nombre de personnes;Créneaux;Détail;Surcharge;Tolérance rouge;RDV existants");
 
             var orderedResults = Results
                 .OrderBy(r => r.Day == DateTime.MinValue ? DateTime.MaxValue : r.Day)

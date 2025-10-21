@@ -14,7 +14,7 @@
                         <MenuFlyoutItem Text="Infos" Tag="{x:Bind}" Click="InfoPatient_Click" />
                         <MenuFlyoutItem Text="Modifier" Tag="{x:Bind}" Click="EditPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
-                        <MenuFlyoutSubItem Text="Modification temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
+                        <MenuFlyoutSubItem Text="Modifier le temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
                             <MenuFlyoutItem Text="Mettre en premier" Tag="{x:Bind}" Click="MovePatientFirst_Click" />
                             <MenuFlyoutItem Text="Monter d'un cran" Tag="{x:Bind}" Click="MovePatientUp_Click" />
                             <MenuFlyoutItem Text="Descendre d'un cran" Tag="{x:Bind}" Click="MovePatientDown_Click" />

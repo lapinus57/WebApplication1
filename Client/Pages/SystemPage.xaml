@@ -50,7 +50,7 @@
                                                         <NumberBox Value="{x:Bind AppointmentConfig.MaxAppointmentsPerSlot, Mode=TwoWay}" Minimum="1" SmallChange="1"/>
                                                 </StackPanel>
                                                 <StackPanel Width="200">
-                                                        <TextBlock Text="Overload supplémentaire" />
+                                                        <TextBlock Text="Surcharge supplémentaire" />
                                                         <NumberBox Value="{x:Bind AppointmentConfig.OverloadExtraAppointments, Mode=TwoWay}" Minimum="1" SmallChange="1"/>
                                                 </StackPanel>
                                                 <StackPanel Width="200">
