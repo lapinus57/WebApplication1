@@ -112,7 +112,7 @@ namespace Client.Models
 
             if (Slot.UsesOverloadCapacity)
             {
-                parts.Add("overload");
+                parts.Add("surcharge");
             }
 
             if (Slot.RedRelaxationApplied)

@@ -1133,7 +1133,7 @@ namespace Client.Pages
                 if (_service.Connection == null || _service.Connection.State != HubConnectionState.Connected)
                 {
                     ReconnectButton.Visibility = Visibility.Visible;
-                    ReconnectButton.Content = $"Reconnecter ({seconds})";
+                    ReconnectButton.Content = $"Se reconnecter ({seconds})";
                 }
                 else
                 {
@@ -1174,9 +1174,9 @@ namespace Client.Pages
             }
             string response = result switch
             {
-                ContentDialogResult.Primary => "je vient dans 0",
-                ContentDialogResult.Secondary => "je vient dans 5",
-                _ => "met en attente"
+                ContentDialogResult.Primary => "je viens dans 0 min",
+                ContentDialogResult.Secondary => "je viens dans 5 min",
+                _ => "mets en attente"
             };
 
             var avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png");
@@ -1461,7 +1461,7 @@ namespace Client.Pages
 
             var dialog = new ContentDialog
             {
-                Title = "Edition de salle",
+                Title = "Édition de salle",
                 CloseButtonText = "Fermer",
                 XamlRoot = (this.Content as FrameworkElement)?.XamlRoot
             };
@@ -1487,7 +1487,7 @@ namespace Client.Pages
                 }
             };
 
-            var passBtn = new Button { Content = "Changer mot de passe" };
+            var passBtn = new Button { Content = "Changer le mot de passe" };
             passBtn.Click += async (s, e) =>
             {
                 if (roomBox.SelectedItem is string sel)
@@ -1496,7 +1496,7 @@ namespace Client.Pages
                 }
             };
 
-            var removeBtn = new Button { Content = "Supprimer utilisateur" };
+            var removeBtn = new Button { Content = "Supprimer l'utilisateur" };
             removeBtn.Click += async (s, e) =>
             {
                 if (roomBox.SelectedItem is string sel && membersList.SelectedItem is string user)

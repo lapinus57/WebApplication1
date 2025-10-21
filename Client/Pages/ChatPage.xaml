@@ -212,7 +212,7 @@
 
         <!-- Menu contextuel des utilisateurs -->
         <MenuFlyout x:Key="UserContextMenu" Opened="UserContextMenu_Opened">
-            <MenuFlyoutItem Text="Tu peut venir" Click="CallUser_Click"/>
+            <MenuFlyoutItem Text="Tu peux venir" Click="CallUser_Click"/>
             <MenuFlyoutItem Text="Monter" Click="MoveUserUp_Click"/>
             <MenuFlyoutItem Text="Descendre" Click="MoveUserDown_Click"/>
         </MenuFlyout>
@@ -236,7 +236,7 @@
                         <MenuFlyoutItem Text="Infos" Tag="{x:Bind}" Click="InfoPatient_Click" />
                         <MenuFlyoutItem Text="Modifier" Tag="{x:Bind}" Click="EditPatient_Click" />
                         <MenuFlyoutItem Text="Supprimer" Tag="{x:Bind}" Click="DeletePatient_Click" />
-                        <MenuFlyoutSubItem Text="Modification temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
+                        <MenuFlyoutSubItem Text="Modifier le temps" Visibility="{Binding TimeModificationVisibility, ElementName=PageRoot}">
                         <MenuFlyoutItem Text="Mettre en premier" Tag="{x:Bind}" Click="MovePatientFirst_Click" />
                         <MenuFlyoutItem Text="Monter d'un cran" Tag="{x:Bind}" Click="MovePatientUp_Click" />
                         <MenuFlyoutItem Text="Descendre d'un cran" Tag="{x:Bind}" Click="MovePatientDown_Click" />
@@ -431,7 +431,7 @@
                             <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
                             <StackPanel>
                                 <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}" FontWeight="Bold"/>
-                                <TextBlock Text="{x:Bind RoomsDisplay, Mode=OneWay, FallbackValue='Offline'}"
+                                <TextBlock Text="{x:Bind RoomsDisplay, Mode=OneWay, FallbackValue='Hors ligne'}"
                                            Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}"/>
                             </StackPanel>
                         </StackPanel>
@@ -470,6 +470,6 @@
                 <ThemeShadow/>
             </TextBox.Shadow>
         </TextBox>
-        <Button x:Name="ReconnectButton" Grid.Column="2" Grid.Row="1" Content="Reconnecter" Visibility="Collapsed" Click="Reconnect_Click" HorizontalAlignment="Right"/>
+        <Button x:Name="ReconnectButton" Grid.Column="2" Grid.Row="1" Content="Se reconnecter" Visibility="Collapsed" Click="Reconnect_Click" HorizontalAlignment="Right"/>
     </Grid>
 </Page>
