@@ -226,6 +226,14 @@ namespace ChatServeur
 
         public async Task RegisterUser(string username, string avatar, string room, string color)
         {
+            username = username?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                _logger.LogWarning("SER14: Attempt to register user with empty username.");
+                return;
+            }
+
             try
             {
                 avatar = ToRelativeAvatar(avatar);
@@ -798,10 +806,7 @@ namespace ChatServeur
         {
             EnsureUsersLoaded();
 
-            if (string.IsNullOrWhiteSpace(username))
-                return false;
-
-            username = username.Trim();
+            username = username?.Trim() ?? string.Empty;
 
             if (IsProtectedUser(username))
                 return false;

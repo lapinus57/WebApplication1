@@ -128,58 +128,71 @@ namespace Client
 
             settingsFiles = validSettingsFiles.ToArray();
 
+            string? username = null;
+
             if (settingsFiles.Length == 0)
             {
-                var userDialog = new ContentDialog
-                {
-                    Title = "Nom d'utilisateur",
-                    PrimaryButtonText = "Valider",
-                    XamlRoot = root.XamlRoot
-                };
+                var requested = await PromptForUsernameAsync(root.XamlRoot);
+                if (string.IsNullOrWhiteSpace(requested))
+                    return;
 
-                var userBox = new TextBox();
-                userDialog.Content = userBox;
-                var userResult = await userDialog.ShowAsync();
-                if (userResult == ContentDialogResult.Primary)
-                {
-                    var username = userBox.Text.Trim();
-                    App.UserName = username;
-                    AppSettings.Reload();
-                    ApplySavedAppearance(root);
-                    AppSettings.CurrentSelectedUser = new UserInfo
-                    {
-                        Username = username,
-                        Avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png")
-                    };
+                username = requested;
 
-                    if (string.IsNullOrWhiteSpace(machine.DefaultUser))
-                        machine.DefaultUser = username;
-                    machine.LastUser = username;
-                    machine.ConnectLastUser = false; 
-                    MachineConfig.Save(machine);
-                }
+                if (string.IsNullOrWhiteSpace(machine.DefaultUser))
+                    machine.DefaultUser = username;
+                machine.LastUser = username;
+                machine.ConnectLastUser = false;
+                MachineConfig.Save(machine);
             }
             else
             {
-                var username = machine.ConnectLastUser
-                   ? machine.LastUser
-                   : machine.DefaultUser;
-                if (string.IsNullOrWhiteSpace(username))
+                var candidate = machine.ConnectLastUser
+                    ? machine.LastUser
+                    : machine.DefaultUser;
+
+                if (string.IsNullOrWhiteSpace(candidate))
                 {
                     var fromFile = Path.GetFileNameWithoutExtension(settingsFiles[0])?
                         .Replace("_settings", string.Empty) ?? string.Empty;
-                    username = AppSettings.SanitizeUserNameForFile(fromFile);
+                    candidate = AppSettings.SanitizeUserNameForFile(fromFile);
+
+                    if (!string.IsNullOrWhiteSpace(candidate))
+                    {
+                        if (string.IsNullOrWhiteSpace(machine.DefaultUser))
+                            machine.DefaultUser = candidate;
+                        if (string.IsNullOrWhiteSpace(machine.LastUser))
+                            machine.LastUser = candidate;
+                        MachineConfig.Save(machine);
+                    }
                 }
 
-                App.UserName = username;
-                AppSettings.Reload();
-                ApplySavedAppearance(root);
-                AppSettings.CurrentSelectedUser = new UserInfo
+                if (string.IsNullOrWhiteSpace(candidate))
                 {
-                    Username = username,
-                    Avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png")
-                };
+                    candidate = await PromptForUsernameAsync(root.XamlRoot);
+                    if (string.IsNullOrWhiteSpace(candidate))
+                        return;
+
+                    if (string.IsNullOrWhiteSpace(machine.DefaultUser))
+                        machine.DefaultUser = candidate;
+                    machine.LastUser = candidate;
+                    machine.ConnectLastUser = false;
+                    MachineConfig.Save(machine);
+                }
+
+                username = candidate;
             }
+
+            if (string.IsNullOrWhiteSpace(username))
+                return;
+
+            App.UserName = username;
+            AppSettings.Reload();
+            ApplySavedAppearance(root);
+            AppSettings.CurrentSelectedUser = new UserInfo
+            {
+                Username = username,
+                Avatar = AppSettings.Get("Avatar", "ms-appx:///Assets/utilisateur.png")
+            };
 
             if (!string.IsNullOrWhiteSpace(machine.RoomName) )
             {
@@ -187,6 +200,37 @@ namespace Client
                 await ChatService.InitializeAsync();
                 await SyncUserSettingsAsync(root);
                 await DownloadMissingUserSettingsAsync();
+            }
+        }
+
+        private static async Task<string?> PromptForUsernameAsync(XamlRoot xamlRoot)
+        {
+            while (true)
+            {
+                var userDialog = new ContentDialog
+                {
+                    Title = "Nom d'utilisateur",
+                    PrimaryButtonText = "Valider",
+                    XamlRoot = xamlRoot,
+                    DefaultButton = ContentDialogButton.Primary
+                };
+
+                var userBox = new TextBox();
+                userDialog.Content = userBox;
+                userDialog.IsPrimaryButtonEnabled = false;
+
+                userBox.TextChanged += (_, __) =>
+                {
+                    userDialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(userBox.Text);
+                };
+
+                var userResult = await userDialog.ShowAsync();
+                if (userResult != ContentDialogResult.Primary)
+                    return null;
+
+                var username = userBox.Text.Trim();
+                if (!string.IsNullOrWhiteSpace(username))
+                    return username;
             }
         }
 
