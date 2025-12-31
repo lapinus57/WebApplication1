@@ -12,6 +12,7 @@ using System.IO;
 using Client.Pages;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.UI.Xaml.Input;
 
 namespace Client
 {
@@ -78,6 +79,7 @@ namespace Client
                 return;
 
             root.Loaded -= MainWindow_Loaded;
+            RegisterActivityHandlers(root);
 
             var machine = MachineConfig.Load();
 
@@ -201,6 +203,19 @@ namespace Client
                 await SyncUserSettingsAsync(root);
                 await DownloadMissingUserSettingsAsync();
             }
+        }
+
+        private void RegisterActivityHandlers(FrameworkElement root)
+        {
+            root.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(OnUserActivity), true);
+            root.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnUserActivity), true);
+            root.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnUserActivity), true);
+            root.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnUserActivity), true);
+        }
+
+        private void OnUserActivity(object sender, RoutedEventArgs e)
+        {
+            ChatService.ReportUserActivity();
         }
 
         private static async Task<string?> PromptForUsernameAsync(XamlRoot xamlRoot)

@@ -15,6 +15,7 @@ namespace Client.Models
         private string _colorUserName = string.Empty;
         private string _accentAwareColorUserName = string.Empty;
         private bool _usesAccentContrast;
+        private string _status = string.Empty;
 
         public UserInfo()
         {
@@ -82,6 +83,21 @@ namespace Client.Models
             }
         }
 
+        public string Status
+        {
+            get => _status;
+            set
+            {
+                var newValue = value ?? string.Empty;
+                if (_status != newValue)
+                {
+                    _status = newValue;
+                    OnPropertyChanged(nameof(Status));
+                    OnPropertyChanged(nameof(RoomsDisplay));
+                }
+            }
+        }
+
         public string Note { get; set; } = string.Empty;
 
         /// <summary>
@@ -97,6 +113,7 @@ namespace Client.Models
         public string RoomsDisplay
             => Username == "A Tous" || Username == "Secrétariat"
                 ? string.Join(", ", Rooms)
+                : !string.IsNullOrWhiteSpace(Status) ? Status
                 : Rooms.Count == 0 ? "Hors ligne" : string.Join(", ", Rooms);
 
         private void Rooms_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -153,6 +170,7 @@ namespace Client.Models
                 ColorUserName = ColorUserName,
                 Note = Note,
                 IsOnline = IsOnline,
+                Status = Status,
                 CanRenameLocalUser = CanRenameLocalUser
             };
 

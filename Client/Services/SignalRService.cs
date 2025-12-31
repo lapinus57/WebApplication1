@@ -72,6 +72,10 @@ namespace Client.Services
         private Timer? _reconnectTimer;
         private Timer? _reconnectCountdownTimer;
         private int _reconnectCountdown;
+        private Timer? _idleTimer;
+        private readonly TimeSpan _idleThreshold = TimeSpan.FromMinutes(3);
+        private DateTime _lastActivityUtc = DateTime.UtcNow;
+        private bool _isAway;
         public event Action<int>? ReconnectCountdownChanged;
         private bool _isConnecting;
         public bool EnableReconnect { get; set; } = true;
@@ -417,6 +421,8 @@ namespace Client.Services
                     }
                 }
 
+                StopIdleMonitor();
+
                 foreach (var u in ConnectedUsers)
                 {
                     u.IsOnline = false;
@@ -450,6 +456,16 @@ namespace Client.Services
                 });
             });
 
+            connection.On<string>("ForceLogout", reason =>
+            {
+                Dispatcher?.TryEnqueue(async () =>
+                {
+                    ShowToast(string.IsNullOrWhiteSpace(reason)
+                        ? "Vous avez été déconnecté."
+                        : reason);
+                    await DisconnectAsync();
+                });
+            });
 
             connection.On<List<UserInfo>>("UserListUpdated", users =>
             {
@@ -640,6 +656,8 @@ namespace Client.Services
                 await connection.StartAsync();
                 await connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color);
                 StopReconnectTimer();
+                ResetIdleStatus();
+                StartIdleMonitor();
             }
             catch (Exception ex)
             {
@@ -1881,6 +1899,7 @@ namespace Client.Services
                             DisplayName = name,
                             ColorUserName = visibleToAll ? "Blue" : "Green",
                             IsOnline = true,
+                            Status = string.Empty,
                             Note = string.Empty
                         });
                     }
@@ -1895,6 +1914,7 @@ namespace Client.Services
             if (disableReconnect)
                 EnableReconnect = false;
             StopReconnectTimer();
+            StopIdleMonitor();
             if (Connection != null)
             {
                 try
@@ -1907,6 +1927,66 @@ namespace Client.Services
                 }
             }
             _initialized = false;
+        }
+
+        public void ReportUserActivity()
+        {
+            _lastActivityUtc = DateTime.UtcNow;
+            if (_isAway)
+            {
+                _ = UpdateUserStatusAsync(false);
+            }
+        }
+
+        private void StartIdleMonitor()
+        {
+            _idleTimer?.Dispose();
+            _idleTimer = new Timer(async _ => await CheckIdleAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        }
+
+        private void StopIdleMonitor()
+        {
+            _idleTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            _idleTimer?.Dispose();
+            _idleTimer = null;
+            _isAway = false;
+        }
+
+        private void ResetIdleStatus()
+        {
+            _lastActivityUtc = DateTime.UtcNow;
+            _isAway = false;
+        }
+
+        private async Task CheckIdleAsync()
+        {
+            if (string.IsNullOrWhiteSpace(_username))
+                return;
+
+            if (DateTime.UtcNow - _lastActivityUtc < _idleThreshold)
+                return;
+
+            await UpdateUserStatusAsync(true);
+        }
+
+        private async Task UpdateUserStatusAsync(bool isAway)
+        {
+            if (_isAway == isAway)
+                return;
+
+            if (!TryGetActiveConnection(out var connection))
+                return;
+
+            var status = isAway ? "Absent" : string.Empty;
+            try
+            {
+                await connection.InvokeAsync("UpdateUserStatus", _username, status);
+                _isAway = isAway;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"❌ Erreur MAJ statut utilisateur : {ex.Message}");
+            }
         }
 
         public async Task RefreshGroupsAsync()
