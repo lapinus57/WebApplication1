@@ -30,6 +30,7 @@ namespace ChatServeur
                 DisplayName = "A Tous",
                 ColorUserName = "Red",
                 IsOnline = true,
+                Status = string.Empty,
                 Note = string.Empty
             },
             new UserInfo
@@ -41,6 +42,7 @@ namespace ChatServeur
                 DisplayName = "Secrétariat",
                 ColorUserName = "Blue",
                 IsOnline = true,
+                Status = string.Empty,
                 Note = string.Empty
             }
         };
@@ -109,6 +111,7 @@ namespace ChatServeur
                     DisplayName = u.DisplayName,
                     ColorUserName = u.ColorUserName,
                     IsOnline = u.IsOnline,
+                    Status = string.Empty,
                     Note = u.Note
                 };
             }
@@ -196,6 +199,7 @@ namespace ChatServeur
 
                         user.IsOnline = false;
                         user.Rooms.Clear();
+                        user.Status = string.Empty;
                         AllUsers[user.Username] = user;
 
                         var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == user.Username);
@@ -257,8 +261,22 @@ namespace ChatServeur
                     DisplayName = username,
                     ColorUserName = color,
                     IsOnline = true,
+                    Status = string.Empty,
                     Note = string.Empty
                 };
+
+                if (TryGetConnectionEntry(username, out var existingKey, out var existingConnections))
+                {
+                    var otherConnections = existingConnections.Where(id => id != Context.ConnectionId).ToList();
+                    if (otherConnections.Count > 0)
+                    {
+                        await Clients.Clients(otherConnections).SendAsync(
+                            "ForceLogout",
+                            "Ce compte est déjà connecté sur un autre poste. Veuillez vous connecter avec un autre utilisateur.");
+                    }
+
+                    _userToConnectionId[existingKey] = new HashSet<string>();
+                }
 
                 ConnectedUsers[Context.ConnectionId] = user;
                 if (!_userToConnectionId.TryGetValue(username, out var set))
@@ -313,6 +331,29 @@ namespace ChatServeur
                 _logger.LogError(ex, "SER11: Failed to register user {Username}.", username);
                 throw;
             }
+        }
+
+        public async Task UpdateUserStatus(string username, string status)
+        {
+            EnsureUsersLoaded();
+
+            if (!ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
+            {
+                _logger.LogWarning("SER15: Status update ignored - connection not registered.");
+                return;
+            }
+
+            if (!string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("SER16: Status update ignored for mismatched user {Username}.", username);
+                return;
+            }
+
+            user.Status = status?.Trim() ?? string.Empty;
+            AllUsers[user.Username] = user;
+
+            var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+            await Clients.All.SendAsync("UserListUpdated", userList);
         }
 
 

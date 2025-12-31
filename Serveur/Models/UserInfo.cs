@@ -11,6 +11,7 @@ namespace ChatServeur
         public string DisplayName { get; set; } = string.Empty;
         public string ColorUserName { get; set; } = string.Empty;
         public bool IsOnline { get; set; }
+        public string Status { get; set; } = string.Empty;
         public string Note { get; set; } = string.Empty;
     }
 }
