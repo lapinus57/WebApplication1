@@ -21,6 +21,7 @@ using Microsoft.Windows.AppNotifications.Builder;
 using Microsoft.Windows.AppNotifications;
 using Client.Pages;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Client.Services
 {
@@ -74,7 +75,6 @@ namespace Client.Services
         private int _reconnectCountdown;
         private Timer? _idleTimer;
         private readonly TimeSpan _idleThreshold = TimeSpan.FromMinutes(3);
-        private DateTime _lastActivityUtc = DateTime.UtcNow;
         private bool _isAway;
         public event Action<int>? ReconnectCountdownChanged;
         private bool _isConnecting;
@@ -1931,7 +1931,6 @@ namespace Client.Services
 
         public void ReportUserActivity()
         {
-            _lastActivityUtc = DateTime.UtcNow;
             if (_isAway)
             {
                 _ = UpdateUserStatusAsync(false);
@@ -1954,8 +1953,30 @@ namespace Client.Services
 
         private void ResetIdleStatus()
         {
-            _lastActivityUtc = DateTime.UtcNow;
             _isAway = false;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LastInputInfo
+        {
+            public uint cbSize;
+            public uint dwTime;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool GetLastInputInfo(ref LastInputInfo plii);
+
+        private static TimeSpan GetSystemIdleTime()
+        {
+            var info = new LastInputInfo { cbSize = (uint)Marshal.SizeOf<LastInputInfo>() };
+            if (!GetLastInputInfo(ref info))
+            {
+                return TimeSpan.Zero;
+            }
+
+            var tickCount = unchecked((uint)Environment.TickCount);
+            var idleMs = unchecked(tickCount - info.dwTime);
+            return TimeSpan.FromMilliseconds(idleMs);
         }
 
         private async Task CheckIdleAsync()
@@ -1963,8 +1984,15 @@ namespace Client.Services
             if (string.IsNullOrWhiteSpace(_username))
                 return;
 
-            if (DateTime.UtcNow - _lastActivityUtc < _idleThreshold)
+            var idleTime = GetSystemIdleTime();
+            if (idleTime < _idleThreshold)
+            {
+                if (_isAway)
+                {
+                    await UpdateUserStatusAsync(false);
+                }
                 return;
+            }
 
             await UpdateUserStatusAsync(true);
         }
