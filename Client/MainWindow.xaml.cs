@@ -121,6 +121,17 @@ namespace Client
             }
         }
 
+        public void SetAccountState(bool isConnected)
+        {
+            ChangeAccountMenuItem.Text = isConnected ? "Changer de compte" : "Choisir un compte";
+            LogoutMenuItem.Visibility = isConnected ? Visibility.Visible : Visibility.Collapsed;
+
+            if (!isConnected)
+            {
+                PersonPic.Initials = string.Empty;
+            }
+        }
+
         private async void ChangeAccount_Click(object sender, RoutedEventArgs e)
         {
             var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
