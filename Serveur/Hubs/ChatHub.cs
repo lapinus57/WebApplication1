@@ -270,9 +270,10 @@ namespace ChatServeur
                     var otherConnections = existingConnections.Where(id => id != Context.ConnectionId).ToList();
                     if (otherConnections.Count > 0)
                     {
-                        await Clients.Clients(otherConnections).SendAsync(
+                        await Clients.Client(Context.ConnectionId).SendAsync(
                             "ForceLogout",
                             "Ce compte est déjà connecté sur un autre poste. Veuillez vous connecter avec un autre utilisateur.");
+                        return;
                     }
 
                     _userToConnectionId[existingKey] = new HashSet<string>();
