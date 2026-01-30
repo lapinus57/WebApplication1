@@ -75,8 +75,8 @@
                 </Button.Content>
                 <Button.Flyout>
                     <MenuFlyout>
-                        <MenuFlyoutItem Text="Changer de compte" Click="ChangeAccount_Click" />
-                        <MenuFlyoutItem Text="Déconnexion" Click="Logout_Click" />
+                        <MenuFlyoutItem x:Name="ChangeAccountMenuItem" Text="Changer de compte" Click="ChangeAccount_Click" />
+                        <MenuFlyoutItem x:Name="LogoutMenuItem" Text="Déconnexion" Click="Logout_Click" />
                     </MenuFlyout>
                 </Button.Flyout>
             </Button>

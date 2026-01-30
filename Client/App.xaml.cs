@@ -427,6 +427,7 @@ namespace Client
             {
                 var chat = mw.ShowChatPage();
                 chat?.RefreshUsername();
+                mw.SetAccountState(true);
             }
         }
 
@@ -442,6 +443,11 @@ namespace Client
             }
 
             ChatService.ClearLocalData();
+
+            if (MainWindow is MainWindow mw)
+            {
+                mw.SetAccountState(false);
+            }
         }
 
         private Window? m_window;
