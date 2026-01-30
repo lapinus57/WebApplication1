@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Windows.ApplicationModel.Chat;
 using Microsoft.VisualBasic;
 using Newtonsoft.Json;
@@ -79,6 +80,8 @@ namespace Client.Services
         public event Action<int>? ReconnectCountdownChanged;
         private bool _isConnecting;
         public bool EnableReconnect { get; set; } = true;
+        private readonly Dictionary<string, ContentDialog> _loginConflictDialogs = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, DispatcherQueueTimer> _loginConflictTimers = new(StringComparer.OrdinalIgnoreCase);
 
         public bool IsHistoryLoaded => _historyLoaded;
         public IReadOnlyList<UserInfo> KnownUsers => _lastServerUserList;
@@ -467,6 +470,74 @@ namespace Client.Services
                 });
             });
 
+            connection.On<string, string, string, int>("LoginConflictPending", (requestId, username, existingMachine, delaySeconds) =>
+            {
+                Dispatcher?.TryEnqueue(async () =>
+                {
+                    await ShowLoginConflictPendingDialogAsync(requestId, username, existingMachine, delaySeconds);
+                });
+            });
+
+            connection.On<string, string, string, int>("LoginConflictRequested", (requestId, username, requestingMachine, delaySeconds) =>
+            {
+                Dispatcher?.TryEnqueue(async () =>
+                {
+                    await ShowLoginConflictRequestDialogAsync(requestId, username, requestingMachine, delaySeconds);
+                });
+            });
+
+            connection.On<string, string>("LoginConflictApproved", (requestId, username) =>
+            {
+                Dispatcher?.TryEnqueue(async () =>
+                {
+                    CloseLoginConflictDialog(requestId);
+                    ShowToast($"Connexion autorisée pour {username}.");
+                    await CompleteLoginAfterApprovalAsync(requestId);
+                });
+            });
+
+            connection.On<string, string>("LoginConflictDenied", (requestId, username) =>
+            {
+                Dispatcher?.TryEnqueue(async () =>
+                {
+                    CloseLoginConflictDialog(requestId);
+                    ShowToast($"Connexion refusée pour {username}.");
+                    await HandleLoginConflictDeniedAsync();
+                });
+            });
+
+            connection.On<string, string, string>("LoginConflictResolved", (requestId, username, result) =>
+            {
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    CloseLoginConflictDialog(requestId);
+                    if (string.Equals(result, "denied", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ShowToast($"Connexion refusée pour {username}.");
+                    }
+                    else if (string.Equals(result, "approved", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ShowToast($"Connexion transférée pour {username}.");
+                    }
+                });
+            });
+
+            connection.On<string, int>("LoginConflictTooEarly", (requestId, delaySeconds) =>
+            {
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    ShowToast($"Veuillez attendre {delaySeconds} secondes avant de répondre.");
+                });
+            });
+
+            connection.On<string, string>("LoginConflictTimedOut", (requestId, username) =>
+            {
+                Dispatcher?.TryEnqueue(() =>
+                {
+                    ShowToast($"Délai dépassé pour {username}, décision transférée à l'autre poste.");
+                });
+            });
+
             connection.On<List<UserInfo>>("UserListUpdated", users =>
             {
                 Dispatcher?.TryEnqueue(async () =>
@@ -654,7 +725,7 @@ namespace Client.Services
             try
             {
                 await connection.StartAsync();
-                await connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color);
+                await connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color, Environment.MachineName);
                 StopReconnectTimer();
                 ResetIdleStatus();
                 StartIdleMonitor();
@@ -854,6 +925,231 @@ namespace Client.Services
 
             await ConnectAsync(_username, _avatar, RoomName, _color);
         }
+
+        private async Task ShowLoginConflictPendingDialogAsync(string requestId, string username, string existingMachine, int delaySeconds)
+        {
+            if (!TryGetDialogRoot(out var root))
+                return;
+
+            var machineLabel = string.IsNullOrWhiteSpace(existingMachine) ? "un autre poste" : existingMachine;
+            var message = new TextBlock
+            {
+                Text = $"{username} est déjà connecté sur {machineLabel}. Voulez-vous quand même vous connecter ?",
+                TextWrapping = TextWrapping.Wrap
+            };
+            var countdown = new TextBlock
+            {
+                Text = $"Vous pourrez répondre dans {delaySeconds} s.",
+                TextWrapping = TextWrapping.Wrap
+            };
+            var progress = new ProgressBar
+            {
+                Minimum = 0,
+                Maximum = delaySeconds,
+                Value = 0,
+                Height = 6
+            };
+            var panel = new StackPanel { Spacing = 8 };
+            panel.Children.Add(message);
+            panel.Children.Add(countdown);
+            panel.Children.Add(progress);
+
+            var dialog = new ContentDialog
+            {
+                Title = "Connexion déjà active",
+                Content = panel,
+                PrimaryButtonText = "Oui",
+                SecondaryButtonText = "Non",
+                XamlRoot = root.XamlRoot
+            };
+            dialog.IsPrimaryButtonEnabled = false;
+            dialog.IsSecondaryButtonEnabled = false;
+
+            RegisterLoginConflictDialog(requestId, dialog);
+
+            StartLoginConflictCountdown(requestId, delaySeconds, remaining =>
+            {
+                if (remaining > 0)
+                {
+                    countdown.Text = $"Vous pourrez répondre dans {remaining} s.";
+                    progress.Value = delaySeconds - remaining;
+                    return;
+                }
+
+                countdown.Text = "Vous pouvez répondre.";
+                progress.Value = delaySeconds;
+                dialog.IsPrimaryButtonEnabled = true;
+                dialog.IsSecondaryButtonEnabled = true;
+            });
+
+            var result = await dialog.ShowAsync();
+            StopLoginConflictCountdown(requestId);
+
+            if (result == ContentDialogResult.Primary)
+            {
+                await RespondToLoginConflictAsync(requestId, true);
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                await RespondToLoginConflictAsync(requestId, false);
+            }
+        }
+
+        private async Task ShowLoginConflictRequestDialogAsync(string requestId, string username, string requestingMachine, int delaySeconds)
+        {
+            if (!TryGetDialogRoot(out var root))
+                return;
+
+            var machineLabel = string.IsNullOrWhiteSpace(requestingMachine) ? "un autre poste" : requestingMachine;
+            var message = new TextBlock
+            {
+                Text = $"Le poste {machineLabel} veut se connecter avec le compte {username}. Autoriser ?",
+                TextWrapping = TextWrapping.Wrap
+            };
+            var countdown = new TextBlock
+            {
+                Text = $"Vous avez {delaySeconds} s pour répondre.",
+                TextWrapping = TextWrapping.Wrap
+            };
+            var progress = new ProgressBar
+            {
+                Minimum = 0,
+                Maximum = delaySeconds,
+                Value = 0,
+                Height = 6
+            };
+            var panel = new StackPanel { Spacing = 8 };
+            panel.Children.Add(message);
+            panel.Children.Add(countdown);
+            panel.Children.Add(progress);
+
+            var dialog = new ContentDialog
+            {
+                Title = "Demande de connexion",
+                Content = panel,
+                PrimaryButtonText = "Oui",
+                SecondaryButtonText = "Non",
+                XamlRoot = root.XamlRoot
+            };
+
+            RegisterLoginConflictDialog(requestId, dialog);
+
+            StartLoginConflictCountdown(requestId, delaySeconds, remaining =>
+            {
+                if (remaining > 0)
+                {
+                    countdown.Text = $"Vous avez {remaining} s pour répondre.";
+                    progress.Value = delaySeconds - remaining;
+                    return;
+                }
+
+                countdown.Text = $"Délai expiré, décision transférée au poste {machineLabel}.";
+                progress.Value = delaySeconds;
+                dialog.IsPrimaryButtonEnabled = false;
+                dialog.IsSecondaryButtonEnabled = false;
+            });
+
+            var result = await dialog.ShowAsync();
+            StopLoginConflictCountdown(requestId);
+
+            if (result == ContentDialogResult.Primary)
+            {
+                await RespondToLoginConflictAsync(requestId, true);
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                await RespondToLoginConflictAsync(requestId, false);
+            }
+        }
+
+        private void RegisterLoginConflictDialog(string requestId, ContentDialog dialog)
+        {
+            _loginConflictDialogs[requestId] = dialog;
+        }
+
+        private void StartLoginConflictCountdown(string requestId, int delaySeconds, Action<int> onTick)
+        {
+            if (Dispatcher is not DispatcherQueue dispatcher)
+                return;
+
+            var remaining = Math.Max(0, delaySeconds);
+            onTick(remaining);
+
+            var timer = dispatcher.CreateTimer();
+            timer.Interval = TimeSpan.FromSeconds(1);
+            timer.Tick += (_, __) =>
+            {
+                remaining--;
+                onTick(remaining);
+                if (remaining <= 0)
+                {
+                    timer.Stop();
+                }
+            };
+
+            _loginConflictTimers[requestId] = timer;
+            timer.Start();
+        }
+
+        private void StopLoginConflictCountdown(string requestId)
+        {
+            if (_loginConflictTimers.Remove(requestId, out var timer))
+            {
+                timer.Stop();
+            }
+        }
+
+        private void CloseLoginConflictDialog(string requestId)
+        {
+            StopLoginConflictCountdown(requestId);
+            if (_loginConflictDialogs.Remove(requestId, out var dialog))
+            {
+                dialog.Hide();
+            }
+        }
+
+        private static bool TryGetDialogRoot(out FrameworkElement root)
+        {
+            if (App.MainWindow?.Content is FrameworkElement rootElement)
+            {
+                root = rootElement;
+                return true;
+            }
+
+            root = null!;
+            return false;
+        }
+
+        private async Task HandleLoginConflictDeniedAsync()
+        {
+            await DisconnectAsync();
+
+            if (Application.Current is not App app)
+                return;
+
+            var username = await app.PromptForAccountSelectionAsync();
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                await app.ChangeUserAsync(username);
+            }
+            else if (App.MainWindow is MainWindow mainWindow)
+            {
+                mainWindow.SetAccountState(false);
+            }
+        }
+
+        public async Task RespondToLoginConflictAsync(string requestId, bool approve)
+        {
+            var connection = GetRequiredConnection();
+            await connection.InvokeAsync("RespondToLoginConflict", requestId, approve);
+        }
+
+        public async Task CompleteLoginAfterApprovalAsync(string requestId)
+        {
+            var connection = GetRequiredConnection();
+            await connection.InvokeAsync("CompleteLoginAfterApproval", requestId);
+        }
+
         private void ShowToast(string message)
         {
             var payload = $"""
