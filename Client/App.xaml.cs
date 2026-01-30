@@ -397,8 +397,7 @@ namespace Client
 
             try
             {
-                if (ChatService.Connection != null)
-                    await ChatService.DisconnectAsync();
+                await ChatService.DisconnectAsync();
             }
             catch (Exception ex)
             {
@@ -435,8 +434,7 @@ namespace Client
         {
             try
             {
-                if (ChatService.Connection != null)
-                    await ChatService.DisconnectAsync();
+                await ChatService.DisconnectAsync();
             }
             catch (Exception ex)
             {
