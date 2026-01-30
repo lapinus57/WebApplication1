@@ -249,6 +249,47 @@ namespace Client
             }
         }
 
+        public async Task<string?> PromptForAccountSelectionAsync()
+        {
+            if (MainWindow?.Content is not FrameworkElement root)
+                return null;
+
+            var appFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+            Directory.CreateDirectory(appFolder);
+            var settingsFiles = Directory.GetFiles(appFolder, "*_settings.json");
+            var users = settingsFiles
+                .Select(f => Path.GetFileNameWithoutExtension(f)?.Replace("_settings", string.Empty) ?? string.Empty)
+                .Select(AppSettings.SanitizeUserNameForFile)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var dialog = new ContentDialog
+            {
+                Title = "Choisir l'utilisateur",
+                PrimaryButtonText = "OK",
+                CloseButtonText = "Annuler",
+                XamlRoot = root.XamlRoot
+            };
+
+            var stack = new StackPanel { Spacing = 10 };
+            var combo = new ComboBox { ItemsSource = users, PlaceholderText = "Utilisateur" };
+            var newBox = new TextBox { PlaceholderText = "Nouvel utilisateur" };
+            stack.Children.Add(combo);
+            stack.Children.Add(newBox);
+            dialog.Content = stack;
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+                return null;
+
+            var name = !string.IsNullOrWhiteSpace(newBox.Text)
+                ? newBox.Text.Trim()
+                : combo.SelectedItem as string;
+
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+
         public static void ApplySavedAppearance(FrameworkElement root)
         {
             var theme = AppSettings.Get("AppTheme", "Dark");

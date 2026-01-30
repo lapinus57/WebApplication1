@@ -13,11 +13,28 @@ namespace ChatServeur
 {
     public class ChatHub : Hub
     {
+        private sealed class PendingLoginRequest
+        {
+            public string RequestId { get; init; } = string.Empty;
+            public string Username { get; init; } = string.Empty;
+            public string Avatar { get; init; } = string.Empty;
+            public string Room { get; init; } = string.Empty;
+            public string Color { get; init; } = string.Empty;
+            public string MachineName { get; init; } = string.Empty;
+            public string RequestingConnectionId { get; init; } = string.Empty;
+            public List<string> ExistingConnectionIds { get; } = new();
+            public string ExistingMachineName { get; init; } = string.Empty;
+            public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;
+            public bool ApprovedByExisting { get; set; }
+        }
+
         private static readonly Dictionary<string, UserInfo> ConnectedUsers = new();
         private static readonly Dictionary<string, HashSet<string>> _userToConnectionId = new();
         private static readonly Dictionary<string, UserInfo> AllUsers = new();
         private static readonly Dictionary<string, HashSet<string>> GroupMembers = new();
+        private static readonly Dictionary<string, PendingLoginRequest> PendingLoginRequests = new();
         private static bool _usersLoaded;
+        private const int LoginConflictDelaySeconds = 10;
 
         private static readonly List<UserInfo> BaseUsers = new()
         {
@@ -225,12 +242,123 @@ namespace ChatServeur
                 }
             }
 
+            await HandlePendingLoginDisconnectAsync(Context.ConnectionId);
             await base.OnDisconnectedAsync(ex);
         }
 
-        public async Task RegisterUser(string username, string avatar, string room, string color)
+        private async Task HandlePendingLoginDisconnectAsync(string connectionId)
+        {
+            var requesterMatches = PendingLoginRequests.Values
+                .Where(r => string.Equals(r.RequestingConnectionId, connectionId, StringComparison.Ordinal))
+                .ToList();
+
+            foreach (var request in requesterMatches)
+            {
+                PendingLoginRequests.Remove(request.RequestId);
+                if (request.ExistingConnectionIds.Count > 0)
+                {
+                    await Clients.Clients(request.ExistingConnectionIds)
+                        .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "canceled");
+                }
+            }
+
+            var existingMatches = PendingLoginRequests.Values
+                .Where(r => r.ExistingConnectionIds.Contains(connectionId))
+                .ToList();
+
+            foreach (var request in existingMatches)
+            {
+                request.ExistingConnectionIds.Remove(connectionId);
+                if (request.ExistingConnectionIds.Count == 0 && !request.ApprovedByExisting)
+                {
+                    request.ApprovedByExisting = true;
+                    await Clients.Client(request.RequestingConnectionId)
+                        .SendAsync("LoginConflictApproved", request.RequestId, request.Username);
+                }
+            }
+        }
+
+        private async Task RegisterUserCoreAsync(string username, string avatar, string room, string color, string machineName)
+        {
+            avatar = ToRelativeAvatar(avatar);
+            if (string.IsNullOrWhiteSpace(avatar))
+                avatar = "/Assets/utilisateur.png";
+            EnsureUsersLoaded();
+            _logger.LogInformation("RegisterUser invoked for {Username}.", username);
+
+            var rooms = new List<string>();
+            if (AllUsers.TryGetValue(username, out var existing) && existing.Rooms.Any())
+                rooms = existing.Rooms.Where(r => r != "Hors ligne").ToList();
+            if (!rooms.Contains(room))
+                rooms.Add(room);
+
+            var user = new UserInfo
+            {
+                ConnectionId = Context.ConnectionId,
+                Username = username,
+                Avatar = avatar,
+                Rooms = rooms,
+                DisplayName = username,
+                ColorUserName = color,
+                MachineName = machineName,
+                IsOnline = true,
+                Status = string.Empty,
+                Note = string.Empty
+            };
+
+            ConnectedUsers[Context.ConnectionId] = user;
+            if (!_userToConnectionId.TryGetValue(username, out var set))
+            {
+                set = new HashSet<string>();
+                _userToConnectionId[username] = set;
+            }
+            set.Add(Context.ConnectionId);
+            AllUsers[username] = user;
+
+            var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == username);
+            if (dbUser == null)
+            {
+                dbUser = new KnownUser { Username = username };
+                _db.KnownUsers.Add(dbUser);
+            }
+            dbUser.ConnectionId = Context.ConnectionId;
+            dbUser.Avatar = avatar;
+            dbUser.Room = string.Join(",", user.Rooms);
+            dbUser.DisplayName = username;
+            dbUser.ColorUserName = color;
+            dbUser.IsOnline = true;
+            dbUser.Note = string.Empty;
+            await _db.SaveChangesAsync();
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, "A Tous");
+            if (!GroupMembers.ContainsKey("A Tous"))
+                GroupMembers["A Tous"] = new HashSet<string>();
+            GroupMembers["A Tous"].Add(username);
+
+            var groups = await _db.GroupMemberships
+                .Where(g => g.Username == username)
+                .Select(g => g.GroupName)
+                .ToListAsync();
+
+            foreach (var group in groups)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, group);
+                if (!GroupMembers.ContainsKey(group))
+                    GroupMembers[group] = new HashSet<string>();
+                GroupMembers[group].Add(username);
+            }
+
+            await Clients.All.SendAsync("UserConnected", user);
+
+            var userList = BaseUsers.Concat(AllUsers.Values).ToList();
+
+            await Clients.All.SendAsync("UserListUpdated", userList);
+        }
+
+        public async Task RegisterUser(string username, string avatar, string room, string color, string machineName)
         {
             username = username?.Trim() ?? string.Empty;
+            machineName = string.IsNullOrWhiteSpace(machineName) ? "ce poste" : machineName.Trim();
 
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -240,98 +368,141 @@ namespace ChatServeur
 
             try
             {
-                avatar = ToRelativeAvatar(avatar);
-                if (string.IsNullOrWhiteSpace(avatar))
-                    avatar = "/Assets/utilisateur.png";
                 EnsureUsersLoaded();
-                _logger.LogInformation("RegisterUser invoked for {Username}.", username);
-
-                var rooms = new List<string>();
-                if (AllUsers.TryGetValue(username, out var existing) && existing.Rooms.Any())
-                    rooms = existing.Rooms.Where(r => r != "Hors ligne").ToList();
-                if (!rooms.Contains(room))
-                    rooms.Add(room);
-
-                var user = new UserInfo
-                {
-                    ConnectionId = Context.ConnectionId,
-                    Username = username,
-                    Avatar = avatar,
-                    Rooms = rooms,
-                    DisplayName = username,
-                    ColorUserName = color,
-                    IsOnline = true,
-                    Status = string.Empty,
-                    Note = string.Empty
-                };
 
                 if (TryGetConnectionEntry(username, out var existingKey, out var existingConnections))
                 {
                     var otherConnections = existingConnections.Where(id => id != Context.ConnectionId).ToList();
                     if (otherConnections.Count > 0)
                     {
-                        await Clients.Client(Context.ConnectionId).SendAsync(
-                            "ForceLogout",
-                            "Ce compte est déjà connecté sur un autre poste. Veuillez vous connecter avec un autre utilisateur.");
+                        var existingMachineName = otherConnections
+                            .Select(id => ConnectedUsers.TryGetValue(id, out var info) ? info.MachineName : string.Empty)
+                            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)) ?? "un autre poste";
+
+                        var requestId = Guid.NewGuid().ToString("N");
+                        var request = new PendingLoginRequest
+                        {
+                            RequestId = requestId,
+                            Username = username,
+                            Avatar = avatar,
+                            Room = room,
+                            Color = color,
+                            MachineName = machineName,
+                            RequestingConnectionId = Context.ConnectionId,
+                            ExistingMachineName = existingMachineName
+                        };
+                        request.ExistingConnectionIds.AddRange(otherConnections);
+                        PendingLoginRequests[requestId] = request;
+
+                        await Clients.Client(Context.ConnectionId)
+                            .SendAsync("LoginConflictPending", requestId, username, existingMachineName, LoginConflictDelaySeconds);
+                        await Clients.Clients(otherConnections)
+                            .SendAsync("LoginConflictRequested", requestId, username, machineName, LoginConflictDelaySeconds);
                         return;
                     }
 
                     _userToConnectionId[existingKey] = new HashSet<string>();
                 }
 
-                ConnectedUsers[Context.ConnectionId] = user;
-                if (!_userToConnectionId.TryGetValue(username, out var set))
-                {
-                    set = new HashSet<string>();
-                    _userToConnectionId[username] = set;
-                }
-                set.Add(Context.ConnectionId);
-                AllUsers[username] = user;
-
-                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == username);
-                if (dbUser == null)
-                {
-                    dbUser = new KnownUser { Username = username };
-                    _db.KnownUsers.Add(dbUser);
-                }
-                dbUser.ConnectionId = Context.ConnectionId;
-                dbUser.Avatar = avatar;
-                dbUser.Room = string.Join(",", user.Rooms);
-                dbUser.DisplayName = username;
-                dbUser.ColorUserName = color;
-                dbUser.IsOnline = true;
-                dbUser.Note = string.Empty;
-                await _db.SaveChangesAsync();
-
-                await Groups.AddToGroupAsync(Context.ConnectionId, "A Tous");
-                if (!GroupMembers.ContainsKey("A Tous"))
-                    GroupMembers["A Tous"] = new HashSet<string>();
-                GroupMembers["A Tous"].Add(username);
-
-                var groups = await _db.GroupMemberships
-                    .Where(g => g.Username == username)
-                    .Select(g => g.GroupName)
-                    .ToListAsync();
-
-                foreach (var group in groups)
-                {
-                    await Groups.AddToGroupAsync(Context.ConnectionId, group);
-                    if (!GroupMembers.ContainsKey(group))
-                        GroupMembers[group] = new HashSet<string>();
-                    GroupMembers[group].Add(username);
-                }
-
-                await Clients.All.SendAsync("UserConnected", user);
-
-                var userList = BaseUsers.Concat(AllUsers.Values).ToList();
-
-                await Clients.All.SendAsync("UserListUpdated", userList);
+                await RegisterUserCoreAsync(username, avatar, room, color, machineName);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SER11: Failed to register user {Username}.", username);
                 throw;
             }
+        }
+
+        public async Task RespondToLoginConflict(string requestId, bool approve)
+        {
+            if (!PendingLoginRequests.TryGetValue(requestId, out var request))
+                return;
+
+            var elapsed = DateTime.UtcNow - request.CreatedAtUtc;
+            var isRequester = string.Equals(Context.ConnectionId, request.RequestingConnectionId, StringComparison.Ordinal);
+            var isExisting = request.ExistingConnectionIds.Contains(Context.ConnectionId);
+
+            if (!isRequester && !isExisting)
+                return;
+
+            if (isExisting)
+            {
+                if (elapsed > TimeSpan.FromSeconds(LoginConflictDelaySeconds))
+                {
+                    await Clients.Client(Context.ConnectionId)
+                        .SendAsync("LoginConflictTimedOut", request.RequestId, request.Username);
+                    return;
+                }
+
+                if (approve)
+                {
+                    request.ApprovedByExisting = true;
+                    await Clients.Client(request.RequestingConnectionId)
+                        .SendAsync("LoginConflictApproved", request.RequestId, request.Username);
+                    await Clients.Clients(request.ExistingConnectionIds)
+                        .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "approved");
+                    return;
+                }
+
+                PendingLoginRequests.Remove(request.RequestId);
+                await Clients.Client(request.RequestingConnectionId)
+                    .SendAsync("LoginConflictDenied", request.RequestId, request.Username);
+                await Clients.Clients(request.ExistingConnectionIds)
+                    .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "denied");
+                return;
+            }
+
+            if (elapsed < TimeSpan.FromSeconds(LoginConflictDelaySeconds))
+            {
+                await Clients.Client(request.RequestingConnectionId)
+                    .SendAsync("LoginConflictTooEarly", request.RequestId, LoginConflictDelaySeconds);
+                return;
+            }
+
+            if (approve)
+            {
+                PendingLoginRequests.Remove(request.RequestId);
+                await ForceDisconnectExistingAsync(request);
+                await RegisterUserCoreAsync(request.Username, request.Avatar, request.Room, request.Color, request.MachineName);
+                await Clients.Clients(request.ExistingConnectionIds)
+                    .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "approved");
+                await Clients.Client(request.RequestingConnectionId)
+                    .SendAsync("LoginConflictApproved", request.RequestId, request.Username);
+                return;
+            }
+
+            PendingLoginRequests.Remove(request.RequestId);
+            await Clients.Client(request.RequestingConnectionId)
+                .SendAsync("LoginConflictDenied", request.RequestId, request.Username);
+            await Clients.Clients(request.ExistingConnectionIds)
+                .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "denied");
+        }
+
+        public async Task CompleteLoginAfterApproval(string requestId)
+        {
+            if (!PendingLoginRequests.TryGetValue(requestId, out var request))
+                return;
+
+            if (!request.ApprovedByExisting)
+                return;
+
+            if (!string.Equals(request.RequestingConnectionId, Context.ConnectionId, StringComparison.Ordinal))
+                return;
+
+            PendingLoginRequests.Remove(request.RequestId);
+            await ForceDisconnectExistingAsync(request);
+            await RegisterUserCoreAsync(request.Username, request.Avatar, request.Room, request.Color, request.MachineName);
+            await Clients.Clients(request.ExistingConnectionIds)
+                .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "approved");
+        }
+
+        private async Task ForceDisconnectExistingAsync(PendingLoginRequest request)
+        {
+            if (request.ExistingConnectionIds.Count == 0)
+                return;
+
+            var reason = $"Connexion ouverte sur {request.MachineName}.";
+            await Clients.Clients(request.ExistingConnectionIds).SendAsync("ForceLogout", reason);
         }
 
         public async Task UpdateUserStatus(string username, string status)
