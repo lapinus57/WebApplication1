@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using Client.Models;
 using Newtonsoft.Json;
 
 namespace Client.Helpers
@@ -24,6 +26,21 @@ namespace Client.Helpers
         /// Show the slash command helper list in the chat input.
         /// </summary>
         public bool ShowSlashCommands { get; set; } = true;
+
+        /// <summary>
+        /// Enable agenda-based connection for this workstation.
+        /// </summary>
+        public bool AgendaModeEnabled { get; set; }
+
+        /// <summary>
+        /// Enable automatic user switching based on the agenda.
+        /// </summary>
+        public bool AutoSwitchEnabled { get; set; }
+
+        /// <summary>
+        /// Agenda rules used to decide which user should be connected.
+        /// </summary>
+        public List<AgendaSwitchEntry> AgendaSchedule { get; set; } = new();
 
         /// <summary>
         /// Delay in minutes before highlighting waiting patients.
@@ -84,6 +101,58 @@ namespace Client.Helpers
             {
                 Logger.LogException("[MachineConfig] Save failed", ex, "CLI22");
             }
+        }
+
+        public string? GetAgendaUser(DateTime now)
+        {
+            if (!AgendaModeEnabled || !AutoSwitchEnabled)
+            {
+                return null;
+            }
+
+            if (AgendaSchedule == null || AgendaSchedule.Count == 0)
+            {
+                return null;
+            }
+
+            var time = now.TimeOfDay;
+            foreach (var entry in AgendaSchedule)
+            {
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                if (entry.Day != now.DayOfWeek)
+                {
+                    continue;
+                }
+
+                var user = entry.UserName?.Trim();
+                if (string.IsNullOrWhiteSpace(user))
+                {
+                    continue;
+                }
+
+                if (entry.IsAllDay)
+                {
+                    return user;
+                }
+
+                var start = entry.StartTime;
+                var end = entry.EndTime;
+                if (start == end)
+                {
+                    return user;
+                }
+
+                if (time >= start && time < end)
+                {
+                    return user;
+                }
+            }
+
+            return null;
         }
     }
 }

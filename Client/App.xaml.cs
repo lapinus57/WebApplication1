@@ -13,6 +13,7 @@ using Client.Pages;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Dispatching;
 
 namespace Client
 {
@@ -23,6 +24,8 @@ namespace Client
         public static string UserName { get; set; } = string.Empty;
         public static UserInfo? LastUserChanged { get; set; }
         public static HotKeyService HotKeys { get; } = new HotKeyService();
+        private DispatcherQueueTimer? _agendaTimer;
+        private bool _agendaSwitchInProgress;
         public App()
         {
             this.InitializeComponent();
@@ -131,8 +134,12 @@ namespace Client
             settingsFiles = validSettingsFiles.ToArray();
 
             string? username = null;
-
-            if (settingsFiles.Length == 0)
+            var scheduledUser = machine.GetAgendaUser(DateTime.Now);
+            if (!string.IsNullOrWhiteSpace(scheduledUser))
+            {
+                username = scheduledUser;
+            }
+            if (settingsFiles.Length == 0 && string.IsNullOrWhiteSpace(username))
             {
                 var requested = await PromptForUsernameAsync(root.XamlRoot);
                 if (string.IsNullOrWhiteSpace(requested))
@@ -146,7 +153,7 @@ namespace Client
                 machine.ConnectLastUser = false;
                 MachineConfig.Save(machine);
             }
-            else
+            else if (string.IsNullOrWhiteSpace(username))
             {
                 var candidate = machine.ConnectLastUser
                     ? machine.LastUser
@@ -203,6 +210,8 @@ namespace Client
                 await SyncUserSettingsAsync(root);
                 await DownloadMissingUserSettingsAsync();
             }
+
+            RefreshAgendaTimer();
         }
 
         private void RegisterActivityHandlers(FrameworkElement root)
@@ -216,6 +225,66 @@ namespace Client
         private void OnUserActivity(object sender, RoutedEventArgs e)
         {
             ChatService.ReportUserActivity();
+        }
+
+        public void RefreshAgendaTimer()
+        {
+            var machine = MachineConfig.Load();
+            if (!machine.AgendaModeEnabled || !machine.AutoSwitchEnabled)
+            {
+                _agendaTimer?.Stop();
+                return;
+            }
+
+            if (_agendaTimer == null)
+            {
+                _agendaTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+                _agendaTimer.Interval = TimeSpan.FromMinutes(1);
+                _agendaTimer.Tick += AgendaTimer_Tick;
+            }
+
+            _agendaTimer.Start();
+        }
+
+        private async void AgendaTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            await ApplyAgendaSwitchAsync();
+        }
+
+        private async Task ApplyAgendaSwitchAsync()
+        {
+            if (_agendaSwitchInProgress)
+            {
+                return;
+            }
+
+            var machine = MachineConfig.Load();
+            if (!machine.AgendaModeEnabled || !machine.AutoSwitchEnabled)
+            {
+                _agendaTimer?.Stop();
+                return;
+            }
+
+            var scheduledUser = machine.GetAgendaUser(DateTime.Now);
+            if (string.IsNullOrWhiteSpace(scheduledUser))
+            {
+                return;
+            }
+
+            if (string.Equals(scheduledUser, UserName, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _agendaSwitchInProgress = true;
+            try
+            {
+                await ChangeUserAsync(scheduledUser);
+            }
+            finally
+            {
+                _agendaSwitchInProgress = false;
+            }
         }
 
         private static async Task<string?> PromptForUsernameAsync(XamlRoot xamlRoot)
