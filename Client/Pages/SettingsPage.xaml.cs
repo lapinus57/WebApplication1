@@ -42,5 +42,15 @@ namespace Client.Pages
         {
             Frame.Navigate(typeof(ReminderPage));
         }
+
+        private void AppointmentSearch_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(AppointmentSearchSettingsPage));
+        }
+
+        private void AgendaConnection_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(AgendaConnectionPage));
+        }
     }
 }

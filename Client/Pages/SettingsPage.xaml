@@ -65,6 +65,26 @@
                 </Button>
             </Grid>
         </StackPanel>
+        <StackPanel Orientation="Horizontal" Padding="0" Spacing="20">
+            <Grid>
+                <Border CornerRadius="8" Margin="2,2,0,0" />
+                <Button CornerRadius="8" Padding="20" Width="300" Height="120" Click="AppointmentSearch_Click">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Recherche RDV" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" />
+                        <TextBlock Text="Paramètres" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+            <Grid>
+                <Border CornerRadius="8" Margin="2,2,0,0" />
+                <Button CornerRadius="8" Padding="20" Width="300" Height="120" Click="AgendaConnection_Click">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Agenda connexion" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" />
+                        <TextBlock Text="Comptes automatiques" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </StackPanel>
         
     </StackPanel>
 </Page>

@@ -1,0 +1,72 @@
+<Page
+    x:Class="Client.Pages.AgendaConnectionPage"
+    x:Name="RootPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="using:Client.Helpers"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Page.Resources>
+        <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <helpers:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+    </Page.Resources>
+    <ScrollViewer>
+        <StackPanel Padding="20" Spacing="20">
+            <Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
+            <TextBlock Text="Agenda de connexion" FontSize="24" FontWeight="Bold"/>
+            <Border CornerRadius="8" Padding="20">
+                <StackPanel Spacing="12">
+                    <ToggleSwitch Header="Activer le mode agenda sur ce poste"
+                                  IsOn="{x:Bind AgendaModeEnabled, Mode=TwoWay}" />
+                    <TextBlock Text="Le mode agenda permet de basculer automatiquement le compte selon le jour et l'heure."
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="Ces paramètres sont propres à ce poste. Vous pouvez ajouter plusieurs créneaux par journée."
+                               TextWrapping="Wrap"
+                               FontStyle="Italic"
+                               Opacity="0.7" />
+                    <StackPanel Visibility="{Binding AgendaModeEnabled, ElementName=RootPage, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Spacing="8">
+                        <ToggleSwitch Header="Basculement automatique des comptes"
+                                      IsOn="{x:Bind AutoSwitchEnabled, Mode=TwoWay}" />
+                        <TextBlock Text="Ce basculement est visible uniquement quand le mode agenda est activé."
+                                   FontStyle="Italic"
+                                   Opacity="0.7" />
+                    </StackPanel>
+
+                    <TextBlock Text="Créneaux de connexion" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <ListView ItemsSource="{x:Bind ScheduleEntries}" SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="160,160,160,220,Auto" ColumnSpacing="10">
+                                        <ComboBox ItemsSource="{Binding ElementName=RootPage, Path=DayOptions}"
+                                                  SelectedValue="{Binding Day, Mode=TwoWay}"
+                                                  SelectedValuePath="Day"
+                                                  DisplayMemberPath="Label" />
+                                        <TimePicker Grid.Column="1"
+                                                    Time="{Binding StartTime, Mode=TwoWay}"
+                                                    IsEnabled="{Binding IsAllDay, Converter={StaticResource InverseBooleanConverter}}" />
+                                        <TimePicker Grid.Column="2"
+                                                    Time="{Binding EndTime, Mode=TwoWay}"
+                                                    IsEnabled="{Binding IsAllDay, Converter={StaticResource InverseBooleanConverter}}" />
+                                        <ComboBox Grid.Column="3"
+                                                  ItemsSource="{Binding ElementName=RootPage, Path=Users}"
+                                                  SelectedItem="{Binding UserName, Mode=TwoWay}"
+                                                  IsEditable="True" />
+                                        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <ToggleSwitch Header="Journée" IsOn="{Binding IsAllDay, Mode=TwoWay}" />
+                                            <Button Content="Supprimer" Click="RemoveEntry_Click" Tag="{Binding}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Content="Ajouter un créneau" Click="AddEntry_Click" />
+                        <Button Content="Sauvegarder" Click="Save_Click" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

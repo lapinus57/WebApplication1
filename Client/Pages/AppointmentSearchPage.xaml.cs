@@ -63,7 +63,7 @@ namespace Client.Pages
                 _config = cfg ?? new AppointmentSearchConfig();
                 if (!_config.IsValid())
                 {
-                    StatusText.Text = "Configuration incomplète. Veuillez vérifier les paramètres système.";
+                    StatusText.Text = "Configuration incomplète. Veuillez vérifier les paramètres RDV.";
                 }
                 else
                 {
