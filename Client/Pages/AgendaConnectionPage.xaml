@@ -23,14 +23,10 @@
                                TextWrapping="Wrap"
                                FontStyle="Italic"
                                Opacity="0.7" />
-                    <StackPanel Visibility="{Binding AgendaModeEnabled, ElementName=RootPage, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Spacing="8">
-                        <ToggleSwitch Header="Basculement automatique des comptes"
-                                      IsOn="{x:Bind AutoSwitchEnabled, Mode=TwoWay}" />
-                        <TextBlock Text="Ce basculement est visible uniquement quand le mode agenda est activé."
-                                   FontStyle="Italic"
-                                   Opacity="0.7" />
-                    </StackPanel>
+                    <TextBlock Text="Le basculement automatique se contrôle depuis la barre de titre quand le mode agenda est activé."
+                               FontStyle="Italic"
+                               Opacity="0.7"
+                               Visibility="{Binding AgendaModeEnabled, ElementName=RootPage, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                     <TextBlock Text="Créneaux de connexion" FontWeight="SemiBold" Margin="0,8,0,0" />
                     <ListView ItemsSource="{x:Bind ScheduleEntries}" SelectionMode="None">
