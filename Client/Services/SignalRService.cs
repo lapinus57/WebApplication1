@@ -466,7 +466,16 @@ namespace Client.Services
                     ShowToast(string.IsNullOrWhiteSpace(reason)
                         ? "Vous avez été déconnecté."
                         : reason);
-                    await DisconnectAsync();
+                    CloseAllLoginConflictDialogs();
+
+                    if (Application.Current is App app)
+                    {
+                        await app.LogoutAsync();
+                    }
+                    else
+                    {
+                        await DisconnectAsync();
+                    }
                 });
             });
 
@@ -1096,6 +1105,45 @@ namespace Client.Services
             if (_loginConflictTimers.Remove(requestId, out var timer))
             {
                 timer.Stop();
+            }
+        }
+
+        private void CloseAllLoginConflictDialogs()
+        {
+            foreach (var timer in _loginConflictTimers.Values)
+            {
+                timer.Stop();
+            }
+            _loginConflictTimers.Clear();
+
+            if (_loginConflictDialogs.Count == 0)
+            {
+                return;
+            }
+
+            void CloseDialogs()
+            {
+                foreach (var dialog in _loginConflictDialogs.Values)
+                {
+                    try
+                    {
+                        dialog.Hide();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"❌ Error closing login conflict dialog: {ex.Message}");
+                    }
+                }
+                _loginConflictDialogs.Clear();
+            }
+
+            if (Dispatcher is { HasThreadAccess: true })
+            {
+                CloseDialogs();
+            }
+            else
+            {
+                Dispatcher?.TryEnqueue(CloseDialogs);
             }
         }
 
@@ -2211,6 +2259,7 @@ namespace Client.Services
                 EnableReconnect = false;
             StopReconnectTimer();
             StopIdleMonitor();
+            CloseAllLoginConflictDialogs();
             if (Connection != null)
             {
                 try
