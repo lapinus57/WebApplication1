@@ -8,6 +8,7 @@ using Windows.UI;
 using Microsoft.UI;
 using Windows.Graphics;
 using Windows.Foundation;
+using Client.Helpers;
 
 namespace Client
 {
