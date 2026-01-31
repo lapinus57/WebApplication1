@@ -186,7 +186,9 @@ namespace Client.Pages
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
+            var latestConfig = MachineConfig.Load();
             _config.AgendaModeEnabled = AgendaModeEnabled;
+            AutoSwitchEnabled = latestConfig.AutoSwitchEnabled;
             _config.AutoSwitchEnabled = AgendaModeEnabled && AutoSwitchEnabled;
             _config.AgendaSchedule = ScheduleEntries
                 .Select(entry => new AgendaSwitchEntry
@@ -204,6 +206,10 @@ namespace Client.Pages
             if (Application.Current is App app)
             {
                 app.RefreshAgendaTimer();
+                if (App.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RefreshAgendaSwitchState();
+                }
             }
         }
 
@@ -231,6 +237,16 @@ namespace Client.Pages
             }
         }
 
-        public readonly record struct DayOption(DayOfWeek Day, string Label);
+        public class DayOption
+        {
+            public DayOption(DayOfWeek day, string label)
+            {
+                Day = day;
+                Label = label;
+            }
+
+            public DayOfWeek Day { get; set; }
+            public string Label { get; set; }
+        }
     }
 }

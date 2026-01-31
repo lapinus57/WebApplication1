@@ -16,6 +16,7 @@ namespace Client
     {
         public bool IsTopMost { get; private set; }
         private readonly AppWindow _appWindow;
+        private bool _isUpdatingAgendaToggle;
 
         public bool IsChatPageActive => contentFrame.CurrentSourcePageType == typeof(Pages.ChatPage);
 
@@ -34,6 +35,7 @@ namespace Client
             nvSample.SelectedItem = nvSample.MenuItems.OfType<NavigationViewItem>()
                 .FirstOrDefault(item => (string)item.Tag == "ChatPage");
             contentFrame.Navigate(typeof(Pages.ChatPage));
+            RefreshAgendaSwitchState();
 
         }
 
@@ -75,6 +77,15 @@ namespace Client
                     contentFrame.Navigate(typeof(Pages.SettingsPage));
                 }
             }
+        }
+
+        public void RefreshAgendaSwitchState()
+        {
+            var config = MachineConfig.Load();
+            _isUpdatingAgendaToggle = true;
+            AutoSwitchToggle.IsOn = config.AgendaModeEnabled && config.AutoSwitchEnabled;
+            AutoSwitchToggle.Visibility = config.AgendaModeEnabled ? Visibility.Visible : Visibility.Collapsed;
+            _isUpdatingAgendaToggle = false;
         }
         public Pages.ChatPage? ShowChatPage()
         {
@@ -146,6 +157,23 @@ namespace Client
         private async void Logout_Click(object sender, RoutedEventArgs e)
         {
             await ((App)Application.Current).LogoutAsync();
+        }
+
+        private void AutoSwitchToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingAgendaToggle)
+            {
+                return;
+            }
+
+            var config = MachineConfig.Load();
+            config.AutoSwitchEnabled = config.AgendaModeEnabled && AutoSwitchToggle.IsOn;
+            MachineConfig.Save(config);
+
+            if (Application.Current is App app)
+            {
+                app.RefreshAgendaTimer();
+            }
         }
     }
 }

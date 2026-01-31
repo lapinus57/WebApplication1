@@ -65,11 +65,19 @@
                 <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
                 <ColumnDefinition x:Name="TitleColumn" Width="Auto"/>
                 <ColumnDefinition x:Name="LeftDragColumn" Width="*"/>
+                <ColumnDefinition x:Name="AgendaSwitchColumn" Width="Auto"/>
                 <ColumnDefinition x:Name="AccountColumn" Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Image x:Name="TitleBarIcon" Source="/Assets/EyeChat.png" Grid.Column="1" Width="32" Height="32" Margin="8,0,4,0"/>
             <TextBlock x:Name="TitleBarTextBlock" Text="EyeChat" FontSize="16" VerticalAlignment="Center" Grid.Column="2" />
-            <Button x:Name="AccountButton" Grid.Column="4" Margin="0,0,150,0" Background="Transparent" BorderThickness="0">
+            <ToggleSwitch x:Name="AutoSwitchToggle"
+                          Grid.Column="4"
+                          Header="Basculement auto"
+                          VerticalAlignment="Center"
+                          Margin="0,0,16,0"
+                          Visibility="Collapsed"
+                          Toggled="AutoSwitchToggle_Toggled" />
+            <Button x:Name="AccountButton" Grid.Column="5" Margin="0,0,150,0" Background="Transparent" BorderThickness="0">
                 <Button.Content>
                     <PersonPicture x:Name="PersonPic" Height="32" />
                 </Button.Content>
