@@ -102,10 +102,20 @@
                                             x:Name="UsersComboBox"
                                             ItemsSource="{x:Bind Users}"
                                             SelectedItem="{x:Bind DefaultUser, Mode=TwoWay}"/>
-                                        <Button
-                                            Content="Gérer les utilisateurs enregistrés"
-                                            Click="ManageUsers_Click"
-                                            HorizontalAlignment="Left"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <Button
+                                                    Content="Gérer les utilisateurs enregistrés"
+                                                    Click="ManageUsers_Click"
+                                                    HorizontalAlignment="Left"/>
+                                                <Button
+                                                    Content="Exporter utilisateurs"
+                                                    Click="ExportUsers_Click"
+                                                    HorizontalAlignment="Left"/>
+                                                <Button
+                                                    Content="Importer utilisateurs"
+                                                    Click="ImportUsers_Click"
+                                                    HorizontalAlignment="Left"/>
+                                        </StackPanel>
                                         <ToggleSwitch Header="Se connecter avec le dernier utilisateur" IsOn="{x:Bind ConnectLastUser, Mode=TwoWay}"/>
                                         <Button Content="Sauvegarder" Click="Save_Click" HorizontalAlignment="Left"/>
                                 </StackPanel>
