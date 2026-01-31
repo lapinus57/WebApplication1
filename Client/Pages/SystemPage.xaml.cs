@@ -10,6 +10,11 @@ using System.Threading.Tasks;
 using Client.Dialogs;
 using Client.Helpers;
 using Client.Models;
+using Newtonsoft.Json;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using Windows.Storage.Provider;
+using WinRT.Interop;
 
 namespace Client.Pages
 {
@@ -481,5 +486,159 @@ namespace Client.Pages
                 return new List<string>();
             }
         }
+
+        private async void ExportUsers_Click(object sender, RoutedEventArgs e)
+        {
+            var xamlRoot = GetXamlRoot(sender as FrameworkElement);
+            if (xamlRoot is null)
+                return;
+
+            var users = await App.ChatService.LoadUsersFromDiskAsync();
+            if (users.Count == 0)
+            {
+                await ShowInfoDialogAsync("Export impossible", "Aucun utilisateur local trouvé à exporter.", xamlRoot);
+                return;
+            }
+
+            var picker = new FileSavePicker();
+            picker.FileTypeChoices.Add("Configuration utilisateurs EyeChat", new List<string> { ".eyechatusers" });
+            picker.SuggestedFileName = $"EyeChatUsers_{DateTime.Now:yyyyMMdd_HHmm}";
+            var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSaveFileAsync();
+            if (file == null)
+                return;
+
+            try
+            {
+                var settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var user in users)
+                {
+                    if (string.IsNullOrWhiteSpace(user.Username))
+                        continue;
+
+                    var settingsPath = GetUserSettingsFilePath(user.Username);
+                    if (File.Exists(settingsPath))
+                    {
+                        settings[user.Username] = await File.ReadAllTextAsync(settingsPath);
+                    }
+                }
+
+                var configuration = new UserExportConfiguration
+                {
+                    Users = users,
+                    Settings = settings
+                };
+
+                var json = JsonConvert.SerializeObject(configuration, Formatting.Indented);
+                CachedFileManager.DeferUpdates(file);
+                await FileIO.WriteTextAsync(file, json);
+                await CachedFileManager.CompleteUpdatesAsync(file);
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialogAsync("Erreur d'export", $"Impossible d'enregistrer la configuration : {ex.Message}", xamlRoot);
+            }
+        }
+
+        private async void ImportUsers_Click(object sender, RoutedEventArgs e)
+        {
+            var xamlRoot = GetXamlRoot(sender as FrameworkElement);
+            if (xamlRoot is null)
+                return;
+
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".eyechatusers");
+            var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file == null)
+                return;
+
+            try
+            {
+                var json = await FileIO.ReadTextAsync(file);
+                var configuration = JsonConvert.DeserializeObject<UserExportConfiguration>(json);
+                if (configuration?.Users == null)
+                {
+                    await ShowInfoDialogAsync("Import invalide", "Le fichier sélectionné est vide ou invalide.", xamlRoot);
+                    return;
+                }
+
+                var users = configuration.Users
+                    .Where(u => !string.IsNullOrWhiteSpace(u.Username))
+                    .ToList();
+
+                if (users.Count == 0)
+                {
+                    await ShowInfoDialogAsync("Import invalide", "Aucun utilisateur valide trouvé dans le fichier.", xamlRoot);
+                    return;
+                }
+
+                var folder = GetLocalDataFolderPath();
+                Directory.CreateDirectory(folder);
+
+                BackupFile(Path.Combine(folder, "users.json"));
+                foreach (var existing in Directory.GetFiles(folder, "*_settings.json"))
+                {
+                    BackupFile(existing);
+                }
+
+                var usersPath = Path.Combine(folder, "users.json");
+                var usersJson = JsonConvert.SerializeObject(users, Formatting.Indented);
+                await File.WriteAllTextAsync(usersPath, usersJson);
+
+                if (configuration.Settings != null)
+                {
+                    foreach (var kvp in configuration.Settings)
+                    {
+                        if (string.IsNullOrWhiteSpace(kvp.Key))
+                            continue;
+
+                        var settingsPath = GetUserSettingsFilePath(kvp.Key);
+                        await File.WriteAllTextAsync(settingsPath, kvp.Value ?? string.Empty);
+                    }
+                }
+
+                await RefreshLocalUserListAsync();
+                await ShowInfoDialogAsync("Import terminé", $"Configuration utilisateurs importée ({users.Count} utilisateur(s)).", xamlRoot);
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialogAsync("Erreur d'import", $"Impossible de charger la configuration : {ex.Message}", xamlRoot);
+            }
+        }
+
+        private static string GetLocalDataFolderPath()
+            => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+
+        private static string GetUserSettingsFilePath(string username)
+        {
+            var safeName = AppSettings.SanitizeUserNameForFile(username ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(safeName))
+                throw new ArgumentException("Le nom d'utilisateur est invalide.", nameof(username));
+
+            return Path.Combine(GetLocalDataFolderPath(), $"{safeName}_settings.json");
+        }
+
+        private static void BackupFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                    File.Copy(path, path + ".bak", true);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    internal class UserExportConfiguration
+    {
+        public List<UserInfo>? Users { get; set; }
+        public Dictionary<string, string>? Settings { get; set; }
     }
 }
