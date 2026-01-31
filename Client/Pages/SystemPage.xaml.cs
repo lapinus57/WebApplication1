@@ -35,11 +35,6 @@ namespace Client.Pages
         public string DefaultUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
         public double PickupAlertThresholdMinutes { get; set; }
-        public AppointmentSearchConfig AppointmentConfig { get; private set; } = new();
-        public string AccessOleDbProvider { get; set; } = string.Empty;
-        public string AccessWorkgroupPath { get; set; } = string.Empty;
-        public string AccessUserName { get; set; } = string.Empty;
-        public string AccessPassword { get; set; } = string.Empty;
 
         public SystemPage()
         {
@@ -53,41 +48,18 @@ namespace Client.Pages
             ConnectLastUser = _config.ConnectLastUser;
             ShowSlashCommands = _config.ShowSlashCommands;
             PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
-            AccessOleDbProvider = _config.AccessOleDbProvider;
-            AccessWorkgroupPath = _config.AccessWorkgroupPath;
-            AccessUserName = _config.AccessUserName;
-            AccessPassword = _config.AccessPassword;
-            AppointmentConfig = new AppointmentSearchConfig();
-
             var initialUsers = LoadUsernamesFromSettingsFiles();
             UpdateUsersCollection(initialUsers);
 
             DataContext = this;
             PickupAlertBox.Value = PickupAlertThresholdMinutes;
-            AccessPasswordBox.Password = AccessPassword;
             Loaded += SystemPage_Loaded;
         }
 
         private async void SystemPage_Loaded(object sender, RoutedEventArgs e)
         {
             _isLoaded = true;
-            AccessPasswordBox.Password = AccessPassword;
-            await LoadAppointmentConfigAsync();
             await RefreshLocalUserListAsync();
-        }
-
-        private async Task LoadAppointmentConfigAsync()
-        {
-            try
-            {
-                var cfg = await App.ChatService.GetAppointmentSearchConfigAsync();
-                AppointmentConfig = cfg ?? new AppointmentSearchConfig();
-                this.Bindings.Update();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException("[SystemPage] Failed to load appointment config", ex, "CLI43");
-            }
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
@@ -105,37 +77,12 @@ namespace Client.Pages
             _config.DefaultUser = DefaultUser;
             _config.ConnectLastUser = ConnectLastUser;
             _config.PickupAlertThresholdMinutes = (int)Math.Max(0, Math.Round(PickupAlertThresholdMinutes));
-            _config.AccessOleDbProvider = AccessOleDbProvider?.Trim() ?? string.Empty;
-            _config.AccessWorkgroupPath = AccessWorkgroupPath?.Trim() ?? string.Empty;
-            _config.AccessUserName = AccessUserName?.Trim() ?? string.Empty;
-            _config.AccessPassword = AccessPassword ?? string.Empty;
             PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
             PickupAlertBox.Value = PickupAlertThresholdMinutes;
             MachineConfig.Save(_config);
             App.ChatService.RoomName = RoomName;
             await App.ChatService.UpdateRoomNameAsync(RoomName);
             App.ChatService.PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
-            AccessPasswordBox.Password = AccessPassword;
-
-            try
-            {
-                await App.ChatService.SaveAppointmentSearchConfigAsync(AppointmentConfig);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException("[SystemPage] Failed to save appointment config", ex, "CLI44");
-            }
-        }
-
-        private void AccessPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
-        {
-            if (!_isLoaded)
-                return;
-
-            if (sender is PasswordBox box)
-            {
-                AccessPassword = box.Password;
-            }
         }
 
         private async void RenameRoom_Click(object sender, RoutedEventArgs e)
