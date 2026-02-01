@@ -33,7 +33,14 @@
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Spacing="8">
-                                    <Grid ColumnDefinitions="170,180,180,1*,Auto" ColumnSpacing="12" VerticalAlignment="Center">
+                                    <Grid ColumnSpacing="12" VerticalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="170"/>
+                                            <ColumnDefinition Width="250"/>
+                                            <ColumnDefinition Width="250"/>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
                                         <ComboBox ItemsSource="{Binding ElementName=RootPage, Path=DayOptions}"
                                                   SelectedValue="{Binding Day, Mode=TwoWay}"
                                                   SelectedValuePath="Day"
@@ -45,7 +52,7 @@
                                                     Time="{Binding StartTime, Mode=TwoWay}"
                                                     IsEnabled="{Binding IsAllDay, Converter={StaticResource InverseBooleanConverter}}"
                                                     MinWidth="160"
-                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalAlignment="Center"
                                                     VerticalAlignment="Center" />
                                         <TimePicker Grid.Column="2"
                                                     Time="{Binding EndTime, Mode=TwoWay}"
@@ -57,11 +64,11 @@
                                                   ItemsSource="{Binding ElementName=RootPage, Path=Users}"
                                                   SelectedItem="{Binding UserName, Mode=TwoWay}"
                                                   IsEditable="True"
-                                                  MinWidth="200"
+                                                  MinWidth="110"
                                                   HorizontalAlignment="Stretch"
                                                   VerticalAlignment="Center" />
                                         <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                            <ToggleSwitch Header="Journée" IsOn="{Binding IsAllDay, Mode=TwoWay}" />
+                                            <ToggleSwitch IsOn="{Binding IsAllDay, Mode=TwoWay}" OffContent="Journée partielle" OnContent="Journée complète"  />
                                             <Button Content="Supprimer" Click="RemoveEntry_Click" Tag="{Binding}" />
                                         </StackPanel>
                                     </Grid>

@@ -72,7 +72,6 @@
             <TextBlock x:Name="TitleBarTextBlock" Text="EyeChat" FontSize="16" VerticalAlignment="Center" Grid.Column="2" />
             <ToggleSwitch x:Name="AutoSwitchToggle"
                           Grid.Column="4"
-                          Header="Basculement auto"
                           VerticalAlignment="Center"
                           Margin="0,0,16,0"
                           Visibility="Collapsed"
