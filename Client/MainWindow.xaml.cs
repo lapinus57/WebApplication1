@@ -45,15 +45,27 @@ namespace Client
             {
                 // Make the entire title bar draggable, excluding interactive controls like the account button.
                 // SetDragRectangles expects coordinates in physical pixels, so scale from effective pixels using the XamlRoot scale.
-                double scale = AppTitleBar.XamlRoot?.RasterizationScale ?? 1.0;
-                var dragRect = new RectInt32(
-                    0,
-                    0,
-                    (int)(AppTitleBar.ActualWidth * scale),
-                    (int)(AppTitleBar.ActualHeight * scale));
-
-                _appWindow.TitleBar.SetDragRectangles(new[] { dragRect });
+                SetDragRegion();
             }
+        }
+
+        private void SetDragRegion()
+        {
+            double scale = AppTitleBar.XamlRoot?.RasterizationScale ?? 1.0;
+            if (TitleBarDragRegion is null)
+            {
+                return;
+            }
+
+            var transform = TitleBarDragRegion.TransformToVisual(AppTitleBar);
+            var bounds = transform.TransformBounds(new Rect(0, 0, TitleBarDragRegion.ActualWidth, TitleBarDragRegion.ActualHeight));
+            var dragRect = new RectInt32(
+                (int)(bounds.X * scale),
+                (int)(bounds.Y * scale),
+                (int)(bounds.Width * scale),
+                (int)(bounds.Height * scale));
+
+            _appWindow.TitleBar.SetDragRectangles(new[] { dragRect });
         }
 
         private void nvSample_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
