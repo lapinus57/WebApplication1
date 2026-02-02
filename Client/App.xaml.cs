@@ -538,7 +538,10 @@ namespace Client
                 var chat = mw.ShowChatPage();
                 chat?.RefreshUsername();
                 mw.SetAccountState(true);
+                mw.RefreshAgendaSwitchState();
             }
+
+            RefreshAgendaTimer();
         }
 
         public async Task LogoutAsync()
