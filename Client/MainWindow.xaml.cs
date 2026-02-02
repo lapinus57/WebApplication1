@@ -98,6 +98,7 @@ namespace Client
             AutoSwitchToggle.IsOn = config.AgendaModeEnabled && config.AutoSwitchEnabled;
             AutoSwitchToggle.Visibility = config.AgendaModeEnabled ? Visibility.Visible : Visibility.Collapsed;
             _isUpdatingAgendaToggle = false;
+            DispatcherQueue.TryEnqueue(SetDragRegion);
         }
         public Pages.ChatPage? ShowChatPage()
         {
