@@ -230,20 +230,47 @@ namespace Client
         public void RefreshAgendaTimer()
         {
             var machine = MachineConfig.Load();
-            if (!machine.AgendaModeEnabled || !machine.AutoSwitchEnabled)
+            var dispatcher = MainWindow?.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+            if (dispatcher == null)
             {
-                _agendaTimer?.Stop();
                 return;
             }
 
-            if (_agendaTimer == null)
+            if (!machine.AgendaModeEnabled || !machine.AutoSwitchEnabled)
             {
-                _agendaTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
-                _agendaTimer.Interval = TimeSpan.FromMinutes(1);
-                _agendaTimer.Tick += AgendaTimer_Tick;
+                void StopTimer() => _agendaTimer?.Stop();
+                if (dispatcher.HasThreadAccess)
+                {
+                    StopTimer();
+                }
+                else
+                {
+                    dispatcher.TryEnqueue(StopTimer);
+                }
+
+                return;
             }
 
-            _agendaTimer.Start();
+            void StartTimer()
+            {
+                if (_agendaTimer == null)
+                {
+                    _agendaTimer = dispatcher.CreateTimer();
+                    _agendaTimer.Interval = TimeSpan.FromMinutes(1);
+                    _agendaTimer.Tick += AgendaTimer_Tick;
+                }
+
+                _agendaTimer.Start();
+            }
+
+            if (dispatcher.HasThreadAccess)
+            {
+                StartTimer();
+            }
+            else
+            {
+                dispatcher.TryEnqueue(StartTimer);
+            }
         }
 
         private async void AgendaTimer_Tick(DispatcherQueueTimer sender, object args)
@@ -538,7 +565,10 @@ namespace Client
                 var chat = mw.ShowChatPage();
                 chat?.RefreshUsername();
                 mw.SetAccountState(true);
+                mw.RefreshAgendaSwitchState();
             }
+
+            RefreshAgendaTimer();
         }
 
         public async Task LogoutAsync()

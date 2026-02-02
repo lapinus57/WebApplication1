@@ -51,12 +51,17 @@ namespace Client
 
         private void SetDragRegion()
         {
-            double scale = AppTitleBar.XamlRoot?.RasterizationScale ?? 1.0;
-            if (TitleBarDragRegion is null)
+            if (TitleBarDragRegion is null || !TitleBarDragRegion.IsLoaded || AppTitleBar?.XamlRoot is null)
             {
                 return;
             }
 
+            if (TitleBarDragRegion.ActualWidth <= 0 || TitleBarDragRegion.ActualHeight <= 0)
+            {
+                return;
+            }
+
+            double scale = AppTitleBar.XamlRoot.RasterizationScale;
             var transform = TitleBarDragRegion.TransformToVisual(AppTitleBar);
             var bounds = transform.TransformBounds(new Rect(0, 0, TitleBarDragRegion.ActualWidth, TitleBarDragRegion.ActualHeight));
             var dragRect = new RectInt32(
@@ -98,6 +103,7 @@ namespace Client
             AutoSwitchToggle.IsOn = config.AgendaModeEnabled && config.AutoSwitchEnabled;
             AutoSwitchToggle.Visibility = config.AgendaModeEnabled ? Visibility.Visible : Visibility.Collapsed;
             _isUpdatingAgendaToggle = false;
+            DispatcherQueue.TryEnqueue(SetDragRegion);
         }
         public Pages.ChatPage? ShowChatPage()
         {
