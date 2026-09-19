@@ -1242,7 +1242,17 @@ namespace ChatServeur
                 return new AppointmentSearchConfig();
             try
             {
-                return JsonSerializer.Deserialize<AppointmentSearchConfig>(cfg.AppointmentSearchJson) ?? new AppointmentSearchConfig();
+                var appointmentConfig = JsonSerializer.Deserialize<AppointmentSearchConfig>(cfg.AppointmentSearchJson)
+                    ?? new AppointmentSearchConfig();
+
+                // Older server configurations used DateRdv even though the Access table
+                // uses Date. Migrate that legacy default while preserving custom names.
+                if (string.Equals(appointmentConfig.DateColumn, "DateRdv", StringComparison.OrdinalIgnoreCase))
+                {
+                    appointmentConfig.DateColumn = "Date";
+                }
+
+                return appointmentConfig;
             }
             catch (Exception ex)
             {

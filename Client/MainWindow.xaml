@@ -71,13 +71,21 @@
             <Image x:Name="TitleBarIcon" Source="/Assets/EyeChat.png" Grid.Column="1" Width="32" Height="32" Margin="8,0,4,0"/>
             <TextBlock x:Name="TitleBarTextBlock" Text="EyeChat" FontSize="16" VerticalAlignment="Center" Grid.Column="2" />
             <Grid x:Name="TitleBarDragRegion" Grid.Column="3" />
-            <ToggleSwitch x:Name="AutoSwitchToggle"
-                          x:FieldModifier="public"
-                          Grid.Column="4"
-                          VerticalAlignment="Center"
-                          Margin="0,0,16,0"
-                          Visibility="Collapsed"
-                          Toggled="AutoSwitchToggle_Toggled" />
+            <StackPanel x:Name="AutoSwitchPanel"
+                        Grid.Column="4"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        Margin="0,0,16,0"
+                        Visibility="Collapsed">
+                <TextBlock Text="Changement automatique de compte"
+                           VerticalAlignment="Center" />
+                <ToggleSwitch x:Name="AutoSwitchToggle"
+                              x:FieldModifier="public"
+                              VerticalAlignment="Center"
+                              AutomationProperties.Name="Changement automatique de compte"
+                              Toggled="AutoSwitchToggle_Toggled" />
+            </StackPanel>
             <Button x:Name="AccountButton" Grid.Column="5" Margin="0,0,150,0" Background="Transparent" BorderThickness="0">
                 <Button.Content>
                     <PersonPicture x:Name="PersonPic" Height="32" />

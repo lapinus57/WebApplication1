@@ -101,7 +101,7 @@ namespace Client
             var config = MachineConfig.Load();
             _isUpdatingAgendaToggle = true;
             AutoSwitchToggle.IsOn = config.AgendaModeEnabled && config.AutoSwitchEnabled;
-            AutoSwitchToggle.Visibility = config.AgendaModeEnabled ? Visibility.Visible : Visibility.Collapsed;
+            AutoSwitchPanel.Visibility = config.AgendaModeEnabled ? Visibility.Visible : Visibility.Collapsed;
             _isUpdatingAgendaToggle = false;
             DispatcherQueue.TryEnqueue(SetDragRegion);
         }
