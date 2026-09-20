@@ -248,6 +248,14 @@ namespace Client.Pages
             await RefreshLocalUserListAsync();
         }
 
+        private async void CreateConfiguration_Click(object sender, RoutedEventArgs e)
+        {
+            if (!await EnsurePasswordAsync(sender as FrameworkElement))
+                return;
+
+            Frame.Navigate(typeof(ConfigurationBuilderPage));
+        }
+
         private async Task RefreshLocalUserListAsync()
         {
             var comparer = StringComparer.OrdinalIgnoreCase;

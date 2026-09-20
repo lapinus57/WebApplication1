@@ -1,0 +1,87 @@
+<Page
+    x:Class="Client.Pages.ConfigurationBuilderPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16">
+        <StackPanel Spacing="12">
+            <Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
+            <TextBlock Text="Configurations utilisateurs et salles" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="Préparez ici des fichiers de configuration réutilisables sur les postes EyeChat." Opacity="0.75"/>
+        </StackPanel>
+        <muxc:TabView Grid.Row="1" IsAddTabButtonVisible="False">
+            <muxc:TabViewItem Header="Utilisateurs">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="14" Padding="4,12,12,12">
+                        <TextBlock Text="Créez chaque utilisateur, paramétrez ses raccourcis puis exportez un fichier .eyechatusers importable depuis la page Système."
+                                   TextWrapping="Wrap"/>
+                        <Grid ColumnDefinitions="*,120" ColumnSpacing="12">
+                            <TextBox x:Name="UserNameBox" Header="Nom de l'utilisateur" PlaceholderText="Ex. Dr Dupont"/>
+                            <TextBox x:Name="InitialsBox" Grid.Column="1" Header="Initiales" MaxLength="4" PlaceholderText="DD"/>
+                        </Grid>
+
+                        <TextBlock Text="Raccourcis en-tête" FontSize="18" FontWeight="SemiBold"/>
+                        <Grid ColumnDefinitions="70,*,*,*,*" ColumnSpacing="8" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Réfraction" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Lentilles" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Grid.Column="3" Text="Pathologies" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Grid.Column="4" Text="Orthoptie" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Text="F5" VerticalAlignment="Center"/><TextBox x:Name="F5RefractionBox" Grid.Row="1" Grid.Column="1"/><TextBox x:Name="F5LentillesBox" Grid.Row="1" Grid.Column="2"/><TextBox x:Name="F5PathologiesBox" Grid.Row="1" Grid.Column="3"/><TextBox x:Name="F5OrthoptieBox" Grid.Row="1" Grid.Column="4"/>
+                            <TextBlock Grid.Row="2" Text="F6" VerticalAlignment="Center"/><TextBox x:Name="F6RefractionBox" Grid.Row="2" Grid.Column="1"/><TextBox x:Name="F6LentillesBox" Grid.Row="2" Grid.Column="2"/><TextBox x:Name="F6PathologiesBox" Grid.Row="2" Grid.Column="3"/><TextBox x:Name="F6OrthoptieBox" Grid.Row="2" Grid.Column="4"/>
+                            <TextBlock Grid.Row="3" Text="F7" VerticalAlignment="Center"/><TextBox x:Name="F7RefractionBox" Grid.Row="3" Grid.Column="1"/><TextBox x:Name="F7LentillesBox" Grid.Row="3" Grid.Column="2"/><TextBox x:Name="F7PathologiesBox" Grid.Row="3" Grid.Column="3"/><TextBox x:Name="F7OrthoptieBox" Grid.Row="3" Grid.Column="4"/>
+                            <TextBlock Grid.Row="4" Text="F8" VerticalAlignment="Center"/><TextBox x:Name="F8RefractionBox" Grid.Row="4" Grid.Column="1"/><TextBox x:Name="F8LentillesBox" Grid.Row="4" Grid.Column="2"/><TextBox x:Name="F8PathologiesBox" Grid.Row="4" Grid.Column="3"/><TextBox x:Name="F8OrthoptieBox" Grid.Row="4" Grid.Column="4"/>
+                        </Grid>
+
+                        <TextBlock Text="Raccourcis examens" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="Saisissez l'identifiant de l'examen associé à chaque combinaison." Opacity="0.7"/>
+                        <Grid ColumnDefinitions="90,*,*" ColumnSpacing="8" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Maj" HorizontalAlignment="Center"/><TextBlock Grid.Row="0" Grid.Column="2" Text="Ctrl" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Text="F9"/><TextBox x:Name="ShiftF9Box" Grid.Row="1" Grid.Column="1"/><TextBox x:Name="CtrlF9Box" Grid.Row="1" Grid.Column="2"/>
+                            <TextBlock Grid.Row="2" Text="F10"/><TextBox x:Name="ShiftF10Box" Grid.Row="2" Grid.Column="1"/><TextBox x:Name="CtrlF10Box" Grid.Row="2" Grid.Column="2"/>
+                            <TextBlock Grid.Row="3" Text="F11"/><TextBox x:Name="ShiftF11Box" Grid.Row="3" Grid.Column="1"/><TextBox x:Name="CtrlF11Box" Grid.Row="3" Grid.Column="2"/>
+                            <TextBlock Grid.Row="4" Text="F12"/><TextBox x:Name="ShiftF12Box" Grid.Row="4" Grid.Column="1"/><TextBox x:Name="CtrlF12Box" Grid.Row="4" Grid.Column="2"/>
+                        </Grid>
+
+                        <Button Content="Ajouter cet utilisateur" Click="AddUser_Click" HorizontalAlignment="Left"/>
+                        <ListView ItemsSource="{x:Bind UserNames}" MaxHeight="120"/>
+                        <TextBlock x:Name="UserStatusText" TextWrapping="Wrap" Opacity="0.75"/>
+                        <Button Content="Exporter le fichier utilisateurs" Click="ExportUsers_Click" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </muxc:TabViewItem>
+
+            <muxc:TabViewItem Header="Salles">
+                <StackPanel Spacing="14" Padding="4,12,12,12">
+                    <TextBlock Text="Composez la liste des salles puis exportez un fichier .eyechatconfig importable depuis la page Examens."
+                               TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <TextBox x:Name="RoomNameBox" PlaceholderText="Nom de la salle" KeyDown="RoomNameBox_KeyDown"/>
+                        <Button Grid.Column="1" Content="Ajouter" Click="AddRoom_Click"/>
+                    </Grid>
+                    <ListView ItemsSource="{x:Bind Rooms}" Height="360">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                                    <TextBlock Text="{x:Bind}" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="Supprimer" Click="DeleteRoom_Click" Tag="{x:Bind}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock x:Name="RoomStatusText" TextWrapping="Wrap" Opacity="0.75"/>
+                    <Button Content="Exporter le fichier salles" Click="ExportRooms_Click" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </muxc:TabViewItem>
+        </muxc:TabView>
+    </Grid>
+</Page>

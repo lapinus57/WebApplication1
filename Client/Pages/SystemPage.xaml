@@ -32,6 +32,10 @@
                                             SelectedItem="{x:Bind DefaultUser, Mode=TwoWay}"/>
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                                 <Button
+                                                    Content="Configurer les utilisateurs et les salles"
+                                                    Click="CreateConfiguration_Click"
+                                                    HorizontalAlignment="Left"/>
+                                                <Button
                                                     Content="Gérer les utilisateurs enregistrés"
                                                     Click="ManageUsers_Click"
                                                     HorizontalAlignment="Left"/>
