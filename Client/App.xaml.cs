@@ -38,6 +38,7 @@ namespace Client
         private EventWaitHandle? _forceCloseEvent;
         private RegisteredWaitHandle? _forceCloseWait;
         private const string ForceCloseArgument = "--force-close";
+        private const string ForceCloseDisplayName = "\uE8BB  Forcer la fermeture";
         private const string ForceCloseEventName = @"Local\EyeChat.ForceClose";
         public App()
         {
@@ -246,18 +247,25 @@ namespace Client
             try
             {
                 var jumpList = await JumpList.LoadCurrentAsync();
-                var existingItem = jumpList.Items.FirstOrDefault(item =>
-                    string.Equals(item.Arguments, ForceCloseArgument, StringComparison.OrdinalIgnoreCase));
-
-                if (existingItem is null)
-                {
-                    var forceCloseItem = JumpListItem.CreateWithArguments(
+                // JumpListItem only accepts an image URI for Logo; it cannot receive a
+                // Segoe Fluent glyph as an icon. Put Windows' ChromeClose glyph directly
+                // in the label instead, avoiding an extra bitmap in the application.
+                foreach (var existingItem in jumpList.Items
+                    .Where(item => string.Equals(
+                        item.Arguments,
                         ForceCloseArgument,
-                        "Forcer la fermeture");
-                    forceCloseItem.Description = "Ferme EyeChat sans le redémarrer automatiquement";
-                    jumpList.Items.Add(forceCloseItem);
-                    await jumpList.SaveAsync();
+                        StringComparison.OrdinalIgnoreCase))
+                    .ToList())
+                {
+                    jumpList.Items.Remove(existingItem);
                 }
+
+                var forceCloseItem = JumpListItem.CreateWithArguments(
+                    ForceCloseArgument,
+                    ForceCloseDisplayName);
+                forceCloseItem.Description = "Ferme EyeChat sans le redémarrer automatiquement";
+                jumpList.Items.Add(forceCloseItem);
+                await jumpList.SaveAsync();
             }
             catch (Exception ex)
             {

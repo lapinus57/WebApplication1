@@ -20,7 +20,6 @@ namespace Client.Pages
 {
     public sealed partial class SystemPage : Page
     {
-        private const string SettingsPassword = "901027";
         private readonly MachineConfig _config;
         private bool _isLoaded;
         private bool _suppressTimeToggle;
@@ -330,32 +329,8 @@ namespace Client.Pages
             if (xamlRoot is null)
                 return false;
 
-            while (true)
-            {
-                var passwordBox = new PasswordBox { PlaceholderText = "Mot de passe", Width = 300 };
-                var dialog = new ContentDialog
-                {
-                    Title = "Mot de passe requis",
-                    PrimaryButtonText = "Valider",
-                    CloseButtonText = "Annuler",
-                    DefaultButton = ContentDialogButton.Primary,
-                    Content = passwordBox,
-                    XamlRoot = xamlRoot
-                };
-
-                var result = await dialog.ShowAsync();
-                if (result != ContentDialogResult.Primary)
-                    return false;
-
-                if (ValidatePassword(passwordBox.Password))
-                    return true;
-
-                await ShowInfoDialogAsync("Accès refusé", "Mot de passe incorrect.", xamlRoot);
-            }
+            return await AdministrativeAccess.RequestPasswordAsync(xamlRoot);
         }
-
-        private bool ValidatePassword(string? password) =>
-            string.Equals(password, SettingsPassword, StringComparison.Ordinal);
 
         private async Task<bool> ConfirmDisableAsync(string message, FrameworkElement? element)
         {
