@@ -75,7 +75,7 @@ namespace Client
                     }
                 }
 
-                m_window.Closed += (_, __) => HotKeys.Dispose();
+                m_window.Closed += MainWindow_Closed;
                 ChatService.Dispatcher = m_window.DispatcherQueue;
                 ChatService.OnMessageReceived += ChatService_OnMessageReceived;
                 // Register handler once the window root has loaded so XamlRoot is valid
@@ -116,11 +116,7 @@ namespace Client
             {
                 MessageBox(IntPtr.Zero, message, "Erreur de démarrage EyeChat", 0x00000010);
             }
-            m_window.Closed += MainWindow_Closed;
-            ChatService.Dispatcher = m_window.DispatcherQueue;
-            ChatService.OnMessageReceived += ChatService_OnMessageReceived;
-            // Register handler once the window root has loaded so XamlRoot is valid
-            if (m_window.Content is FrameworkElement windowRoot)
+            catch
             {
                 // Logging remains available even if Windows cannot display the fallback dialog.
             }
