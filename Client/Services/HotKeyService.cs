@@ -662,7 +662,9 @@ namespace Client.Services
                         };
                         if (!string.IsNullOrEmpty(key))
                         {
-                            var exam = AppSettings.Get(key, string.Empty);
+                            // F9-F12 describe this workstation's workflow, not the
+                            // currently connected user's preferences.
+                            var exam = MachineConfig.Load().GetExamShortcut(key);
 
                             App.MainWindow?.DispatcherQueue?.TryEnqueue(async () =>
                             {

@@ -148,7 +148,9 @@
             </Border>
             <Border CornerRadius="8" Padding="20">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="Raccourcis patient" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock Text="Raccourcis examens (ce poste)" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock Text="Ces raccourcis appartiennent au poste et restent identiques quel que soit l’utilisateur connecté."
+                               TextWrapping="Wrap" Opacity="0.7"/>
                     <ItemsControl ItemsSource="{x:Bind ExamShortcutGroups}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -193,4 +195,3 @@
         </StackPanel>
     </ScrollViewer>
 </Page>
-

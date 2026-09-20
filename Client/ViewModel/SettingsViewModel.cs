@@ -273,7 +273,7 @@ namespace Client.ViewModel
                     _ctrlF9Exam = normalized;
                     Logger.Log($"[SettingsViewModel] CtrlF9Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF9Exam));
-                    Set("CtrlF9Exam", normalized);
+                    SetMachineExamShortcut("CtrlF9Exam", normalized);
                 }
             }
         }
@@ -289,7 +289,7 @@ namespace Client.ViewModel
                     _shiftF9Exam = normalized;
                     Logger.Log($"[SettingsViewModel] ShiftF9Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF9Exam));
-                    Set("ShiftF9Exam", normalized);
+                    SetMachineExamShortcut("ShiftF9Exam", normalized);
                 }
             }
         }
@@ -305,7 +305,7 @@ namespace Client.ViewModel
                     _ctrlF10Exam = normalized;
                     Logger.Log($"[SettingsViewModel] CtrlF10Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF10Exam));
-                    Set("CtrlF10Exam", normalized);
+                    SetMachineExamShortcut("CtrlF10Exam", normalized);
                 }
             }
         }
@@ -321,7 +321,7 @@ namespace Client.ViewModel
                     _shiftF10Exam = normalized;
                     Logger.Log($"[SettingsViewModel] ShiftF10Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF10Exam));
-                    Set("ShiftF10Exam", normalized);
+                    SetMachineExamShortcut("ShiftF10Exam", normalized);
                 }
             }
         }
@@ -337,7 +337,7 @@ namespace Client.ViewModel
                     _ctrlF11Exam = normalized;
                     Logger.Log($"[SettingsViewModel] CtrlF11Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF11Exam));
-                    Set("CtrlF11Exam", normalized);
+                    SetMachineExamShortcut("CtrlF11Exam", normalized);
                 }
             }
         }
@@ -353,7 +353,7 @@ namespace Client.ViewModel
                     _shiftF11Exam = normalized;
                     Logger.Log($"[SettingsViewModel] ShiftF11Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF11Exam));
-                    Set("ShiftF11Exam", normalized);
+                    SetMachineExamShortcut("ShiftF11Exam", normalized);
                 }
             }
         }
@@ -369,7 +369,7 @@ namespace Client.ViewModel
                     _ctrlF12Exam = normalized;
                     Logger.Log($"[SettingsViewModel] CtrlF12Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(CtrlF12Exam));
-                    Set("CtrlF12Exam", normalized);
+                    SetMachineExamShortcut("CtrlF12Exam", normalized);
                 }
             }
         }
@@ -385,7 +385,7 @@ namespace Client.ViewModel
                     _shiftF12Exam = normalized;
                     Logger.Log($"[SettingsViewModel] ShiftF12Exam set to '{normalized}'.");
                     OnPropertyChanged(nameof(ShiftF12Exam));
-                    Set("ShiftF12Exam", normalized);
+                    SetMachineExamShortcut("ShiftF12Exam", normalized);
                 }
             }
         }
@@ -431,14 +431,16 @@ namespace Client.ViewModel
             _shortcutF8Pathologies = Get("ShortcutF8Pathologies");
             _shortcutF8Orthoptie = Get("ShortcutF8Orthoptie");
 
-            _ctrlF9Exam = NormalizeExamValue(Get("CtrlF9Exam"));
-            _shiftF9Exam = NormalizeExamValue(Get("ShiftF9Exam"));
-            _ctrlF10Exam = NormalizeExamValue(Get("CtrlF10Exam"));
-            _shiftF10Exam = NormalizeExamValue(Get("ShiftF10Exam"));
-            _ctrlF11Exam = NormalizeExamValue(Get("CtrlF11Exam"));
-            _shiftF11Exam = NormalizeExamValue(Get("ShiftF11Exam"));
-            _ctrlF12Exam = NormalizeExamValue(Get("CtrlF12Exam"));
-            _shiftF12Exam = NormalizeExamValue(Get("ShiftF12Exam"));
+            var machineConfig = MachineConfig.Load();
+            _ctrlF9Exam = LoadMachineExamShortcut(machineConfig, nameof(CtrlF9Exam));
+            _shiftF9Exam = LoadMachineExamShortcut(machineConfig, nameof(ShiftF9Exam));
+            _ctrlF10Exam = LoadMachineExamShortcut(machineConfig, nameof(CtrlF10Exam));
+            _shiftF10Exam = LoadMachineExamShortcut(machineConfig, nameof(ShiftF10Exam));
+            _ctrlF11Exam = LoadMachineExamShortcut(machineConfig, nameof(CtrlF11Exam));
+            _shiftF11Exam = LoadMachineExamShortcut(machineConfig, nameof(ShiftF11Exam));
+            _ctrlF12Exam = LoadMachineExamShortcut(machineConfig, nameof(CtrlF12Exam));
+            _shiftF12Exam = LoadMachineExamShortcut(machineConfig, nameof(ShiftF12Exam));
+            MachineConfig.Save(machineConfig);
 
             ValidateExamSelections();
 
@@ -454,6 +456,28 @@ namespace Client.ViewModel
         }
 
         private static string NormalizeExamValue(string? value) => ExamOption.NormalizeIdentifier(value);
+
+        private string LoadMachineExamShortcut(MachineConfig config, string key)
+        {
+            var value = NormalizeExamValue(config.GetExamShortcut(key));
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                // One-time compatibility migration from the former per-user setting.
+                value = NormalizeExamValue(Get(key));
+                config.SetExamShortcut(key, value);
+            }
+
+            return value;
+        }
+
+        private static void SetMachineExamShortcut(string key, string value)
+        {
+            var config = MachineConfig.Load();
+            if (config.SetExamShortcut(key, value))
+            {
+                MachineConfig.Save(config);
+            }
+        }
 
         public void ValidateExamSelections(IEnumerable<ExamOption> availableOptions)
         {
