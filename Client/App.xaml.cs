@@ -14,7 +14,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Dispatching;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
+using Windows.UI.StartScreen;
 
 namespace Client
 {
@@ -30,6 +33,13 @@ namespace Client
         public static HotKeyService HotKeys { get; } = new HotKeyService();
         private DispatcherQueueTimer? _agendaTimer;
         private bool _agendaSwitchInProgress;
+        private bool _restartScheduled;
+        private bool _forceCloseRequested;
+        private EventWaitHandle? _forceCloseEvent;
+        private RegisteredWaitHandle? _forceCloseWait;
+        private const string ForceCloseArgument = "--force-close";
+        private const string ForceCloseDisplayName = "\uE8BB  Forcer la fermeture";
+        private const string ForceCloseEventName = @"Local\EyeChat.ForceClose";
         public App()
         {
             this.InitializeComponent();
@@ -56,12 +66,23 @@ namespace Client
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            // Depending on how the packaged desktop application is activated, Windows can
+            // expose a jump-list argument either here or only on the process command line.
+            // Check both before creating the main window; otherwise the helper activation
+            // briefly becomes a second, fully initialized EyeChat instance.
+            if (IsForceCloseActivation(args.Arguments, Environment.GetCommandLineArgs()))
+            {
+                SignalForceCloseAndExit();
+                return;
+            }
+
             Logger.Log($"[App] Démarrage d'EyeChat ({RuntimeInformation.ProcessArchitecture}, Windows {Environment.OSVersion.Version}).");
 
             try
             {
                 m_window = new MainWindow();
                 MainWindow = m_window;
+                RegisterForceCloseRequest();
 
                 var theme = AppSettings.Get("AppTheme", "Dark");
                 if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
@@ -73,7 +94,7 @@ namespace Client
                     }
                 }
 
-                m_window.Closed += (_, __) => HotKeys.Dispose();
+                m_window.Closed += MainWindow_Closed;
                 ChatService.Dispatcher = m_window.DispatcherQueue;
                 ChatService.OnMessageReceived += ChatService_OnMessageReceived;
                 // Register handler once the window root has loaded so XamlRoot is valid
@@ -84,6 +105,7 @@ namespace Client
                 // Show the window before optional integrations are initialized. A keyboard-hook
                 // failure must not prevent EyeChat from opening on a newly configured computer.
                 m_window.Activate();
+                _ = RegisterForceCloseJumpListItemAsync();
 
                 try
                 {
@@ -117,6 +139,139 @@ namespace Client
             catch
             {
                 // Logging remains available even if Windows cannot display the fallback dialog.
+            }
+        }
+
+        private void MainWindow_Closed(object sender, WindowEventArgs e)
+        {
+            HotKeys.Dispose();
+
+            _forceCloseWait?.Unregister(null);
+            _forceCloseWait = null;
+            _forceCloseEvent?.Dispose();
+            _forceCloseEvent = null;
+
+            if (_restartScheduled || _forceCloseRequested)
+                return;
+
+            var config = MachineConfig.Load();
+            if (!config.AutoRestartOnClose)
+                return;
+
+            var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrWhiteSpace(exePath))
+                return;
+
+            _restartScheduled = true;
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[App] Auto restart failed", ex, "CLI25");
+            }
+        }
+
+        public void RequestForceClose()
+        {
+            if (_forceCloseRequested)
+                return;
+
+            _forceCloseRequested = true;
+            Logger.Log("[App] Fermeture forcée demandée : le redémarrage automatique est ignoré.");
+            MainWindow?.Close();
+        }
+
+        internal static bool IsForceCloseActivation(string? launchArguments, IEnumerable<string> commandLineArguments)
+        {
+            if (ContainsForceCloseArgument(launchArguments))
+                return true;
+
+            return commandLineArguments.Any(argument =>
+                string.Equals(argument.Trim().Trim('"'), ForceCloseArgument, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool ContainsForceCloseArgument(string? arguments)
+        {
+            if (string.IsNullOrWhiteSpace(arguments))
+                return false;
+
+            return arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Any(argument => string.Equals(
+                    argument.Trim().Trim('"'),
+                    ForceCloseArgument,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void RegisterForceCloseRequest()
+        {
+            _forceCloseEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ForceCloseEventName);
+            _forceCloseWait = ThreadPool.RegisterWaitForSingleObject(
+                _forceCloseEvent,
+                (_, timedOut) =>
+                {
+                    if (!timedOut)
+                    {
+                        MainWindow?.DispatcherQueue.TryEnqueue(RequestForceClose);
+                    }
+                },
+                null,
+                Timeout.Infinite,
+                false);
+        }
+
+        private static void SignalForceCloseAndExit()
+        {
+            try
+            {
+                using var forceCloseEvent = EventWaitHandle.OpenExisting(ForceCloseEventName);
+                forceCloseEvent.Set();
+            }
+            catch (WaitHandleCannotBeOpenedException)
+            {
+                // There is no running EyeChat instance to close.
+            }
+            finally
+            {
+                Environment.Exit(0);
+            }
+        }
+
+        private static async Task RegisterForceCloseJumpListItemAsync()
+        {
+            try
+            {
+                var jumpList = await JumpList.LoadCurrentAsync();
+                // JumpListItem only accepts an image URI for Logo; it cannot receive a
+                // Segoe Fluent glyph as an icon. Put Windows' ChromeClose glyph directly
+                // in the label instead, avoiding an extra bitmap in the application.
+                foreach (var existingItem in jumpList.Items
+                    .Where(item => string.Equals(
+                        item.Arguments,
+                        ForceCloseArgument,
+                        StringComparison.OrdinalIgnoreCase))
+                    .ToList())
+                {
+                    jumpList.Items.Remove(existingItem);
+                }
+
+                var forceCloseItem = JumpListItem.CreateWithArguments(
+                    ForceCloseArgument,
+                    ForceCloseDisplayName);
+                forceCloseItem.Description = "Ferme EyeChat sans le redémarrer automatiquement";
+                jumpList.Items.Add(forceCloseItem);
+                await jumpList.SaveAsync();
+            }
+            catch (Exception ex)
+            {
+                // Jump lists require a packaged Windows installation. The native system
+                // menu remains available when running unpackaged or from Visual Studio.
+                Logger.LogException("[App] Impossible d'ajouter l'action à la barre des tâches", ex, "CLI27");
             }
         }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

@@ -537,14 +537,17 @@ namespace Client.Pages
                 return;
             }
 
-            var dialog = new UserManagerDialog
-            {
-                XamlRoot = xamlRoot
-            };
-
             try
             {
                 _isUserManagerDialogOpen = true;
+
+                if (!await AdministrativeAccess.RequestPasswordAsync(xamlRoot))
+                    return;
+
+                var dialog = new UserManagerDialog
+                {
+                    XamlRoot = xamlRoot
+                };
                 await dialog.ShowAsync();
             }
             finally

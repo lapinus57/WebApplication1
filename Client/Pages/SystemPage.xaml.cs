@@ -20,17 +20,18 @@ namespace Client.Pages
 {
     public sealed partial class SystemPage : Page
     {
-        private const string SettingsPassword = "901027";
         private readonly MachineConfig _config;
         private bool _isLoaded;
         private bool _suppressTimeToggle;
         private bool _suppressReminderToggle;
         private bool _suppressSlashToggle;
+        private bool _suppressAutoRestartToggle;
 
         public string RoomName { get; set; } = string.Empty;
         public bool ShowTimeModification { get; set; }
         public bool ShowReminderPage { get; set; }
         public bool ShowSlashCommands { get; set; }
+        public bool AutoRestartOnClose { get; set; }
         public ObservableCollection<string> Users { get; } = new();
         public string DefaultUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }
@@ -47,6 +48,7 @@ namespace Client.Pages
             DefaultUser = _config.DefaultUser?.Trim() ?? string.Empty;
             ConnectLastUser = _config.ConnectLastUser;
             ShowSlashCommands = _config.ShowSlashCommands;
+            AutoRestartOnClose = _config.AutoRestartOnClose;
             PickupAlertThresholdMinutes = _config.PickupAlertThresholdMinutes;
             var initialUsers = LoadUsernamesFromSettingsFiles();
             UpdateUsersCollection(initialUsers);
@@ -74,6 +76,7 @@ namespace Client.Pages
             _config.ShowTimeModification = ShowTimeModification;
             _config.ShowReminderPage = ShowReminderPage;
             _config.ShowSlashCommands = ShowSlashCommands;
+            _config.AutoRestartOnClose = AutoRestartOnClose;
             _config.DefaultUser = DefaultUser;
             _config.ConnectLastUser = ConnectLastUser;
             _config.PickupAlertThresholdMinutes = (int)Math.Max(0, Math.Round(PickupAlertThresholdMinutes));
@@ -230,6 +233,40 @@ namespace Client.Pages
             ShowSlashCommands = toggle.IsOn;
         }
 
+        private async void AutoRestartSwitch_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!_isLoaded || _suppressAutoRestartToggle)
+                return;
+
+            if (sender is not ToggleSwitch toggle)
+                return;
+
+            if (toggle.IsOn)
+            {
+                if (!await EnsurePasswordAsync(toggle))
+                {
+                    _suppressAutoRestartToggle = true;
+                    toggle.IsOn = false;
+                    _suppressAutoRestartToggle = false;
+                    AutoRestartOnClose = false;
+                    return;
+                }
+            }
+            else
+            {
+                if (!await ConfirmDisableAsync("Êtes-vous sûr de désactiver la réouverture automatique du client ?", toggle))
+                {
+                    _suppressAutoRestartToggle = true;
+                    toggle.IsOn = true;
+                    _suppressAutoRestartToggle = false;
+                    AutoRestartOnClose = true;
+                    return;
+                }
+            }
+
+            AutoRestartOnClose = toggle.IsOn;
+        }
+
         private async void ManageUsers_Click(object sender, RoutedEventArgs e)
         {
             if (!await EnsurePasswordAsync(sender as FrameworkElement))
@@ -300,32 +337,8 @@ namespace Client.Pages
             if (xamlRoot is null)
                 return false;
 
-            while (true)
-            {
-                var passwordBox = new PasswordBox { PlaceholderText = "Mot de passe", Width = 300 };
-                var dialog = new ContentDialog
-                {
-                    Title = "Mot de passe requis",
-                    PrimaryButtonText = "Valider",
-                    CloseButtonText = "Annuler",
-                    DefaultButton = ContentDialogButton.Primary,
-                    Content = passwordBox,
-                    XamlRoot = xamlRoot
-                };
-
-                var result = await dialog.ShowAsync();
-                if (result != ContentDialogResult.Primary)
-                    return false;
-
-                if (ValidatePassword(passwordBox.Password))
-                    return true;
-
-                await ShowInfoDialogAsync("Accès refusé", "Mot de passe incorrect.", xamlRoot);
-            }
+            return await AdministrativeAccess.RequestPasswordAsync(xamlRoot);
         }
-
-        private bool ValidatePassword(string? password) =>
-            string.Equals(password, SettingsPassword, StringComparison.Ordinal);
 
         private async Task<bool> ConfirmDisableAsync(string message, FrameworkElement? element)
         {
