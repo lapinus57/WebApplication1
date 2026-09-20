@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Dispatching;
+using System.Diagnostics;
 
 namespace Client
 {
@@ -26,6 +27,7 @@ namespace Client
         public static HotKeyService HotKeys { get; } = new HotKeyService();
         private DispatcherQueueTimer? _agendaTimer;
         private bool _agendaSwitchInProgress;
+        private bool _restartScheduled;
         public App()
         {
             this.InitializeComponent();
@@ -65,7 +67,7 @@ namespace Client
                         appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
                 }
             }
-            m_window.Closed += (_, __) => HotKeys.Dispose();
+            m_window.Closed += MainWindow_Closed;
             ChatService.Dispatcher = m_window.DispatcherQueue;
             ChatService.OnMessageReceived += ChatService_OnMessageReceived;
             // Register handler once the window root has loaded so XamlRoot is valid
@@ -75,6 +77,36 @@ namespace Client
             }
             // Show the window immediately
             m_window.Activate();
+        }
+
+        private void MainWindow_Closed(object sender, WindowEventArgs e)
+        {
+            HotKeys.Dispose();
+
+            if (_restartScheduled)
+                return;
+
+            var config = MachineConfig.Load();
+            if (!config.AutoRestartOnClose)
+                return;
+
+            var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrWhiteSpace(exePath))
+                return;
+
+            _restartScheduled = true;
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[App] Auto restart failed", ex, "CLI25");
+            }
         }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {

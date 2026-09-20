@@ -38,6 +38,11 @@ namespace Client.Helpers
         public bool AutoSwitchEnabled { get; set; }
 
         /// <summary>
+        /// Relaunch the client automatically when the window is closed.
+        /// </summary>
+        public bool AutoRestartOnClose { get; set; }
+
+        /// <summary>
         /// Agenda rules used to decide which user should be connected.
         /// </summary>
         public List<AgendaSwitchEntry> AgendaSchedule { get; set; } = new();
