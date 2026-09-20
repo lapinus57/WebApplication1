@@ -21,14 +21,35 @@ namespace Client.Pages
         private readonly List<UserInfo> _users = new();
         private readonly Dictionary<string, string> _settings = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<WorkstationConfiguration> _workstations = new();
+        private string? _editedUserName;
+        private string? _editedWorkstationName;
+        private string? _editedExamId;
 
         public ObservableCollection<string> UserNames { get; } = new();
         public ObservableCollection<string> WorkstationNames { get; } = new();
         public ObservableCollection<string> Rooms { get; } = new();
+        public ObservableCollection<ExamOption> Exams { get; } = ExamOption.Load();
 
         public ConfigurationBuilderPage()
         {
             InitializeComponent();
+            Loaded += ConfigurationBuilderPage_Loaded;
+        }
+
+        private async void ConfigurationBuilderPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= ConfigurationBuilderPage_Loaded;
+            try
+            {
+                var serverExams = await App.ChatService.GetExamOptionsAsync();
+                if (serverExams?.Any() == true)
+                    ReplaceExams(serverExams);
+                ExamStatusText.Text = $"{Exams.Count} examen(s) existant(s) chargé(s).";
+            }
+            catch (Exception ex)
+            {
+                ExamStatusText.Text = $"Examens locaux chargés. Serveur indisponible : {ex.Message}";
+            }
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
@@ -46,28 +67,68 @@ namespace Client.Pages
                 return;
             }
 
-            if (_users.Any(user => string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase)))
+            if (_users.Any(user => !string.Equals(user.Username, _editedUserName, StringComparison.OrdinalIgnoreCase) && string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase)))
             {
                 UserStatusText.Text = $"« {username} » existe déjà dans cette configuration.";
                 return;
             }
 
-            var user = new UserInfo
+            var existing = _users.FirstOrDefault(user => string.Equals(user.Username, _editedUserName, StringComparison.OrdinalIgnoreCase));
+            var user = existing ?? new UserInfo
             {
                 Username = username,
                 DisplayName = username,
                 IsOnline = false
             };
 
-            _users.Add(user);
-            UserNames.Add(username);
+            if (existing is null)
+            {
+                _users.Add(user);
+                UserNames.Add(username);
+            }
+            else
+            {
+                var listIndex = UserNames.IndexOf(_editedUserName!);
+                _settings.Remove(_editedUserName!);
+                existing.Username = username;
+                existing.DisplayName = username;
+                UserNames[listIndex] = username;
+            }
             _settings[username] = System.Text.Json.JsonSerializer.Serialize(BuildSettings(), new System.Text.Json.JsonSerializerOptions
             {
                 WriteIndented = true
             });
 
-            UserStatusText.Text = $"Utilisateur « {username} » ajouté ({_users.Count} au total).";
+            UserStatusText.Text = _editedUserName is null ? $"Utilisateur « {username} » ajouté ({_users.Count} au total)." : $"Utilisateur « {username} » modifié.";
             ClearUserForm();
+            EndUserEdit();
+        }
+
+        private void EditUser_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { Tag: string name }) return;
+            _editedUserName = name;
+            UserNameBox.Text = name;
+            if (_settings.TryGetValue(name, out var json))
+            {
+                var values = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
+                InitialsBox.Text = GetValue(values, "Initials");
+                var boxes = UserShortcutBoxes();
+                foreach (var (key, box) in boxes) box.Text = GetValue(values, key);
+            }
+            SaveUserButton.Content = "Enregistrer les modifications";
+            CancelUserEditButton.Visibility = Visibility.Visible;
+        }
+
+        private void CancelUserEdit_Click(object sender, RoutedEventArgs e) { ClearUserForm(); EndUserEdit(); }
+        private void EndUserEdit() { _editedUserName = null; SaveUserButton.Content = "Ajouter cet utilisateur"; CancelUserEditButton.Visibility = Visibility.Collapsed; }
+        private static string GetValue(Dictionary<string, string> values, string key) => values.TryGetValue(key, out var value) ? value : string.Empty;
+        private IEnumerable<(string Key, TextBox Box)> UserShortcutBoxes()
+        {
+            yield return ("ShortcutF5Refraction", F5RefractionBox); yield return ("ShortcutF5Lentilles", F5LentillesBox); yield return ("ShortcutF5Pathologies", F5PathologiesBox); yield return ("ShortcutF5Orthoptie", F5OrthoptieBox);
+            yield return ("ShortcutF6Refraction", F6RefractionBox); yield return ("ShortcutF6Lentilles", F6LentillesBox); yield return ("ShortcutF6Pathologies", F6PathologiesBox); yield return ("ShortcutF6Orthoptie", F6OrthoptieBox);
+            yield return ("ShortcutF7Refraction", F7RefractionBox); yield return ("ShortcutF7Lentilles", F7LentillesBox); yield return ("ShortcutF7Pathologies", F7PathologiesBox); yield return ("ShortcutF7Orthoptie", F7OrthoptieBox);
+            yield return ("ShortcutF8Refraction", F8RefractionBox); yield return ("ShortcutF8Lentilles", F8LentillesBox); yield return ("ShortcutF8Pathologies", F8PathologiesBox); yield return ("ShortcutF8Orthoptie", F8OrthoptieBox);
         }
 
         private Dictionary<string, string> BuildSettings() => new()
@@ -149,30 +210,46 @@ namespace Client.Pages
                 return;
             }
 
-            if (_workstations.Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
+            if (_workstations.Any(item => !string.Equals(item.Name, _editedWorkstationName, StringComparison.OrdinalIgnoreCase) && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
             {
                 WorkstationStatusText.Text = $"« {name} » existe déjà dans cette configuration.";
                 return;
             }
 
-            _workstations.Add(new WorkstationConfiguration
+            var workstation = _workstations.FirstOrDefault(item => string.Equals(item.Name, _editedWorkstationName, StringComparison.OrdinalIgnoreCase));
+            var configuration = workstation ?? new WorkstationConfiguration();
+            configuration.Name = name;
+            configuration.ShiftF9Exam = SelectedExamId(ShiftF9Box);
+            configuration.CtrlF9Exam = SelectedExamId(CtrlF9Box);
+            configuration.ShiftF10Exam = SelectedExamId(ShiftF10Box);
+            configuration.CtrlF10Exam = SelectedExamId(CtrlF10Box);
+            configuration.ShiftF11Exam = SelectedExamId(ShiftF11Box);
+            configuration.CtrlF11Exam = SelectedExamId(CtrlF11Box);
+            configuration.ShiftF12Exam = SelectedExamId(ShiftF12Box);
+            configuration.CtrlF12Exam = SelectedExamId(CtrlF12Box);
+            if (workstation is null)
             {
-                Name = name,
-                ShiftF9Exam = ShiftF9Box.Text.Trim(),
-                CtrlF9Exam = CtrlF9Box.Text.Trim(),
-                ShiftF10Exam = ShiftF10Box.Text.Trim(),
-                CtrlF10Exam = CtrlF10Box.Text.Trim(),
-                ShiftF11Exam = ShiftF11Box.Text.Trim(),
-                CtrlF11Exam = CtrlF11Box.Text.Trim(),
-                ShiftF12Exam = ShiftF12Box.Text.Trim(),
-                CtrlF12Exam = CtrlF12Box.Text.Trim()
-            });
-            WorkstationNames.Add(name);
-            WorkstationStatusText.Text = $"Poste « {name} » ajouté ({_workstations.Count} au total).";
-            WorkstationNameBox.Text = string.Empty;
-            foreach (var box in new[] { ShiftF9Box, CtrlF9Box, ShiftF10Box, CtrlF10Box, ShiftF11Box, CtrlF11Box, ShiftF12Box, CtrlF12Box })
-                box.Text = string.Empty;
+                _workstations.Add(configuration); WorkstationNames.Add(name);
+            }
+            else WorkstationNames[WorkstationNames.IndexOf(_editedWorkstationName!)] = name;
+            WorkstationStatusText.Text = _editedWorkstationName is null ? $"Poste « {name} » ajouté ({_workstations.Count} au total)." : $"Poste « {name} » modifié.";
+            ClearWorkstationForm(); EndWorkstationEdit();
         }
+
+        private static string SelectedExamId(ComboBox box) => box.SelectedValue?.ToString() ?? string.Empty;
+        private void EditWorkstation_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { Tag: string name }) return;
+            var item = _workstations.First(w => string.Equals(w.Name, name, StringComparison.OrdinalIgnoreCase));
+            _editedWorkstationName = name; WorkstationNameBox.Text = item.Name;
+            ShiftF9Box.SelectedValue = item.ShiftF9Exam; CtrlF9Box.SelectedValue = item.CtrlF9Exam; ShiftF10Box.SelectedValue = item.ShiftF10Exam; CtrlF10Box.SelectedValue = item.CtrlF10Exam;
+            ShiftF11Box.SelectedValue = item.ShiftF11Exam; CtrlF11Box.SelectedValue = item.CtrlF11Exam; ShiftF12Box.SelectedValue = item.ShiftF12Exam; CtrlF12Box.SelectedValue = item.CtrlF12Exam;
+            SaveWorkstationButton.Content = "Enregistrer les modifications"; CancelWorkstationEditButton.Visibility = Visibility.Visible;
+        }
+        private void CancelWorkstationEdit_Click(object sender, RoutedEventArgs e) { ClearWorkstationForm(); EndWorkstationEdit(); }
+        private void ClearWorkstationForm() { WorkstationNameBox.Text = string.Empty; foreach (var box in WorkstationExamBoxes()) box.SelectedIndex = -1; }
+        private IEnumerable<ComboBox> WorkstationExamBoxes() => new[] { ShiftF9Box, CtrlF9Box, ShiftF10Box, CtrlF10Box, ShiftF11Box, CtrlF11Box, ShiftF12Box, CtrlF12Box };
+        private void EndWorkstationEdit() { _editedWorkstationName = null; SaveWorkstationButton.Content = "Ajouter ce poste"; CancelWorkstationEditButton.Visibility = Visibility.Collapsed; }
 
         private async void ExportWorkstations_Click(object sender, RoutedEventArgs e)
         {
@@ -258,13 +335,72 @@ namespace Client.Pages
                 if (file is null)
                     return;
 
-                var payload = new RoomConfigurationFile { Rooms = Rooms.ToList() };
+                var payload = new RoomConfigurationFile { Exams = Exams.ToList(), Rooms = Rooms.ToList() };
                 await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));
                 RoomStatusText.Text = $"Fichier salles enregistré : {file.Name}";
             }
             catch (Exception ex)
             {
                 await ShowMessageAsync("Erreur d'export", $"Impossible d'enregistrer la configuration des salles : {ex.Message}");
+            }
+        }
+
+        private void AddExam_Click(object sender, RoutedEventArgs e)
+        {
+            var name = ExamNameBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(name)) { ExamStatusText.Text = "Le nom de l’examen est obligatoire."; return; }
+            if (Exams.Any(exam => exam.Id != _editedExamId && string.Equals(exam.Name, name, StringComparison.OrdinalIgnoreCase)))
+            { ExamStatusText.Text = $"L’examen « {name} » existe déjà."; return; }
+
+            var exam = Exams.FirstOrDefault(item => item.Id == _editedExamId);
+            if (exam is null)
+            {
+                exam = new ExamOption { Index = Exams.Count + 1 };
+                Exams.Add(exam);
+            }
+            exam.Name = name;
+            exam.Description = string.IsNullOrWhiteSpace(ExamDescriptionBox.Text) ? name : ExamDescriptionBox.Text.Trim();
+            ExamStatusText.Text = _editedExamId is null ? $"Examen « {exam.DisplayLabel} » ajouté." : $"Examen « {exam.DisplayLabel} » modifié.";
+            ExamNameBox.Text = ExamDescriptionBox.Text = string.Empty;
+            EndExamEdit();
+        }
+
+        private void EditExam_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { Tag: string id }) return;
+            var exam = Exams.FirstOrDefault(item => item.Id == id);
+            if (exam is null) return;
+            _editedExamId = id; ExamNameBox.Text = exam.Name; ExamDescriptionBox.Text = exam.Description;
+            SaveExamButton.Content = "Enregistrer les modifications"; CancelExamEditButton.Visibility = Visibility.Visible;
+        }
+
+        private void CancelExamEdit_Click(object sender, RoutedEventArgs e) { ExamNameBox.Text = ExamDescriptionBox.Text = string.Empty; EndExamEdit(); }
+        private void EndExamEdit() { _editedExamId = null; SaveExamButton.Content = "Ajouter cet examen"; CancelExamEditButton.Visibility = Visibility.Collapsed; }
+
+        private async void ImportExams_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".eyechatconfig");
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+            var file = await picker.PickSingleFileAsync();
+            if (file is null) return;
+            try
+            {
+                var payload = JsonConvert.DeserializeObject<RoomConfigurationFile>(await FileIO.ReadTextAsync(file));
+                if (payload?.Exams is null) { ExamStatusText.Text = "Ce fichier ne contient aucun examen."; return; }
+                ReplaceExams(payload.Exams);
+                ExamStatusText.Text = $"{Exams.Count} examen(s) importé(s) depuis {file.Name}.";
+            }
+            catch (Exception ex) { await ShowMessageAsync("Erreur d’import", $"Impossible d’importer les examens : {ex.Message}"); }
+        }
+
+        private void ReplaceExams(IEnumerable<ExamOption> exams)
+        {
+            Exams.Clear();
+            foreach (var exam in exams.Where(item => item is not null).OrderBy(item => item.Index))
+            {
+                exam.Normalize();
+                Exams.Add(exam);
             }
         }
 
