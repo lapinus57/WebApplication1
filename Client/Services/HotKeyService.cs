@@ -5,6 +5,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using System.ComponentModel;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -57,7 +58,7 @@ namespace Client.Services
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
         [DllImport("user32.dll")]
         private static extern bool UnhookWindowsHookEx(IntPtr hhk);
@@ -565,6 +566,12 @@ namespace Client.Services
             _proc = HookCallback;
             IntPtr module = GetModuleHandle(null);
             _hookID = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, module, 0);
+            if (_hookID == IntPtr.Zero)
+            {
+                _proc = null;
+                throw new Win32Exception(Marshal.GetLastWin32Error(),
+                    "Impossible d'activer les raccourcis clavier globaux.");
+            }
         }
 
         public void Dispose()

@@ -1,0 +1,64 @@
+# EyeChat ne se lance pas après l'installation
+
+## « Erreur d'analyse du package de l'application »
+
+Ce message est affiché par Windows avant le lancement d'EyeChat : réparer ou
+réinitialiser l'application ne peut donc pas le corriger. Supprimez le fichier
+téléchargé, puis téléchargez de nouveau le fichier `.msix` correspondant à votre
+PC depuis la page **Releases**. N'essayez pas d'installer une page web enregistrée
+avec une extension `.msix`, un fichier `.xml` du dossier `BundleArtifacts`, ni le
+contenu décompressé de l'archive de code source.
+
+Vérifiez ensuite les points suivants :
+
+1. Le fichier a une taille cohérente et son nom se termine réellement par
+   `.msix` (et non par `.msix.html` ou `.msix.xml`).
+2. Dans **Propriétés > Signatures numériques**, la signature est présente et
+   valide. Installez le certificat `.cer` fourni avec la même version dans
+   **Ordinateur local > Personnes de confiance** si Windows ne fait pas confiance
+   au certificat de test.
+3. Utilisez `x64` sur la majorité des PC Intel/AMD, `ARM64` sur Windows ARM et
+   `x86` uniquement sur Windows 32 bits.
+
+Si le message persiste, ouvrez PowerShell et exécutez :
+
+```powershell
+Add-AppxPackage -Path .\Client_<version>_x64.msix
+```
+
+Conservez le code d'erreur complet (`0x...`) retourné par PowerShell : il permet
+de distinguer un téléchargement incomplet, un manifeste invalide, une mauvaise
+architecture et un problème de certificat.
+
+## Vérifications rapides
+
+1. Vérifiez que le PC utilise Windows 10 (1809 ou plus récente) ou Windows 11.
+2. Installez le paquet correspondant à l'architecture du PC : `x64` pour la plupart des PC Intel/AMD, `ARM64` pour un PC Windows ARM, ou `x86` pour un ancien Windows 32 bits.
+3. Ouvrez **Paramètres > Applications > Applications installées > EyeChat > Options avancées**, puis utilisez **Réparer**. Si nécessaire, essayez ensuite **Réinitialiser**.
+4. Relancez EyeChat depuis le menu Démarrer.
+
+> Pour la publication, ne réactivez pas `PublishTrimmed` pour le client WinUI :
+> le rognage peut retirer des types chargés dynamiquement par XAML et produire un
+> paquet qui s'installe mais se ferme au lancement. Chaque paquet doit aussi être
+> publié avec le profil correspondant à son architecture (`win-x64`, `win-x86` ou
+> `win-arm64`).
+
+## Récupérer le diagnostic
+
+EyeChat écrit son journal dans le fichier suivant :
+
+```text
+%LOCALAPPDATA%\EyeChat\app.log
+```
+
+Collez ce chemin dans la barre d'adresse de l'Explorateur de fichiers, puis transmettez `app.log` au support. Depuis cette version, une erreur survenant pendant la création de la fenêtre affiche également ce chemin et le code `CLI26`. Une impossibilité d'activer les raccourcis clavier globaux est enregistrée avec le code `CLI25`, mais elle ne bloque plus l'ouverture de l'application.
+
+## Si aucun journal n'est créé
+
+L'échec se produit probablement avant l'exécution d'EyeChat. Vérifiez alors :
+
+- que le certificat utilisé pour signer le paquet est approuvé et encore valide ;
+- que l'architecture du paquet correspond au PC ;
+- dans **Observateur d'événements > Journaux Windows > Application**, les erreurs `AppModel-Runtime`, `.NET Runtime` ou `Application Error` enregistrées à l'heure du lancement.
+
+Joignez le détail de cette erreur, la version de Windows (`winver`) et l'architecture du PC à la demande de support.

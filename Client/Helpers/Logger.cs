@@ -12,6 +12,8 @@ namespace Client.Helpers
             "EyeChat",
             "app.log");
 
+        public static string LogPath => _logPath;
+
         public static void Log(string message)
         {
             try
