@@ -18,6 +18,11 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Windows.UI.StartScreen;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
+using Newtonsoft.Json;
+using System.Collections.ObjectModel;
 
 namespace Client
 {
@@ -282,7 +287,18 @@ namespace Client
             root.Loaded -= MainWindow_Loaded;
             RegisterActivityHandlers(root);
 
+            var isFirstRun = !File.Exists(MachineConfig.FilePath)
+                && !File.Exists(Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "EyeChat", "users.json"));
             var machine = MachineConfig.Load();
+
+            if (isFirstRun)
+            {
+                var imported = await PromptForInitialConfigurationAsync(root.XamlRoot, machine);
+                if (imported)
+                    machine = MachineConfig.Load();
+            }
 
             if (string.IsNullOrWhiteSpace(machine.RoomName))
             {
@@ -410,6 +426,133 @@ namespace Client
             }
 
             RefreshAgendaTimer();
+        }
+
+        private static async Task<bool> PromptForInitialConfigurationAsync(XamlRoot xamlRoot, MachineConfig machine)
+        {
+            var welcome = new ContentDialog
+            {
+                Title = "Première configuration d’EyeChat",
+                Content = new TextBlock
+                {
+                    Text = "Voulez-vous commencer à zéro ou importer une configuration préparée sur un autre ordinateur ?",
+                    TextWrapping = TextWrapping.Wrap
+                },
+                PrimaryButtonText = "Importer un fichier",
+                CloseButtonText = "Commencer à zéro",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = xamlRoot
+            };
+
+            if (await welcome.ShowAsync() != ContentDialogResult.Primary)
+                return false;
+
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".eyechatsetup");
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(MainWindow));
+            var file = await picker.PickSingleFileAsync();
+            if (file is null)
+                return false;
+
+            try
+            {
+                var configuration = JsonConvert.DeserializeObject<DeploymentConfiguration>(await FileIO.ReadTextAsync(file));
+                var users = configuration?.Users?
+                    .Where(user => !string.IsNullOrWhiteSpace(user.Username))
+                    .GroupBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .ToList() ?? new List<UserInfo>();
+                var workstations = configuration?.Workstations?
+                    .Where(item => !string.IsNullOrWhiteSpace(item.Name))
+                    .ToList() ?? new List<DeploymentWorkstation>();
+
+                if (configuration is null || users.Count == 0 || workstations.Count == 0)
+                    throw new InvalidDataException("Le fichier doit contenir au moins un utilisateur et un poste.");
+
+                var workstationName = await PromptForListSelectionAsync(
+                    xamlRoot, "Choisir ce poste", "Poste", workstations.Select(item => item.Name).ToList());
+                if (string.IsNullOrWhiteSpace(workstationName))
+                    return false;
+
+                var defaultUser = await PromptForListSelectionAsync(
+                    xamlRoot, "Choisir l’utilisateur par défaut", "Utilisateur", users.Select(user => user.Username).ToList());
+                if (string.IsNullOrWhiteSpace(defaultUser))
+                    return false;
+
+                var workstation = workstations.First(item =>
+                    string.Equals(item.Name, workstationName, StringComparison.OrdinalIgnoreCase));
+                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
+                Directory.CreateDirectory(folder);
+                await File.WriteAllTextAsync(Path.Combine(folder, "users.json"),
+                    JsonConvert.SerializeObject(users, Formatting.Indented));
+
+                foreach (var user in users)
+                {
+                    var safeName = AppSettings.SanitizeUserNameForFile(user.Username);
+                    if (string.IsNullOrWhiteSpace(safeName))
+                        continue;
+                    var settings = configuration.UserSettings?
+                        .FirstOrDefault(entry => string.Equals(entry.Key, user.Username, StringComparison.OrdinalIgnoreCase))
+                        .Value;
+                    await File.WriteAllTextAsync(Path.Combine(folder, $"{safeName}_settings.json"),
+                        string.IsNullOrWhiteSpace(settings) ? "{}" : settings);
+                }
+
+                ExamOption.Save(new ObservableCollection<ExamOption>(configuration.Exams ?? new List<ExamOption>()));
+                RoomList.Save(new ObservableCollection<string>(configuration.Rooms ?? new List<string>()));
+
+                machine.WorkstationName = workstation.Name;
+                machine.DefaultUser = defaultUser;
+                machine.LastUser = defaultUser;
+                machine.ConnectLastUser = false;
+                machine.ShiftF9Exam = workstation.ShiftF9Exam;
+                machine.CtrlF9Exam = workstation.CtrlF9Exam;
+                machine.ShiftF10Exam = workstation.ShiftF10Exam;
+                machine.CtrlF10Exam = workstation.CtrlF10Exam;
+                machine.ShiftF11Exam = workstation.ShiftF11Exam;
+                machine.CtrlF11Exam = workstation.CtrlF11Exam;
+                machine.ShiftF12Exam = workstation.ShiftF12Exam;
+                machine.CtrlF12Exam = workstation.CtrlF12Exam;
+                MachineConfig.Save(machine);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                var error = new ContentDialog
+                {
+                    Title = "Import impossible",
+                    Content = new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap },
+                    CloseButtonText = "OK",
+                    XamlRoot = xamlRoot
+                };
+                await error.ShowAsync();
+                return false;
+            }
+        }
+
+        private static async Task<string?> PromptForListSelectionAsync(
+            XamlRoot xamlRoot, string title, string placeholder, IReadOnlyList<string> values)
+        {
+            var combo = new ComboBox
+            {
+                ItemsSource = values,
+                PlaceholderText = placeholder,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = combo,
+                PrimaryButtonText = "Continuer",
+                CloseButtonText = "Annuler",
+                IsPrimaryButtonEnabled = false,
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = xamlRoot
+            };
+            combo.SelectionChanged += (_, _) => dialog.IsPrimaryButtonEnabled = combo.SelectedItem is string;
+            return await dialog.ShowAsync() == ContentDialogResult.Primary
+                ? combo.SelectedItem as string
+                : null;
         }
 
         private void RegisterActivityHandlers(FrameworkElement root)

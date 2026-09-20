@@ -9,6 +9,7 @@ namespace Client.Helpers
     public class MachineConfig
     {
         public string RoomName { get; set; } = string.Empty;
+        public string WorkstationName { get; set; } = string.Empty;
         public string DefaultUser { get; set; } = string.Empty;
         public string LastUser { get; set; } = string.Empty;
         public bool ConnectLastUser { get; set; }

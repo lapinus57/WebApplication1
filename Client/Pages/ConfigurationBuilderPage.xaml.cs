@@ -168,6 +168,54 @@ namespace Client.Pages
             }
         }
 
+        private async void ExportCompleteConfiguration_Click(object sender, RoutedEventArgs e)
+        {
+            if (_users.Count == 0 || _workstations.Count == 0)
+            {
+                CompleteExportStatusText.Text = "Ajoutez au moins un utilisateur et un poste avant l’export complet.";
+                return;
+            }
+
+            if (!TryValidateExamNames(out var validationMessage))
+            {
+                CompleteExportStatusText.Text = validationMessage;
+                return;
+            }
+
+            try
+            {
+                var file = await PickSaveFileAsync(
+                    "Configuration complète EyeChat",
+                    ".eyechatsetup",
+                    $"EyeChat_Configuration_{DateTime.Now:yyyyMMdd_HHmm}");
+                if (file is null)
+                    return;
+
+                var payload = new DeploymentConfiguration
+                {
+                    Users = _users,
+                    UserSettings = new Dictionary<string, string>(_settings, StringComparer.OrdinalIgnoreCase),
+                    Workstations = _workstations.Select(item => new DeploymentWorkstation
+                    {
+                        Name = item.Name,
+                        ShiftF9Exam = item.ShiftF9Exam, CtrlF9Exam = item.CtrlF9Exam,
+                        ShiftF10Exam = item.ShiftF10Exam, CtrlF10Exam = item.CtrlF10Exam,
+                        ShiftF11Exam = item.ShiftF11Exam, CtrlF11Exam = item.CtrlF11Exam,
+                        ShiftF12Exam = item.ShiftF12Exam, CtrlF12Exam = item.CtrlF12Exam
+                    }).ToList(),
+                    Exams = Exams.ToList(),
+                    Rooms = Rooms.ToList()
+                };
+
+                await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));
+                CompleteExportStatusText.Text = $"Configuration complète enregistrée : {file.Name}";
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageAsync("Erreur d’export", $"Impossible d’enregistrer la configuration complète : {ex.Message}");
+            }
+        }
+
         private async void ExportUsers_Click(object sender, RoutedEventArgs e)
         {
             if (_users.Count == 0)
