@@ -229,24 +229,25 @@ namespace Client.Pages
 
                 _syncing = true;
 
-                BackupFile(ExamOption.FilePath);
-                Options.CollectionChanged -= Options_CollectionChanged;
-                foreach (var option in Options)
-                    option.PropertyChanged -= Option_PropertyChanged;
-                Options.Clear();
                 if (configuration.Exams != null)
                 {
+                    BackupFile(ExamOption.FilePath);
+                    Options.CollectionChanged -= Options_CollectionChanged;
+                    foreach (var option in Options)
+                        option.PropertyChanged -= Option_PropertyChanged;
+                    Options.Clear();
                     foreach (var opt in configuration.Exams.OrderBy(o => o.Index))
                     {
                         Options.Add(opt);
                         opt.PropertyChanged += Option_PropertyChanged;
                     }
+
+                    int index = 1;
+                    foreach (var opt in Options)
+                        opt.Index = index++;
+                    Options.CollectionChanged += Options_CollectionChanged;
+                    ExamOption.Save(Options);
                 }
-                int index = 1;
-                foreach (var opt in Options)
-                    opt.Index = index++;
-                Options.CollectionChanged += Options_CollectionChanged;
-                ExamOption.Save(Options);
 
                 BackupFile(RoomList.FilePath);
                 Rooms.CollectionChanged -= Rooms_CollectionChanged;
@@ -489,4 +490,3 @@ namespace Client.Pages
         public List<string>? Rooms { get; set; }
     }
 }
-

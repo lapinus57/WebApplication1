@@ -124,21 +124,28 @@ namespace Client.Pages
                 return;
             }
 
-            var file = await PickSaveFileAsync(
-                "Configuration utilisateurs EyeChat",
-                ".eyechatusers",
-                $"EyeChatUsers_{DateTime.Now:yyyyMMdd_HHmm}");
-            if (file is null)
-                return;
-
-            var payload = new UserConfigurationFile
+            try
             {
-                Users = _users,
-                Settings = _settings
-            };
+                var file = await PickSaveFileAsync(
+                    "Configuration utilisateurs EyeChat",
+                    ".eyechatusers",
+                    $"EyeChatUsers_{DateTime.Now:yyyyMMdd_HHmm}");
+                if (file is null)
+                    return;
 
-            await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));
-            UserStatusText.Text = $"Fichier utilisateurs enregistré : {file.Name}";
+                var payload = new UserConfigurationFile
+                {
+                    Users = _users,
+                    Settings = _settings
+                };
+
+                await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));
+                UserStatusText.Text = $"Fichier utilisateurs enregistré : {file.Name}";
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageAsync("Erreur d'export", $"Impossible d'enregistrer la configuration utilisateurs : {ex.Message}");
+            }
         }
 
         private void AddRoom_Click(object sender, RoutedEventArgs e) => AddRoom();
@@ -189,16 +196,23 @@ namespace Client.Pages
                 return;
             }
 
-            var file = await PickSaveFileAsync(
-                "Configuration EyeChat",
-                ".eyechatconfig",
-                $"EyeChatRooms_{DateTime.Now:yyyyMMdd_HHmm}");
-            if (file is null)
-                return;
+            try
+            {
+                var file = await PickSaveFileAsync(
+                    "Configuration EyeChat",
+                    ".eyechatconfig",
+                    $"EyeChatRooms_{DateTime.Now:yyyyMMdd_HHmm}");
+                if (file is null)
+                    return;
 
-            var payload = new RoomConfigurationFile { Rooms = Rooms.ToList() };
-            await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));
-            RoomStatusText.Text = $"Fichier salles enregistré : {file.Name}";
+                var payload = new RoomConfigurationFile { Rooms = Rooms.ToList() };
+                await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));
+                RoomStatusText.Text = $"Fichier salles enregistré : {file.Name}";
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageAsync("Erreur d'export", $"Impossible d'enregistrer la configuration des salles : {ex.Message}");
+            }
         }
 
         private static async Task<StorageFile?> PickSaveFileAsync(string label, string extension, string suggestedName)
@@ -215,6 +229,23 @@ namespace Client.Pages
             CachedFileManager.DeferUpdates(file);
             await FileIO.WriteTextAsync(file, contents);
             await CachedFileManager.CompleteUpdatesAsync(file);
+        }
+
+        private async Task ShowMessageAsync(string title, string message)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = new TextBlock
+                {
+                    Text = message,
+                    TextWrapping = TextWrapping.Wrap
+                },
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot
+            };
+
+            await dialog.ShowAsync();
         }
     }
 
