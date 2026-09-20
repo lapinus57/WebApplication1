@@ -16,6 +16,7 @@ namespace Client
     {
         public bool IsTopMost { get; private set; }
         private readonly AppWindow _appWindow;
+        private readonly NativeWindowForceCloseMenu _forceCloseMenu;
         private bool _isUpdatingAgendaToggle;
 
         public bool IsChatPageActive => contentFrame.CurrentSourcePageType == typeof(Pages.ChatPage);
@@ -31,6 +32,14 @@ namespace Client
             var hwnd = WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
             _appWindow = AppWindow.GetFromWindowId(windowId);
+            _forceCloseMenu = new NativeWindowForceCloseMenu(hwnd, () =>
+            {
+                if (Application.Current is App app)
+                {
+                    app.RequestForceClose();
+                }
+            });
+            Closed += (_, _) => _forceCloseMenu.Dispose();
             var titleBar = _appWindow.TitleBar;
             nvSample.SelectedItem = nvSample.MenuItems.OfType<NavigationViewItem>()
                 .FirstOrDefault(item => (string)item.Tag == "ChatPage");

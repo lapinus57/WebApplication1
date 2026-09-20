@@ -16,6 +16,8 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Dispatching;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
+using Windows.UI.StartScreen;
 
 namespace Client
 {
@@ -32,6 +34,11 @@ namespace Client
         private DispatcherQueueTimer? _agendaTimer;
         private bool _agendaSwitchInProgress;
         private bool _restartScheduled;
+        private bool _forceCloseRequested;
+        private EventWaitHandle? _forceCloseEvent;
+        private RegisteredWaitHandle? _forceCloseWait;
+        private const string ForceCloseArgument = "--force-close";
+        private const string ForceCloseEventName = @"Local\EyeChat.ForceClose";
         public App()
         {
             this.InitializeComponent();
@@ -58,12 +65,19 @@ namespace Client
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            if (string.Equals(args.Arguments?.Trim(), ForceCloseArgument, StringComparison.OrdinalIgnoreCase))
+            {
+                SignalForceCloseAndExit();
+                return;
+            }
+
             Logger.Log($"[App] Démarrage d'EyeChat ({RuntimeInformation.ProcessArchitecture}, Windows {Environment.OSVersion.Version}).");
 
             try
             {
                 m_window = new MainWindow();
                 MainWindow = m_window;
+                RegisterForceCloseRequest();
 
                 var theme = AppSettings.Get("AppTheme", "Dark");
                 if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
@@ -86,6 +100,7 @@ namespace Client
                 // Show the window before optional integrations are initialized. A keyboard-hook
                 // failure must not prevent EyeChat from opening on a newly configured computer.
                 m_window.Activate();
+                _ = RegisterForceCloseJumpListItemAsync();
 
                 try
                 {
@@ -126,7 +141,12 @@ namespace Client
         {
             HotKeys.Dispose();
 
-            if (_restartScheduled)
+            _forceCloseWait?.Unregister(null);
+            _forceCloseWait = null;
+            _forceCloseEvent?.Dispose();
+            _forceCloseEvent = null;
+
+            if (_restartScheduled || _forceCloseRequested)
                 return;
 
             var config = MachineConfig.Load();
@@ -149,6 +169,76 @@ namespace Client
             catch (Exception ex)
             {
                 Logger.LogException("[App] Auto restart failed", ex, "CLI25");
+            }
+        }
+
+        public void RequestForceClose()
+        {
+            if (_forceCloseRequested)
+                return;
+
+            _forceCloseRequested = true;
+            Logger.Log("[App] Fermeture forcée demandée : le redémarrage automatique est ignoré.");
+            MainWindow?.Close();
+        }
+
+        private void RegisterForceCloseRequest()
+        {
+            _forceCloseEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ForceCloseEventName);
+            _forceCloseWait = ThreadPool.RegisterWaitForSingleObject(
+                _forceCloseEvent,
+                (_, timedOut) =>
+                {
+                    if (!timedOut)
+                    {
+                        MainWindow?.DispatcherQueue.TryEnqueue(RequestForceClose);
+                    }
+                },
+                null,
+                Timeout.Infinite,
+                false);
+        }
+
+        private static void SignalForceCloseAndExit()
+        {
+            try
+            {
+                using var forceCloseEvent = EventWaitHandle.OpenExisting(ForceCloseEventName);
+                forceCloseEvent.Set();
+            }
+            catch (WaitHandleCannotBeOpenedException)
+            {
+                // There is no running EyeChat instance to close.
+            }
+            finally
+            {
+                Environment.Exit(0);
+            }
+        }
+
+        private static async Task RegisterForceCloseJumpListItemAsync()
+        {
+            try
+            {
+                var jumpList = await JumpList.LoadCurrentAsync();
+                var existingItem = jumpList.Items.FirstOrDefault(item =>
+                    string.Equals(item.Arguments, ForceCloseArgument, StringComparison.OrdinalIgnoreCase));
+
+                if (existingItem is null)
+                {
+                    var forceCloseItem = JumpListItem.CreateWithArguments(
+                        ForceCloseArgument,
+                        "Forcer la fermeture");
+                    forceCloseItem.Description = "Ferme EyeChat sans le redémarrer automatiquement";
+                    jumpList.Items.Add(forceCloseItem);
+                    await jumpList.SaveAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Jump lists require a packaged Windows installation. The native system
+                // menu remains available when running unpackaged or from Visual Studio.
+                Logger.LogException("[App] Impossible d'ajouter l'action à la barre des tâches", ex, "CLI27");
             }
         }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
