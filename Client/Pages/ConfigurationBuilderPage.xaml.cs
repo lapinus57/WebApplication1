@@ -325,6 +325,13 @@ namespace Client.Pages
                 return;
             }
 
+            if (!TryValidateExamNames(out var validationMessage))
+            {
+                ExamStatusText.Text = validationMessage;
+                RoomStatusText.Text = validationMessage;
+                return;
+            }
+
             try
             {
                 var file = await PickSaveFileAsync(
@@ -416,8 +423,60 @@ namespace Client.Pages
         {
             if (sender is not Button { DataContext: ExamOption exam }) return;
             Exams.Remove(exam);
+            var clearedShortcutCount = ClearWorkstationExamReferences(exam.Id);
             ReindexExams();
-            ExamStatusText.Text = $"Examen « {exam.DisplayLabel} » supprimé.";
+            ExamStatusText.Text = clearedShortcutCount == 0
+                ? $"Examen « {exam.DisplayLabel} » supprimé."
+                : $"Examen « {exam.DisplayLabel} » supprimé. {clearedShortcutCount} raccourci(s) de poste associé(s) ont été effacés.";
+        }
+
+        private int ClearWorkstationExamReferences(string examId)
+        {
+            var clearedShortcutCount = 0;
+            foreach (var workstation in _workstations)
+            {
+                void ClearIfMatching(string shortcutExamId, Action clear)
+                {
+                    if (!string.Equals(shortcutExamId, examId, StringComparison.OrdinalIgnoreCase))
+                        return;
+
+                    clear();
+                    clearedShortcutCount++;
+                }
+
+                ClearIfMatching(workstation.ShiftF9Exam, () => workstation.ShiftF9Exam = string.Empty);
+                ClearIfMatching(workstation.CtrlF9Exam, () => workstation.CtrlF9Exam = string.Empty);
+                ClearIfMatching(workstation.ShiftF10Exam, () => workstation.ShiftF10Exam = string.Empty);
+                ClearIfMatching(workstation.CtrlF10Exam, () => workstation.CtrlF10Exam = string.Empty);
+                ClearIfMatching(workstation.ShiftF11Exam, () => workstation.ShiftF11Exam = string.Empty);
+                ClearIfMatching(workstation.CtrlF11Exam, () => workstation.CtrlF11Exam = string.Empty);
+                ClearIfMatching(workstation.ShiftF12Exam, () => workstation.ShiftF12Exam = string.Empty);
+                ClearIfMatching(workstation.CtrlF12Exam, () => workstation.CtrlF12Exam = string.Empty);
+            }
+
+            return clearedShortcutCount;
+        }
+
+        private bool TryValidateExamNames(out string message)
+        {
+            if (Exams.Any(exam => string.IsNullOrWhiteSpace(exam.Name)))
+            {
+                message = "Le nom de chaque examen est obligatoire. Corrigez le tableau avant l’export.";
+                return false;
+            }
+
+            var duplicateName = Exams
+                .GroupBy(exam => exam.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(group => group.Count() > 1)
+                ?.Key;
+            if (duplicateName is not null)
+            {
+                message = $"« {duplicateName} » est utilisé par plusieurs examens. Chaque nom doit être unique avant l’export.";
+                return false;
+            }
+
+            message = string.Empty;
+            return true;
         }
 
         private void ReindexExams()
