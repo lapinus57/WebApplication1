@@ -85,12 +85,13 @@
     <PackageCertificateThumbprint>4269B608DC93D7292C12FDC4A5586687001FD255</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-    <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
+    <AppxSymbolPackageEnabled>True</AppxSymbolPackageEnabled>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
-    <AppxBundle>Never</AppxBundle>
+    <AppxBundle>Always</AppxBundle>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <SignAssembly>False</SignAssembly>
     <DefaultLanguage>fr-FR</DefaultLanguage>
     <AppInstallerUri>https://github.com/lapinus57/WebApplication1/releases/latest/download/</AppInstallerUri>
+    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
   </PropertyGroup>
 </Project>
