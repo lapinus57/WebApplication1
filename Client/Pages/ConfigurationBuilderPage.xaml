@@ -4,7 +4,13 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:models="using:Client.Models"
+    xmlns:helpers="using:Client.Helpers"
+    x:Name="PageRoot"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <helpers:StringToColorConverter x:Key="StringToColorConverter"/>
+    </Page.Resources>
 
     <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16">
         <StackPanel Spacing="12">
@@ -60,16 +66,17 @@
                         <TextBox x:Name="WorkstationNameBox" Header="Nom du poste" PlaceholderText="Ex. Consultation 1"/>
                         <TextBlock Text="Raccourcis examens" FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="Sélectionnez un examen existant pour chaque combinaison." Opacity="0.7"/>
-                        <Grid ColumnDefinitions="90,*,*" ColumnSpacing="8" RowSpacing="8">
+                        <Grid ColumnDefinitions="72,*,*" ColumnSpacing="12" RowSpacing="8">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="32"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Maj" HorizontalAlignment="Center"/><TextBlock Grid.Row="0" Grid.Column="2" Text="Ctrl" HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Text="F9"/><ComboBox x:Name="ShiftF9Box" Grid.Row="1" Grid.Column="1" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF9Box" Grid.Row="1" Grid.Column="2" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
-                            <TextBlock Grid.Row="2" Text="F10"/><ComboBox x:Name="ShiftF10Box" Grid.Row="2" Grid.Column="1" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF10Box" Grid.Row="2" Grid.Column="2" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
-                            <TextBlock Grid.Row="3" Text="F11"/><ComboBox x:Name="ShiftF11Box" Grid.Row="3" Grid.Column="1" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF11Box" Grid.Row="3" Grid.Column="2" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
-                            <TextBlock Grid.Row="4" Text="F12"/><ComboBox x:Name="ShiftF12Box" Grid.Row="4" Grid.Column="1" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF12Box" Grid.Row="4" Grid.Column="2" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Maj" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Ctrl" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Text="F9" VerticalAlignment="Center"/><ComboBox x:Name="ShiftF9Box" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF9Box" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
+                            <TextBlock Grid.Row="2" Text="F10" VerticalAlignment="Center"/><ComboBox x:Name="ShiftF10Box" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF10Box" Grid.Row="2" Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
+                            <TextBlock Grid.Row="3" Text="F11" VerticalAlignment="Center"/><ComboBox x:Name="ShiftF11Box" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF11Box" Grid.Row="3" Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
+                            <TextBlock Grid.Row="4" Text="F12" VerticalAlignment="Center"/><ComboBox x:Name="ShiftF12Box" Grid.Row="4" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/><ComboBox x:Name="CtrlF12Box" Grid.Row="4" Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{x:Bind Exams}" DisplayMemberPath="DisplayLabel" SelectedValuePath="Id"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="SaveWorkstationButton" Content="Ajouter ce poste" Click="AddWorkstation_Click"/><Button x:Name="CancelWorkstationEditButton" Content="Annuler la modification" Click="CancelWorkstationEdit_Click" Visibility="Collapsed"/></StackPanel>
                         <ListView ItemsSource="{x:Bind WorkstationNames}" MaxHeight="160"><ListView.ItemTemplate><DataTemplate x:DataType="x:String"><Grid ColumnDefinitions="*,Auto" Padding="0,3"><TextBlock Text="{x:Bind}" VerticalAlignment="Center"/><Button Grid.Column="1" Content="Modifier" Click="EditWorkstation_Click" Tag="{x:Bind}"/></Grid></DataTemplate></ListView.ItemTemplate></ListView>
@@ -80,13 +87,56 @@
             </muxc:TabViewItem>
 
             <muxc:TabViewItem Header="Examens">
-                <StackPanel Spacing="14" Padding="4,12,12,12">
-                    <TextBlock Text="Les examens existants sont chargés automatiquement depuis EyeChat et seront inclus dans le fichier salles." TextWrapping="Wrap"/>
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10"><TextBox x:Name="ExamNameBox" Header="Nom / code de l’examen"/><TextBox x:Name="ExamDescriptionBox" Grid.Column="1" Header="Libellé affiché"/></Grid>
-                    <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="SaveExamButton" Content="Ajouter cet examen" Click="AddExam_Click"/><Button x:Name="CancelExamEditButton" Content="Annuler la modification" Click="CancelExamEdit_Click" Visibility="Collapsed"/><Button Content="Importer un fichier existant" Click="ImportExams_Click"/></StackPanel>
-                    <ListView ItemsSource="{x:Bind Exams}" Height="300"><ListView.ItemTemplate><DataTemplate x:DataType="models:ExamOption"><Grid ColumnDefinitions="*,Auto" Padding="0,4"><StackPanel><TextBlock Text="{x:Bind DisplayLabel}" FontWeight="SemiBold"/><TextBlock Text="{x:Bind Name}" Opacity="0.65"/></StackPanel><Button Grid.Column="1" Content="Modifier" Click="EditExam_Click" Tag="{x:Bind Id}"/></Grid></DataTemplate></ListView.ItemTemplate></ListView>
-                    <TextBlock x:Name="ExamStatusText" TextWrapping="Wrap" Opacity="0.75"/>
-                </StackPanel>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Padding="4,12,12,12">
+                        <TextBlock Text="Les examens existants sont chargés automatiquement depuis EyeChat. Modifiez directement leurs propriétés avant d’exporter la configuration des salles." TextWrapping="Wrap"/>
+                        <Grid Width="1505" ColumnSpacing="5" Padding="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190"/><ColumnDefinition Width="210"/><ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="140"/><ColumnDefinition Width="190"/><ColumnDefinition Width="190"/>
+                                <ColumnDefinition Width="190"/><ColumnDefinition Width="250"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Nom" TextAlignment="Center"/><TextBlock Grid.Column="1" Text="Description" TextAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="Couleur" TextAlignment="Center"/><TextBlock Grid.Column="3" Text="Code clavier" TextAlignment="Center"/>
+                            <TextBlock Grid.Column="4" Text="Annotation" TextAlignment="Center"/><TextBlock Grid.Column="5" Text="Annotation de fin" TextAlignment="Center"/>
+                            <TextBlock Grid.Column="6" Text="Salle" TextAlignment="Center"/><TextBlock Grid.Column="7" Text="Actions" TextAlignment="Center"/>
+                        </Grid>
+                        <ListView ItemsSource="{x:Bind Exams}" SelectionMode="None" MaxHeight="410" Width="1505" HorizontalAlignment="Left">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:ExamOption">
+                                    <Border BorderBrush="Gray" BorderThickness="0,0,0,1">
+                                        <Grid ColumnSpacing="5" Padding="5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="190"/><ColumnDefinition Width="210"/><ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="140"/><ColumnDefinition Width="190"/><ColumnDefinition Width="190"/>
+                                                <ColumnDefinition Width="190"/><ColumnDefinition Width="250"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Text="{x:Bind Name, Mode=TwoWay}"/><TextBox Grid.Column="1" Text="{x:Bind Description, Mode=TwoWay}"/>
+                                            <Button Grid.Column="2" HorizontalAlignment="Stretch">
+                                                <Rectangle Width="32" Height="16" Fill="{x:Bind Color, Converter={StaticResource StringToColorConverter}}" Stroke="Black"/>
+                                                <Button.Flyout><Flyout><ColorPicker Color="{x:Bind Color, Mode=TwoWay, Converter={StaticResource StringToColorConverter}}" ColorChanged="ExamColorPicker_ColorChanged"/></Flyout></Button.Flyout>
+                                            </Button>
+                                            <TextBox Grid.Column="3" Text="{x:Bind CodeMSG, Mode=TwoWay}"/><TextBox Grid.Column="4" Text="{x:Bind Annotation, Mode=TwoWay}"/>
+                                            <TextBox Grid.Column="5" Text="{x:Bind EndAnnotation, Mode=TwoWay}"/>
+                                            <ComboBox Grid.Column="6" HorizontalAlignment="Stretch" ItemsSource="{Binding Rooms, ElementName=PageRoot}" SelectedItem="{x:Bind Floor, Mode=TwoWay}"/>
+                                            <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
+                                                <Button Content="Dupliquer" Click="DuplicateExam_Click"/>
+                                                <Button Content="↑" Click="MoveExamUp_Click" ToolTipService.ToolTip="Monter"/>
+                                                <Button Content="↓" Click="MoveExamDown_Click" ToolTipService.ToolTip="Descendre"/>
+                                                <Button Content="Supprimer" Click="DeleteExam_Click"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Ajouter un examen" Click="AddExam_Click"/>
+                            <Button Content="Importer un fichier existant" Click="ImportExams_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="ExamStatusText" TextWrapping="Wrap" Opacity="0.75"/>
+                    </StackPanel>
+                </ScrollViewer>
             </muxc:TabViewItem>
 
             <muxc:TabViewItem Header="Salles">

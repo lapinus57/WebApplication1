@@ -23,7 +23,6 @@ namespace Client.Pages
         private readonly List<WorkstationConfiguration> _workstations = new();
         private string? _editedUserName;
         private string? _editedWorkstationName;
-        private string? _editedExamId;
 
         public ObservableCollection<string> UserNames { get; } = new();
         public ObservableCollection<string> WorkstationNames { get; } = new();
@@ -347,35 +346,85 @@ namespace Client.Pages
 
         private void AddExam_Click(object sender, RoutedEventArgs e)
         {
-            var name = ExamNameBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(name)) { ExamStatusText.Text = "Le nom de l’examen est obligatoire."; return; }
-            if (Exams.Any(exam => exam.Id != _editedExamId && string.Equals(exam.Name, name, StringComparison.OrdinalIgnoreCase)))
-            { ExamStatusText.Text = $"L’examen « {name} » existe déjà."; return; }
-
-            var exam = Exams.FirstOrDefault(item => item.Id == _editedExamId);
-            if (exam is null)
+            var name = GenerateExamName("Nouvel examen");
+            Exams.Add(new ExamOption
             {
-                exam = new ExamOption { Index = Exams.Count + 1 };
-                Exams.Add(exam);
-            }
-            exam.Name = name;
-            exam.Description = string.IsNullOrWhiteSpace(ExamDescriptionBox.Text) ? name : ExamDescriptionBox.Text.Trim();
-            ExamStatusText.Text = _editedExamId is null ? $"Examen « {exam.DisplayLabel} » ajouté." : $"Examen « {exam.DisplayLabel} » modifié.";
-            ExamNameBox.Text = ExamDescriptionBox.Text = string.Empty;
-            EndExamEdit();
+                Index = Exams.Count + 1,
+                Name = name,
+                Description = name,
+                Color = "#FF0000",
+                CodeMSG = "examen"
+            });
+            ExamStatusText.Text = $"Examen « {name} » ajouté. Vous pouvez modifier ses propriétés dans le tableau.";
         }
 
-        private void EditExam_Click(object sender, RoutedEventArgs e)
+        private string GenerateExamName(string baseName)
         {
-            if (sender is not Button { Tag: string id }) return;
-            var exam = Exams.FirstOrDefault(item => item.Id == id);
-            if (exam is null) return;
-            _editedExamId = id; ExamNameBox.Text = exam.Name; ExamDescriptionBox.Text = exam.Description;
-            SaveExamButton.Content = "Enregistrer les modifications"; CancelExamEditButton.Visibility = Visibility.Visible;
+            if (!Exams.Any(exam => string.Equals(exam.Name, baseName, StringComparison.OrdinalIgnoreCase)))
+                return baseName;
+
+            var suffix = 2;
+            while (Exams.Any(exam => string.Equals(exam.Name, $"{baseName} {suffix}", StringComparison.OrdinalIgnoreCase)))
+                suffix++;
+            return $"{baseName} {suffix}";
         }
 
-        private void CancelExamEdit_Click(object sender, RoutedEventArgs e) { ExamNameBox.Text = ExamDescriptionBox.Text = string.Empty; EndExamEdit(); }
-        private void EndExamEdit() { _editedExamId = null; SaveExamButton.Content = "Ajouter cet examen"; CancelExamEditButton.Visibility = Visibility.Collapsed; }
+        private void ExamColorPicker_ColorChanged(ColorPicker sender, ColorChangedEventArgs args)
+        {
+            if (sender.DataContext is ExamOption exam)
+                exam.Color = ColorUtils.ToHex(args.NewColor);
+        }
+
+        private void DuplicateExam_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { DataContext: ExamOption source }) return;
+            var duplicate = new ExamOption
+            {
+                Name = GenerateExamName(source.Name),
+                Description = source.Description,
+                Color = source.Color,
+                CodeMSG = source.CodeMSG,
+                Annotation = source.Annotation,
+                EndAnnotation = source.EndAnnotation,
+                Floor = source.Floor
+            };
+            var index = Exams.IndexOf(source) + 1;
+            Exams.Insert(index, duplicate);
+            ReindexExams();
+            ExamStatusText.Text = $"Examen « {source.DisplayLabel} » dupliqué.";
+        }
+
+        private void MoveExamUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { DataContext: ExamOption exam }) return;
+            var index = Exams.IndexOf(exam);
+            if (index <= 0) return;
+            Exams.Move(index, index - 1);
+            ReindexExams();
+        }
+
+        private void MoveExamDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { DataContext: ExamOption exam }) return;
+            var index = Exams.IndexOf(exam);
+            if (index < 0 || index >= Exams.Count - 1) return;
+            Exams.Move(index, index + 1);
+            ReindexExams();
+        }
+
+        private void DeleteExam_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { DataContext: ExamOption exam }) return;
+            Exams.Remove(exam);
+            ReindexExams();
+            ExamStatusText.Text = $"Examen « {exam.DisplayLabel} » supprimé.";
+        }
+
+        private void ReindexExams()
+        {
+            for (var index = 0; index < Exams.Count; index++)
+                Exams[index].Index = index + 1;
+        }
 
         private async void ImportExams_Click(object sender, RoutedEventArgs e)
         {
