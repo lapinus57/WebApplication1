@@ -17,6 +17,8 @@
             <Button Content="← Retour" Click="Back_Click" HorizontalAlignment="Left"/>
             <TextBlock Text="Générateur de fichiers de configuration" FontSize="24" FontWeight="Bold"/>
             <TextBlock Text="Préparez ici les utilisateurs, postes, examens et salles à déployer dans EyeChat." Opacity="0.75"/>
+            <Button Content="Exporter la configuration complète" Click="ExportCompleteConfiguration_Click" HorizontalAlignment="Left" Style="{StaticResource AccentButtonStyle}"/>
+            <TextBlock x:Name="CompleteExportStatusText" TextWrapping="Wrap" Opacity="0.75"/>
         </StackPanel>
         <muxc:TabView Grid.Row="1" IsAddTabButtonVisible="False">
             <muxc:TabViewItem Header="Utilisateurs">
