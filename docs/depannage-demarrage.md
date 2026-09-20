@@ -1,5 +1,35 @@
 # EyeChat ne se lance pas après l'installation
 
+## « Erreur d'analyse du package de l'application »
+
+Ce message est affiché par Windows avant le lancement d'EyeChat : réparer ou
+réinitialiser l'application ne peut donc pas le corriger. Supprimez le fichier
+téléchargé, puis téléchargez de nouveau le fichier `.msix` correspondant à votre
+PC depuis la page **Releases**. N'essayez pas d'installer une page web enregistrée
+avec une extension `.msix`, un fichier `.xml` du dossier `BundleArtifacts`, ni le
+contenu décompressé de l'archive de code source.
+
+Vérifiez ensuite les points suivants :
+
+1. Le fichier a une taille cohérente et son nom se termine réellement par
+   `.msix` (et non par `.msix.html` ou `.msix.xml`).
+2. Dans **Propriétés > Signatures numériques**, la signature est présente et
+   valide. Installez le certificat `.cer` fourni avec la même version dans
+   **Ordinateur local > Personnes de confiance** si Windows ne fait pas confiance
+   au certificat de test.
+3. Utilisez `x64` sur la majorité des PC Intel/AMD, `ARM64` sur Windows ARM et
+   `x86` uniquement sur Windows 32 bits.
+
+Si le message persiste, ouvrez PowerShell et exécutez :
+
+```powershell
+Add-AppxPackage -Path .\Client_<version>_x64.msix
+```
+
+Conservez le code d'erreur complet (`0x...`) retourné par PowerShell : il permet
+de distinguer un téléchargement incomplet, un manifeste invalide, une mauvaise
+architecture et un problème de certificat.
+
 ## Vérifications rapides
 
 1. Vérifiez que le PC utilise Windows 10 (1809 ou plus récente) ou Windows 11.

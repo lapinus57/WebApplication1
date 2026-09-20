@@ -21,7 +21,9 @@
   </Properties>
 
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+    <!-- EyeChat is a WinUI desktop application that runs with full trust.  Do not
+         declare the overlapping Windows.Universal family: some deployment
+         versions reject that combination while parsing the MSIX manifest. -->
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
   </Dependencies>
 
