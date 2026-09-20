@@ -14,11 +14,15 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Dispatching;
+using System.Runtime.InteropServices;
 
 namespace Client
 {
     public partial class App : Application
     {
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
+
         public static SignalRService ChatService { get; } = new SignalRService();
         public static Window? MainWindow { get; private set; }
         public static string UserName { get; set; } = string.Empty;
@@ -52,29 +56,68 @@ namespace Client
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            m_window = new MainWindow();
-            MainWindow = m_window;
-            HotKeys.Start();
+            Logger.Log($"[App] Démarrage d'EyeChat ({RuntimeInformation.ProcessArchitecture}, Windows {Environment.OSVersion.Version}).");
 
-            var theme = AppSettings.Get("AppTheme", "Dark");
-            if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
+            try
             {
-                if (m_window.Content is FrameworkElement rootElement)
+                m_window = new MainWindow();
+                MainWindow = m_window;
+
+                var theme = AppSettings.Get("AppTheme", "Dark");
+                if (Enum.TryParse<ApplicationTheme>(theme, out var appTheme))
                 {
-                    rootElement.RequestedTheme =
-                        appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+                    if (m_window.Content is FrameworkElement rootElement)
+                    {
+                        rootElement.RequestedTheme =
+                            appTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+                    }
                 }
+
+                m_window.Closed += (_, __) => HotKeys.Dispose();
+                ChatService.Dispatcher = m_window.DispatcherQueue;
+                ChatService.OnMessageReceived += ChatService_OnMessageReceived;
+                // Register handler once the window root has loaded so XamlRoot is valid
+                if (m_window.Content is FrameworkElement windowRoot)
+                {
+                    windowRoot.Loaded += MainWindow_Loaded;
+                }
+                // Show the window before optional integrations are initialized. A keyboard-hook
+                // failure must not prevent EyeChat from opening on a newly configured computer.
+                m_window.Activate();
+
+                try
+                {
+                    HotKeys.Start();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogException("[App] Global keyboard shortcuts could not be initialized", ex, "CLI25");
+                }
+
+                Logger.Log("[App] Fenêtre principale activée.");
             }
-            m_window.Closed += (_, __) => HotKeys.Dispose();
-            ChatService.Dispatcher = m_window.DispatcherQueue;
-            ChatService.OnMessageReceived += ChatService_OnMessageReceived;
-            // Register handler once the window root has loaded so XamlRoot is valid
-            if (m_window.Content is FrameworkElement windowRoot)
+            catch (Exception ex)
             {
-                windowRoot.Loaded += MainWindow_Loaded;
+                Logger.LogException("[App] Startup failed", ex, "CLI26");
+                ShowStartupError();
             }
-            // Show the window immediately
-            m_window.Activate();
+        }
+
+        private static void ShowStartupError()
+        {
+            var message =
+                "EyeChat n'a pas pu démarrer.\n\n" +
+                "Le diagnostic a été enregistré ici :\n" + Logger.LogPath + "\n\n" +
+                "Transmettez ce fichier au support EyeChat (code CLI26).";
+
+            try
+            {
+                MessageBox(IntPtr.Zero, message, "Erreur de démarrage EyeChat", 0x00000010);
+            }
+            catch
+            {
+                // Logging remains available even if Windows cannot display the fallback dialog.
+            }
         }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
