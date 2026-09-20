@@ -53,6 +53,51 @@ namespace Client.Helpers
         public int PickupAlertThresholdMinutes { get; set; }
 
         /// <summary>
+        /// Exam shortcuts are workstation settings: they must remain unchanged when the
+        /// connected EyeChat user changes.
+        /// </summary>
+        public string ShiftF9Exam { get; set; } = string.Empty;
+        public string CtrlF9Exam { get; set; } = string.Empty;
+        public string ShiftF10Exam { get; set; } = string.Empty;
+        public string CtrlF10Exam { get; set; } = string.Empty;
+        public string ShiftF11Exam { get; set; } = string.Empty;
+        public string CtrlF11Exam { get; set; } = string.Empty;
+        public string ShiftF12Exam { get; set; } = string.Empty;
+        public string CtrlF12Exam { get; set; } = string.Empty;
+
+        public string GetExamShortcut(string key) => key switch
+        {
+            nameof(ShiftF9Exam) => ShiftF9Exam,
+            nameof(CtrlF9Exam) => CtrlF9Exam,
+            nameof(ShiftF10Exam) => ShiftF10Exam,
+            nameof(CtrlF10Exam) => CtrlF10Exam,
+            nameof(ShiftF11Exam) => ShiftF11Exam,
+            nameof(CtrlF11Exam) => CtrlF11Exam,
+            nameof(ShiftF12Exam) => ShiftF12Exam,
+            nameof(CtrlF12Exam) => CtrlF12Exam,
+            _ => string.Empty
+        };
+
+        public bool SetExamShortcut(string key, string value)
+        {
+            value ??= string.Empty;
+            switch (key)
+            {
+                case nameof(ShiftF9Exam): ShiftF9Exam = value; break;
+                case nameof(CtrlF9Exam): CtrlF9Exam = value; break;
+                case nameof(ShiftF10Exam): ShiftF10Exam = value; break;
+                case nameof(CtrlF10Exam): CtrlF10Exam = value; break;
+                case nameof(ShiftF11Exam): ShiftF11Exam = value; break;
+                case nameof(CtrlF11Exam): CtrlF11Exam = value; break;
+                case nameof(ShiftF12Exam): ShiftF12Exam = value; break;
+                case nameof(CtrlF12Exam): CtrlF12Exam = value; break;
+                default: return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// OLE DB provider to use when connecting to the Access database.
         /// </summary>
         public string AccessOleDbProvider { get; set; } = "Microsoft.ACE.OLEDB.12.0";

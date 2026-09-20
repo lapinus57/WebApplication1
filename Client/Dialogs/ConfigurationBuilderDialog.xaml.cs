@@ -20,8 +20,10 @@ namespace Client.Dialogs
     {
         private readonly List<UserInfo> _users = new();
         private readonly Dictionary<string, string> _settings = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<WorkstationConfiguration> _workstations = new();
 
         public ObservableCollection<string> UserNames { get; } = new();
+        public ObservableCollection<string> WorkstationNames { get; } = new();
         public ObservableCollection<string> Rooms { get; } = new();
 
         public ConfigurationBuilderDialog()
@@ -80,15 +82,7 @@ namespace Client.Dialogs
             ["ShortcutF8Refraction"] = F8RefractionBox.Text,
             ["ShortcutF8Lentilles"] = F8LentillesBox.Text,
             ["ShortcutF8Pathologies"] = F8PathologiesBox.Text,
-            ["ShortcutF8Orthoptie"] = F8OrthoptieBox.Text,
-            ["ShiftF9Exam"] = ShiftF9Box.Text,
-            ["CtrlF9Exam"] = CtrlF9Box.Text,
-            ["ShiftF10Exam"] = ShiftF10Box.Text,
-            ["CtrlF10Exam"] = CtrlF10Box.Text,
-            ["ShiftF11Exam"] = ShiftF11Box.Text,
-            ["CtrlF11Exam"] = CtrlF11Box.Text,
-            ["ShiftF12Exam"] = ShiftF12Box.Text,
-            ["CtrlF12Exam"] = CtrlF12Box.Text
+            ["ShortcutF8Orthoptie"] = F8OrthoptieBox.Text
         };
 
         private void ClearUserForm()
@@ -101,9 +95,7 @@ namespace Client.Dialogs
                 F5RefractionBox, F5LentillesBox, F5PathologiesBox, F5OrthoptieBox,
                 F6RefractionBox, F6LentillesBox, F6PathologiesBox, F6OrthoptieBox,
                 F7RefractionBox, F7LentillesBox, F7PathologiesBox, F7OrthoptieBox,
-                F8RefractionBox, F8LentillesBox, F8PathologiesBox, F8OrthoptieBox,
-                ShiftF9Box, CtrlF9Box, ShiftF10Box, CtrlF10Box,
-                ShiftF11Box, CtrlF11Box, ShiftF12Box, CtrlF12Box
+                F8RefractionBox, F8LentillesBox, F8PathologiesBox, F8OrthoptieBox
             })
             {
                 box.Text = string.Empty;
@@ -133,6 +125,35 @@ namespace Client.Dialogs
 
             await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));
             UserStatusText.Text = $"Fichier utilisateurs enregistré : {file.Name}";
+        }
+
+        private void AddWorkstation_Click(object sender, RoutedEventArgs e)
+        {
+            var name = WorkstationNameBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(name) || _workstations.Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                WorkstationStatusText.Text = string.IsNullOrWhiteSpace(name) ? "Le nom du poste est obligatoire." : $"« {name} » existe déjà.";
+                return;
+            }
+            _workstations.Add(new WorkstationConfiguration
+            {
+                Name = name, ShiftF9Exam = ShiftF9Box.Text.Trim(), CtrlF9Exam = CtrlF9Box.Text.Trim(),
+                ShiftF10Exam = ShiftF10Box.Text.Trim(), CtrlF10Exam = CtrlF10Box.Text.Trim(),
+                ShiftF11Exam = ShiftF11Box.Text.Trim(), CtrlF11Exam = CtrlF11Box.Text.Trim(),
+                ShiftF12Exam = ShiftF12Box.Text.Trim(), CtrlF12Exam = CtrlF12Box.Text.Trim()
+            });
+            WorkstationNames.Add(name);
+            WorkstationStatusText.Text = $"Poste « {name} » ajouté.";
+            WorkstationNameBox.Text = string.Empty;
+        }
+
+        private async void ExportWorkstations_Click(object sender, RoutedEventArgs e)
+        {
+            if (_workstations.Count == 0) { WorkstationStatusText.Text = "Ajoutez au moins un poste avant l’export."; return; }
+            var file = await PickSaveFileAsync("Configuration postes EyeChat", ".eyechatpostes", $"EyeChatPostes_{DateTime.Now:yyyyMMdd_HHmm}");
+            if (file is null) return;
+            await WriteFileAsync(file, JsonConvert.SerializeObject(new WorkstationConfigurationFile { Workstations = _workstations }, Formatting.Indented));
+            WorkstationStatusText.Text = $"Fichier postes enregistré : {file.Name}";
         }
 
         private void AddRoom_Click(object sender, RoutedEventArgs e) => AddRoom();
@@ -216,6 +237,24 @@ namespace Client.Dialogs
     {
         public List<UserInfo> Users { get; set; } = new();
         public Dictionary<string, string> Settings { get; set; } = new();
+    }
+
+    internal sealed class WorkstationConfigurationFile
+    {
+        public List<WorkstationConfiguration> Workstations { get; set; } = new();
+    }
+
+    internal sealed class WorkstationConfiguration
+    {
+        public string Name { get; set; } = string.Empty;
+        public string ShiftF9Exam { get; set; } = string.Empty;
+        public string CtrlF9Exam { get; set; } = string.Empty;
+        public string ShiftF10Exam { get; set; } = string.Empty;
+        public string CtrlF10Exam { get; set; } = string.Empty;
+        public string ShiftF11Exam { get; set; } = string.Empty;
+        public string CtrlF11Exam { get; set; } = string.Empty;
+        public string ShiftF12Exam { get; set; } = string.Empty;
+        public string CtrlF12Exam { get; set; } = string.Empty;
     }
 
     internal sealed class RoomConfigurationFile

@@ -12,7 +12,7 @@
             <muxc:TabViewItem Header="Utilisateurs">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="14" Padding="4,12,12,12">
-                        <TextBlock Text="Créez chaque utilisateur, paramétrez ses raccourcis puis exportez un fichier .eyechatusers importable depuis la page Système."
+                        <TextBlock Text="Créez chaque utilisateur, paramétrez ses raccourcis d’en-tête puis exportez un fichier .eyechatusers importable depuis la page Système."
                                    TextWrapping="Wrap"/>
                         <Grid ColumnDefinitions="*,120" ColumnSpacing="12">
                             <TextBox x:Name="UserNameBox" Header="Nom de l'utilisateur" PlaceholderText="Ex. Dr Dupont"/>
@@ -35,24 +35,32 @@
                             <TextBlock Grid.Row="4" Text="F8" VerticalAlignment="Center"/><TextBox x:Name="F8RefractionBox" Grid.Row="4" Grid.Column="1"/><TextBox x:Name="F8LentillesBox" Grid.Row="4" Grid.Column="2"/><TextBox x:Name="F8PathologiesBox" Grid.Row="4" Grid.Column="3"/><TextBox x:Name="F8OrthoptieBox" Grid.Row="4" Grid.Column="4"/>
                         </Grid>
 
+                        <Button Content="Ajouter cet utilisateur" Click="AddUser_Click" HorizontalAlignment="Left"/>
+                        <ListView ItemsSource="{x:Bind UserNames}" MaxHeight="120"/>
+                        <TextBlock x:Name="UserStatusText" TextWrapping="Wrap" Opacity="0.75"/>
+                        <Button Content="Exporter le fichier utilisateurs" Click="ExportUsers_Click" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </muxc:TabViewItem>
+
+            <muxc:TabViewItem Header="Postes">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="14" Padding="4,12,12,12">
+                        <TextBlock Text="Créez les postes et leurs raccourcis examens F9 à F12, indépendamment des utilisateurs." TextWrapping="Wrap"/>
+                        <TextBox x:Name="WorkstationNameBox" Header="Nom du poste" PlaceholderText="Ex. Consultation 1"/>
                         <TextBlock Text="Raccourcis examens" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="Saisissez l'identifiant de l'examen associé à chaque combinaison." Opacity="0.7"/>
                         <Grid ColumnDefinitions="90,*,*" ColumnSpacing="8" RowSpacing="8">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Maj" HorizontalAlignment="Center"/><TextBlock Grid.Row="0" Grid.Column="2" Text="Ctrl" HorizontalAlignment="Center"/>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Maj"/><TextBlock Grid.Row="0" Grid.Column="2" Text="Ctrl"/>
                             <TextBlock Grid.Row="1" Text="F9"/><TextBox x:Name="ShiftF9Box" Grid.Row="1" Grid.Column="1"/><TextBox x:Name="CtrlF9Box" Grid.Row="1" Grid.Column="2"/>
                             <TextBlock Grid.Row="2" Text="F10"/><TextBox x:Name="ShiftF10Box" Grid.Row="2" Grid.Column="1"/><TextBox x:Name="CtrlF10Box" Grid.Row="2" Grid.Column="2"/>
                             <TextBlock Grid.Row="3" Text="F11"/><TextBox x:Name="ShiftF11Box" Grid.Row="3" Grid.Column="1"/><TextBox x:Name="CtrlF11Box" Grid.Row="3" Grid.Column="2"/>
                             <TextBlock Grid.Row="4" Text="F12"/><TextBox x:Name="ShiftF12Box" Grid.Row="4" Grid.Column="1"/><TextBox x:Name="CtrlF12Box" Grid.Row="4" Grid.Column="2"/>
                         </Grid>
-
-                        <Button Content="Ajouter cet utilisateur" Click="AddUser_Click" HorizontalAlignment="Left"/>
-                        <ListView ItemsSource="{x:Bind UserNames}" MaxHeight="120"/>
-                        <TextBlock x:Name="UserStatusText" TextWrapping="Wrap" Opacity="0.75"/>
-                        <Button Content="Exporter le fichier utilisateurs" Click="ExportUsers_Click" HorizontalAlignment="Left"/>
+                        <Button Content="Ajouter ce poste" Click="AddWorkstation_Click" HorizontalAlignment="Left"/>
+                        <ListView ItemsSource="{x:Bind WorkstationNames}" MaxHeight="120"/>
+                        <TextBlock x:Name="WorkstationStatusText" TextWrapping="Wrap" Opacity="0.75"/>
+                        <Button Content="Exporter le fichier postes" Click="ExportWorkstations_Click" HorizontalAlignment="Left"/>
                     </StackPanel>
                 </ScrollViewer>
             </muxc:TabViewItem>
