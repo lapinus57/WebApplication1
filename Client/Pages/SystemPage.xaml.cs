@@ -290,16 +290,7 @@ namespace Client.Pages
             if (!await EnsurePasswordAsync(sender as FrameworkElement))
                 return;
 
-            var xamlRoot = GetXamlRoot(sender as FrameworkElement);
-            if (xamlRoot is null)
-                return;
-
-            var dialog = new ConfigurationBuilderDialog
-            {
-                XamlRoot = xamlRoot
-            };
-
-            await dialog.ShowAsync();
+            Frame.Navigate(typeof(ConfigurationBuilderPage));
         }
 
         private async Task RefreshLocalUserListAsync()
