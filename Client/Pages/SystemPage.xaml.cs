@@ -285,6 +285,23 @@ namespace Client.Pages
             await RefreshLocalUserListAsync();
         }
 
+        private async void CreateConfiguration_Click(object sender, RoutedEventArgs e)
+        {
+            if (!await EnsurePasswordAsync(sender as FrameworkElement))
+                return;
+
+            var xamlRoot = GetXamlRoot(sender as FrameworkElement);
+            if (xamlRoot is null)
+                return;
+
+            var dialog = new ConfigurationBuilderDialog
+            {
+                XamlRoot = xamlRoot
+            };
+
+            await dialog.ShowAsync();
+        }
+
         private async Task RefreshLocalUserListAsync()
         {
             var comparer = StringComparer.OrdinalIgnoreCase;
