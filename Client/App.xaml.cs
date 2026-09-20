@@ -65,7 +65,11 @@ namespace Client
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            if (string.Equals(args.Arguments?.Trim(), ForceCloseArgument, StringComparison.OrdinalIgnoreCase))
+            // Depending on how the packaged desktop application is activated, Windows can
+            // expose a jump-list argument either here or only on the process command line.
+            // Check both before creating the main window; otherwise the helper activation
+            // briefly becomes a second, fully initialized EyeChat instance.
+            if (IsForceCloseActivation(args.Arguments, Environment.GetCommandLineArgs()))
             {
                 SignalForceCloseAndExit();
                 return;
@@ -180,6 +184,27 @@ namespace Client
             _forceCloseRequested = true;
             Logger.Log("[App] Fermeture forcée demandée : le redémarrage automatique est ignoré.");
             MainWindow?.Close();
+        }
+
+        internal static bool IsForceCloseActivation(string? launchArguments, IEnumerable<string> commandLineArguments)
+        {
+            if (ContainsForceCloseArgument(launchArguments))
+                return true;
+
+            return commandLineArguments.Any(argument =>
+                string.Equals(argument.Trim().Trim('"'), ForceCloseArgument, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool ContainsForceCloseArgument(string? arguments)
+        {
+            if (string.IsNullOrWhiteSpace(arguments))
+                return false;
+
+            return arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Any(argument => string.Equals(
+                    argument.Trim().Trim('"'),
+                    ForceCloseArgument,
+                    StringComparison.OrdinalIgnoreCase));
         }
 
         private void RegisterForceCloseRequest()
