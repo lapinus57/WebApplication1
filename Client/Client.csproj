@@ -7,24 +7,26 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-    <PlatformTarget Condition="'$(PlatformTarget)' == ''">x86</PlatformTarget>
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x86</RuntimeIdentifier>
+    <!-- x64 is the safe default for current Intel/AMD Windows PCs. The publish
+         profiles override both values when producing x86 or ARM64 packages. -->
+    <PlatformTarget Condition="'$(PlatformTarget)' == ''">x64</PlatformTarget>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-		<DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_BREAK_ON_UNHANDLED_EXCEPTION</DefineConstants>
-	</PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_BREAK_ON_UNHANDLED_EXCEPTION</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <None Remove="Pages\SystemPage.xaml" />
   </ItemGroup>
   <ItemGroup>
-          <Content Include="Assets\earth.png" />
-          <Content Include="Assets\EyeChat.png" />
-          <Content Include="Assets\secretaria.png" />
-	      <Content Include="Assets\utilisateur.png" />
+    <Content Include="Assets\earth.png" />
+    <Content Include="Assets\EyeChat.png" />
+    <Content Include="Assets\secretaria.png" />
+    <Content Include="Assets\utilisateur.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -74,16 +76,15 @@
 
   <!-- Publish Properties -->
   <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
-    <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
+    <!-- WinUI/XAML relies on types discovered at runtime. Trimming can remove
+         them and produce an MSIX that installs correctly but fails at launch. -->
+    <PublishReadyToRun>False</PublishReadyToRun>
+    <PublishTrimmed>False</PublishTrimmed>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
-    <PackageCertificateThumbprint>6CE002E3425FBF5FF43209D015175A964FD83406</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>4269B608DC93D7292C12FDC4A5586687001FD255</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-    <AppxPackageDir>E:\dialoguev2\WebApplication1\Client\bin\x32fi\Package\net8.0-windows10.0.19041.0\win-x64\AppPackages\</AppxPackageDir>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundle>Never</AppxBundle>
