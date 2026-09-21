@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
@@ -73,6 +74,7 @@ namespace Client.Pages
             }
 
             var existing = _users.FirstOrDefault(user => string.Equals(user.Username, _editedUserName, StringComparison.OrdinalIgnoreCase));
+            _settings.TryGetValue(_editedUserName ?? username, out var existingSettings);
             var user = existing ?? new UserInfo
             {
                 Username = username,
@@ -93,10 +95,8 @@ namespace Client.Pages
                 existing.DisplayName = username;
                 UserNames[listIndex] = username;
             }
-            _settings[username] = System.Text.Json.JsonSerializer.Serialize(BuildSettings(), new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            user.Avatar = string.IsNullOrWhiteSpace(user.Avatar) ? UserInfo.DefaultAvatar : user.Avatar;
+            _settings[username] = BuildSettingsJson(username, existingSettings);
 
             UserStatusText.Text = _editedUserName is null ? $"Utilisateur « {username} » ajouté ({_users.Count} au total)." : $"Utilisateur « {username} » modifié.";
             ClearUserForm();
@@ -110,7 +110,7 @@ namespace Client.Pages
             UserNameBox.Text = name;
             if (_settings.TryGetValue(name, out var json))
             {
-                var values = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
+                var values = JObject.Parse(json);
                 InitialsBox.Text = GetValue(values, "Initials");
                 var boxes = UserShortcutBoxes();
                 foreach (var (key, box) in boxes) box.Text = GetValue(values, key);
@@ -121,7 +121,7 @@ namespace Client.Pages
 
         private void CancelUserEdit_Click(object sender, RoutedEventArgs e) { ClearUserForm(); EndUserEdit(); }
         private void EndUserEdit() { _editedUserName = null; SaveUserButton.Content = "Ajouter cet utilisateur"; CancelUserEditButton.Visibility = Visibility.Collapsed; }
-        private static string GetValue(Dictionary<string, string> values, string key) => values.TryGetValue(key, out var value) ? value : string.Empty;
+        private static string GetValue(JObject values, string key) => values.Value<string>(key) ?? string.Empty;
         private IEnumerable<(string Key, TextBox Box)> UserShortcutBoxes()
         {
             yield return ("ShortcutF5Refraction", F5RefractionBox); yield return ("ShortcutF5Lentilles", F5LentillesBox); yield return ("ShortcutF5Pathologies", F5PathologiesBox); yield return ("ShortcutF5Orthoptie", F5OrthoptieBox);
@@ -130,26 +130,22 @@ namespace Client.Pages
             yield return ("ShortcutF8Refraction", F8RefractionBox); yield return ("ShortcutF8Lentilles", F8LentillesBox); yield return ("ShortcutF8Pathologies", F8PathologiesBox); yield return ("ShortcutF8Orthoptie", F8OrthoptieBox);
         }
 
-        private Dictionary<string, string> BuildSettings() => new()
+        private string BuildSettingsJson(string username, string? existingSettings)
         {
-            ["Initials"] = InitialsBox.Text.Trim(),
-            ["ShortcutF5Refraction"] = F5RefractionBox.Text,
-            ["ShortcutF5Lentilles"] = F5LentillesBox.Text,
-            ["ShortcutF5Pathologies"] = F5PathologiesBox.Text,
-            ["ShortcutF5Orthoptie"] = F5OrthoptieBox.Text,
-            ["ShortcutF6Refraction"] = F6RefractionBox.Text,
-            ["ShortcutF6Lentilles"] = F6LentillesBox.Text,
-            ["ShortcutF6Pathologies"] = F6PathologiesBox.Text,
-            ["ShortcutF6Orthoptie"] = F6OrthoptieBox.Text,
-            ["ShortcutF7Refraction"] = F7RefractionBox.Text,
-            ["ShortcutF7Lentilles"] = F7LentillesBox.Text,
-            ["ShortcutF7Pathologies"] = F7PathologiesBox.Text,
-            ["ShortcutF7Orthoptie"] = F7OrthoptieBox.Text,
-            ["ShortcutF8Refraction"] = F8RefractionBox.Text,
-            ["ShortcutF8Lentilles"] = F8LentillesBox.Text,
-            ["ShortcutF8Pathologies"] = F8PathologiesBox.Text,
-            ["ShortcutF8Orthoptie"] = F8OrthoptieBox.Text
-        };
+            var settings = string.IsNullOrWhiteSpace(existingSettings)
+                ? new JObject()
+                : JObject.Parse(existingSettings);
+
+            settings["SelectedUser"] = username;
+            settings["Avatar"] = string.IsNullOrWhiteSpace(settings.Value<string>("Avatar"))
+                ? UserInfo.DefaultAvatar
+                : settings.Value<string>("Avatar");
+            settings["Initials"] = InitialsBox.Text.Trim();
+            foreach (var (key, box) in UserShortcutBoxes())
+                settings[key] = box.Text;
+
+            return settings.ToString(Formatting.Indented);
+        }
 
         private void ClearUserForm()
         {
@@ -168,6 +164,117 @@ namespace Client.Pages
             }
         }
 
+        private async void ImportCompleteConfiguration_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".eyechatsetup");
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+            var file = await picker.PickSingleFileAsync();
+            if (file is null)
+                return;
+
+            try
+            {
+                var payload = JsonConvert.DeserializeObject<DeploymentConfiguration>(await FileIO.ReadTextAsync(file))
+                    ?? throw new InvalidOperationException("Le fichier de configuration est vide ou invalide.");
+                var users = (payload.Users ?? new List<UserInfo>())
+                    .Where(user => !string.IsNullOrWhiteSpace(user.Username))
+                    .GroupBy(user => user.Username.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .ToList();
+                if (users.Count == 0)
+                    throw new InvalidOperationException("Le fichier ne contient aucun utilisateur.");
+
+                var importedSettings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var user in users)
+                {
+                    user.Username = user.Username.Trim();
+                    user.DisplayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Username : user.DisplayName;
+                    user.Avatar = string.IsNullOrWhiteSpace(user.Avatar) ? UserInfo.DefaultAvatar : user.Avatar;
+                    var settings = payload.UserSettings?
+                        .FirstOrDefault(entry => string.Equals(entry.Key, user.Username, StringComparison.OrdinalIgnoreCase))
+                        .Value;
+                    importedSettings[user.Username] = NormalizeUserSettings(settings, user.Username);
+                }
+
+                _users.Clear();
+                _users.AddRange(users);
+                UserNames.Clear();
+                foreach (var user in users)
+                    UserNames.Add(user.Username);
+
+                _settings.Clear();
+                foreach (var entry in importedSettings)
+                    _settings[entry.Key] = entry.Value;
+
+                _workstations.Clear();
+                WorkstationNames.Clear();
+                foreach (var item in (payload.Workstations ?? new List<DeploymentWorkstation>()).Where(item => !string.IsNullOrWhiteSpace(item.Name)))
+                {
+                    var workstation = new WorkstationConfiguration
+                    {
+                        Name = item.Name.Trim(),
+                        ShiftF9Exam = item.ShiftF9Exam, CtrlF9Exam = item.CtrlF9Exam,
+                        ShiftF10Exam = item.ShiftF10Exam, CtrlF10Exam = item.CtrlF10Exam,
+                        ShiftF11Exam = item.ShiftF11Exam, CtrlF11Exam = item.CtrlF11Exam,
+                        ShiftF12Exam = item.ShiftF12Exam, CtrlF12Exam = item.CtrlF12Exam
+                    };
+                    _workstations.Add(workstation);
+                    WorkstationNames.Add(workstation.Name);
+                }
+
+                ReplaceExams(payload.Exams ?? new List<ExamOption>());
+                Rooms.Clear();
+                foreach (var room in (payload.Rooms ?? new List<string>()).Where(room => !string.IsNullOrWhiteSpace(room)).Distinct(StringComparer.OrdinalIgnoreCase))
+                    Rooms.Add(room.Trim());
+
+                ClearUserForm();
+                EndUserEdit();
+                ClearWorkstationForm();
+                EndWorkstationEdit();
+                CompleteExportStatusText.Text =
+                    $"Configuration « {file.Name} » chargée : {users.Count} utilisateur(s), " +
+                    $"{_workstations.Count} poste(s), {Exams.Count} examen(s) et {Rooms.Count} salle(s).";
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageAsync("Erreur d’import", $"Impossible d’importer la configuration : {ex.Message}");
+            }
+        }
+
+        private static string NormalizeUserSettings(string? settingsJson, string username)
+        {
+            var settings = string.IsNullOrWhiteSpace(settingsJson)
+                ? new JObject()
+                : JObject.Parse(settingsJson);
+            settings["SelectedUser"] = username;
+            if (string.IsNullOrWhiteSpace(settings.Value<string>("Avatar")))
+                settings["Avatar"] = UserInfo.DefaultAvatar;
+            return settings.ToString(Formatting.Indented);
+        }
+
+        private void NormalizeUsersForExport()
+        {
+            foreach (var user in _users)
+            {
+                if (string.IsNullOrWhiteSpace(user.Avatar))
+                    user.Avatar = UserInfo.DefaultAvatar;
+            }
+        }
+
+        private Dictionary<string, string> BuildNormalizedSettingsForExport()
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var user in _users)
+            {
+                _settings.TryGetValue(user.Username, out var settings);
+                var normalized = NormalizeUserSettings(settings, user.Username);
+                _settings[user.Username] = normalized;
+                result[user.Username] = normalized;
+            }
+            return result;
+        }
+
         private async void ExportCompleteConfiguration_Click(object sender, RoutedEventArgs e)
         {
             if (_users.Count == 0 || _workstations.Count == 0)
@@ -184,6 +291,7 @@ namespace Client.Pages
 
             try
             {
+                NormalizeUsersForExport();
                 var file = await PickSaveFileAsync(
                     "Configuration complète EyeChat",
                     ".eyechatsetup",
@@ -194,7 +302,7 @@ namespace Client.Pages
                 var payload = new DeploymentConfiguration
                 {
                     Users = _users,
-                    UserSettings = new Dictionary<string, string>(_settings, StringComparer.OrdinalIgnoreCase),
+                    UserSettings = BuildNormalizedSettingsForExport(),
                     Workstations = _workstations.Select(item => new DeploymentWorkstation
                     {
                         Name = item.Name,
@@ -226,6 +334,7 @@ namespace Client.Pages
 
             try
             {
+                NormalizeUsersForExport();
                 var file = await PickSaveFileAsync(
                     "Configuration utilisateurs EyeChat",
                     ".eyechatusers",
@@ -236,7 +345,7 @@ namespace Client.Pages
                 var payload = new UserConfigurationFile
                 {
                     Users = _users,
-                    Settings = _settings
+                    Settings = BuildNormalizedSettingsForExport()
                 };
 
                 await WriteFileAsync(file, JsonConvert.SerializeObject(payload, Formatting.Indented));

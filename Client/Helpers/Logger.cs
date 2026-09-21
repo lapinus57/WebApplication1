@@ -1,18 +1,38 @@
 using System;
 using System.IO;
 using System.Text;
+using Windows.Storage;
 
 namespace Client.Helpers
 {
     public static class Logger
     {
         private static readonly object _sync = new();
-        private static readonly string _logPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "EyeChat",
-            "app.log");
+        private static readonly string _logPath = ResolveLogPath();
 
         public static string LogPath => _logPath;
+
+        private static string ResolveLogPath()
+        {
+            try
+            {
+                // A packaged desktop application can redirect %LOCALAPPDATA% writes to
+                // LocalCache. LocalFolder gives us the package's explicit LocalState path,
+                // which is stable and can be shown verbatim in startup error messages.
+                var packageDataPath = ApplicationData.Current.LocalFolder.Path;
+                if (!string.IsNullOrWhiteSpace(packageDataPath))
+                    return Path.Combine(packageDataPath, "EyeChat", "app.log");
+            }
+            catch
+            {
+                // ApplicationData is unavailable when the client runs unpackaged.
+            }
+
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EyeChat",
+                "app.log");
+        }
 
         public static void Log(string message)
         {

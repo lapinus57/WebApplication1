@@ -59,6 +59,11 @@ namespace Client.Helpers
                         if (response.IsSuccessStatusCode)
                             Interlocked.CompareExchange(ref found, $"http://{ip}:{port}", null);
                     }
+                    catch (Exception ex) when (ex is OperationCanceledException or PingException or HttpRequestException)
+                    {
+                        // Most addresses on the subnet are expected not to answer. A probe
+                        // timeout or connection failure is not an application error.
+                    }
                     catch (Exception ex)
                     {
                         Logger.LogException("[NetworkScanner] Probe failed", ex, "CLI23");

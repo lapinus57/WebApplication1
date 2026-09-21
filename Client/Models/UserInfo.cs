@@ -8,9 +8,11 @@ namespace Client.Models
 {
     public class UserInfo : INotifyPropertyChanged
     {
+        public const string DefaultAvatar = "ms-appx:///Assets/utilisateur.png";
+
         public string ConnectionId { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
-        public string Avatar { get; set; } = string.Empty;
+        public string Avatar { get; set; } = DefaultAvatar;
         private ObservableCollection<string> _rooms = new();
         private string _colorUserName = string.Empty;
         private string _accentAwareColorUserName = string.Empty;

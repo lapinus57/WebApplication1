@@ -278,13 +278,13 @@ namespace Client.Services
         private string ToClientAvatar(string? avatar)
         {
             if (string.IsNullOrWhiteSpace(avatar))
-                return string.Empty;
+                return UserInfo.DefaultAvatar;
             if (Uri.TryCreate(avatar, UriKind.RelativeOrAbsolute, out var uri))
             {
                 if (!uri.IsAbsoluteUri && avatar.StartsWith("/"))
                     return $"{ServerAddress}{avatar}";
             }
-            return avatar ?? string.Empty;
+            return avatar ?? UserInfo.DefaultAvatar;
         }
 
         public async Task InitializeAsync()
