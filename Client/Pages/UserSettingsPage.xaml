@@ -17,7 +17,7 @@
         <helpers:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
 
         <DataTemplate x:Key="AvatarTemplate">
-            <Image Source="{Binding}" Width="60" Height="60"/>
+            <Image Source="{Binding Converter={StaticResource StringToImageSourceConverter}}" Width="60" Height="60"/>
         </DataTemplate>
 
         <DataTemplate x:Key="ExamOptionTemplate" x:DataType="models:ExamOption">
@@ -47,7 +47,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                 <TextBlock Text="Avatar:" VerticalAlignment="Center"/>
 
-                <Image Source="{x:Bind ViewModelSettings.Avatar, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
+                <Image Source="{Binding Avatar, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
 
                 <Button Content="Changer..." Click="ChangeAvatar_Click"/>
             </StackPanel>

@@ -40,10 +40,6 @@ namespace Client
                 }
             });
             Closed += (_, _) => _forceCloseMenu.Dispose();
-            var titleBar = _appWindow.TitleBar;
-            nvSample.SelectedItem = nvSample.MenuItems.OfType<NavigationViewItem>()
-                .FirstOrDefault(item => (string)item.Tag == "ChatPage");
-            contentFrame.Navigate(typeof(Pages.ChatPage));
             RefreshAgendaSwitchState();
 
         }

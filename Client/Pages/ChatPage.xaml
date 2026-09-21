@@ -10,6 +10,7 @@
 
     <Page.Resources>
         <helpers:StringToColorConverter x:Key="StringToColorConverter" />
+        <helpers:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
         <MenuFlyout x:Key="MessageContextMenu" Opened="MessageContextMenu_Opened">
             <MenuFlyoutItem Text="Copier la sélection" Click="CopySelection_Click" />
             <MenuFlyoutItem Text="Tout sélectionner" Click="SelectAll_Click" />
@@ -19,7 +20,7 @@
             <StackPanel HorizontalAlignment="Left">
                 <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{ThemeResource OtherMessageColor}" ContextFlyout="{StaticResource MessageContextMenu}">
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                        <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                        <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
                             <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                                 <Paragraph>
@@ -40,7 +41,7 @@
             <StackPanel HorizontalAlignment="Left">
                 <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Left" Background="{x:Bind SenderColor, Converter={StaticResource StringToColorConverter}}" ContextFlyout="{StaticResource MessageContextMenu}">
                     <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                        <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                        <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
                         <StackPanel MinWidth="200">
                             <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                                 <Paragraph>
@@ -60,7 +61,7 @@
         <DataTemplate x:Key="MyMessageTemplate" x:DataType="data:ChatMessageModel">
             <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{ThemeResource MyMessageColor}" ContextFlyout="{StaticResource MessageContextMenu}">
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                    <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
+                    <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
                         <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                             <Paragraph>
@@ -79,7 +80,7 @@
         <DataTemplate x:Key="MyColoredMessageTemplate" x:DataType="data:ChatMessageModel">
             <Border CornerRadius="10" Padding="10" Margin="5" MaxWidth="800" HorizontalAlignment="Right" Background="{x:Bind SenderColor, Converter={StaticResource StringToColorConverter}}" ContextFlyout="{StaticResource MessageContextMenu}">
                 <StackPanel Orientation="Horizontal" Spacing="10" MinWidth="180">
-                    <Image Source="{x:Bind Avatar}" Width="40" Height="40" VerticalAlignment="Top"/>
+                    <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40" VerticalAlignment="Top"/>
                     <StackPanel MinWidth="200">
                         <RichTextBlock IsTextSelectionEnabled="True" MaxWidth="500" ContextFlyout="{StaticResource MessageContextMenu}"  Loaded="{x:Bind FormatContent}" DataContextChanged="Message_DataContextChanged">
                             <Paragraph>
@@ -218,7 +219,7 @@
         </MenuFlyout>
         <DataTemplate x:Key="UserTemplate" x:DataType="data:UserInfo">
             <StackPanel Orientation="Horizontal" Spacing="8" Padding="4">
-                <Image Source="{x:Bind Avatar}" Width="32" Height="32"/>
+                <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="32" Height="32"/>
                 <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
                            Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}"/>
             </StackPanel>
@@ -428,7 +429,7 @@
                                 Spacing="10"
                                 Padding="5"
                                 ContextFlyout="{StaticResource UserContextMenu}">
-                            <Image Source="{x:Bind Avatar}" Width="40" Height="40"/>
+                            <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
                             <StackPanel>
                                 <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}" FontWeight="Bold"/>
                                 <TextBlock Text="{x:Bind RoomsDisplay, Mode=OneWay, FallbackValue='Hors ligne'}"

@@ -22,7 +22,7 @@ namespace Client.Models
         public string Destinataire { get; set; } = string.Empty;
         public string Room { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
-        public string Avatar { get; set; } = string.Empty;
+        public string Avatar { get; set; } = UserInfo.DefaultAvatar;
 
         private string _senderColor = string.Empty;
         public string SenderColor

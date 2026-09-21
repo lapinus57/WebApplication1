@@ -18,7 +18,7 @@ namespace Client.ViewModel
         private string _appTheme = "Dark";
         private string _colorUserName = "Black";
         private string _initials = string.Empty;
-        private string _avatar = "ms-appx:///Assets/utilisateur.png";
+        private string _avatar = UserInfo.DefaultAvatar;
         private string _shortcutF5Refraction = string.Empty;
         private string _shortcutF5Lentilles = string.Empty;
         private string _shortcutF5Pathologies = string.Empty;
@@ -403,7 +403,7 @@ namespace Client.ViewModel
             ApplyTheme(_appTheme);
             _colorUserName = Get("ColorUserName");
             _initials = Get("Initials");
-            _avatar = Get("Avatar");
+            _avatar = AppSettings.Get("Avatar", UserInfo.DefaultAvatar);
             if (string.IsNullOrWhiteSpace(_initials))
             {
                 _initials = string.Concat(App.UserName.Split(' ', StringSplitOptions.RemoveEmptyEntries)

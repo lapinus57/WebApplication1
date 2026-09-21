@@ -45,13 +45,35 @@ architecture et un problème de certificat.
 
 ## Récupérer le diagnostic
 
-EyeChat écrit son journal dans le fichier suivant :
+À partir de la prochaine version, l'application installée écrit son journal dans
+son dossier de données Windows :
 
 ```text
-%LOCALAPPDATA%\EyeChat\app.log
+%LOCALAPPDATA%\Packages\<famille-du-package-EyeChat>\LocalState\EyeChat\app.log
 ```
 
-Collez ce chemin dans la barre d'adresse de l'Explorateur de fichiers, puis transmettez `app.log` au support. Depuis cette version, une erreur survenant pendant la création de la fenêtre affiche également ce chemin et le code `CLI26`. Une impossibilité d'activer les raccourcis clavier globaux est enregistrée avec le code `CLI25`, mais elle ne bloque plus l'ouverture de l'application.
+Le chemin complet réellement utilisé est affiché dans le message d'erreur de
+démarrage. Pour les versions antérieures, dont la version `0.1.32.0`, Windows
+peut avoir redirigé `%LOCALAPPDATA%\EyeChat` dans le cache privé du paquet :
+
+```text
+%LOCALAPPDATA%\Packages\<famille-du-package-EyeChat>\LocalCache\Local\EyeChat\app.log
+```
+
+Pour retrouver le fichier sans connaître le nom de famille du paquet, exécutez
+la commande suivante dans PowerShell :
+
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter app.log -Recurse -ErrorAction SilentlyContinue |
+    Where-Object FullName -Match 'EyeChat|a919e7cf-8df8-4c86-843a-a89bdf523ccd' |
+    Select-Object -ExpandProperty FullName
+```
+
+Ouvrez le chemin retourné, puis transmettez `app.log` au support. Une erreur
+survenant pendant la création ou l'initialisation de la fenêtre affiche également
+le chemin du log et le code `CLI26` ou `CLI28`. Une impossibilité d'activer les raccourcis clavier globaux
+est enregistrée avec le code `CLI25`, mais elle ne bloque plus l'ouverture de
+l'application.
 
 ## Si aucun journal n'est créé
 

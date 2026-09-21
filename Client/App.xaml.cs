@@ -22,6 +22,7 @@ using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.ObjectModel;
 
 namespace Client
@@ -287,6 +288,26 @@ namespace Client
             root.Loaded -= MainWindow_Loaded;
             RegisterActivityHandlers(root);
 
+            try
+            {
+                await InitializeMainWindowAsync(root);
+
+                // Delay creation of ChatPage until the first-run dialogs are closed and
+                // a user has been selected. Loading the page earlier starts its own async
+                // XAML/SignalR initialization while a ContentDialog is active, which can
+                // surface as an uncatchable Microsoft.UI.Xaml.dll stowed exception.
+                if (!string.IsNullOrWhiteSpace(UserName) && MainWindow is MainWindow window)
+                    window.ShowChatPage();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[App] Main window initialization failed", ex, "CLI28");
+                await ShowInitializationErrorAsync(root.XamlRoot);
+            }
+        }
+
+        private async Task InitializeMainWindowAsync(FrameworkElement root)
+        {
             var isFirstRun = !File.Exists(MachineConfig.FilePath)
                 && !File.Exists(Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -428,6 +449,35 @@ namespace Client
             RefreshAgendaTimer();
         }
 
+        private static async Task ShowInitializationErrorAsync(XamlRoot? xamlRoot)
+        {
+            if (xamlRoot is null)
+                return;
+
+            try
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Initialisation impossible",
+                    Content = new TextBlock
+                    {
+                        Text = "EyeChat n’a pas pu terminer son initialisation. " +
+                               $"Le diagnostic a été enregistré dans {Logger.LogPath} (code CLI28).",
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    CloseButtonText = "Fermer",
+                    XamlRoot = xamlRoot
+                };
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                // A dialog may already be closing when initialization fails. Logging the
+                // secondary error is safer than allowing an async event handler to crash.
+                Logger.LogException("[App] Initialization error dialog failed", ex, "CLI29");
+            }
+        }
+
         private static async Task<bool> PromptForInitialConfigurationAsync(XamlRoot xamlRoot, MachineConfig machine)
         {
             var welcome = new ContentDialog
@@ -483,6 +533,9 @@ namespace Client
                     string.Equals(item.Name, workstationName, StringComparison.OrdinalIgnoreCase));
                 var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat");
                 Directory.CreateDirectory(folder);
+                foreach (var user in users.Where(user => string.IsNullOrWhiteSpace(user.Avatar)))
+                    user.Avatar = UserInfo.DefaultAvatar;
+
                 await File.WriteAllTextAsync(Path.Combine(folder, "users.json"),
                     JsonConvert.SerializeObject(users, Formatting.Indented));
 
@@ -494,8 +547,9 @@ namespace Client
                     var settings = configuration.UserSettings?
                         .FirstOrDefault(entry => string.Equals(entry.Key, user.Username, StringComparison.OrdinalIgnoreCase))
                         .Value;
-                    await File.WriteAllTextAsync(Path.Combine(folder, $"{safeName}_settings.json"),
-                        string.IsNullOrWhiteSpace(settings) ? "{}" : settings);
+                    await File.WriteAllTextAsync(
+                        Path.Combine(folder, $"{safeName}_settings.json"),
+                        NormalizeImportedUserSettings(settings, user.Username));
                 }
 
                 ExamOption.Save(new ObservableCollection<ExamOption>(configuration.Exams ?? new List<ExamOption>()));
@@ -528,6 +582,21 @@ namespace Client
                 await error.ShowAsync();
                 return false;
             }
+        }
+
+        private static string NormalizeImportedUserSettings(string? settings, string username)
+        {
+            var document = string.IsNullOrWhiteSpace(settings)
+                ? new JObject()
+                : JObject.Parse(settings);
+
+            if (string.IsNullOrWhiteSpace(document.Value<string>("Avatar")))
+                document["Avatar"] = UserInfo.DefaultAvatar;
+
+            if (string.IsNullOrWhiteSpace(document.Value<string>("SelectedUser")))
+                document["SelectedUser"] = username;
+
+            return document.ToString(Formatting.Indented);
         }
 
         private static async Task<string?> PromptForListSelectionAsync(
