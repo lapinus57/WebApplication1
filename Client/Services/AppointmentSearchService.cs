@@ -155,11 +155,55 @@ namespace Client.Services
             DateTime end,
             CancellationToken cancellationToken)
         {
-            var entries = new List<AppointmentEntry>();
             await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
+            var dateColumns = EnumerateDateColumnCandidates().ToList();
+            OleDbException? firstError = null;
+
+            for (var index = 0; index < dateColumns.Count; index++)
+            {
+                try
+                {
+                    return await LoadExistingAppointmentsAsync(
+                        connection,
+                        dateColumns[index],
+                        start,
+                        end,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (OleDbException ex) when (index < dateColumns.Count - 1)
+                {
+                    // Access reports an unknown field as a missing query parameter. Some
+                    // installations still use the historical DateRdv field while newer
+                    // databases use Date, so try the other known schema before failing.
+                    firstError ??= ex;
+                }
+            }
+
+            throw firstError ?? new InvalidOperationException("Impossible de lire les rendez-vous dans la base Access.");
+        }
+
+        private IEnumerable<string> EnumerateDateColumnCandidates()
+        {
+            yield return _config.DateColumn;
+
+            if (string.Equals(_config.DateColumn, "Date", StringComparison.OrdinalIgnoreCase))
+                yield return "DateRdv";
+            else if (string.Equals(_config.DateColumn, "DateRdv", StringComparison.OrdinalIgnoreCase))
+                yield return "Date";
+        }
+
+        private async Task<List<AppointmentEntry>> LoadExistingAppointmentsAsync(
+            OleDbConnection connection,
+            string dateColumn,
+            DateTime start,
+            DateTime end,
+            CancellationToken cancellationToken)
+        {
+            var entries = new List<AppointmentEntry>();
+
             await using var command = connection.CreateCommand();
-            command.CommandText = $"SELECT [{_config.DateColumn}], [{_config.TimeColumn}], [{_config.ColorColumn}] FROM [{_config.TableName}] WHERE [{_config.DateColumn}] BETWEEN ? AND ?";
+            command.CommandText = $"SELECT [{dateColumn}], [{_config.TimeColumn}], [{_config.ColorColumn}] FROM [{_config.TableName}] WHERE [{dateColumn}] BETWEEN ? AND ?";
             command.Parameters.Add(new OleDbParameter("@start", OleDbType.Date) { Value = start.Date });
             command.Parameters.Add(new OleDbParameter("@end", OleDbType.Date) { Value = end.Date });
 
