@@ -582,6 +582,11 @@ namespace Client.Services
                 });
             });
 
+            connection.On("GroupsUpdated", () =>
+            {
+                Dispatcher?.TryEnqueue(async () => await RefreshGroupsAsync());
+            });
+
             connection.On<List<string>>("UserListOrder", order =>
             {
                 Dispatcher?.TryEnqueue(() =>
@@ -1828,6 +1833,45 @@ namespace Client.Services
             }
         }
 
+        /// <summary>
+        /// Registers every user from an imported configuration on the server, including
+        /// the automatic A Tous membership and the optional Secrétariat membership.
+        /// </summary>
+        public async Task<bool> ImportConfiguredUsersAsync(
+            IEnumerable<UserInfo> users,
+            IReadOnlyDictionary<string, string>? settings = null)
+        {
+            if (!TryGetActiveConnection(out var connection))
+                return false;
+
+            var importedUsers = users
+                .Where(user => !string.IsNullOrWhiteSpace(user.Username) && !IsProtectedUser(user.Username))
+                .GroupBy(user => user.Username.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+
+            try
+            {
+                await connection.InvokeAsync("ImportConfiguredUsers", importedUsers);
+                if (settings != null)
+                {
+                    foreach (var user in importedUsers)
+                    {
+                        var entry = settings.FirstOrDefault(item =>
+                            string.Equals(item.Key, user.Username, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrWhiteSpace(entry.Key))
+                            await connection.InvokeAsync("SaveUserSettings", user.Username, entry.Value ?? string.Empty);
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur import utilisateurs vers le serveur : {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task<string> GetUserSettingsAsync(string username)
         {
             if (!TryGetActiveConnection(out var connection))
@@ -2115,6 +2159,36 @@ namespace Client.Services
             {
                 Debug.WriteLine($"Erreur r\u00e9cup\u00e9ration groupes : {ex.Message}");
                 return new Dictionary<string, List<string>>();
+            }
+        }
+
+        public async Task<string> CreateGroupAsync(string groupName, bool isPublic, string password, string applicationPassword)
+        {
+            if (!TryGetActiveConnection(out var connection))
+                return "Le serveur est indisponible.";
+            try
+            {
+                return await connection.InvokeAsync<string>("CreateGroup", groupName, isPublic, password, applicationPassword);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur création groupe : {ex.Message}");
+                return "Impossible de créer le groupe.";
+            }
+        }
+
+        public async Task<string> AddUserToGroupAsync(string username, string groupName, string password, string applicationPassword)
+        {
+            if (!TryGetActiveConnection(out var connection))
+                return "Le serveur est indisponible.";
+            try
+            {
+                return await connection.InvokeAsync<string>("AddUserToGroup", username, groupName, password, applicationPassword);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur ajout au groupe : {ex.Message}");
+                return "Impossible d’ajouter l’utilisateur au groupe.";
             }
         }
 

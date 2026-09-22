@@ -571,7 +571,11 @@ namespace Client.Pages
                 }
 
                 await RefreshLocalUserListAsync();
-                await ShowInfoDialogAsync("Import terminé", $"Configuration utilisateurs importée ({users.Count} utilisateur(s)).", xamlRoot);
+                var serverUpdated = await App.ChatService.ImportConfiguredUsersAsync(users, configuration.Settings);
+                var serverStatus = serverUpdated
+                    ? " Le serveur a également été mis à jour."
+                    : " Le serveur est indisponible ; les données restent enregistrées localement.";
+                await ShowInfoDialogAsync("Import terminé", $"Configuration utilisateurs importée ({users.Count} utilisateur(s)).{serverStatus}", xamlRoot);
             }
             catch (Exception ex)
             {

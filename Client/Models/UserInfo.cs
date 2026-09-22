@@ -102,6 +102,9 @@ namespace Client.Models
 
         public string Note { get; set; } = string.Empty;
 
+        /// <summary>Indicates that this user belongs to the shared Secrétariat group.</summary>
+        public bool IsSecretariat { get; set; }
+
         /// <summary>
         /// Convenience property returning <see cref="DisplayName"/> if set or
         /// <see cref="Username"/> otherwise.
@@ -171,6 +174,7 @@ namespace Client.Models
                 Avatar = Avatar,
                 ColorUserName = ColorUserName,
                 Note = Note,
+                IsSecretariat = IsSecretariat,
                 IsOnline = IsOnline,
                 Status = Status,
                 CanRenameLocalUser = CanRenameLocalUser

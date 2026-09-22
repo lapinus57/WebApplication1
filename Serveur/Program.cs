@@ -70,11 +70,50 @@ using (var scope = app.Services.CreateScope())
     EnsureReminderColumn(db, logger);
     EnsureAppointmentSearchColumn(db, logger);
     EnsureKnownUsersTable(db, logger);
+    EnsureSecureGroupTypeColumn(db, logger);
     CleanupKnownUsers(db, logger);
     if (!db.ServerConfigs.Any())
     {
         db.ServerConfigs.Add(new ServerConfig());
         db.SaveChanges();
+    }
+}
+
+void EnsureSecureGroupTypeColumn(ChatDbContext db, ILogger logger)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        if (!TableExists(connection, "SecureGroups", logger))
+            return;
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info('SecureGroups')";
+        using var reader = cmd.ExecuteReader();
+        var exists = false;
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), "IsPublic", StringComparison.OrdinalIgnoreCase))
+            {
+                exists = true;
+                break;
+            }
+        }
+        reader.Close();
+        if (!exists)
+        {
+            cmd.CommandText = "ALTER TABLE SecureGroups ADD COLUMN IsPublic INTEGER NOT NULL DEFAULT 0";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER15: Failed to ensure SecureGroups contains IsPublic column.");
+        throw;
+    }
+    finally
+    {
+        connection.Close();
     }
 }
 

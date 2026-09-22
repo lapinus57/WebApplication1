@@ -14,5 +14,6 @@ namespace ChatServeur
         public bool IsOnline { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Note { get; set; } = string.Empty;
+        public bool IsSecretariat { get; set; }
     }
 }

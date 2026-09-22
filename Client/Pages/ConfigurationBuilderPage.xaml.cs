@@ -96,6 +96,7 @@ namespace Client.Pages
                 UserNames[listIndex] = username;
             }
             user.Avatar = string.IsNullOrWhiteSpace(user.Avatar) ? UserInfo.DefaultAvatar : user.Avatar;
+            user.IsSecretariat = SecretariatCheckBox.IsChecked == true;
             _settings[username] = BuildSettingsJson(username, existingSettings);
 
             UserStatusText.Text = _editedUserName is null ? $"Utilisateur « {username} » ajouté ({_users.Count} au total)." : $"Utilisateur « {username} » modifié.";
@@ -108,6 +109,8 @@ namespace Client.Pages
             if (sender is not Button { Tag: string name }) return;
             _editedUserName = name;
             UserNameBox.Text = name;
+            SecretariatCheckBox.IsChecked = _users.First(user =>
+                string.Equals(user.Username, name, StringComparison.OrdinalIgnoreCase)).IsSecretariat;
             if (_settings.TryGetValue(name, out var json))
             {
                 var values = JObject.Parse(json);
@@ -151,6 +154,7 @@ namespace Client.Pages
         {
             UserNameBox.Text = string.Empty;
             InitialsBox.Text = string.Empty;
+            SecretariatCheckBox.IsChecked = false;
 
             foreach (var box in new[]
             {
