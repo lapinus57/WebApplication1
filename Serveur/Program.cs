@@ -69,6 +69,7 @@ using (var scope = app.Services.CreateScope())
     EnsureUserSettingsTable(db, logger);
     EnsureReminderColumn(db, logger);
     EnsureAppointmentSearchColumn(db, logger);
+    EnsureDeploymentConfigurationColumn(db, logger);
     EnsureKnownUsersTable(db, logger);
     EnsureSecureGroupTypeColumn(db, logger);
     CleanupKnownUsers(db, logger);
@@ -76,6 +77,36 @@ using (var scope = app.Services.CreateScope())
     {
         db.ServerConfigs.Add(new ServerConfig());
         db.SaveChanges();
+    }
+}
+
+void EnsureDeploymentConfigurationColumn(ChatDbContext db, ILogger logger)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
+        using var reader = cmd.ExecuteReader();
+        var exists = false;
+        while (reader.Read())
+            exists |= string.Equals(reader.GetString(1), "DeploymentConfigurationJson", StringComparison.OrdinalIgnoreCase);
+        reader.Close();
+        if (!exists)
+        {
+            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN DeploymentConfigurationJson TEXT NOT NULL DEFAULT ''";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER17: Failed to ensure deployment configuration column exists.");
+        throw;
+    }
+    finally
+    {
+        connection.Close();
     }
 }
 
@@ -443,6 +474,14 @@ app.MapGet("/api/discovery", (HttpResponse response) =>
 {
     response.Headers.Append("X-EyeChat-Server", "1");
     return Results.Ok(new { service = "EyeChat", version = 1 });
+});
+app.MapGet("/api/configuration", async (ChatDbContext db) =>
+{
+    var config = await db.ServerConfigs.AsNoTracking().SingleOrDefaultAsync();
+    if (string.IsNullOrWhiteSpace(config?.DeploymentConfigurationJson))
+        return Results.NoContent();
+
+    return Results.Content(config.DeploymentConfigurationJson, "application/json");
 });
 app.MapHub<ChatHub>("/chatHub");
 

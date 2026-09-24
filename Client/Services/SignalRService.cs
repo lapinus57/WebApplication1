@@ -1840,7 +1840,8 @@ namespace Client.Services
         public async Task<bool> ImportConfiguredUsersAsync(
             IEnumerable<UserInfo> users,
             IReadOnlyDictionary<string, string>? settings,
-            string applicationPassword)
+            string applicationPassword,
+            DeploymentConfiguration? deploymentConfiguration = null)
         {
             if (!TryGetActiveConnection(out var connection))
                 return false;
@@ -1854,6 +1855,11 @@ namespace Client.Services
             try
             {
                 await connection.InvokeAsync("ImportConfiguredUsers", importedUsers, applicationPassword);
+                if (deploymentConfiguration is not null)
+                    await connection.InvokeAsync(
+                        "SaveDeploymentConfiguration",
+                        JsonConvert.SerializeObject(deploymentConfiguration),
+                        applicationPassword);
                 if (settings != null)
                 {
                     foreach (var user in importedUsers)

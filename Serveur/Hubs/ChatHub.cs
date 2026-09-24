@@ -983,6 +983,29 @@ namespace ChatServeur
             await Clients.All.SendAsync("UserListUpdated", BaseUsers.Concat(AllUsers.Values).ToList());
         }
 
+        public async Task SaveDeploymentConfiguration(string configurationJson, string applicationPassword)
+        {
+            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+                throw new HubException("Mot de passe de l’application incorrect.");
+
+            var deployment = JsonSerializer.Deserialize<DeploymentConfiguration>(configurationJson)
+                ?? throw new HubException("La configuration de déploiement est invalide.");
+            if (deployment.Users.Count == 0 || deployment.Workstations.Count == 0)
+                throw new HubException("La configuration doit contenir au moins un utilisateur et un poste.");
+
+            var config = await _db.ServerConfigs.SingleOrDefaultAsync();
+            if (config is null)
+            {
+                config = new ServerConfig();
+                _db.ServerConfigs.Add(config);
+            }
+
+            config.DeploymentConfigurationJson = configurationJson;
+            config.ExamOptionsJson = JsonSerializer.Serialize(deployment.Exams);
+            config.RoomsJson = JsonSerializer.Serialize(deployment.Rooms);
+            await _db.SaveChangesAsync();
+        }
+
         private async Task SetImportedMembershipAsync(string username, string groupName, bool isMember)
         {
             var membership = await _db.GroupMemberships.FirstOrDefaultAsync(item =>
