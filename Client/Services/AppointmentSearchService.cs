@@ -180,7 +180,10 @@ namespace Client.Services
                 }
             }
 
-            throw firstError ?? new InvalidOperationException("Impossible de lire les rendez-vous dans la base Access.");
+            if (firstError is not null)
+                throw firstError;
+
+            throw new InvalidOperationException("Impossible de lire les rendez-vous dans la base Access.");
         }
 
         private IEnumerable<string> EnumerateDateColumnCandidates()
