@@ -12,8 +12,13 @@
                     <TextBlock Text="Adresse du serveur"/>
                     <TextBox x:Name="AddressBox" Text="{x:Bind ServerAddress, Mode=TwoWay}"/>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Content="Chercher un serveur" Click="Search_Click"/>
+                        <Button x:Name="SearchButton" Content="Chercher un serveur" Click="Search_Click"/>
+                        <Button x:Name="CancelSearchButton" Content="Annuler" Click="CancelSearch_Click" Visibility="Collapsed"/>
                         <Button Content="Sauvegarder" Click="Save_Click"/>
+                    </StackPanel>
+                    <StackPanel x:Name="SearchStatusPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                        <ProgressRing x:Name="SearchProgress" Width="18" Height="18" IsActive="False"/>
+                        <TextBlock x:Name="SearchStatusText" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

@@ -439,6 +439,11 @@ void CleanupKnownUsers(ChatDbContext db, ILogger logger)
 }
 
 app.MapRazorPages();
+app.MapGet("/api/discovery", (HttpResponse response) =>
+{
+    response.Headers.Append("X-EyeChat-Server", "1");
+    return Results.Ok(new { service = "EyeChat", version = 1 });
+});
 app.MapHub<ChatHub>("/chatHub");
 
 app.Run();
