@@ -7,5 +7,6 @@ namespace ChatServeur
         public string RoomsJson { get; set; } = string.Empty;
         public string ReminderJson { get; set; } = string.Empty;
         public string AppointmentSearchJson { get; set; } = string.Empty;
+        public string DeploymentConfigurationJson { get; set; } = string.Empty;
     }
 }

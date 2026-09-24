@@ -24,6 +24,7 @@ using WinRT.Interop;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Collections.ObjectModel;
+using System.Net.Http;
 
 namespace Client
 {
@@ -449,9 +450,14 @@ namespace Client
                     var serverUpdated = await ChatService.ImportConfiguredUsersAsync(
                         importedConfiguration.Users,
                         importedConfiguration.UserSettings,
-                        _pendingImportedConfigurationPassword ?? string.Empty);
+                        _pendingImportedConfigurationPassword ?? string.Empty,
+                        importedConfiguration);
                     if (serverUpdated)
                     {
+                        // InitializeAsync may have received an empty configuration from a new
+                        // server just before the imported deployment was published.
+                        ExamOption.Save(new ObservableCollection<ExamOption>(importedConfiguration.Exams));
+                        RoomList.Save(new ObservableCollection<string>(importedConfiguration.Rooms));
                         _pendingImportedConfiguration = null;
                         _pendingImportedConfigurationPassword = null;
                     }
@@ -496,6 +502,10 @@ namespace Client
 
         private async Task<bool> PromptForInitialConfigurationAsync(XamlRoot xamlRoot, MachineConfig machine)
         {
+            var serverConfiguration = await FindAndLoadServerConfigurationAsync();
+            if (serverConfiguration is not null)
+                return await ApplyDeploymentConfigurationAsync(xamlRoot, machine, serverConfiguration, publishToServer: false);
+
             var welcome = new ContentDialog
             {
                 Title = "Première configuration d’EyeChat",
@@ -526,16 +536,88 @@ namespace Client
             try
             {
                 var configuration = JsonConvert.DeserializeObject<DeploymentConfiguration>(await FileIO.ReadTextAsync(file));
-                var users = configuration?.Users?
+                if (configuration is null)
+                    throw new InvalidDataException("Le fichier de configuration est invalide.");
+
+                return await ApplyDeploymentConfigurationAsync(xamlRoot, machine, configuration, publishToServer: true);
+            }
+            catch (Exception ex)
+            {
+                var error = new ContentDialog
+                {
+                    Title = "Import impossible",
+                    Content = new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap },
+                    CloseButtonText = "OK",
+                    XamlRoot = xamlRoot
+                };
+                await error.ShowAsync();
+                return false;
+            }
+        }
+
+        private async Task<DeploymentConfiguration?> FindAndLoadServerConfigurationAsync()
+        {
+            var address = ChatService.ServerAddress;
+            var configuration = await TryLoadServerConfigurationAsync(address);
+            if (configuration.Found)
+                return configuration.Configuration;
+
+            var detected = await NetworkScanner.FindServerAsync();
+            if (!string.IsNullOrWhiteSpace(detected))
+            {
+                address = detected;
+                ChatService.ServerAddress = address;
+                ConnectionConfig.Save(new ConnectionConfig { ServerAddress = address });
+            }
+
+            if (string.IsNullOrWhiteSpace(address))
+                return null;
+
+            configuration = await TryLoadServerConfigurationAsync(address);
+            return configuration.Configuration;
+        }
+
+        private static async Task<(bool Found, DeploymentConfiguration? Configuration)> TryLoadServerConfigurationAsync(
+            string? address)
+        {
+            if (string.IsNullOrWhiteSpace(address))
+                return (false, null);
+
+            try
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                using var response = await http.GetAsync($"{address.TrimEnd('/')}/api/configuration");
+                if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                    return (true, null);
+                response.EnsureSuccessStatusCode();
+                return (true, JsonConvert.DeserializeObject<DeploymentConfiguration>(
+                    await response.Content.ReadAsStringAsync()));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[App] Lecture de la configuration du serveur impossible", ex, "CLI30");
+                return (false, null);
+            }
+        }
+
+        private async Task<bool> ApplyDeploymentConfigurationAsync(
+            XamlRoot xamlRoot,
+            MachineConfig machine,
+            DeploymentConfiguration configuration,
+            bool publishToServer)
+        {
+            try
+            {
+                var users = configuration.Users?
                     .Where(user => !string.IsNullOrWhiteSpace(user.Username))
                     .GroupBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
                     .ToList() ?? new List<UserInfo>();
-                var workstations = configuration?.Workstations?
+                var workstations = configuration.Workstations?
                     .Where(item => !string.IsNullOrWhiteSpace(item.Name))
                     .ToList() ?? new List<DeploymentWorkstation>();
 
-                if (configuration is null || users.Count == 0 || workstations.Count == 0)
+                if (users.Count == 0 || workstations.Count == 0)
                     throw new InvalidDataException("Le fichier doit contenir au moins un utilisateur et un poste.");
 
                 var workstationName = await PromptForListSelectionAsync(
@@ -587,8 +669,11 @@ namespace Client
                 machine.ShiftF12Exam = workstation.ShiftF12Exam;
                 machine.CtrlF12Exam = workstation.CtrlF12Exam;
                 MachineConfig.Save(machine);
-                _pendingImportedConfiguration = configuration;
-                _pendingImportedConfigurationPassword = AdministrativeAccess.ApplicationPassword;
+                if (publishToServer)
+                {
+                    _pendingImportedConfiguration = configuration;
+                    _pendingImportedConfigurationPassword = AdministrativeAccess.ApplicationPassword;
+                }
                 return true;
             }
             catch (Exception ex)
