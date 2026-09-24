@@ -1839,7 +1839,8 @@ namespace Client.Services
         /// </summary>
         public async Task<bool> ImportConfiguredUsersAsync(
             IEnumerable<UserInfo> users,
-            IReadOnlyDictionary<string, string>? settings = null)
+            IReadOnlyDictionary<string, string>? settings,
+            string applicationPassword)
         {
             if (!TryGetActiveConnection(out var connection))
                 return false;
@@ -1852,7 +1853,7 @@ namespace Client.Services
 
             try
             {
-                await connection.InvokeAsync("ImportConfiguredUsers", importedUsers);
+                await connection.InvokeAsync("ImportConfiguredUsers", importedUsers, applicationPassword);
                 if (settings != null)
                 {
                     foreach (var user in importedUsers)
@@ -2303,24 +2304,21 @@ namespace Client.Services
                 if (name == "A Tous")
                     continue;
 
-                bool visibleToAll = name == "Secrétariat";
-                if (visibleToAll || kvp.Value.Contains(_username))
+                bool isSecretariat = name == "Secrétariat";
+                if (!result.Any(u => u.Username == name))
                 {
-                    if (!result.Any(u => u.Username == name))
+                    result.Add(new UserInfo
                     {
-                        result.Add(new UserInfo
-                        {
-                            ConnectionId = string.Empty,
-                            Username = name,
-                            Avatar = visibleToAll ? "ms-appx:///Assets/secretaria.png" : "ms-appx:///Assets/earth.png",
-                            Rooms = new ObservableCollection<string>(),
-                            DisplayName = name,
-                            ColorUserName = visibleToAll ? "Blue" : "Green",
-                            IsOnline = true,
-                            Status = string.Empty,
-                            Note = string.Empty
-                        });
-                    }
+                        ConnectionId = string.Empty,
+                        Username = name,
+                        Avatar = isSecretariat ? "ms-appx:///Assets/secretaria.png" : "ms-appx:///Assets/earth.png",
+                        Rooms = new ObservableCollection<string>(),
+                        DisplayName = name,
+                        ColorUserName = isSecretariat ? "Blue" : "Green",
+                        IsOnline = true,
+                        Status = string.Empty,
+                        Note = string.Empty
+                    });
                 }
             }
 

@@ -44,6 +44,7 @@ namespace Client
         private EventWaitHandle? _forceCloseEvent;
         private RegisteredWaitHandle? _forceCloseWait;
         private DeploymentConfiguration? _pendingImportedConfiguration;
+        private string? _pendingImportedConfigurationPassword;
         private const string ForceCloseArgument = "--force-close";
         private const string ForceCloseDisplayName = "\uE8BB  Forcer la fermeture";
         private const string ForceCloseEventName = @"Local\EyeChat.ForceClose";
@@ -447,9 +448,13 @@ namespace Client
                 {
                     var serverUpdated = await ChatService.ImportConfiguredUsersAsync(
                         importedConfiguration.Users,
-                        importedConfiguration.UserSettings);
+                        importedConfiguration.UserSettings,
+                        _pendingImportedConfigurationPassword ?? string.Empty);
                     if (serverUpdated)
+                    {
                         _pendingImportedConfiguration = null;
+                        _pendingImportedConfigurationPassword = null;
+                    }
                     else
                         Logger.Log("[App] Configuration importée localement, mais le serveur n'a pas pu être informé.");
                 }
@@ -513,6 +518,9 @@ namespace Client
             InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(MainWindow));
             var file = await picker.PickSingleFileAsync();
             if (file is null)
+                return false;
+
+            if (!await AdministrativeAccess.RequestPasswordAsync(xamlRoot))
                 return false;
 
             try
@@ -580,6 +588,7 @@ namespace Client
                 machine.CtrlF12Exam = workstation.CtrlF12Exam;
                 MachineConfig.Save(machine);
                 _pendingImportedConfiguration = configuration;
+                _pendingImportedConfigurationPassword = AdministrativeAccess.ApplicationPassword;
                 return true;
             }
             catch (Exception ex)

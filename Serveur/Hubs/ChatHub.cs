@@ -921,8 +921,11 @@ namespace ChatServeur
             return Task.FromResult(userList);
         }
 
-        public async Task ImportConfiguredUsers(IEnumerable<UserInfo> users)
+        public async Task ImportConfiguredUsers(IEnumerable<UserInfo> users, string applicationPassword)
         {
+            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+                throw new HubException("Mot de passe de l’application incorrect.");
+
             EnsureUsersLoaded();
             var imported = users
                 .Where(user => !string.IsNullOrWhiteSpace(user.Username) && !IsProtectedUser(user.Username))
@@ -932,29 +935,45 @@ namespace ChatServeur
 
             foreach (var user in imported)
             {
-                var username = user.Username.Trim();
-                var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(item => item.Username == username);
+                var requestedUsername = user.Username.Trim();
+                var dbUser = await _db.KnownUsers
+                    .FirstOrDefaultAsync(item => item.Username.ToLower() == requestedUsername.ToLower());
                 if (dbUser == null)
                 {
-                    dbUser = new KnownUser { Username = username };
+                    dbUser = new KnownUser { Username = requestedUsername };
                     _db.KnownUsers.Add(dbUser);
                 }
+
+                var username = dbUser.Username;
 
                 dbUser.DisplayName = string.IsNullOrWhiteSpace(user.DisplayName) ? username : user.DisplayName;
                 dbUser.Avatar = ToRelativeAvatar(user.Avatar);
                 dbUser.ColorUserName = user.ColorUserName ?? string.Empty;
                 dbUser.Note = user.Note ?? string.Empty;
 
-                AllUsers[username] = new UserInfo
+                if (TryGetUserEntry(username, out var actualKey, out var existingUser))
                 {
-                    Username = username,
-                    DisplayName = dbUser.DisplayName,
-                    Avatar = dbUser.Avatar,
-                    ColorUserName = dbUser.ColorUserName,
-                    Note = dbUser.Note,
-                    IsOnline = false,
-                    IsSecretariat = user.IsSecretariat
-                };
+                    existingUser.DisplayName = dbUser.DisplayName;
+                    existingUser.Avatar = dbUser.Avatar;
+                    existingUser.ColorUserName = dbUser.ColorUserName;
+                    existingUser.Note = dbUser.Note;
+                    existingUser.IsSecretariat = user.IsSecretariat;
+                    AllUsers[actualKey] = existingUser;
+                    username = actualKey;
+                }
+                else
+                {
+                    AllUsers[username] = new UserInfo
+                    {
+                        Username = username,
+                        DisplayName = dbUser.DisplayName,
+                        Avatar = dbUser.Avatar,
+                        ColorUserName = dbUser.ColorUserName,
+                        Note = dbUser.Note,
+                        IsOnline = false,
+                        IsSecretariat = user.IsSecretariat
+                    };
+                }
 
                 await SetImportedMembershipAsync(username, "A Tous", true);
                 await SetImportedMembershipAsync(username, "Secrétariat", user.IsSecretariat);
@@ -984,6 +1003,17 @@ namespace ChatServeur
                 members.Add(username);
             else if (!isMember && existing != null)
                 members.Remove(existing);
+
+            if (TryGetConnectionEntry(username, out _, out var connections))
+            {
+                foreach (var connectionId in connections)
+                {
+                    if (isMember)
+                        await Groups.AddToGroupAsync(connectionId, groupName);
+                    else
+                        await Groups.RemoveFromGroupAsync(connectionId, groupName);
+                }
+            }
         }
 
         public async Task<bool> RenameKnownUser(string oldName, string newName)
@@ -1548,8 +1578,9 @@ namespace ChatServeur
             username = username?.Trim() ?? string.Empty;
             groupName = groupName?.Trim() ?? string.Empty;
             EnsureUsersLoaded();
-            if (!AllUsers.Keys.Any(name => string.Equals(name, username, StringComparison.OrdinalIgnoreCase)))
+            if (!TryGetUserEntry(username, out var canonicalUsername, out _))
                 return $"L’utilisateur « {username} » est inconnu.";
+            username = canonicalUsername;
 
             var group = await _db.SecureGroups.FirstOrDefaultAsync(item => item.Name == groupName);
             var isSpecialPublicGroup = string.Equals(groupName, "A Tous", StringComparison.OrdinalIgnoreCase) ||
