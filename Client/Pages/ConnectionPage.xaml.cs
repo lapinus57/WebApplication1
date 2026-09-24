@@ -2,11 +2,14 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Client.Helpers;
 using Client.Services;
+using System;
+using System.Threading;
 
 namespace Client.Pages
 {
     public sealed partial class ConnectionPage : Page
     {
+        private CancellationTokenSource? _searchCancellation;
         public string ServerAddress { get; set; } = string.Empty;
 
         public ConnectionPage()
@@ -33,18 +36,45 @@ namespace Client.Pages
 
         private async void Search_Click(object sender, RoutedEventArgs e)
         {
-            AddressBox.Text = "Recherche...";
-            var address = await NetworkScanner.FindServerAsync();
-            if (!string.IsNullOrEmpty(address))
+            _searchCancellation?.Cancel();
+            _searchCancellation?.Dispose();
+            _searchCancellation = new CancellationTokenSource();
+
+            SearchButton.IsEnabled = false;
+            CancelSearchButton.Visibility = Visibility.Visible;
+            SearchStatusPanel.Visibility = Visibility.Visible;
+            SearchProgress.IsActive = true;
+            SearchStatusText.Text = "Préparation de la recherche…";
+
+            var progress = new Progress<NetworkScanProgress>(value =>
+                SearchStatusText.Text = $"Recherche sur le réseau… {value.Tested}/{value.Total}");
+
+            try
             {
-                ServerAddress = address;
-                AddressBox.Text = ServerAddress;
+                var address = await NetworkScanner.FindServerAsync(cancellationToken: _searchCancellation.Token, progress: progress);
+                if (!string.IsNullOrEmpty(address))
+                {
+                    ServerAddress = address;
+                    AddressBox.Text = ServerAddress;
+                    SearchStatusText.Text = $"Serveur trouvé : {address}";
+                }
+                else
+                {
+                    SearchStatusText.Text = "Aucun serveur EyeChat trouvé sur le réseau local.";
+                }
             }
-            else
+            catch (OperationCanceledException)
             {
-                ServerAddress = string.Empty;
-                AddressBox.Text = "Serveur introuvable";
+                SearchStatusText.Text = "Recherche annulée.";
+            }
+            finally
+            {
+                SearchProgress.IsActive = false;
+                SearchButton.IsEnabled = true;
+                CancelSearchButton.Visibility = Visibility.Collapsed;
             }
         }
+
+        private void CancelSearch_Click(object sender, RoutedEventArgs e) => _searchCancellation?.Cancel();
     }
 }
