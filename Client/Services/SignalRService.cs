@@ -582,6 +582,11 @@ namespace Client.Services
                 });
             });
 
+            connection.On("GroupsUpdated", () =>
+            {
+                Dispatcher?.TryEnqueue(async () => await RefreshGroupsAsync());
+            });
+
             connection.On<List<string>>("UserListOrder", order =>
             {
                 Dispatcher?.TryEnqueue(() =>
@@ -1828,6 +1833,46 @@ namespace Client.Services
             }
         }
 
+        /// <summary>
+        /// Registers every user from an imported configuration on the server, including
+        /// the automatic A Tous membership and the optional Secrétariat membership.
+        /// </summary>
+        public async Task<bool> ImportConfiguredUsersAsync(
+            IEnumerable<UserInfo> users,
+            IReadOnlyDictionary<string, string>? settings,
+            string applicationPassword)
+        {
+            if (!TryGetActiveConnection(out var connection))
+                return false;
+
+            var importedUsers = users
+                .Where(user => !string.IsNullOrWhiteSpace(user.Username) && !IsProtectedUser(user.Username))
+                .GroupBy(user => user.Username.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+
+            try
+            {
+                await connection.InvokeAsync("ImportConfiguredUsers", importedUsers, applicationPassword);
+                if (settings != null)
+                {
+                    foreach (var user in importedUsers)
+                    {
+                        var entry = settings.FirstOrDefault(item =>
+                            string.Equals(item.Key, user.Username, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrWhiteSpace(entry.Key))
+                            await connection.InvokeAsync("SaveUserSettings", user.Username, entry.Value ?? string.Empty);
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur import utilisateurs vers le serveur : {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task<string> GetUserSettingsAsync(string username)
         {
             if (!TryGetActiveConnection(out var connection))
@@ -2118,6 +2163,36 @@ namespace Client.Services
             }
         }
 
+        public async Task<string> CreateGroupAsync(string groupName, bool isPublic, string password, string applicationPassword)
+        {
+            if (!TryGetActiveConnection(out var connection))
+                return "Le serveur est indisponible.";
+            try
+            {
+                return await connection.InvokeAsync<string>("CreateGroup", groupName, isPublic, password, applicationPassword);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur création groupe : {ex.Message}");
+                return "Impossible de créer le groupe.";
+            }
+        }
+
+        public async Task<string> AddUserToGroupAsync(string username, string groupName, string password, string applicationPassword)
+        {
+            if (!TryGetActiveConnection(out var connection))
+                return "Le serveur est indisponible.";
+            try
+            {
+                return await connection.InvokeAsync<string>("AddUserToGroup", username, groupName, password, applicationPassword);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Erreur ajout au groupe : {ex.Message}");
+                return "Impossible d’ajouter l’utilisateur au groupe.";
+            }
+        }
+
         public async Task RenameGroupAsync(string oldName, string newName)
         {
             if (!TryGetActiveConnection(out var connection))
@@ -2229,24 +2304,21 @@ namespace Client.Services
                 if (name == "A Tous")
                     continue;
 
-                bool visibleToAll = name == "Secrétariat";
-                if (visibleToAll || kvp.Value.Contains(_username))
+                bool isSecretariat = name == "Secrétariat";
+                if (!result.Any(u => u.Username == name))
                 {
-                    if (!result.Any(u => u.Username == name))
+                    result.Add(new UserInfo
                     {
-                        result.Add(new UserInfo
-                        {
-                            ConnectionId = string.Empty,
-                            Username = name,
-                            Avatar = visibleToAll ? "ms-appx:///Assets/secretaria.png" : "ms-appx:///Assets/earth.png",
-                            Rooms = new ObservableCollection<string>(),
-                            DisplayName = name,
-                            ColorUserName = visibleToAll ? "Blue" : "Green",
-                            IsOnline = true,
-                            Status = string.Empty,
-                            Note = string.Empty
-                        });
-                    }
+                        ConnectionId = string.Empty,
+                        Username = name,
+                        Avatar = isSecretariat ? "ms-appx:///Assets/secretaria.png" : "ms-appx:///Assets/earth.png",
+                        Rooms = new ObservableCollection<string>(),
+                        DisplayName = name,
+                        ColorUserName = isSecretariat ? "Blue" : "Green",
+                        IsOnline = true,
+                        Status = string.Empty,
+                        Note = string.Empty
+                    });
                 }
             }
 

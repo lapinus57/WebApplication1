@@ -33,6 +33,8 @@
                             <TextBox x:Name="UserNameBox" Header="Nom de l'utilisateur" PlaceholderText="Ex. Dr Dupont"/>
                             <TextBox x:Name="InitialsBox" Grid.Column="1" Header="Initiales" MaxLength="4" PlaceholderText="DD"/>
                         </Grid>
+                        <CheckBox x:Name="SecretariatCheckBox"
+                                  Content="Cet utilisateur fait partie du groupe Secrétariat"/>
 
                         <TextBlock Text="Raccourcis en-tête" FontSize="18" FontWeight="SemiBold"/>
                         <Grid ColumnDefinitions="70,*,*,*,*" ColumnSpacing="8" RowSpacing="8">

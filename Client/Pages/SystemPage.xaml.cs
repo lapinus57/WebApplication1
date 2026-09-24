@@ -525,6 +525,9 @@ namespace Client.Pages
             if (file == null)
                 return;
 
+            if (!await AdministrativeAccess.RequestPasswordAsync(xamlRoot))
+                return;
+
             try
             {
                 var json = await FileIO.ReadTextAsync(file);
@@ -571,7 +574,14 @@ namespace Client.Pages
                 }
 
                 await RefreshLocalUserListAsync();
-                await ShowInfoDialogAsync("Import terminé", $"Configuration utilisateurs importée ({users.Count} utilisateur(s)).", xamlRoot);
+                var serverUpdated = await App.ChatService.ImportConfiguredUsersAsync(
+                    users,
+                    configuration.Settings,
+                    AdministrativeAccess.ApplicationPassword);
+                var serverStatus = serverUpdated
+                    ? " Le serveur a également été mis à jour."
+                    : " Le serveur est indisponible ; les données restent enregistrées localement.";
+                await ShowInfoDialogAsync("Import terminé", $"Configuration utilisateurs importée ({users.Count} utilisateur(s)).{serverStatus}", xamlRoot);
             }
             catch (Exception ex)
             {

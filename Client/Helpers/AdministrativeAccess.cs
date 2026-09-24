@@ -7,7 +7,7 @@ namespace Client.Helpers
 {
     internal static class AdministrativeAccess
     {
-        private const string Password = "901027";
+        internal const string ApplicationPassword = "901027";
 
         public static async Task<bool> RequestPasswordAsync(XamlRoot xamlRoot)
         {
@@ -47,6 +47,6 @@ namespace Client.Helpers
         }
 
         private static bool IsPasswordValid(string? password) =>
-            string.Equals(password, Password, StringComparison.Ordinal);
+            string.Equals(password, ApplicationPassword, StringComparison.Ordinal);
     }
 }

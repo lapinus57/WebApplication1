@@ -43,6 +43,8 @@ namespace Client
         private bool _forceCloseRequested;
         private EventWaitHandle? _forceCloseEvent;
         private RegisteredWaitHandle? _forceCloseWait;
+        private DeploymentConfiguration? _pendingImportedConfiguration;
+        private string? _pendingImportedConfigurationPassword;
         private const string ForceCloseArgument = "--force-close";
         private const string ForceCloseDisplayName = "\uE8BB  Forcer la fermeture";
         private const string ForceCloseEventName = @"Local\EyeChat.ForceClose";
@@ -442,6 +444,20 @@ namespace Client
             {
                 ChatService.RoomName = machine.RoomName;
                 await ChatService.InitializeAsync();
+                if (_pendingImportedConfiguration is { } importedConfiguration)
+                {
+                    var serverUpdated = await ChatService.ImportConfiguredUsersAsync(
+                        importedConfiguration.Users,
+                        importedConfiguration.UserSettings,
+                        _pendingImportedConfigurationPassword ?? string.Empty);
+                    if (serverUpdated)
+                    {
+                        _pendingImportedConfiguration = null;
+                        _pendingImportedConfigurationPassword = null;
+                    }
+                    else
+                        Logger.Log("[App] Configuration importée localement, mais le serveur n'a pas pu être informé.");
+                }
                 await SyncUserSettingsAsync(root);
                 await DownloadMissingUserSettingsAsync();
             }
@@ -478,7 +494,7 @@ namespace Client
             }
         }
 
-        private static async Task<bool> PromptForInitialConfigurationAsync(XamlRoot xamlRoot, MachineConfig machine)
+        private async Task<bool> PromptForInitialConfigurationAsync(XamlRoot xamlRoot, MachineConfig machine)
         {
             var welcome = new ContentDialog
             {
@@ -502,6 +518,9 @@ namespace Client
             InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(MainWindow));
             var file = await picker.PickSingleFileAsync();
             if (file is null)
+                return false;
+
+            if (!await AdministrativeAccess.RequestPasswordAsync(xamlRoot))
                 return false;
 
             try
@@ -568,6 +587,8 @@ namespace Client
                 machine.ShiftF12Exam = workstation.ShiftF12Exam;
                 machine.CtrlF12Exam = workstation.CtrlF12Exam;
                 MachineConfig.Save(machine);
+                _pendingImportedConfiguration = configuration;
+                _pendingImportedConfigurationPassword = AdministrativeAccess.ApplicationPassword;
                 return true;
             }
             catch (Exception ex)

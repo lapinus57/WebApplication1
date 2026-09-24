@@ -50,6 +50,8 @@ namespace Client.Pages
             new SlashCommandInfo("/clearallmessageday", "Supprimer tous les messages du jour"),
             new SlashCommandInfo("/generatemessage", "Générer des messages de démonstration"),
             new SlashCommandInfo("/usermanager", "Gérer les utilisateurs locaux et serveur"),
+            new SlashCommandInfo("/creategroup", "Créer : [groupe] [public|private] [mot de passe privé]"),
+            new SlashCommandInfo("/joingroup", "Ajouter : [utilisateur] [groupe] [mot de passe privé]"),
         };
         private static readonly string[] TestFirstNames = new[]
         {
@@ -486,6 +488,16 @@ namespace Client.Pages
                     _ = ShowUserManagerDialogAsync();
                     InputBox.Text = string.Empty;
                 }
+                else if (text.StartsWith("/creategroup", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = ExecuteCreateGroupCommandAsync(text);
+                    InputBox.Text = string.Empty;
+                }
+                else if (text.StartsWith("/joingroup", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = ExecuteJoinGroupCommandAsync(text);
+                    InputBox.Text = string.Empty;
+                }
                 else
                 {
                     Send_Click(sender, e);
@@ -657,45 +669,69 @@ namespace Client.Pages
             }
         }
 
-        private async void JoinGroup_Click(object sender, RoutedEventArgs e)
+        private async Task ExecuteCreateGroupCommandAsync(string command)
         {
-            var dialog = new ContentDialog
+            var arguments = ParseCommandArguments(command);
+            if (arguments.Count is < 2 or > 3 ||
+                (!string.Equals(arguments[1], "public", StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(arguments[1], "private", StringComparison.OrdinalIgnoreCase)))
             {
-                Title = "Rejoindre un groupe",
-                PrimaryButtonText = "OK",
-                CloseButtonText = "Annuler",
-                DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = this.XamlRoot
-            };
-
-            var stack = new StackPanel { Spacing = 10 };
-
-            var groupNameBox = new TextBox { PlaceholderText = "Nom du groupe" };
-            var passwordBox = new PasswordBox { PlaceholderText = "Mot de passe" };
-
-            stack.Children.Add(groupNameBox);
-            stack.Children.Add(passwordBox);
-
-            dialog.Content = stack;
-
-            var result = await dialog.ShowAsync();
-
-            if (result == ContentDialogResult.Primary)
-            {
-                var groupName = groupNameBox.Text;
-                var password = passwordBox.Password;
-
-                if (App.ChatService.Connection is not HubConnection connection)
-                {
-                    Debug.WriteLine("JoinProtectedGroup: connexion SignalR indisponible.");
-                    return;
-                }
-
-                var response = await connection.InvokeAsync<string>("JoinProtectedGroup", groupName, password);
-                Debug.WriteLine($"🔐 Groupe {groupName} : {response}");
-                await _service.RefreshGroupsAsync();
-                ApplySavedUserOrder();
+                await ShowCommandResultAsync("Commande invalide", "Syntaxe : /creategroup [groupe] [public|private] [mot de passe privé]");
+                return;
             }
+
+            var isPublic = string.Equals(arguments[1], "public", StringComparison.OrdinalIgnoreCase);
+            if (!isPublic && (arguments.Count < 3 || string.IsNullOrWhiteSpace(arguments[2])))
+            {
+                await ShowCommandResultAsync("Commande invalide", "Un groupe privé doit avoir un mot de passe.");
+                return;
+            }
+            if (!await AdministrativeAccess.RequestPasswordAsync(XamlRoot))
+                return;
+
+            var response = await _service.CreateGroupAsync(arguments[0], isPublic,
+                isPublic ? string.Empty : arguments[2], AdministrativeAccess.ApplicationPassword);
+            await ShowCommandResultAsync("Création du groupe", response);
+            await _service.RefreshGroupsAsync();
+        }
+
+        private async Task ExecuteJoinGroupCommandAsync(string command)
+        {
+            var arguments = ParseCommandArguments(command);
+            if (arguments.Count is < 2 or > 3)
+            {
+                await ShowCommandResultAsync("Commande invalide", "Syntaxe : /joingroup [utilisateur] [groupe] [mot de passe privé]");
+                return;
+            }
+            if (!await AdministrativeAccess.RequestPasswordAsync(XamlRoot))
+                return;
+
+            var response = await _service.AddUserToGroupAsync(arguments[0], arguments[1],
+                arguments.Count == 3 ? arguments[2] : string.Empty,
+                AdministrativeAccess.ApplicationPassword);
+            await ShowCommandResultAsync("Ajout au groupe", response);
+            await _service.RefreshGroupsAsync();
+        }
+
+        private static List<string> ParseCommandArguments(string command)
+        {
+            var start = command.IndexOf(' ');
+            if (start < 0)
+                return new List<string>();
+            var value = command[(start + 1)..];
+            var matches = System.Text.RegularExpressions.Regex.Matches(value, @"\[([^\]]+)\]|(\S+)");
+            return matches.Select(match => match.Groups[1].Success ? match.Groups[1].Value.Trim() : match.Groups[2].Value.Trim()).ToList();
+        }
+
+        private async Task ShowCommandResultAsync(string title, string message)
+        {
+            await new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                CloseButtonText = "Fermer",
+                XamlRoot = XamlRoot
+            }.ShowAsync();
         }
 
         private void RefreshUsers_Click(object sender, RoutedEventArgs e)

@@ -35,6 +35,7 @@ namespace ChatServeur
         private static readonly Dictionary<string, PendingLoginRequest> PendingLoginRequests = new();
         private static bool _usersLoaded;
         private const int LoginConflictDelaySeconds = 10;
+        private const string ApplicationPassword = "901027";
 
         private static readonly List<UserInfo> BaseUsers = new()
         {
@@ -132,6 +133,24 @@ namespace ChatServeur
                     Note = u.Note
                 };
             }
+
+            foreach (var membership in _db.GroupMemberships)
+            {
+                if (!GroupMembers.TryGetValue(membership.GroupName, out var members))
+                {
+                    members = new HashSet<string>();
+                    GroupMembers[membership.GroupName] = members;
+                }
+                members.Add(membership.Username);
+            }
+
+            if (!GroupMembers.TryGetValue("A Tous", out var allMembers))
+            {
+                allMembers = new HashSet<string>();
+                GroupMembers["A Tous"] = allMembers;
+            }
+            foreach (var username in AllUsers.Keys)
+                allMembers.Add(username);
 
             _usersLoaded = true;
         }
@@ -234,10 +253,6 @@ namespace ChatServeur
                         var userList = BaseUsers.Concat(AllUsers.Values).ToList();
                         await Clients.All.SendAsync("UserListUpdated", userList);
 
-                        foreach (var group in GroupMembers.Keys)
-                        {
-                            GroupMembers[group].Remove(user.Username);
-                        }
                     }
                 }
             }
@@ -659,31 +674,12 @@ namespace ChatServeur
 
             if (group == null)
             {
-                var newGroup = new SecureGroup
-                {
-                    Name = groupName,
-                    PasswordHash = HashPassword(password)
-                };
-                _db.SecureGroups.Add(newGroup);
-                _db.GroupMemberships.Add(new GroupMembership { Username = username, GroupName = groupName });
-                await _db.SaveChangesAsync();
-
-                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                if (!GroupMembers.ContainsKey(groupName))
-                    GroupMembers[groupName] = new HashSet<string>();
-                GroupMembers[groupName].Add(username);
-                if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var user))
-                {
-                    if (!user.Rooms.Contains(groupName))
-                        user.Rooms.Add(groupName);
-                    AllUsers[user.Username] = user;
-                    var userList = BaseUsers.Concat(AllUsers.Values).ToList();
-                    await Clients.All.SendAsync("UserListUpdated", userList);
-                }
-                return "created";
+                return "not-found";
             }
             else
             {
+                if (group.IsPublic)
+                    return "use-joingroup-command";
                 if (VerifyPassword(password, group.PasswordHash))
                 {
                     var alreadyIn = await _db.GroupMemberships.AnyAsync(g => g.Username == username && g.GroupName == groupName);
@@ -923,6 +919,101 @@ namespace ChatServeur
             EnsureUsersLoaded();
             var userList = BaseUsers.Concat(AllUsers.Values).ToList();
             return Task.FromResult(userList);
+        }
+
+        public async Task ImportConfiguredUsers(IEnumerable<UserInfo> users, string applicationPassword)
+        {
+            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+                throw new HubException("Mot de passe de l’application incorrect.");
+
+            EnsureUsersLoaded();
+            var imported = users
+                .Where(user => !string.IsNullOrWhiteSpace(user.Username) && !IsProtectedUser(user.Username))
+                .GroupBy(user => user.Username.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+
+            foreach (var user in imported)
+            {
+                var requestedUsername = user.Username.Trim();
+                var dbUser = await _db.KnownUsers
+                    .FirstOrDefaultAsync(item => item.Username.ToLower() == requestedUsername.ToLower());
+                if (dbUser == null)
+                {
+                    dbUser = new KnownUser { Username = requestedUsername };
+                    _db.KnownUsers.Add(dbUser);
+                }
+
+                var username = dbUser.Username;
+
+                dbUser.DisplayName = string.IsNullOrWhiteSpace(user.DisplayName) ? username : user.DisplayName;
+                dbUser.Avatar = ToRelativeAvatar(user.Avatar);
+                dbUser.ColorUserName = user.ColorUserName ?? string.Empty;
+                dbUser.Note = user.Note ?? string.Empty;
+
+                if (TryGetUserEntry(username, out var actualKey, out var existingUser))
+                {
+                    existingUser.DisplayName = dbUser.DisplayName;
+                    existingUser.Avatar = dbUser.Avatar;
+                    existingUser.ColorUserName = dbUser.ColorUserName;
+                    existingUser.Note = dbUser.Note;
+                    existingUser.IsSecretariat = user.IsSecretariat;
+                    AllUsers[actualKey] = existingUser;
+                    username = actualKey;
+                }
+                else
+                {
+                    AllUsers[username] = new UserInfo
+                    {
+                        Username = username,
+                        DisplayName = dbUser.DisplayName,
+                        Avatar = dbUser.Avatar,
+                        ColorUserName = dbUser.ColorUserName,
+                        Note = dbUser.Note,
+                        IsOnline = false,
+                        IsSecretariat = user.IsSecretariat
+                    };
+                }
+
+                await SetImportedMembershipAsync(username, "A Tous", true);
+                await SetImportedMembershipAsync(username, "Secrétariat", user.IsSecretariat);
+            }
+
+            await _db.SaveChangesAsync();
+            await Clients.All.SendAsync("UserListUpdated", BaseUsers.Concat(AllUsers.Values).ToList());
+        }
+
+        private async Task SetImportedMembershipAsync(string username, string groupName, bool isMember)
+        {
+            var membership = await _db.GroupMemberships.FirstOrDefaultAsync(item =>
+                item.Username == username && item.GroupName == groupName);
+            if (isMember && membership == null)
+                _db.GroupMemberships.Add(new GroupMembership { Username = username, GroupName = groupName });
+            else if (!isMember && membership != null)
+                _db.GroupMemberships.Remove(membership);
+
+            if (!GroupMembers.TryGetValue(groupName, out var members))
+            {
+                members = new HashSet<string>();
+                GroupMembers[groupName] = members;
+            }
+
+            var existing = FindMember(members, username);
+            if (isMember && existing == null)
+                members.Add(username);
+            else if (!isMember && existing != null)
+                members.Remove(existing);
+
+            if (TryGetConnectionEntry(username, out _, out var connections))
+            {
+                foreach (var connectionId in connections)
+                {
+                    if (isMember)
+                        await Groups.AddToGroupAsync(connectionId, groupName);
+                    else
+                        await Groups.RemoveFromGroupAsync(connectionId, groupName);
+                }
+            }
         }
 
         public async Task<bool> RenameKnownUser(string oldName, string newName)
@@ -1424,10 +1515,103 @@ namespace ChatServeur
                 .ToListAsync();
         }
 
-        public Task<Dictionary<string, List<string>>> GetAllGroupMembers()
+        public async Task<Dictionary<string, List<string>>> GetAllGroupMembers()
         {
-            var result = GroupMembers.ToDictionary(g => g.Key, g => g.Value.ToList());
-            return Task.FromResult(result);
+            EnsureUsersLoaded();
+            var username = GetUsername();
+            var publicGroups = await _db.SecureGroups
+                .Where(group => group.IsPublic)
+                .Select(group => group.Name)
+                .ToListAsync();
+            publicGroups.Add("A Tous");
+            publicGroups.Add("Secrétariat");
+
+            return GroupMembers
+                .Where(group => publicGroups.Contains(group.Key, StringComparer.OrdinalIgnoreCase) ||
+                                FindMember(group.Value, username) != null)
+                .ToDictionary(group => group.Key, group => group.Value.ToList());
+        }
+
+        public async Task<string> CreateGroup(string groupName, bool isPublic, string password, string applicationPassword)
+        {
+            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+                return "Mot de passe de l’application incorrect.";
+
+            groupName = groupName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(groupName))
+                return "Le nom du groupe est obligatoire.";
+            if (string.Equals(groupName, "A Tous", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(groupName, "Secrétariat", StringComparison.OrdinalIgnoreCase))
+                return "Ce groupe spécial existe déjà.";
+            if (!isPublic && string.IsNullOrWhiteSpace(password))
+                return "Un mot de passe est obligatoire pour un groupe privé.";
+            if (await _db.SecureGroups.AnyAsync(group => group.Name == groupName))
+                return "Ce groupe existe déjà.";
+
+            _db.SecureGroups.Add(new SecureGroup
+            {
+                Name = groupName,
+                IsPublic = isPublic,
+                PasswordHash = isPublic ? string.Empty : HashPassword(password)
+            });
+
+            var creator = GetUsername();
+            if (!string.Equals(creator, "Unknown", StringComparison.OrdinalIgnoreCase))
+                _db.GroupMemberships.Add(new GroupMembership { Username = creator, GroupName = groupName });
+            await _db.SaveChangesAsync();
+
+            GroupMembers[groupName] = new HashSet<string>();
+            if (!string.Equals(creator, "Unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                GroupMembers[groupName].Add(creator);
+                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            }
+            await Clients.All.SendAsync("GroupsUpdated");
+            return $"Le groupe {(isPublic ? "public" : "privé")} « {groupName} » a été créé.";
+        }
+
+        public async Task<string> AddUserToGroup(string username, string groupName, string password, string applicationPassword)
+        {
+            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+                return "Mot de passe de l’application incorrect.";
+
+            username = username?.Trim() ?? string.Empty;
+            groupName = groupName?.Trim() ?? string.Empty;
+            EnsureUsersLoaded();
+            if (!TryGetUserEntry(username, out var canonicalUsername, out _))
+                return $"L’utilisateur « {username} » est inconnu.";
+            username = canonicalUsername;
+
+            var group = await _db.SecureGroups.FirstOrDefaultAsync(item => item.Name == groupName);
+            var isSpecialPublicGroup = string.Equals(groupName, "A Tous", StringComparison.OrdinalIgnoreCase) ||
+                                       string.Equals(groupName, "Secrétariat", StringComparison.OrdinalIgnoreCase);
+            if (group == null && !isSpecialPublicGroup)
+                return $"Le groupe « {groupName} » est inconnu.";
+            if (group != null && !group.IsPublic && !VerifyPassword(password, group.PasswordHash))
+                return "Le mot de passe du groupe privé est incorrect.";
+
+            var exists = await _db.GroupMemberships.AnyAsync(item => item.Username == username && item.GroupName == groupName);
+            if (!exists)
+            {
+                _db.GroupMemberships.Add(new GroupMembership { Username = username, GroupName = groupName });
+                await _db.SaveChangesAsync();
+            }
+            if (!GroupMembers.TryGetValue(groupName, out var members))
+            {
+                members = new HashSet<string>();
+                GroupMembers[groupName] = members;
+            }
+            members.Add(username);
+
+            if (TryGetConnectionEntry(username, out _, out var connections))
+            {
+                foreach (var connection in connections)
+                    await Groups.AddToGroupAsync(connection, groupName);
+            }
+            await Clients.All.SendAsync("GroupsUpdated");
+            return exists
+                ? $"« {username} » fait déjà partie de « {groupName} »."
+                : $"« {username} » a été ajouté à « {groupName} ».";
         }
 
         public async Task RenameGroup(string oldName, string newName)
