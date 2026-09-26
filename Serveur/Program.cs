@@ -12,6 +12,8 @@ var administrationUsername = builder.Configuration["Administration:Username"];
 var administrationPassword = builder.Configuration["Administration:Password"];
 var certificatePath = builder.Configuration["Administration:HttpsCertificatePath"];
 var certificatePassword = builder.Configuration["Administration:HttpsCertificatePassword"];
+var useDevelopmentHttp = builder.Environment.IsDevelopment() &&
+    string.IsNullOrWhiteSpace(certificatePath);
 if (string.IsNullOrWhiteSpace(administrationUsername) ||
     string.IsNullOrWhiteSpace(administrationPassword) ||
     administrationPassword.Length < 12 ||
@@ -20,19 +22,23 @@ if (string.IsNullOrWhiteSpace(administrationUsername) ||
     throw new InvalidOperationException(
         "Configurez Administration:Username et un mot de passe Administration:Password d’au moins 12 caractères avant de démarrer le serveur.");
 }
-if (string.IsNullOrWhiteSpace(certificatePath))
+if (string.IsNullOrWhiteSpace(certificatePath) && !useDevelopmentHttp)
     throw new InvalidOperationException("Configurez Administration:HttpsCertificatePath avec un certificat HTTPS PFX valide.");
 
-certificatePath = Path.IsPathRooted(certificatePath)
-    ? certificatePath
-    : Path.Combine(AppContext.BaseDirectory, certificatePath);
-if (!File.Exists(certificatePath))
-    throw new InvalidOperationException($"Le certificat HTTPS d’administration est introuvable : {certificatePath}");
+if (!useDevelopmentHttp)
+{
+    certificatePath = Path.IsPathRooted(certificatePath!)
+        ? certificatePath
+        : Path.Combine(AppContext.BaseDirectory, certificatePath!);
+    if (!File.Exists(certificatePath))
+        throw new InvalidOperationException($"Le certificat HTTPS d’administration est introuvable : {certificatePath}");
+}
 
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(5000);
-    options.ListenAnyIP(5443, listenOptions => listenOptions.UseHttps(certificatePath, certificatePassword));
+    if (!useDevelopmentHttp)
+        options.ListenAnyIP(5443, listenOptions => listenOptions.UseHttps(certificatePath!, certificatePassword));
 });
 
 if (OperatingSystem.IsWindows())
@@ -63,7 +69,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "EyeChat.Admin";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SecurePolicy = useDevelopmentHttp
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
     });
@@ -97,7 +105,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/Index") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
-    if (!context.Request.IsHttps && isAdministrationPage)
+    if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)
     {
         var httpsHost = new HostString(context.Request.Host.Host, 5443);
         var destination = UriHelper.BuildAbsolute("https", httpsHost, context.Request.PathBase, context.Request.Path, context.Request.QueryString);

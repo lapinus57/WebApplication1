@@ -1,5 +1,24 @@
 # EyeChat ne se lance pas après l'installation
 
+## Visual Studio ne peut pas se connecter au serveur Web « http »
+
+Les profils de développement démarrent le serveur et ouvrent l'administration
+sur `http://localhost:5000`. Aucun certificat n'est nécessaire pour une
+exécution locale depuis Visual Studio. Les identifiants réservés au poste de
+développement sont `admin` / `development-only` ; ces valeurs ne sont pas
+utilisées lors d'un déploiement.
+
+Si Visual Studio signale encore que le serveur Web ne fonctionne plus, fermez
+les anciennes instances de `Serveur.exe`, supprimez les dossiers `Serveur\bin`
+et `Serveur\obj`, puis reconstruisez le projet. Vérifiez aussi que le profil
+**http** ou **https** est sélectionné plutôt que le lancement direct de
+l'exécutable compilé.
+
+Pour une installation réelle,
+configurez toujours les identifiants et le certificat PFX comme indiqué dans le
+[guide de déploiement](deploiement-serveur-windows.md) ; le serveur continue de
+refuser une configuration de production incomplète.
+
 ## « Erreur d'analyse du package de l'application »
 
 Ce message est affiché par Windows avant le lancement d'EyeChat : réparer ou
