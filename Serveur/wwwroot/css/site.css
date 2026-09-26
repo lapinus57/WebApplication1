@@ -62,6 +62,20 @@ h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.015em; }
 .status-pill.is-offline { color: #a52e2e; border-color: #f1cccc; background: #fff0f0; }
 .status-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(22, 163, 106, .12); }
 
+.section-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: -8px 0 26px; padding: 6px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.72); box-shadow: 0 8px 24px rgba(34,52,77,.035); }
+.section-tab { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 12px 14px; color: var(--muted); border: 1px solid transparent; border-radius: 11px; text-decoration: none; transition: color .16s ease, background .16s ease, box-shadow .16s ease; }
+.section-tab > span:first-child { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; color: var(--blue); border-radius: 9px; background: var(--blue-soft); font-weight: 800; }
+.section-tab > span:last-child { display: flex; overflow: hidden; flex-direction: column; gap: 2px; }
+.section-tab strong { color: var(--text); font-size: 12px; }
+.section-tab small { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.section-tab:hover { color: var(--blue); background: #f7f9ff; }
+.section-tab.is-active { color: #dbe6ff; border-color: transparent; background: linear-gradient(135deg, #246bfd, #174fc6); box-shadow: 0 7px 18px rgba(36,107,253,.2); }
+.section-tab.is-active strong { color: #fff; }
+.section-tab.is-active > span:first-child { color: #fff; background: rgba(255,255,255,.16); }
+.tab-page[hidden] { display: none; }
+.tab-page { animation: page-in .2s ease-out; }
+.rooms-panel.tab-page, .exams-panel.tab-page, .users-panel.tab-page { margin-top: 0; }
+
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
 .metric-card { display: flex; gap: 16px; min-height: 148px; padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 8px 24px rgba(34, 52, 77, .045); }
 .metric-icon { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; color: var(--blue); border-radius: 12px; background: var(--blue-soft); font-size: 16px; font-weight: 800; }
@@ -147,11 +161,14 @@ h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.015em; }
 .exam-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 16px; }
 .exam-fields label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 650; }
 .exam-fields .wide-field { grid-column: 1 / -1; }
-.exam-fields input { width: 100%; padding: 9px 10px; color: var(--text); border: 1px solid #d8dfe9; border-radius: 8px; background: #fff; outline: none; font: inherit; font-size: 11px; }
-.exam-fields input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36,107,253,.1); }
+.exam-fields input, .exam-fields select { width: 100%; padding: 9px 10px; color: var(--text); border: 1px solid #d8dfe9; border-radius: 8px; background: #fff; outline: none; font: inherit; font-size: 11px; }
+.exam-fields input:focus, .exam-fields select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36,107,253,.1); }
 .color-input { display: flex; align-items: center; gap: 8px; height: 34px; padding: 3px 8px 3px 3px; border: 1px solid #d8dfe9; border-radius: 8px; background: #fff; }
 .color-input input { width: 40px; height: 26px; padding: 0; border: 0; cursor: pointer; }
 .color-input code { color: var(--muted); font-size: 10px; }
+.user-color-input { height: 38px; }
+.user-color-input input { width: 42px; height: 30px; padding: 0; border: 0; cursor: pointer; }
+.user-edit-row label small, .exam-fields label small { color: #8b97a9; font-size: 9px; font-weight: 500; }
 .exam-card-actions { display: flex; justify-content: space-between; gap: 10px; padding: 0 16px 16px; }
 .danger-button { padding: 9px 12px; color: #b42318; border: 1px solid #f0c4bf; border-radius: 8px; background: #fff6f5; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
 .danger-button:hover { background: #fee9e7; }
@@ -187,8 +204,10 @@ h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.015em; }
 
 .footer { display: flex; justify-content: space-between; padding: 4px 0 30px; color: #8b97a9; font-size: 11px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes page-in { from { opacity: 0; transform: translateY(5px); } }
 
 @media (max-width: 960px) {
+  .section-tabs { grid-template-columns: repeat(2, 1fr); }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
   .dashboard-columns { grid-template-columns: 1fr; }
   .patient-statistics { grid-template-columns: 1fr; }
@@ -205,6 +224,9 @@ h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.015em; }
   .admin-name { display: none; }
   .dashboard { padding-top: 34px; }
   .dashboard-hero { flex-direction: column; }
+  .section-tabs { display: flex; overflow-x: auto; margin-inline: -4px; padding: 5px; scrollbar-width: thin; }
+  .section-tab { flex: 0 0 138px; padding: 10px; }
+  .section-tab small { display: none; }
   .status-pill { margin-top: 0; }
   .metric-grid { grid-template-columns: 1fr; }
   .metric-card { min-height: 125px; }

@@ -4,6 +4,35 @@
 
     const refreshButton = dashboard.querySelector("[data-refresh]");
     const numberFormat = new Intl.NumberFormat("fr-FR");
+    const tabs = [...dashboard.querySelectorAll("[data-tab]")];
+    const pages = [...dashboard.querySelectorAll("[data-tab-page]")];
+
+    const showPage = (requestedPage) => {
+        const pageName = pages.some((page) => page.dataset.tabPage === requestedPage)
+            ? requestedPage
+            : "overview";
+
+        tabs.forEach((tab) => {
+            const isActive = tab.dataset.tab === pageName;
+            tab.classList.toggle("is-active", isActive);
+            if (isActive) tab.setAttribute("aria-current", "page");
+            else tab.removeAttribute("aria-current");
+        });
+        pages.forEach((page) => {
+            page.hidden = page.dataset.tabPage !== pageName;
+        });
+    };
+
+    const showHashPage = () => showPage(window.location.hash.slice(1));
+    window.addEventListener("hashchange", showHashPage);
+    showHashPage();
+
+    dashboard.querySelectorAll("[data-color-picker]").forEach((picker) => {
+        picker.addEventListener("input", () => {
+            const code = picker.closest(".color-input")?.querySelector("[data-color-code]");
+            if (code) code.textContent = `#FF${picker.value.slice(1).toUpperCase()}`;
+        });
+    });
 
     const setText = (selector, value) => {
         const element = dashboard.querySelector(selector);

@@ -3,6 +3,25 @@
 @{
     ViewData["Title"] = "État du serveur";
 }
+@functions {
+    private static string ToHtmlColor(string? color)
+    {
+        var value = color?.Trim() ?? string.Empty;
+        if (value.Length == 9 && value[0] == '#')
+            return $"#{value[3..]}";
+        if (value.Length == 7 && value[0] == '#')
+            return value;
+
+        return value.ToLowerInvariant() switch
+        {
+            "blue" => "#0000FF",
+            "green" => "#008000",
+            "red" => "#FF0000",
+            "white" => "#FFFFFF",
+            _ => "#000000"
+        };
+    }
+}
 
 <div class="dashboard" data-dashboard data-snapshot-url="@Url.Page("/Index", "Snapshot")">
     <section class="dashboard-hero">
@@ -23,6 +42,26 @@
     }
     <div asp-validation-summary="All" class="validation-summary management-validation dashboard-validation" role="alert"></div>
 
+    <nav class="section-tabs" aria-label="Sections de l’administration">
+        <a class="section-tab" href="#overview" data-tab="overview">
+            <span aria-hidden="true">⌂</span>
+            <span><strong>Accueil</strong><small>Vue d’ensemble</small></span>
+        </a>
+        <a class="section-tab" href="#rooms" data-tab="rooms">
+            <span aria-hidden="true">▦</span>
+            <span><strong>Salles</strong><small>Organisation</small></span>
+        </a>
+        <a class="section-tab" href="#exams" data-tab="exams">
+            <span aria-hidden="true">✚</span>
+            <span><strong>Examens</strong><small>Personnalisation</small></span>
+        </a>
+        <a class="section-tab" href="#users" data-tab="users">
+            <span aria-hidden="true">♙</span>
+            <span><strong>Utilisateurs</strong><small>Administration</small></span>
+        </a>
+    </nav>
+
+    <div class="tab-page" id="overview" data-tab-page="overview">
     <section class="metric-grid" aria-label="Indicateurs du serveur">
         <article class="metric-card metric-card-primary">
             <span class="metric-icon" aria-hidden="true">●</span>
@@ -132,8 +171,9 @@
             </button>
         </aside>
     </div>
+    </div>
 
-    <section class="panel rooms-panel" id="rooms">
+    <section class="panel rooms-panel tab-page" id="rooms" data-tab-page="rooms">
         <div class="panel-heading">
             <div><p class="eyebrow">Organisation</p><h2>Gestion des salles</h2></div>
             <span class="panel-total">@Model.Rooms.Count salle(s)</span>
@@ -170,7 +210,7 @@
         </div>
     </section>
 
-    <section class="panel exams-panel" id="exams">
+    <section class="panel exams-panel tab-page" id="exams" data-tab-page="exams">
         <div class="panel-heading">
             <div><p class="eyebrow">Personnalisation</p><h2>Gestion des examens</h2></div>
             <form method="post" asp-page-handler="AddExam"><button type="submit" class="primary-action-button">+ Ajouter un examen</button></form>
@@ -199,11 +239,24 @@
                         <div class="exam-fields">
                             <label><span>Nom</span><input name="ExamEdit.Name" value="@exam.Name" required maxlength="80" /></label>
                             <label class="wide-field"><span>Description</span><input name="ExamEdit.Description" value="@exam.Description" maxlength="160" /></label>
-                            <label><span>Couleur</span><span class="color-input"><input type="color" name="ExamEdit.Color" value="@(exam.Color?.Length == 7 ? exam.Color : "#246BFD")" /><code>@exam.Color</code></span></label>
+                            <label><span>Couleur</span><span class="color-input"><input type="color" name="ExamEdit.Color" value="@ToHtmlColor(exam.Color)" data-color-picker /><code data-color-code>@exam.Color</code></span></label>
                             <label><span>Code clavier</span><input name="ExamEdit.CodeMSG" value="@exam.CodeMSG" maxlength="80" /></label>
-                            <label><span>Salle / étage</span><input name="ExamEdit.Floor" value="@exam.Floor" maxlength="80" /></label>
-                            <label class="wide-field"><span>Annotation au début</span><input name="ExamEdit.Annotation" value="@exam.Annotation" maxlength="200" /></label>
-                            <label class="wide-field"><span>Annotation à la fin</span><input name="ExamEdit.EndAnnotation" value="@exam.EndAnnotation" maxlength="200" /></label>
+                            <label><span>Salle / étage</span><select name="ExamEdit.Floor">
+                                <option value="">Aucune salle</option>
+                                @foreach (var room in Model.Rooms)
+                                {
+                                    if (string.Equals(room, exam.Floor, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="@room" selected>@room</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@room">@room</option>
+                                    }
+                                }
+                            </select></label>
+                            <label class="wide-field"><span>Annotation au début <small>(facultatif)</small></span><input name="ExamEdit.Annotation" value="@exam.Annotation" maxlength="200" /></label>
+                            <label class="wide-field"><span>Annotation à la fin <small>(facultatif)</small></span><input name="ExamEdit.EndAnnotation" value="@exam.EndAnnotation" maxlength="200" /></label>
                         </div>
                         <div class="exam-card-actions">
                             <button type="submit" class="danger-button" formaction="?handler=DeleteExam&id=@exam.Id" onclick="return confirm('Supprimer cet examen ?')">Supprimer</button>
@@ -215,7 +268,7 @@
         }
     </section>
 
-    <section class="panel users-panel" id="users">
+    <section class="panel users-panel tab-page" id="users" data-tab-page="users">
         <div class="panel-heading">
             <div><p class="eyebrow">Administration</p><h2>Gestion des utilisateurs</h2></div>
             <span class="panel-total">@Model.ManagedUsers.Count utilisateur(s)</span>
@@ -237,8 +290,8 @@
                         </div>
                         <label><span>Nom affiché</span><input name="UserEdit.DisplayName" value="@user.DisplayName" required maxlength="80" /></label>
                         <label><span>Salle</span><input name="UserEdit.Room" value="@user.Room" maxlength="80" /></label>
-                        <label><span>Note</span><input name="UserEdit.Note" value="@user.Note" maxlength="200" /></label>
-                        <label><span>Couleur du nom</span><input name="UserEdit.ColorUserName" value="@user.ColorUserName" maxlength="30" placeholder="#246BFD ou Blue" /></label>
+                        <label><span>Note <small>(facultatif)</small></span><input name="UserEdit.Note" value="@user.Note" maxlength="200" title="Information administrative associée à l’utilisateur" /></label>
+                        <label><span>Couleur du nom</span><span class="color-input user-color-input"><input type="color" name="UserEdit.ColorUserName" value="@ToHtmlColor(user.ColorUserName)" data-color-picker /><code data-color-code>@user.ColorUserName</code></span></label>
                         <button type="submit" class="save-user-button">Enregistrer</button>
                     </form>
                 }

@@ -349,18 +349,35 @@ namespace ChatServeur
             if (!rooms.Contains(room))
                 rooms.Add(room);
 
+            var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == username);
+            var isNewUser = dbUser == null;
+            if (isNewUser)
+            {
+                dbUser = new KnownUser { Username = username };
+                _db.KnownUsers.Add(dbUser);
+            }
+            var persistedUser = dbUser!;
+
+            var displayName = isNewUser || string.IsNullOrWhiteSpace(persistedUser.DisplayName)
+                ? username
+                : persistedUser.DisplayName;
+            var userColor = isNewUser || string.IsNullOrWhiteSpace(persistedUser.ColorUserName)
+                ? color
+                : persistedUser.ColorUserName;
+            var note = isNewUser ? string.Empty : persistedUser.Note ?? string.Empty;
+
             var user = new UserInfo
             {
                 ConnectionId = Context.ConnectionId,
                 Username = username,
                 Avatar = avatar,
                 Rooms = rooms,
-                DisplayName = username,
-                ColorUserName = color,
+                DisplayName = displayName,
+                ColorUserName = userColor,
                 MachineName = machineName,
                 IsOnline = true,
                 Status = string.Empty,
-                Note = string.Empty
+                Note = note
             };
 
             ConnectedUsers[Context.ConnectionId] = user;
@@ -372,19 +389,13 @@ namespace ChatServeur
             set.Add(Context.ConnectionId);
             AllUsers[username] = user;
 
-            var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == username);
-            if (dbUser == null)
-            {
-                dbUser = new KnownUser { Username = username };
-                _db.KnownUsers.Add(dbUser);
-            }
-            dbUser.ConnectionId = Context.ConnectionId;
-            dbUser.Avatar = avatar;
-            dbUser.Room = string.Join(",", user.Rooms);
-            dbUser.DisplayName = username;
-            dbUser.ColorUserName = color;
-            dbUser.IsOnline = true;
-            dbUser.Note = string.Empty;
+            persistedUser.ConnectionId = Context.ConnectionId;
+            persistedUser.Avatar = avatar;
+            persistedUser.Room = string.Join(",", user.Rooms);
+            persistedUser.DisplayName = displayName;
+            persistedUser.ColorUserName = userColor;
+            persistedUser.IsOnline = true;
+            persistedUser.Note = note;
             await _db.SaveChangesAsync();
 
             await Groups.AddToGroupAsync(Context.ConnectionId, "A Tous");
