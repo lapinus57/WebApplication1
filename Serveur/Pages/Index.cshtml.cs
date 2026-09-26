@@ -54,9 +54,9 @@ public class IndexModel : PageModel
             return NotFound();
 
         user.DisplayName = userEdit.DisplayName.Trim();
-        user.Room = userEdit.Room.Trim();
-        user.Note = userEdit.Note.Trim();
-        user.ColorUserName = userEdit.ColorUserName.Trim();
+        user.Room = userEdit.Room?.Trim() ?? string.Empty;
+        user.Note = userEdit.Note?.Trim() ?? string.Empty;
+        user.ColorUserName = NormalizeArgbColor(userEdit.ColorUserName, "#FF000000");
         await _db.SaveChangesAsync();
         await BroadcastUsersAsync(user);
         SuccessMessage = $"L’utilisateur {user.DisplayName} a bien été modifié.";
@@ -91,6 +91,11 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostSaveExamAsync(ExamEditInput examEdit)
     {
+        var rooms = await GetRoomsAsync();
+        if (!string.IsNullOrWhiteSpace(examEdit.Floor) &&
+            !rooms.Contains(examEdit.Floor.Trim(), StringComparer.OrdinalIgnoreCase))
+            ModelState.AddModelError("ExamEdit.Floor", "La salle sélectionnée n’existe plus.");
+
         if (!ModelState.IsValid)
             return await ReloadPageAsync();
 
@@ -235,12 +240,22 @@ public class IndexModel : PageModel
     private static void ApplyExamEdit(ExamOption exam, ExamEditInput examEdit)
     {
         exam.Name = examEdit.Name.Trim();
-        exam.Description = examEdit.Description.Trim();
-        exam.Color = examEdit.Color.Trim();
-        exam.CodeMSG = examEdit.CodeMSG.Trim();
-        exam.Annotation = examEdit.Annotation.Trim();
-        exam.EndAnnotation = examEdit.EndAnnotation.Trim();
-        exam.Floor = examEdit.Floor.Trim();
+        exam.Description = examEdit.Description?.Trim() ?? string.Empty;
+        exam.Color = NormalizeArgbColor(examEdit.Color, "#FF246BFD");
+        exam.CodeMSG = examEdit.CodeMSG?.Trim() ?? string.Empty;
+        exam.Annotation = examEdit.Annotation?.Trim() ?? string.Empty;
+        exam.EndAnnotation = examEdit.EndAnnotation?.Trim() ?? string.Empty;
+        exam.Floor = examEdit.Floor?.Trim() ?? string.Empty;
+    }
+
+    private static string NormalizeArgbColor(string? color, string fallback)
+    {
+        var value = color?.Trim() ?? string.Empty;
+        if (System.Text.RegularExpressions.Regex.IsMatch(value, "^#[0-9a-fA-F]{8}$"))
+            return value.ToUpperInvariant();
+        if (System.Text.RegularExpressions.Regex.IsMatch(value, "^#[0-9a-fA-F]{6}$"))
+            return $"#FF{value[1..].ToUpperInvariant()}";
+        return fallback;
     }
 
     private async Task<IReadOnlyList<ExamOption>> GetExamOptionsAsync()
@@ -460,9 +475,10 @@ public class IndexModel : PageModel
         [Range(1, int.MaxValue)] public int Id { get; set; }
         [Required(ErrorMessage = "Le nom affiché est obligatoire.")]
         [StringLength(80)] public string DisplayName { get; set; } = string.Empty;
-        [StringLength(80)] public string Room { get; set; } = string.Empty;
-        [StringLength(200)] public string Note { get; set; } = string.Empty;
-        [StringLength(30)] public string ColorUserName { get; set; } = string.Empty;
+        [StringLength(80)] public string? Room { get; set; }
+        [StringLength(200)] public string? Note { get; set; }
+        [Required, RegularExpression("^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$", ErrorMessage = "La couleur du nom doit être au format #RRGGBB ou #AARRGGBB.")]
+        public string ColorUserName { get; set; } = "#000000";
     }
 
     public sealed class ExamEditInput
@@ -470,13 +486,13 @@ public class IndexModel : PageModel
         [Required] public string Id { get; set; } = string.Empty;
         [Required(ErrorMessage = "Le nom de l’examen est obligatoire.")]
         [StringLength(80)] public string Name { get; set; } = string.Empty;
-        [StringLength(160)] public string Description { get; set; } = string.Empty;
-        [Required, RegularExpression("^#[0-9a-fA-F]{6}$", ErrorMessage = "La couleur doit être au format #RRGGBB.")]
+        [StringLength(160)] public string? Description { get; set; }
+        [Required, RegularExpression("^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$", ErrorMessage = "La couleur doit être au format #RRGGBB ou #AARRGGBB.")]
         public string Color { get; set; } = "#246BFD";
-        [StringLength(80)] public string CodeMSG { get; set; } = string.Empty;
-        [StringLength(200)] public string Annotation { get; set; } = string.Empty;
-        [StringLength(200)] public string EndAnnotation { get; set; } = string.Empty;
-        [StringLength(80)] public string Floor { get; set; } = string.Empty;
+        [StringLength(80)] public string? CodeMSG { get; set; }
+        [StringLength(200)] public string? Annotation { get; set; }
+        [StringLength(200)] public string? EndAnnotation { get; set; }
+        [StringLength(80)] public string? Floor { get; set; }
     }
 
     public sealed class RoomEditInput

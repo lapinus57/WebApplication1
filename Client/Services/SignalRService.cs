@@ -2266,6 +2266,9 @@ namespace Client.Services
                 var existing = _lastServerUserList[i];
                 var incoming = newList[i];
                 if (existing.Username != incoming.Username ||
+                    existing.DisplayName != incoming.DisplayName ||
+                    existing.ColorUserName != incoming.ColorUserName ||
+                    existing.Note != incoming.Note ||
                     existing.IsOnline != incoming.IsOnline ||
                     existing.Rooms.Count != incoming.Rooms.Count ||
                     !existing.Rooms.SequenceEqual(incoming.Rooms))

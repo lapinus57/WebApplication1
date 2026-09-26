@@ -430,9 +430,10 @@
                                 ContextFlyout="{StaticResource UserContextMenu}">
                             <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
                             <StackPanel>
-                                <TextBlock Text="{x:Bind Username}" Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}" FontWeight="Bold"/>
+                                <TextBlock Text="{x:Bind Name}" Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}" FontWeight="Bold"/>
                                 <TextBlock Text="{x:Bind RoomsDisplay, Mode=OneWay, FallbackValue='Hors ligne'}"
                                            Foreground="{x:Bind AccentAwareColorUserName, Converter={StaticResource StringToColorConverter}}"/>
+                                <TextBlock Text="{x:Bind Note}" Opacity="0.65" FontSize="11" TextWrapping="Wrap" MaxLines="2"/>
                             </StackPanel>
                         </StackPanel>
                     </DataTemplate>
