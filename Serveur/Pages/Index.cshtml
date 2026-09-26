@@ -133,6 +133,43 @@
         </aside>
     </div>
 
+    <section class="panel rooms-panel" id="rooms">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Organisation</p><h2>Gestion des salles</h2></div>
+            <span class="panel-total">@Model.Rooms.Count salle(s)</span>
+        </div>
+        <div class="rooms-content">
+            <form method="post" asp-page-handler="AddRoom" class="add-room-form">
+                <label for="new-room">Nouvelle salle</label>
+                <div><input id="new-room" name="RoomEdit.Name" required maxlength="80" placeholder="Ex. Salle OCT" /><button type="submit" class="primary-action-button">+ Ajouter</button></div>
+            </form>
+            @if (Model.Rooms.Count == 0)
+            {
+                <div class="empty-state compact-empty"><span aria-hidden="true">⌂</span><p>Aucune salle configurée.</p></div>
+            }
+            else
+            {
+                <div class="room-list">
+                    @for (var index = 0; index < Model.Rooms.Count; index++)
+                    {
+                        var room = Model.Rooms[index];
+                        <form method="post" asp-page-handler="UpdateRoom" class="room-edit-row">
+                            <input type="hidden" name="RoomEdit.OriginalName" value="@room" />
+                            <span class="room-icon" aria-hidden="true">⌂</span>
+                            <label><span>Nom de la salle</span><input name="RoomEdit.Name" value="@room" required maxlength="80" /></label>
+                            <div class="room-order-actions">
+                                <button type="submit" formaction="?handler=MoveRoom&name=@Uri.EscapeDataString(room)&direction=-1" disabled="@(index == 0)" title="Monter">↑</button>
+                                <button type="submit" formaction="?handler=MoveRoom&name=@Uri.EscapeDataString(room)&direction=1" disabled="@(index == Model.Rooms.Count - 1)" title="Descendre">↓</button>
+                            </div>
+                            <button type="submit" class="save-user-button">Enregistrer</button>
+                            <button type="submit" class="danger-button" formaction="?handler=DeleteRoom&name=@Uri.EscapeDataString(room)" onclick="return confirm('Supprimer cette salle ? Les utilisateurs et examens associés n’auront plus de salle.')">Supprimer</button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+
     <section class="panel exams-panel" id="exams">
         <div class="panel-heading">
             <div><p class="eyebrow">Personnalisation</p><h2>Gestion des examens</h2></div>

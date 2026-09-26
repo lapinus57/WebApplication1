@@ -25,6 +25,7 @@ public class IndexModel : PageModel
     public ServerSnapshot Snapshot { get; private set; } = ServerSnapshot.Unavailable;
     public IReadOnlyList<ManagedUser> ManagedUsers { get; private set; } = [];
     public IReadOnlyList<ExamOption> ExamOptions { get; private set; } = [];
+    public IReadOnlyList<string> Rooms { get; private set; } = [];
 
     [TempData]
     public string? SuccessMessage { get; set; }
@@ -34,6 +35,7 @@ public class IndexModel : PageModel
         Snapshot = await CreateSnapshotAsync();
         ManagedUsers = await GetManagedUsersAsync();
         ExamOptions = await GetExamOptionsAsync();
+        Rooms = await GetRoomsAsync();
     }
 
     public async Task<IActionResult> OnPostUpdateUserAsync(UserEditInput userEdit)
@@ -43,6 +45,7 @@ public class IndexModel : PageModel
             Snapshot = await CreateSnapshotAsync();
             ManagedUsers = await GetManagedUsersAsync();
             ExamOptions = await GetExamOptionsAsync();
+            Rooms = await GetRoomsAsync();
             return Page();
         }
 
@@ -55,6 +58,13 @@ public class IndexModel : PageModel
         user.Note = userEdit.Note.Trim();
         user.ColorUserName = userEdit.ColorUserName.Trim();
         await _db.SaveChangesAsync();
+        await BroadcastUsersAsync();
+        SuccessMessage = $"L’utilisateur {user.DisplayName} a bien été modifié.";
+        return Redirect(Url.Page("/Index") + "#users");
+    }
+
+    private async Task BroadcastUsersAsync()
+    {
         var users = await _db.KnownUsers.AsNoTracking().ToListAsync();
         var clientUsers = users.Select(item => new UserInfo
         {
@@ -68,8 +78,6 @@ public class IndexModel : PageModel
             Note = item.Note
         }).ToList();
         await _hubContext.Clients.All.SendAsync("UserListUpdated", clientUsers);
-        SuccessMessage = $"L’utilisateur {user.DisplayName} a bien été modifié.";
-        return Redirect(Url.Page("/Index") + "#users");
     }
 
     public async Task<IActionResult> OnPostSaveExamAsync(ExamEditInput examEdit)
@@ -131,11 +139,81 @@ public class IndexModel : PageModel
         return Redirect(Url.Page("/Index") + "#exams");
     }
 
+    public async Task<IActionResult> OnPostAddRoomAsync(RoomEditInput roomEdit)
+    {
+        if (!ModelState.IsValid)
+            return await ReloadPageAsync();
+
+        var rooms = (await GetRoomsAsync()).ToList();
+        var name = roomEdit.Name.Trim();
+        if (rooms.Any(room => string.Equals(room, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ModelState.AddModelError(string.Empty, "Cette salle existe déjà.");
+            return await ReloadPageAsync();
+        }
+
+        rooms.Add(name);
+        await SaveRoomsAsync(rooms);
+        SuccessMessage = $"La salle {name} a été ajoutée.";
+        return Redirect(Url.Page("/Index") + "#rooms");
+    }
+
+    public async Task<IActionResult> OnPostUpdateRoomAsync(RoomEditInput roomEdit)
+    {
+        if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomEdit.OriginalName))
+            return await ReloadPageAsync();
+
+        var rooms = (await GetRoomsAsync()).ToList();
+        var index = rooms.FindIndex(room => string.Equals(room, roomEdit.OriginalName, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+            return NotFound();
+
+        var name = roomEdit.Name.Trim();
+        if (rooms.Where((_, roomIndex) => roomIndex != index).Any(room => string.Equals(room, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ModelState.AddModelError(string.Empty, "Cette salle existe déjà.");
+            return await ReloadPageAsync();
+        }
+
+        var originalName = rooms[index];
+        rooms[index] = name;
+        await UpdateRoomReferencesAsync(originalName, name);
+        await SaveRoomsAsync(rooms);
+        SuccessMessage = $"La salle {originalName} a été renommée en {name}.";
+        return Redirect(Url.Page("/Index") + "#rooms");
+    }
+
+    public async Task<IActionResult> OnPostDeleteRoomAsync(string name)
+    {
+        var rooms = (await GetRoomsAsync()).ToList();
+        var existing = rooms.FirstOrDefault(room => string.Equals(room, name, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+            return NotFound();
+
+        rooms.Remove(existing);
+        await UpdateRoomReferencesAsync(existing, string.Empty);
+        await SaveRoomsAsync(rooms);
+        SuccessMessage = $"La salle {existing} a été supprimée.";
+        return Redirect(Url.Page("/Index") + "#rooms");
+    }
+
+    public async Task<IActionResult> OnPostMoveRoomAsync(string name, int direction)
+    {
+        var rooms = (await GetRoomsAsync()).ToList();
+        var index = rooms.FindIndex(room => string.Equals(room, name, StringComparison.OrdinalIgnoreCase));
+        var destination = index + Math.Sign(direction);
+        if (index >= 0 && destination >= 0 && destination < rooms.Count)
+            (rooms[index], rooms[destination]) = (rooms[destination], rooms[index]);
+        await SaveRoomsAsync(rooms);
+        return Redirect(Url.Page("/Index") + "#rooms");
+    }
+
     private async Task<IActionResult> ReloadPageAsync()
     {
         Snapshot = await CreateSnapshotAsync();
         ManagedUsers = await GetManagedUsersAsync();
         ExamOptions = await GetExamOptionsAsync();
+        Rooms = await GetRoomsAsync();
         return Page();
     }
 
@@ -187,6 +265,58 @@ public class IndexModel : PageModel
         await _hubContext.Clients.All.SendAsync("ExamOptionsUpdated", options);
         foreach (var patient in patients)
             await _hubContext.Clients.All.SendAsync("PatientUpdated", patient);
+    }
+
+    private async Task<IReadOnlyList<string>> GetRoomsAsync()
+    {
+        var config = await _db.ServerConfigs.AsNoTracking().SingleOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(config?.RoomsJson))
+            return [];
+        try
+        {
+            return (JsonSerializer.Deserialize<List<string>>(config.RoomsJson) ?? [])
+                .Where(room => !string.IsNullOrWhiteSpace(room)).ToList();
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(exception, "La configuration des salles est illisible.");
+            return [];
+        }
+    }
+
+    private async Task SaveRoomsAsync(List<string> rooms)
+    {
+        var config = await _db.ServerConfigs.SingleOrDefaultAsync();
+        if (config is null)
+        {
+            config = new ServerConfig();
+            _db.ServerConfigs.Add(config);
+        }
+        config.RoomsJson = JsonSerializer.Serialize(rooms);
+        await _db.SaveChangesAsync();
+        await _hubContext.Clients.All.SendAsync("RoomsUpdated", rooms);
+    }
+
+    private async Task UpdateRoomReferencesAsync(string oldName, string newName)
+    {
+        var options = (await GetExamOptionsAsync()).ToList();
+        var changedOptions = options.Where(exam => string.Equals(exam.Floor, oldName, StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var exam in changedOptions)
+            exam.Floor = newName;
+
+        var users = await _db.KnownUsers.Where(user => user.Room == oldName).ToListAsync();
+        foreach (var user in users)
+            user.Room = newName;
+
+        if (changedOptions.Count > 0)
+        {
+            var config = await _db.ServerConfigs.SingleAsync();
+            config.ExamOptionsJson = JsonSerializer.Serialize(options);
+            await _hubContext.Clients.All.SendAsync("ExamOptionsUpdated", options);
+        }
+        await _db.SaveChangesAsync();
+        if (users.Count > 0)
+            await BroadcastUsersAsync();
     }
 
     private static void ReindexExams(IList<ExamOption> options)
@@ -312,6 +442,13 @@ public class IndexModel : PageModel
         [StringLength(200)] public string Annotation { get; set; } = string.Empty;
         [StringLength(200)] public string EndAnnotation { get; set; } = string.Empty;
         [StringLength(80)] public string Floor { get; set; } = string.Empty;
+    }
+
+    public sealed class RoomEditInput
+    {
+        public string OriginalName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Le nom de la salle est obligatoire.")]
+        [StringLength(80)] public string Name { get; set; } = string.Empty;
     }
 
     public sealed record ServerSnapshot(
