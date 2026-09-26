@@ -17,6 +17,12 @@
         </div>
     </section>
 
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="success-message dashboard-message" role="status">✓ @Model.SuccessMessage</div>
+    }
+    <div asp-validation-summary="All" class="validation-summary management-validation dashboard-validation" role="alert"></div>
+
     <section class="metric-grid" aria-label="Indicateurs du serveur">
         <article class="metric-card metric-card-primary">
             <span class="metric-icon" aria-hidden="true">●</span>
@@ -116,7 +122,7 @@
                 </div>
             </div>
             <dl>
-                <div><dt>Adresse du service</dt><dd>@($"http://{Request.Host}/chatHub")</dd></div>
+                <div><dt>Adresse du service</dt><dd>@($"http://{Request.Host.Host}:5000/chatHub")</dd></div>
                 <div><dt>Base de données</dt><dd data-database-status>@(Model.Snapshot.IsHealthy ? "Connectée" : "Indisponible")</dd></div>
                 <div><dt>Démarré le</dt><dd data-started-at>@Model.Snapshot.StartedAt.ToString("dd/MM/yyyy à HH:mm")</dd></div>
                 <div><dt>Dernière vérification</dt><dd data-checked-at>@Model.Snapshot.CheckedAt.ToString("HH:mm:ss")</dd></div>
@@ -127,16 +133,93 @@
         </aside>
     </div>
 
+    <section class="panel rooms-panel" id="rooms">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Organisation</p><h2>Gestion des salles</h2></div>
+            <span class="panel-total">@Model.Rooms.Count salle(s)</span>
+        </div>
+        <div class="rooms-content">
+            <form method="post" asp-page-handler="AddRoom" class="add-room-form">
+                <label for="new-room">Nouvelle salle</label>
+                <div><input id="new-room" name="RoomEdit.Name" required maxlength="80" placeholder="Ex. Salle OCT" /><button type="submit" class="primary-action-button">+ Ajouter</button></div>
+            </form>
+            @if (Model.Rooms.Count == 0)
+            {
+                <div class="empty-state compact-empty"><span aria-hidden="true">⌂</span><p>Aucune salle configurée.</p></div>
+            }
+            else
+            {
+                <div class="room-list">
+                    @for (var index = 0; index < Model.Rooms.Count; index++)
+                    {
+                        var room = Model.Rooms[index];
+                        <form method="post" asp-page-handler="UpdateRoom" class="room-edit-row">
+                            <input type="hidden" name="RoomEdit.OriginalName" value="@room" />
+                            <span class="room-icon" aria-hidden="true">⌂</span>
+                            <label><span>Nom de la salle</span><input name="RoomEdit.Name" value="@room" required maxlength="80" /></label>
+                            <div class="room-order-actions">
+                                <button type="submit" formaction="?handler=MoveRoom&name=@Uri.EscapeDataString(room)&direction=-1" disabled="@(index == 0)" title="Monter">↑</button>
+                                <button type="submit" formaction="?handler=MoveRoom&name=@Uri.EscapeDataString(room)&direction=1" disabled="@(index == Model.Rooms.Count - 1)" title="Descendre">↓</button>
+                            </div>
+                            <button type="submit" class="save-user-button">Enregistrer</button>
+                            <button type="submit" class="danger-button" formaction="?handler=DeleteRoom&name=@Uri.EscapeDataString(room)" onclick="return confirm('Supprimer cette salle ? Les utilisateurs et examens associés n’auront plus de salle.')">Supprimer</button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="panel exams-panel" id="exams">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Personnalisation</p><h2>Gestion des examens</h2></div>
+            <form method="post" asp-page-handler="AddExam"><button type="submit" class="primary-action-button">+ Ajouter un examen</button></form>
+        </div>
+        @if (Model.ExamOptions.Count == 0)
+        {
+            <div class="empty-state"><span aria-hidden="true">✚</span><p>Aucun examen configuré. Ajoutez le premier examen.</p></div>
+        }
+        else
+        {
+            <div class="exam-list">
+                @for (var index = 0; index < Model.ExamOptions.Count; index++)
+                {
+                    var exam = Model.ExamOptions[index];
+                    <form method="post" asp-page-handler="SaveExam" class="exam-edit-card">
+                        <input type="hidden" name="ExamEdit.Id" value="@exam.Id" />
+                        <div class="exam-card-heading">
+                            <span class="exam-color-preview" style="background: @exam.Color"></span>
+                            <strong>@exam.Name</strong>
+                            <span class="exam-position">N° @(index + 1)</span>
+                            <div class="exam-order-actions">
+                                <button type="submit" formaction="?handler=MoveExam&id=@exam.Id&direction=-1" disabled="@(index == 0)" title="Monter">↑</button>
+                                <button type="submit" formaction="?handler=MoveExam&id=@exam.Id&direction=1" disabled="@(index == Model.ExamOptions.Count - 1)" title="Descendre">↓</button>
+                            </div>
+                        </div>
+                        <div class="exam-fields">
+                            <label><span>Nom</span><input name="ExamEdit.Name" value="@exam.Name" required maxlength="80" /></label>
+                            <label class="wide-field"><span>Description</span><input name="ExamEdit.Description" value="@exam.Description" maxlength="160" /></label>
+                            <label><span>Couleur</span><span class="color-input"><input type="color" name="ExamEdit.Color" value="@(exam.Color?.Length == 7 ? exam.Color : "#246BFD")" /><code>@exam.Color</code></span></label>
+                            <label><span>Code clavier</span><input name="ExamEdit.CodeMSG" value="@exam.CodeMSG" maxlength="80" /></label>
+                            <label><span>Salle / étage</span><input name="ExamEdit.Floor" value="@exam.Floor" maxlength="80" /></label>
+                            <label class="wide-field"><span>Annotation au début</span><input name="ExamEdit.Annotation" value="@exam.Annotation" maxlength="200" /></label>
+                            <label class="wide-field"><span>Annotation à la fin</span><input name="ExamEdit.EndAnnotation" value="@exam.EndAnnotation" maxlength="200" /></label>
+                        </div>
+                        <div class="exam-card-actions">
+                            <button type="submit" class="danger-button" formaction="?handler=DeleteExam&id=@exam.Id" onclick="return confirm('Supprimer cet examen ?')">Supprimer</button>
+                            <button type="submit" class="save-user-button">Enregistrer les modifications</button>
+                        </div>
+                    </form>
+                }
+            </div>
+        }
+    </section>
+
     <section class="panel users-panel" id="users">
         <div class="panel-heading">
             <div><p class="eyebrow">Administration</p><h2>Gestion des utilisateurs</h2></div>
             <span class="panel-total">@Model.ManagedUsers.Count utilisateur(s)</span>
         </div>
-        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-        {
-            <div class="success-message" role="status">✓ @Model.SuccessMessage</div>
-        }
-        <div asp-validation-summary="ModelOnly" class="validation-summary management-validation"></div>
         @if (Model.ManagedUsers.Count == 0)
         {
             <div class="empty-state"><span aria-hidden="true">♙</span><p>Aucun utilisateur enregistré.</p></div>
@@ -155,6 +238,7 @@
                         <label><span>Nom affiché</span><input name="UserEdit.DisplayName" value="@user.DisplayName" required maxlength="80" /></label>
                         <label><span>Salle</span><input name="UserEdit.Room" value="@user.Room" maxlength="80" /></label>
                         <label><span>Note</span><input name="UserEdit.Note" value="@user.Note" maxlength="200" /></label>
+                        <label><span>Couleur du nom</span><input name="UserEdit.ColorUserName" value="@user.ColorUserName" maxlength="30" placeholder="#246BFD ou Blue" /></label>
                         <button type="submit" class="save-user-button">Enregistrer</button>
                     </form>
                 }

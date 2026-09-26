@@ -34,6 +34,7 @@ namespace ChatServeur
         private static readonly Dictionary<string, HashSet<string>> GroupMembers = new();
         private static readonly Dictionary<string, PendingLoginRequest> PendingLoginRequests = new();
         private static bool _usersLoaded;
+        private static readonly object UserStateLock = new();
         private const int LoginConflictDelaySeconds = 10;
         private const string ApplicationPassword = "901027";
 
@@ -195,6 +196,47 @@ namespace ChatServeur
                 ? new List<string>()
                 : rooms.Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(r => r.Trim()).ToList();
+        }
+
+        internal static IReadOnlyList<UserInfo>? ApplyAdministrativeUserUpdate(KnownUser updated)
+        {
+            lock (UserStateLock)
+            {
+                if (!_usersLoaded)
+                    return null;
+
+                if (TryGetUserEntry(updated.Username, out var key, out var user))
+                {
+                    user.DisplayName = updated.DisplayName;
+                    user.ColorUserName = updated.ColorUserName;
+                    user.Rooms = ParseRooms(updated.Room);
+                    user.Note = updated.Note;
+                    user.Avatar = updated.Avatar;
+                    user.IsOnline = updated.IsOnline;
+                    AllUsers[key] = user;
+                }
+
+                foreach (var connectionId in ConnectedUsers.Keys.ToList())
+                {
+                    var connected = ConnectedUsers[connectionId];
+                    if (!string.Equals(connected.Username, updated.Username, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    connected.DisplayName = updated.DisplayName;
+                    connected.ColorUserName = updated.ColorUserName;
+                    connected.Rooms = ParseRooms(updated.Room);
+                    connected.Note = updated.Note;
+                    connected.Avatar = updated.Avatar;
+                    ConnectedUsers[connectionId] = connected;
+                }
+
+                return BaseUsers.Concat(AllUsers.Values).ToList();
+            }
+        }
+
+        internal static IReadOnlyList<UserInfo>? GetAuthoritativeUsers()
+        {
+            lock (UserStateLock)
+                return _usersLoaded ? BaseUsers.Concat(AllUsers.Values).ToList() : null;
         }
 
         private string GetUsername()
