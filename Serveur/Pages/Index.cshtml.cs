@@ -1,5 +1,8 @@
 using System.Diagnostics;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using ChatServeur;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -10,19 +13,194 @@ public class IndexModel : PageModel
 {
     private readonly ChatDbContext _db;
     private readonly ILogger<IndexModel> _logger;
+    private readonly IHubContext<ChatHub> _hubContext;
 
-    public IndexModel(ChatDbContext db, ILogger<IndexModel> logger)
+    public IndexModel(ChatDbContext db, ILogger<IndexModel> logger, IHubContext<ChatHub> hubContext)
     {
         _db = db;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     public ServerSnapshot Snapshot { get; private set; } = ServerSnapshot.Unavailable;
+    public IReadOnlyList<ManagedUser> ManagedUsers { get; private set; } = [];
+    public IReadOnlyList<ExamOption> ExamOptions { get; private set; } = [];
+
+    [TempData]
+    public string? SuccessMessage { get; set; }
 
     public async Task OnGetAsync()
     {
         Snapshot = await CreateSnapshotAsync();
+        ManagedUsers = await GetManagedUsersAsync();
+        ExamOptions = await GetExamOptionsAsync();
     }
+
+    public async Task<IActionResult> OnPostUpdateUserAsync(UserEditInput userEdit)
+    {
+        if (!ModelState.IsValid)
+        {
+            Snapshot = await CreateSnapshotAsync();
+            ManagedUsers = await GetManagedUsersAsync();
+            ExamOptions = await GetExamOptionsAsync();
+            return Page();
+        }
+
+        var user = await _db.KnownUsers.FindAsync(userEdit.Id);
+        if (user is null)
+            return NotFound();
+
+        user.DisplayName = userEdit.DisplayName.Trim();
+        user.Room = userEdit.Room.Trim();
+        user.Note = userEdit.Note.Trim();
+        user.ColorUserName = userEdit.ColorUserName.Trim();
+        await _db.SaveChangesAsync();
+        var users = await _db.KnownUsers.AsNoTracking().ToListAsync();
+        var clientUsers = users.Select(item => new UserInfo
+        {
+            ConnectionId = item.ConnectionId,
+            Username = item.Username,
+            Avatar = item.Avatar,
+            Rooms = string.IsNullOrWhiteSpace(item.Room) ? [] : [item.Room],
+            DisplayName = item.DisplayName,
+            ColorUserName = item.ColorUserName,
+            IsOnline = item.IsOnline,
+            Note = item.Note
+        }).ToList();
+        await _hubContext.Clients.All.SendAsync("UserListUpdated", clientUsers);
+        SuccessMessage = $"L’utilisateur {user.DisplayName} a bien été modifié.";
+        return Redirect(Url.Page("/Index") + "#users");
+    }
+
+    public async Task<IActionResult> OnPostSaveExamAsync(ExamEditInput examEdit)
+    {
+        if (!ModelState.IsValid)
+            return await ReloadPageAsync();
+
+        var options = (await GetExamOptionsAsync()).ToList();
+        var exam = options.FirstOrDefault(item => item.Id == examEdit.Id);
+        if (exam is null)
+            return NotFound();
+
+        ApplyExamEdit(exam, examEdit);
+        await SaveExamOptionsAsync(options);
+        SuccessMessage = $"L’examen {exam.Name} a bien été modifié.";
+        return Redirect(Url.Page("/Index") + "#exams");
+    }
+
+    public async Task<IActionResult> OnPostAddExamAsync()
+    {
+        var options = (await GetExamOptionsAsync()).ToList();
+        var exam = new ExamOption
+        {
+            Index = options.Count + 1,
+            Name = "Nouvel examen",
+            Description = "Nouvel examen",
+            Color = "#246BFD",
+            CodeMSG = "examen"
+        };
+        options.Add(exam);
+        await SaveExamOptionsAsync(options);
+        SuccessMessage = "Un nouvel examen a été ajouté. Vous pouvez maintenant le personnaliser.";
+        return Redirect(Url.Page("/Index") + "#exams");
+    }
+
+    public async Task<IActionResult> OnPostDeleteExamAsync(string id)
+    {
+        var options = (await GetExamOptionsAsync()).ToList();
+        var exam = options.FirstOrDefault(item => item.Id == id);
+        if (exam is null)
+            return NotFound();
+
+        options.Remove(exam);
+        ReindexExams(options);
+        await SaveExamOptionsAsync(options);
+        SuccessMessage = $"L’examen {exam.Name} a été supprimé.";
+        return Redirect(Url.Page("/Index") + "#exams");
+    }
+
+    public async Task<IActionResult> OnPostMoveExamAsync(string id, int direction)
+    {
+        var options = (await GetExamOptionsAsync()).OrderBy(item => item.Index).ToList();
+        var index = options.FindIndex(item => item.Id == id);
+        var destination = index + Math.Sign(direction);
+        if (index >= 0 && destination >= 0 && destination < options.Count)
+            (options[index], options[destination]) = (options[destination], options[index]);
+        ReindexExams(options);
+        await SaveExamOptionsAsync(options);
+        return Redirect(Url.Page("/Index") + "#exams");
+    }
+
+    private async Task<IActionResult> ReloadPageAsync()
+    {
+        Snapshot = await CreateSnapshotAsync();
+        ManagedUsers = await GetManagedUsersAsync();
+        ExamOptions = await GetExamOptionsAsync();
+        return Page();
+    }
+
+    private static void ApplyExamEdit(ExamOption exam, ExamEditInput examEdit)
+    {
+        exam.Name = examEdit.Name.Trim();
+        exam.Description = examEdit.Description.Trim();
+        exam.Color = examEdit.Color.Trim();
+        exam.CodeMSG = examEdit.CodeMSG.Trim();
+        exam.Annotation = examEdit.Annotation.Trim();
+        exam.EndAnnotation = examEdit.EndAnnotation.Trim();
+        exam.Floor = examEdit.Floor.Trim();
+    }
+
+    private async Task<IReadOnlyList<ExamOption>> GetExamOptionsAsync()
+    {
+        var config = await _db.ServerConfigs.AsNoTracking().SingleOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(config?.ExamOptionsJson))
+            return [];
+        try
+        {
+            return (JsonSerializer.Deserialize<List<ExamOption>>(config.ExamOptionsJson) ?? [])
+                .OrderBy(item => item.Index).ToList();
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(exception, "La configuration des examens est illisible.");
+            return [];
+        }
+    }
+
+    private async Task SaveExamOptionsAsync(List<ExamOption> options)
+    {
+        ReindexExams(options);
+        var config = await _db.ServerConfigs.SingleOrDefaultAsync();
+        if (config is null)
+        {
+            config = new ServerConfig();
+            _db.ServerConfigs.Add(config);
+        }
+        config.ExamOptionsJson = JsonSerializer.Serialize(options);
+
+        var colors = options.ToDictionary(item => item.Id, item => item.Color, StringComparer.OrdinalIgnoreCase);
+        var patients = await _db.Patients.Where(patient => colors.Keys.Contains(patient.Exams)).ToListAsync();
+        foreach (var patient in patients)
+            patient.Colors = colors[patient.Exams];
+        await _db.SaveChangesAsync();
+
+        await _hubContext.Clients.All.SendAsync("ExamOptionsUpdated", options);
+        foreach (var patient in patients)
+            await _hubContext.Clients.All.SendAsync("PatientUpdated", patient);
+    }
+
+    private static void ReindexExams(IList<ExamOption> options)
+    {
+        for (var index = 0; index < options.Count; index++)
+            options[index].Index = index + 1;
+    }
+
+    private async Task<IReadOnlyList<ManagedUser>> GetManagedUsersAsync() => await _db.KnownUsers
+        .AsNoTracking()
+        .OrderByDescending(user => user.IsOnline)
+        .ThenBy(user => user.DisplayName)
+        .Select(user => new ManagedUser(user.Id, user.Username, user.DisplayName, user.Room, user.Note, user.ColorUserName, user.IsOnline))
+        .ToListAsync();
 
     public async Task<JsonResult> OnGetSnapshotAsync()
     {
@@ -52,6 +230,18 @@ public class IndexModel : PageModel
                     user.Note))
                 .ToListAsync();
 
+            var today = DateTime.Today;
+            var weekStart = today.AddDays(-6);
+            var patientCounts = await _db.Patients.AsNoTracking()
+                .Where(patient => patient.HoldTime >= weekStart)
+                .GroupBy(patient => patient.HoldTime.Date)
+                .Select(group => new { Date = group.Key, Count = group.Count() })
+                .ToDictionaryAsync(item => item.Date, item => item.Count);
+            var weeklyPatients = Enumerable.Range(0, 7)
+                .Select(offset => weekStart.AddDays(offset))
+                .Select(date => new DailyPatientSnapshot(date.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("fr-FR")), patientCounts.GetValueOrDefault(date)))
+                .ToList();
+
             return new ServerSnapshot(
                 true,
                 "Opérationnel",
@@ -62,6 +252,11 @@ public class IndexModel : PageModel
                 await _db.KnownUsers.CountAsync(),
                 await _db.Messages.CountAsync(),
                 await _db.Patients.CountAsync(patient => !patient.IsArchived),
+                await _db.Patients.CountAsync(),
+                await _db.Patients.CountAsync(patient => patient.HoldTime >= today),
+                await _db.Patients.CountAsync(patient => patient.IsArchived),
+                await _db.Patients.CountAsync(patient => patient.PickUpTime != null),
+                weeklyPatients,
                 users);
         }
         catch (Exception exception)
@@ -83,10 +278,41 @@ public class IndexModel : PageModel
             0,
             0,
             0,
+            0,
+            0,
+            0,
+            0,
+            [],
             []);
     }
 
     public sealed record ConnectedUserSnapshot(string Name, string Room, string Note);
+    public sealed record ManagedUser(int Id, string Username, string DisplayName, string Room, string Note, string ColorUserName, bool IsOnline);
+    public sealed record DailyPatientSnapshot(string Label, int Count);
+
+    public sealed class UserEditInput
+    {
+        [Range(1, int.MaxValue)] public int Id { get; set; }
+        [Required(ErrorMessage = "Le nom affiché est obligatoire.")]
+        [StringLength(80)] public string DisplayName { get; set; } = string.Empty;
+        [StringLength(80)] public string Room { get; set; } = string.Empty;
+        [StringLength(200)] public string Note { get; set; } = string.Empty;
+        [StringLength(30)] public string ColorUserName { get; set; } = string.Empty;
+    }
+
+    public sealed class ExamEditInput
+    {
+        [Required] public string Id { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Le nom de l’examen est obligatoire.")]
+        [StringLength(80)] public string Name { get; set; } = string.Empty;
+        [StringLength(160)] public string Description { get; set; } = string.Empty;
+        [Required, RegularExpression("^#[0-9a-fA-F]{6}$", ErrorMessage = "La couleur doit être au format #RRGGBB.")]
+        public string Color { get; set; } = "#246BFD";
+        [StringLength(80)] public string CodeMSG { get; set; } = string.Empty;
+        [StringLength(200)] public string Annotation { get; set; } = string.Empty;
+        [StringLength(200)] public string EndAnnotation { get; set; } = string.Empty;
+        [StringLength(80)] public string Floor { get; set; } = string.Empty;
+    }
 
     public sealed record ServerSnapshot(
         bool IsHealthy,
@@ -98,6 +324,11 @@ public class IndexModel : PageModel
         int KnownUsers,
         int Messages,
         int ActivePatients,
+        int TotalPatients,
+        int PatientsToday,
+        int ArchivedPatients,
+        int CompletedPatients,
+        IReadOnlyList<DailyPatientSnapshot> WeeklyPatients,
         IReadOnlyList<ConnectedUserSnapshot> Users)
     {
         public static ServerSnapshot Unavailable { get; } = new(
@@ -110,6 +341,11 @@ public class IndexModel : PageModel
             0,
             0,
             0,
+            0,
+            0,
+            0,
+            0,
+            [],
             []);
     }
 }

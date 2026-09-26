@@ -1,0 +1,29 @@
+﻿@page
+@model LoginModel
+@{
+    ViewData["Title"] = "Connexion";
+    ViewData["HideChrome"] = true;
+}
+
+<div class="login-page">
+    <section class="login-card">
+        <div class="login-brand"><span class="brand-mark" aria-hidden="true">E</span></div>
+        <p class="eyebrow">Administration sécurisée</p>
+        <h1>Bienvenue sur EyeChat</h1>
+        <p class="login-description">Connectez-vous pour consulter l'activité du serveur et gérer les utilisateurs.</p>
+
+        <form method="post" class="login-form">
+            <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+            <input asp-for="ReturnUrl" type="hidden" />
+            <label asp-for="Credentials.Username">Identifiant</label>
+            <input asp-for="Credentials.Username" autocomplete="username" autofocus />
+            <span asp-validation-for="Credentials.Username" class="field-error"></span>
+            <label asp-for="Credentials.Password">Mot de passe</label>
+            <input asp-for="Credentials.Password" autocomplete="current-password" />
+            <span asp-validation-for="Credentials.Password" class="field-error"></span>
+            <label class="remember-row"><input asp-for="Credentials.RememberMe" /> Rester connecté</label>
+            <button type="submit" class="primary-button">Se connecter <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="login-help">Les identifiants sont configurés dans la section <code>Administration</code> du serveur.</p>
+    </section>
+</div>

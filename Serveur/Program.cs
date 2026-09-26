@@ -3,6 +3,7 @@ using ChatServeur;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,7 +27,23 @@ var dbPath = Path.Combine(dbFolder, "chat.db");
 builder.Services.AddDbContext<ChatDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
-builder.Services.AddRazorPages();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login";
+        options.AccessDeniedPath = "/Login";
+        options.Cookie.Name = "EyeChat.Admin";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/");
+    options.Conventions.AllowAnonymousToPage("/Login");
+});
 builder.Services.AddSignalR(o =>
 {
     o.MaximumReceiveMessageSize = 2 * 1024 * 1024;
@@ -47,6 +64,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())

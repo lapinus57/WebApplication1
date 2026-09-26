@@ -17,6 +17,12 @@
         </div>
     </section>
 
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="success-message dashboard-message" role="status">✓ @Model.SuccessMessage</div>
+    }
+    <div asp-validation-summary="All" class="validation-summary management-validation dashboard-validation" role="alert"></div>
+
     <section class="metric-grid" aria-label="Indicateurs du serveur">
         <article class="metric-card metric-card-primary">
             <span class="metric-icon" aria-hidden="true">●</span>
@@ -50,6 +56,31 @@
                 <span class="metric-detail">par le processus serveur</span>
             </div>
         </article>
+    </section>
+
+    <section class="patient-panel panel" aria-labelledby="patient-statistics-title">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Patients</p><h2 id="patient-statistics-title">Statistiques des 7 derniers jours</h2></div>
+            <span class="panel-total"><strong data-total-patients>@Model.Snapshot.TotalPatients</strong> au total</span>
+        </div>
+        <div class="patient-statistics">
+            <div class="patient-summary">
+                <div><strong data-patients-today>@Model.Snapshot.PatientsToday</strong><span>Créés aujourd’hui</span></div>
+                <div><strong data-completed-patients>@Model.Snapshot.CompletedPatients</strong><span>Pris en charge</span></div>
+                <div><strong data-archived-patients>@Model.Snapshot.ArchivedPatients</strong><span>Archivés</span></div>
+            </div>
+            <div class="patient-chart" aria-label="Patients créés par jour">
+                @{ var maximum = Math.Max(1, Model.Snapshot.WeeklyPatients.DefaultIfEmpty().Max(item => item?.Count ?? 0)); }
+                @foreach (var day in Model.Snapshot.WeeklyPatients)
+                {
+                    <div class="chart-column" title="@day.Count patient(s)">
+                        <span class="chart-value">@day.Count</span>
+                        <span class="chart-bar" style="--bar-height: @((day.Count * 100) / maximum)%"></span>
+                        <span class="chart-label">@day.Label.TrimEnd('.')</span>
+                    </div>
+                }
+            </div>
+        </div>
     </section>
 
     <div class="dashboard-columns">
@@ -101,6 +132,82 @@
             </button>
         </aside>
     </div>
+
+    <section class="panel exams-panel" id="exams">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Personnalisation</p><h2>Gestion des examens</h2></div>
+            <form method="post" asp-page-handler="AddExam"><button type="submit" class="primary-action-button">+ Ajouter un examen</button></form>
+        </div>
+        @if (Model.ExamOptions.Count == 0)
+        {
+            <div class="empty-state"><span aria-hidden="true">✚</span><p>Aucun examen configuré. Ajoutez le premier examen.</p></div>
+        }
+        else
+        {
+            <div class="exam-list">
+                @for (var index = 0; index < Model.ExamOptions.Count; index++)
+                {
+                    var exam = Model.ExamOptions[index];
+                    <form method="post" asp-page-handler="SaveExam" class="exam-edit-card">
+                        <input type="hidden" name="ExamEdit.Id" value="@exam.Id" />
+                        <div class="exam-card-heading">
+                            <span class="exam-color-preview" style="background: @exam.Color"></span>
+                            <strong>@exam.Name</strong>
+                            <span class="exam-position">N° @(index + 1)</span>
+                            <div class="exam-order-actions">
+                                <button type="submit" formaction="?handler=MoveExam&id=@exam.Id&direction=-1" disabled="@(index == 0)" title="Monter">↑</button>
+                                <button type="submit" formaction="?handler=MoveExam&id=@exam.Id&direction=1" disabled="@(index == Model.ExamOptions.Count - 1)" title="Descendre">↓</button>
+                            </div>
+                        </div>
+                        <div class="exam-fields">
+                            <label><span>Nom</span><input name="ExamEdit.Name" value="@exam.Name" required maxlength="80" /></label>
+                            <label class="wide-field"><span>Description</span><input name="ExamEdit.Description" value="@exam.Description" maxlength="160" /></label>
+                            <label><span>Couleur</span><span class="color-input"><input type="color" name="ExamEdit.Color" value="@(exam.Color?.Length == 7 ? exam.Color : "#246BFD")" /><code>@exam.Color</code></span></label>
+                            <label><span>Code clavier</span><input name="ExamEdit.CodeMSG" value="@exam.CodeMSG" maxlength="80" /></label>
+                            <label><span>Salle / étage</span><input name="ExamEdit.Floor" value="@exam.Floor" maxlength="80" /></label>
+                            <label class="wide-field"><span>Annotation au début</span><input name="ExamEdit.Annotation" value="@exam.Annotation" maxlength="200" /></label>
+                            <label class="wide-field"><span>Annotation à la fin</span><input name="ExamEdit.EndAnnotation" value="@exam.EndAnnotation" maxlength="200" /></label>
+                        </div>
+                        <div class="exam-card-actions">
+                            <button type="submit" class="danger-button" formaction="?handler=DeleteExam&id=@exam.Id" onclick="return confirm('Supprimer cet examen ?')">Supprimer</button>
+                            <button type="submit" class="save-user-button">Enregistrer les modifications</button>
+                        </div>
+                    </form>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="panel users-panel" id="users">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Administration</p><h2>Gestion des utilisateurs</h2></div>
+            <span class="panel-total">@Model.ManagedUsers.Count utilisateur(s)</span>
+        </div>
+        @if (Model.ManagedUsers.Count == 0)
+        {
+            <div class="empty-state"><span aria-hidden="true">♙</span><p>Aucun utilisateur enregistré.</p></div>
+        }
+        else
+        {
+            <div class="user-management-list">
+                @foreach (var user in Model.ManagedUsers)
+                {
+                    <form method="post" asp-page-handler="UpdateUser" class="user-edit-row">
+                        <input type="hidden" name="UserEdit.Id" value="@user.Id" />
+                        <div class="managed-identity">
+                            <span class="user-avatar">@(string.IsNullOrWhiteSpace(user.DisplayName) ? "?" : user.DisplayName[..1].ToUpperInvariant())</span>
+                            <span><strong>@user.Username</strong><small class="@(user.IsOnline ? "is-online-text" : "")">@(user.IsOnline ? "● En ligne" : "Hors ligne")</small></span>
+                        </div>
+                        <label><span>Nom affiché</span><input name="UserEdit.DisplayName" value="@user.DisplayName" required maxlength="80" /></label>
+                        <label><span>Salle</span><input name="UserEdit.Room" value="@user.Room" maxlength="80" /></label>
+                        <label><span>Note</span><input name="UserEdit.Note" value="@user.Note" maxlength="200" /></label>
+                        <label><span>Couleur du nom</span><input name="UserEdit.ColorUserName" value="@user.ColorUserName" maxlength="30" placeholder="#246BFD ou Blue" /></label>
+                        <button type="submit" class="save-user-button">Enregistrer</button>
+                    </form>
+                }
+            </div>
+        }
+    </section>
 </div>
 
 @section Scripts {
