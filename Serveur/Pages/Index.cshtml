@@ -1,10 +1,108 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Accueil";
+    ViewData["Title"] = "État du serveur";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Bienvenue</h1>
-    <p>Découvrez comment <a href="https://learn.microsoft.com/aspnet/core">créer des applications web avec ASP.NET Core</a>.</p>
+<div class="dashboard" data-dashboard data-snapshot-url="@Url.Page("/Index", "Snapshot")">
+    <section class="dashboard-hero">
+        <div>
+            <p class="eyebrow">Tableau de bord</p>
+            <h1>État du serveur</h1>
+            <p class="hero-description">Surveillez le service EyeChat et son activité en temps réel.</p>
+        </div>
+        <div class="status-pill @(Model.Snapshot.IsHealthy ? "is-online" : "is-offline")" data-status-pill>
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-status>@Model.Snapshot.Status</span>
+        </div>
+    </section>
+
+    <section class="metric-grid" aria-label="Indicateurs du serveur">
+        <article class="metric-card metric-card-primary">
+            <span class="metric-icon" aria-hidden="true">●</span>
+            <div>
+                <span class="metric-label">Utilisateurs connectés</span>
+                <strong class="metric-value" data-connected-users>@Model.Snapshot.ConnectedUsers</strong>
+                <span class="metric-detail"><span data-known-users>@Model.Snapshot.KnownUsers</span> utilisateur(s) enregistré(s)</span>
+            </div>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon" aria-hidden="true">↗</span>
+            <div>
+                <span class="metric-label">Messages enregistrés</span>
+                <strong class="metric-value" data-messages>@Model.Snapshot.Messages</strong>
+                <span class="metric-detail">dans la base de données</span>
+            </div>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon" aria-hidden="true">✚</span>
+            <div>
+                <span class="metric-label">Patients actifs</span>
+                <strong class="metric-value" data-active-patients>@Model.Snapshot.ActivePatients</strong>
+                <span class="metric-detail">non archivés</span>
+            </div>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon" aria-hidden="true">▦</span>
+            <div>
+                <span class="metric-label">Mémoire utilisée</span>
+                <strong class="metric-value" data-memory>@((Model.Snapshot.MemoryBytes / 1024d / 1024d).ToString("N0")) Mo</strong>
+                <span class="metric-detail">par le processus serveur</span>
+            </div>
+        </article>
+    </section>
+
+    <div class="dashboard-columns">
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Activité</p>
+                    <h2>Clients en ligne</h2>
+                </div>
+                <span class="live-label"><span></span> Actualisation auto.</span>
+            </div>
+            <div class="user-list" data-user-list>
+                @if (Model.Snapshot.Users.Count == 0)
+                {
+                    <div class="empty-state" data-empty-state>
+                        <span aria-hidden="true">◎</span>
+                        <p>Aucun client connecté pour le moment.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var user in Model.Snapshot.Users)
+                    {
+                        <div class="user-row">
+                            <span class="user-avatar">@(string.IsNullOrWhiteSpace(user.Name) ? "?" : user.Name[..1].ToUpperInvariant())</span>
+                            <span><strong>@user.Name</strong><small>@(string.IsNullOrWhiteSpace(user.Room) ? "Salle non renseignée" : user.Room)</small></span>
+                            <span class="online-badge">En ligne</span>
+                        </div>
+                    }
+                }
+            </div>
+        </section>
+
+        <aside class="panel server-details">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Informations</p>
+                    <h2>Serveur</h2>
+                </div>
+            </div>
+            <dl>
+                <div><dt>Adresse du service</dt><dd>@($"http://{Request.Host}/chatHub")</dd></div>
+                <div><dt>Base de données</dt><dd data-database-status>@(Model.Snapshot.IsHealthy ? "Connectée" : "Indisponible")</dd></div>
+                <div><dt>Démarré le</dt><dd data-started-at>@Model.Snapshot.StartedAt.ToString("dd/MM/yyyy à HH:mm")</dd></div>
+                <div><dt>Dernière vérification</dt><dd data-checked-at>@Model.Snapshot.CheckedAt.ToString("HH:mm:ss")</dd></div>
+            </dl>
+            <button class="refresh-button" type="button" data-refresh>
+                <span aria-hidden="true">↻</span> Actualiser maintenant
+            </button>
+        </aside>
+    </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+}
