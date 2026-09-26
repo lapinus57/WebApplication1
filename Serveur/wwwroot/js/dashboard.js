@@ -52,6 +52,10 @@
         setText("[data-known-users]", numberFormat.format(snapshot.knownUsers));
         setText("[data-messages]", numberFormat.format(snapshot.messages));
         setText("[data-active-patients]", numberFormat.format(snapshot.activePatients));
+        setText("[data-total-patients]", numberFormat.format(snapshot.totalPatients));
+        setText("[data-patients-today]", numberFormat.format(snapshot.patientsToday));
+        setText("[data-completed-patients]", numberFormat.format(snapshot.completedPatients));
+        setText("[data-archived-patients]", numberFormat.format(snapshot.archivedPatients));
         setText("[data-memory]", `${numberFormat.format(Math.round(snapshot.memoryBytes / 1024 / 1024))} Mo`);
         setText("[data-database-status]", snapshot.isHealthy ? "Connectée" : "Indisponible");
         setText("[data-checked-at]", new Date(snapshot.checkedAt).toLocaleTimeString("fr-FR"));

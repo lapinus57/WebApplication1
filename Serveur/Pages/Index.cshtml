@@ -52,6 +52,31 @@
         </article>
     </section>
 
+    <section class="patient-panel panel" aria-labelledby="patient-statistics-title">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Patients</p><h2 id="patient-statistics-title">Statistiques des 7 derniers jours</h2></div>
+            <span class="panel-total"><strong data-total-patients>@Model.Snapshot.TotalPatients</strong> au total</span>
+        </div>
+        <div class="patient-statistics">
+            <div class="patient-summary">
+                <div><strong data-patients-today>@Model.Snapshot.PatientsToday</strong><span>Créés aujourd’hui</span></div>
+                <div><strong data-completed-patients>@Model.Snapshot.CompletedPatients</strong><span>Pris en charge</span></div>
+                <div><strong data-archived-patients>@Model.Snapshot.ArchivedPatients</strong><span>Archivés</span></div>
+            </div>
+            <div class="patient-chart" aria-label="Patients créés par jour">
+                @{ var maximum = Math.Max(1, Model.Snapshot.WeeklyPatients.DefaultIfEmpty().Max(item => item?.Count ?? 0)); }
+                @foreach (var day in Model.Snapshot.WeeklyPatients)
+                {
+                    <div class="chart-column" title="@day.Count patient(s)">
+                        <span class="chart-value">@day.Count</span>
+                        <span class="chart-bar" style="--bar-height: @((day.Count * 100) / maximum)%"></span>
+                        <span class="chart-label">@day.Label.TrimEnd('.')</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
     <div class="dashboard-columns">
         <section class="panel">
             <div class="panel-heading">
@@ -101,6 +126,41 @@
             </button>
         </aside>
     </div>
+
+    <section class="panel users-panel" id="users">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Administration</p><h2>Gestion des utilisateurs</h2></div>
+            <span class="panel-total">@Model.ManagedUsers.Count utilisateur(s)</span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+        {
+            <div class="success-message" role="status">✓ @Model.SuccessMessage</div>
+        }
+        <div asp-validation-summary="ModelOnly" class="validation-summary management-validation"></div>
+        @if (Model.ManagedUsers.Count == 0)
+        {
+            <div class="empty-state"><span aria-hidden="true">♙</span><p>Aucun utilisateur enregistré.</p></div>
+        }
+        else
+        {
+            <div class="user-management-list">
+                @foreach (var user in Model.ManagedUsers)
+                {
+                    <form method="post" asp-page-handler="UpdateUser" class="user-edit-row">
+                        <input type="hidden" name="UserEdit.Id" value="@user.Id" />
+                        <div class="managed-identity">
+                            <span class="user-avatar">@(string.IsNullOrWhiteSpace(user.DisplayName) ? "?" : user.DisplayName[..1].ToUpperInvariant())</span>
+                            <span><strong>@user.Username</strong><small class="@(user.IsOnline ? "is-online-text" : "")">@(user.IsOnline ? "● En ligne" : "Hors ligne")</small></span>
+                        </div>
+                        <label><span>Nom affiché</span><input name="UserEdit.DisplayName" value="@user.DisplayName" required maxlength="80" /></label>
+                        <label><span>Salle</span><input name="UserEdit.Room" value="@user.Room" maxlength="80" /></label>
+                        <label><span>Note</span><input name="UserEdit.Note" value="@user.Note" maxlength="200" /></label>
+                        <button type="submit" class="save-user-button">Enregistrer</button>
+                    </form>
+                }
+            </div>
+        }
+    </section>
 </div>
 
 @section Scripts {
