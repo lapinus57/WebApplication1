@@ -8,24 +8,37 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    @if (!(ViewData["HideChrome"] as bool? ?? false))
+    {
     <header class="topbar">
         <div class="shell topbar-content">
             <a class="brand" asp-page="/Index" aria-label="EyeChat - État du serveur">
                 <span class="brand-mark" aria-hidden="true">E</span>
                 <span><strong>EyeChat</strong><small>Administration serveur</small></span>
             </a>
-            <div class="topbar-state"><span></span> Service démarré</div>
+            <div class="topbar-actions">
+                <div class="topbar-state"><span></span> Service démarré</div>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <span class="admin-name">@User.Identity.Name</span>
+                    <form method="post" asp-page="/Logout"><button class="logout-button" type="submit">Déconnexion</button></form>
+                }
+            </div>
         </div>
     </header>
+    }
 
-    <main class="shell" role="main">
+    <main class="@((ViewData["HideChrome"] as bool? ?? false) ? "" : "shell")" role="main">
         @RenderBody()
     </main>
 
+    @if (!(ViewData["HideChrome"] as bool? ?? false))
+    {
     <footer class="shell footer">
         <span>EyeChat Server</span>
         <span>Interface disponible sur le réseau local</span>
     </footer>
+    }
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
