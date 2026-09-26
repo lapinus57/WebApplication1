@@ -13,7 +13,31 @@ Ce guide explique comment publier le projet **Serveur**, l'installer comme un se
 
    Les fichiers publiés se trouvent dans `Serveur/bin/Release/net8.0/win-x64/publish`.
 
-## 2. Installer le service Windows
+## 2. Configurer l'administration HTTPS
+
+Le serveur refuse volontairement de démarrer tant qu'un compte administrateur robuste et un certificat HTTPS n'ont pas été fournis. Le hub SignalR reste disponible en HTTP sur le port `5000` pour les clients existants, tandis que l'interface d'administration utilise exclusivement HTTPS sur le port `5443`.
+
+1. Créez ou fournissez un certificat PFX correspondant au nom DNS du serveur. Par exemple :
+
+   ```powershell
+   $certificate = New-SelfSignedCertificate -DnsName "eyechat-server" -CertStoreLocation "cert:\LocalMachine\My"
+   $certificatePassword = Read-Host "Mot de passe du certificat" -AsSecureString
+   Export-PfxCertificate -Cert $certificate -FilePath "C:\ProgramData\ChatServeur\admin.pfx" -Password $certificatePassword
+   ```
+
+2. Faites approuver ce certificat par les postes qui ouvrent l'administration, ou utilisez un certificat délivré par l'autorité de certification de votre organisation.
+3. Configurez les secrets comme variables d'environnement système, sans les enregistrer dans le dépôt :
+
+   ```powershell
+   setx /M Administration__Username "administrateur"
+   setx /M Administration__Password "utilisez-un-mot-de-passe-unique-et-long"
+   setx /M Administration__HttpsCertificatePath "C:\ProgramData\ChatServeur\admin.pfx"
+   setx /M Administration__HttpsCertificatePassword "mot-de-passe-du-pfx"
+   ```
+
+Le mot de passe d'administration doit contenir au moins 12 caractères. L'interface sera ensuite disponible à l'adresse `https://eyechat-server:5443`. Une requête HTTP vers une page d'administration est automatiquement redirigée vers cette adresse sécurisée.
+
+## 3. Installer le service Windows
 
 1. Copiez le script `ChatServeurService.ps1` dans le dossier de publication ou gardez-le dans le dépôt.
 2. Exécutez la commande suivante (adapter le chemin de `-SourcePath` si besoin) :
@@ -30,9 +54,9 @@ Ce guide explique comment publier le projet **Serveur**, l'installer comme un se
    - démarre le service immédiatement ;
    - masque la console lors de l'exécution grâce au type d'application Windows (`WinExe`).
 
-   > ℹ️ Le service écoute par défaut sur `http://0.0.0.0:5000`. Adaptez la configuration dans `appsettings.json` ou `Program.cs` si nécessaire.
+   > ℹ️ Le service écoute sur `http://0.0.0.0:5000` pour les clients EyeChat et sur `https://0.0.0.0:5443` pour l'administration.
 
-## 3. Mettre à jour le service (avec sauvegarde automatique)
+## 4. Mettre à jour le service (avec sauvegarde automatique)
 
 Lorsqu'une nouvelle version est publiée, relancez le script avec l'action `Update` en pointant vers le nouveau dossier de publication :
 
@@ -57,7 +81,7 @@ Pour revenir à la version précédente, utilisez l'action `Rollback` sans param
 ./ChatServeurService.ps1 -Action Rollback -SourcePath "C:\\Program Files\\ChatServeur\\Backups\\20240508-235959"
 ```
 
-## 4. Désinstaller le service
+## 5. Désinstaller le service
 
 Pour supprimer complètement le service et les fichiers :
 
@@ -65,7 +89,7 @@ Pour supprimer complètement le service et les fichiers :
 ./ChatServeurService.ps1 -Action Uninstall
 ```
 
-## 5. Vérifier l'état du service
+## 6. Vérifier l'état du service
 
 - Obtenir l'état courant :
 
@@ -75,7 +99,7 @@ Pour supprimer complètement le service et les fichiers :
 
 - Consulter les journaux (visibles dans l'observateur d'événements sous **Journal des applications**). Pour une supervision plus poussée, envisagez d'ajouter une solution de logging centralisée (Serilog, Elastic Stack, etc.).
 
-## 6. Mettre en place les mises à jour automatiques via GitHub
+## 7. Mettre en place les mises à jour automatiques via GitHub
 
 Le script peut vérifier une publication GitHub chaque nuit à minuit et mettre à jour automatiquement le service si une nouvelle version est disponible.
 
@@ -110,8 +134,8 @@ Pour désactiver la tâche planifiée :
 ./ChatServeurService.ps1 -Action DisableAutoUpdate
 ```
 
-## 7. Conseils supplémentaires
+## 8. Conseils supplémentaires
 
-- Vérifiez que le port 5000 est ouvert ou modifiez l'URL d'écoute via `appsettings.json` (`Kestrel:Endpoints`).
+- Vérifiez que les ports 5000 (clients) et 5443 (administration HTTPS) sont ouverts sur le réseau local.
 - Pour changer le nom ou l'emplacement d'installation, utilisez les paramètres `-ServiceName`, `-DisplayName` et `-InstallPath` du script.
 - Les fichiers SQLite sont créés dans un sous-dossier `data` du répertoire d'installation. Sauvegardez ce dossier avant les mises à jour si vous ne disposez pas d'une sauvegarde automatique.

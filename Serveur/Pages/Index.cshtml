@@ -122,7 +122,7 @@
                 </div>
             </div>
             <dl>
-                <div><dt>Adresse du service</dt><dd>@($"http://{Request.Host}/chatHub")</dd></div>
+                <div><dt>Adresse du service</dt><dd>@($"http://{Request.Host.Host}:5000/chatHub")</dd></div>
                 <div><dt>Base de données</dt><dd data-database-status>@(Model.Snapshot.IsHealthy ? "Connectée" : "Indisponible")</dd></div>
                 <div><dt>Démarré le</dt><dd data-started-at>@Model.Snapshot.StartedAt.ToString("dd/MM/yyyy à HH:mm")</dd></div>
                 <div><dt>Dernière vérification</dt><dd data-checked-at>@Model.Snapshot.CheckedAt.ToString("HH:mm:ss")</dd></div>

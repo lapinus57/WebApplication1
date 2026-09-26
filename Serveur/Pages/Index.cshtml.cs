@@ -58,13 +58,22 @@ public class IndexModel : PageModel
         user.Note = userEdit.Note.Trim();
         user.ColorUserName = userEdit.ColorUserName.Trim();
         await _db.SaveChangesAsync();
-        await BroadcastUsersAsync();
+        await BroadcastUsersAsync(user);
         SuccessMessage = $"L’utilisateur {user.DisplayName} a bien été modifié.";
         return Redirect(Url.Page("/Index") + "#users");
     }
 
-    private async Task BroadcastUsersAsync()
+    private async Task BroadcastUsersAsync(KnownUser? updatedUser = null)
     {
+        var authoritativeUsers = updatedUser is null
+            ? ChatHub.GetAuthoritativeUsers()
+            : ChatHub.ApplyAdministrativeUserUpdate(updatedUser);
+        if (authoritativeUsers is not null)
+        {
+            await _hubContext.Clients.All.SendAsync("UserListUpdated", authoritativeUsers);
+            return;
+        }
+
         var users = await _db.KnownUsers.AsNoTracking().ToListAsync();
         var clientUsers = users.Select(item => new UserInfo
         {
@@ -89,9 +98,15 @@ public class IndexModel : PageModel
         var exam = options.FirstOrDefault(item => item.Id == examEdit.Id);
         if (exam is null)
             return NotFound();
+        if (options.Any(item => item.Id != exam.Id && string.Equals(item.Name, examEdit.Name.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            ModelState.AddModelError(string.Empty, "Un examen porte déjà ce nom.");
+            return await ReloadPageAsync();
+        }
 
+        var previousName = exam.Name;
         ApplyExamEdit(exam, examEdit);
-        await SaveExamOptionsAsync(options);
+        await SaveExamOptionsAsync(options, previousName, exam.Id);
         SuccessMessage = $"L’examen {exam.Name} a bien été modifié.";
         return Redirect(Url.Page("/Index") + "#exams");
     }
@@ -245,7 +260,7 @@ public class IndexModel : PageModel
         }
     }
 
-    private async Task SaveExamOptionsAsync(List<ExamOption> options)
+    private async Task SaveExamOptionsAsync(List<ExamOption> options, string? renamedFrom = null, string? renamedExamId = null)
     {
         ReindexExams(options);
         var config = await _db.ServerConfigs.SingleOrDefaultAsync();
@@ -256,10 +271,26 @@ public class IndexModel : PageModel
         }
         config.ExamOptionsJson = JsonSerializer.Serialize(options);
 
-        var colors = options.ToDictionary(item => item.Id, item => item.Color, StringComparer.OrdinalIgnoreCase);
-        var patients = await _db.Patients.Where(patient => colors.Keys.Contains(patient.Exams)).ToListAsync();
+        var colors = options
+            .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Color, StringComparer.OrdinalIgnoreCase);
+        var examNames = colors.Keys.ToList();
+        var patients = await _db.Patients
+            .Where(patient => examNames.Contains(patient.Exams) || (renamedFrom != null && patient.Exams == renamedFrom))
+            .ToListAsync();
+        var renamedExam = renamedExamId is null ? null : options.FirstOrDefault(item => item.Id == renamedExamId);
         foreach (var patient in patients)
-            patient.Colors = colors[patient.Exams];
+        {
+            if (renamedExam is not null && string.Equals(patient.Exams, renamedFrom, StringComparison.OrdinalIgnoreCase))
+            {
+                patient.Exams = renamedExam.Name;
+                patient.Colors = renamedExam.Color;
+            }
+            else if (colors.TryGetValue(patient.Exams, out var color))
+            {
+                patient.Colors = color;
+            }
+        }
         await _db.SaveChangesAsync();
 
         await _hubContext.Clients.All.SendAsync("ExamOptionsUpdated", options);
@@ -316,7 +347,11 @@ public class IndexModel : PageModel
         }
         await _db.SaveChangesAsync();
         if (users.Count > 0)
+        {
+            foreach (var user in users)
+                ChatHub.ApplyAdministrativeUserUpdate(user);
             await BroadcastUsersAsync();
+        }
     }
 
     private static void ReindexExams(IList<ExamOption> options)
