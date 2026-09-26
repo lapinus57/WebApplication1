@@ -187,10 +187,9 @@ namespace Client.Pages
         private void Save_Click(object sender, RoutedEventArgs e)
         {
             var latestConfig = MachineConfig.Load();
-            _config.AgendaModeEnabled = AgendaModeEnabled;
-            AutoSwitchEnabled = latestConfig.AutoSwitchEnabled;
-            _config.AutoSwitchEnabled = AgendaModeEnabled && AutoSwitchEnabled;
-            _config.AgendaSchedule = ScheduleEntries
+            latestConfig.AgendaModeEnabled = AgendaModeEnabled;
+            latestConfig.AutoSwitchEnabled = AgendaModeEnabled && AutoSwitchEnabled;
+            latestConfig.AgendaSchedule = ScheduleEntries
                 .Select(entry => new AgendaSwitchEntry
                 {
                     Day = entry.Day,
@@ -201,7 +200,10 @@ namespace Client.Pages
                 })
                 .ToList();
 
-            MachineConfig.Save(_config);
+            _config.AgendaModeEnabled = latestConfig.AgendaModeEnabled;
+            _config.AutoSwitchEnabled = latestConfig.AutoSwitchEnabled;
+            _config.AgendaSchedule = latestConfig.AgendaSchedule;
+            MachineConfig.Save(latestConfig);
 
             if (Application.Current is App app)
             {
