@@ -8,5 +8,6 @@ namespace ChatServeur
         public string ReminderJson { get; set; } = string.Empty;
         public string AppointmentSearchJson { get; set; } = string.Empty;
         public string DeploymentConfigurationJson { get; set; } = string.Empty;
+        public int IdleRoomTimeoutSeconds { get; set; } = 180;
     }
 }

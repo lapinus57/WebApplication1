@@ -26,6 +26,7 @@ public class IndexModel : PageModel
     public IReadOnlyList<ManagedUser> ManagedUsers { get; private set; } = [];
     public IReadOnlyList<ExamOption> ExamOptions { get; private set; } = [];
     public IReadOnlyList<string> Rooms { get; private set; } = [];
+    public int IdleRoomTimeoutSeconds { get; private set; } = 180;
 
     [TempData]
     public string? SuccessMessage { get; set; }
@@ -36,6 +37,25 @@ public class IndexModel : PageModel
         ManagedUsers = await GetManagedUsersAsync();
         ExamOptions = await GetExamOptionsAsync();
         Rooms = await GetRoomsAsync();
+        IdleRoomTimeoutSeconds = await GetIdleRoomTimeoutSecondsAsync();
+    }
+
+    public async Task<IActionResult> OnPostSaveIdleRoomTimeoutAsync(IdleRoomTimeoutInput idleRoomTimeout)
+    {
+        if (!ModelState.IsValid)
+            return await ReloadPageAsync();
+
+        var config = await _db.ServerConfigs.SingleOrDefaultAsync();
+        if (config is null)
+        {
+            config = new ServerConfig();
+            _db.ServerConfigs.Add(config);
+        }
+        config.IdleRoomTimeoutSeconds = idleRoomTimeout.Seconds;
+        await _db.SaveChangesAsync();
+        await _hubContext.Clients.All.SendAsync("IdleRoomTimeoutUpdated", idleRoomTimeout.Seconds);
+        SuccessMessage = $"Le délai d’inactivité est maintenant de {idleRoomTimeout.Seconds} seconde(s).";
+        return Redirect(Url.Page("/Index") + "#rooms");
     }
 
     public async Task<IActionResult> OnPostUpdateUserAsync(UserEditInput userEdit)
@@ -234,7 +254,16 @@ public class IndexModel : PageModel
         ManagedUsers = await GetManagedUsersAsync();
         ExamOptions = await GetExamOptionsAsync();
         Rooms = await GetRoomsAsync();
+        IdleRoomTimeoutSeconds = await GetIdleRoomTimeoutSecondsAsync();
         return Page();
+    }
+
+    private async Task<int> GetIdleRoomTimeoutSecondsAsync()
+    {
+        var value = await _db.ServerConfigs.AsNoTracking()
+            .Select(config => (int?)config.IdleRoomTimeoutSeconds)
+            .SingleOrDefaultAsync();
+        return Math.Clamp(value ?? 180, 1, 86400);
     }
 
     private static void ApplyExamEdit(ExamOption exam, ExamEditInput examEdit)
@@ -500,6 +529,12 @@ public class IndexModel : PageModel
         public string OriginalName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Le nom de la salle est obligatoire.")]
         [StringLength(80)] public string Name { get; set; } = string.Empty;
+    }
+
+    public sealed class IdleRoomTimeoutInput
+    {
+        [Range(1, 86400, ErrorMessage = "Le délai doit être compris entre 1 seconde et 24 heures.")]
+        public int Seconds { get; set; } = 180;
     }
 
     public sealed record ServerSnapshot(

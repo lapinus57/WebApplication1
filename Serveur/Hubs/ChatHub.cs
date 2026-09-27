@@ -596,6 +596,30 @@ namespace ChatServeur
             await Clients.All.SendAsync("UserListUpdated", userList);
         }
 
+        public async Task<int> GetIdleRoomTimeoutSeconds()
+        {
+            var timeout = await _db.ServerConfigs.AsNoTracking()
+                .Select(config => (int?)config.IdleRoomTimeoutSeconds)
+                .SingleOrDefaultAsync();
+            return Math.Clamp(timeout ?? 180, 1, 86400);
+        }
+
+        public async Task UpdateIdleState(string username, bool isAway, string activeRoom)
+        {
+            EnsureUsersLoaded();
+            if (!ConnectedUsers.TryGetValue(Context.ConnectionId, out var user) ||
+                !string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("SER19: Idle update ignored for unregistered or mismatched user {Username}.", username);
+                return;
+            }
+
+            user.Status = isAway ? "Absent" : string.Empty;
+            user.Rooms = new List<string> { isAway ? "👻👻👻" : activeRoom?.Trim() ?? string.Empty };
+            AllUsers[user.Username] = user;
+            await Clients.All.SendAsync("UserListUpdated", BaseUsers.Concat(AllUsers.Values).ToList());
+        }
+
 
         public async Task SendMessage(string sender, string room, string destinataire, string content, string avatar, DateTime timestamp)
         {

@@ -140,6 +140,7 @@ using (var scope = app.Services.CreateScope())
     EnsureReminderColumn(db, logger);
     EnsureAppointmentSearchColumn(db, logger);
     EnsureDeploymentConfigurationColumn(db, logger);
+    EnsureIdleRoomTimeoutColumn(db, logger);
     EnsureKnownUsersTable(db, logger);
     EnsureSecureGroupTypeColumn(db, logger);
     CleanupKnownUsers(db, logger);
@@ -147,6 +148,36 @@ using (var scope = app.Services.CreateScope())
     {
         db.ServerConfigs.Add(new ServerConfig());
         db.SaveChanges();
+    }
+}
+
+void EnsureIdleRoomTimeoutColumn(ChatDbContext db, ILogger logger)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
+        using var reader = cmd.ExecuteReader();
+        var exists = false;
+        while (reader.Read())
+            exists |= string.Equals(reader.GetString(1), "IdleRoomTimeoutSeconds", StringComparison.OrdinalIgnoreCase);
+        reader.Close();
+        if (!exists)
+        {
+            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN IdleRoomTimeoutSeconds INTEGER NOT NULL DEFAULT 180";
+            cmd.ExecuteNonQuery();
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER18: Failed to ensure idle room timeout column exists.");
+        throw;
+    }
+    finally
+    {
+        connection.Close();
     }
 }
 
