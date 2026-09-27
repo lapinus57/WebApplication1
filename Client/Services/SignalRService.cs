@@ -75,7 +75,7 @@ namespace Client.Services
         private Timer? _reconnectCountdownTimer;
         private int _reconnectCountdown;
         private Timer? _idleTimer;
-        private readonly TimeSpan _idleThreshold = TimeSpan.FromMinutes(3);
+        private TimeSpan _idleThreshold = TimeSpan.FromMinutes(3);
         private bool _isAway;
         public event Action<int>? ReconnectCountdownChanged;
         private bool _isConnecting;
@@ -703,6 +703,11 @@ namespace Client.Services
                 RoomsUpdated?.Invoke(rooms);
             });
 
+            connection.On<int>("IdleRoomTimeoutUpdated", seconds =>
+            {
+                ConfigureIdleMonitor(seconds);
+            });
+
             connection.On<string, string>("UserSettingsUpdated", (username, json) =>
             {
                 Dispatcher?.TryEnqueue(() =>
@@ -740,6 +745,7 @@ namespace Client.Services
             {
                 await connection.StartAsync();
                 await connection.InvokeAsync("RegisterUser", username, ToServerAvatar(avatar), room, color, Environment.MachineName);
+                ConfigureIdleMonitor(await connection.InvokeAsync<int>("GetIdleRoomTimeoutSeconds"));
                 StopReconnectTimer();
                 ResetIdleStatus();
                 StartIdleMonitor();
@@ -2366,7 +2372,15 @@ namespace Client.Services
         private void StartIdleMonitor()
         {
             _idleTimer?.Dispose();
-            _idleTimer = new Timer(async _ => await CheckIdleAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            var interval = TimeSpan.FromSeconds(Math.Clamp(_idleThreshold.TotalSeconds / 4, 1, 30));
+            _idleTimer = new Timer(async _ => await CheckIdleAsync(), null, interval, interval);
+        }
+
+        private void ConfigureIdleMonitor(int seconds)
+        {
+            _idleThreshold = TimeSpan.FromSeconds(Math.Clamp(seconds, 1, 86400));
+            if (!string.IsNullOrWhiteSpace(_username))
+                StartIdleMonitor();
         }
 
         private void StopIdleMonitor()
@@ -2431,10 +2445,9 @@ namespace Client.Services
             if (!TryGetActiveConnection(out var connection))
                 return;
 
-            var status = isAway ? "Absent" : string.Empty;
             try
             {
-                await connection.InvokeAsync("UpdateUserStatus", _username, status);
+                await connection.InvokeAsync("UpdateIdleState", _username, isAway, RoomName);
                 _isAway = isAway;
             }
             catch (Exception ex)

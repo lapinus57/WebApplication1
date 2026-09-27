@@ -135,6 +135,12 @@ h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.015em; }
 .rooms-panel { min-height: 0; margin-top: 20px; }
 .rooms-content { padding: 20px 24px 24px; }
 .add-room-form { display: grid; grid-template-columns: 150px minmax(0, 430px); align-items: center; gap: 14px; margin-bottom: 18px; padding: 16px; border-radius: 12px; background: #f7f9fc; }
+.idle-timeout-form { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 18px; padding: 16px; border: 1px solid #dce7ff; border-radius: 12px; background: var(--blue-soft); }
+.idle-timeout-form > div { display: flex; align-items: center; gap: 9px; }
+.idle-timeout-form > div:first-child { flex-direction: column; align-items: flex-start; gap: 4px; }
+.idle-timeout-form label { color: var(--text); font-size: 12px; font-weight: 750; }
+.idle-timeout-form small, .idle-timeout-form span { color: var(--muted); font-size: 10px; }
+.idle-timeout-form input { width: 100px; padding: 10px 11px; border: 1px solid #d8dfe9; border-radius: 8px; font: inherit; }
 .add-room-form > label { color: var(--text); font-size: 12px; font-weight: 750; }
 .add-room-form > div { display: flex; gap: 8px; }
 .add-room-form input, .room-edit-row input { width: 100%; padding: 10px 11px; color: var(--text); border: 1px solid #d8dfe9; border-radius: 8px; background: #fff; outline: none; font: inherit; font-size: 12px; }
@@ -215,6 +221,7 @@ h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.015em; }
   .managed-identity { grid-column: 1 / -1; }
   .exam-list { grid-template-columns: 1fr; }
   .add-room-form { grid-template-columns: 1fr; }
+  .idle-timeout-form { align-items: flex-start; flex-direction: column; }
 }
 
 @media (max-width: 600px) {

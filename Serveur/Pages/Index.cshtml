@@ -179,6 +179,17 @@
             <span class="panel-total">@Model.Rooms.Count salle(s)</span>
         </div>
         <div class="rooms-content">
+            <form method="post" asp-page-handler="SaveIdleRoomTimeout" class="idle-timeout-form">
+                <div>
+                    <label for="idle-room-timeout">Délai avant la salle fantôme</label>
+                    <small>Sans activité clavier ou souris, la salle du client devient 👻👻👻. Elle est restaurée dès la reprise d’activité.</small>
+                </div>
+                <div>
+                    <input id="idle-room-timeout" name="IdleRoomTimeout.Seconds" type="number" min="1" max="86400" required value="@Model.IdleRoomTimeoutSeconds" />
+                    <span>secondes</span>
+                    <button type="submit" class="save-user-button">Enregistrer</button>
+                </div>
+            </form>
             <form method="post" asp-page-handler="AddRoom" class="add-room-form">
                 <label for="new-room">Nouvelle salle</label>
                 <div><input id="new-room" name="RoomEdit.Name" required maxlength="80" placeholder="Ex. Salle OCT" /><button type="submit" class="primary-action-button">+ Ajouter</button></div>
