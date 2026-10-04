@@ -1,0 +1,46 @@
+@page
+@model Serveur.Pages.MobileModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "EyeChat mobile";
+    ViewData["HideChrome"] = true;
+    var snapshotJson = JsonSerializer.Serialize(Model.Snapshot, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
+
+<div class="mobile-app" data-mobile-app data-snapshot-url="@Url.Page("/Mobile", "Snapshot")">
+    <header class="mobile-header">
+        <div class="mobile-brand"><span>E</span><div><strong>EyeChat</strong><small>Vue mobile sécurisée</small></div></div>
+        <div class="mobile-header-actions">
+            <button type="button" class="mobile-icon-button" data-notifications aria-label="Activer les notifications" title="Activer les notifications">♢</button>
+            <form method="post" asp-page="/Logout"><button type="submit" class="mobile-icon-button" aria-label="Se déconnecter" title="Se déconnecter">↪</button></form>
+        </div>
+    </header>
+
+    <main class="mobile-content">
+        <section class="mobile-summary" aria-label="Résumé">
+            <div><strong data-patient-count>@Model.Snapshot.Patients.Count</strong><span>patients aujourd’hui</span></div>
+            <div><strong data-message-count>@Model.Snapshot.Messages.Count</strong><span>messages aujourd’hui</span></div>
+            <button type="button" data-refresh><span>↻</span><small>Actualiser</small></button>
+        </section>
+
+        <p class="mobile-status" data-status role="status">À jour</p>
+
+        <section class="mobile-view is-active" data-view="patients">
+            <div class="mobile-section-title"><div><p>Aujourd’hui</p><h1>Patients</h1></div><span data-patient-badge>@Model.Snapshot.Patients.Count</span></div>
+            <div class="mobile-list" data-patient-list></div>
+        </section>
+
+        <section class="mobile-view" data-view="messages" hidden>
+            <div class="mobile-section-title"><div><p>Aujourd’hui</p><h1>Messages</h1></div><span data-message-badge>@Model.Snapshot.Messages.Count</span></div>
+            <div class="mobile-list" data-message-list></div>
+        </section>
+    </main>
+
+    <nav class="mobile-tabs" aria-label="Navigation principale">
+        <button type="button" class="is-active" data-tab="patients"><span>♙</span>Patients</button>
+        <button type="button" data-tab="messages"><span>✉</span>Messages<i data-unread hidden></i></button>
+    </nav>
+</div>
+
+<script type="application/json" id="mobile-initial-data">@Html.Raw(snapshotJson)</script>
+<script src="~/js/mobile.js" asp-append-version="true"></script>
