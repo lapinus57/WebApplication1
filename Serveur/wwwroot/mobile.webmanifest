@@ -1,0 +1,10 @@
+{
+  "name": "EyeChat Mobile",
+  "short_name": "EyeChat",
+  "description": "Consultation sécurisée des patients et messages EyeChat.",
+  "start_url": "/Mobile",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#10233f"
+}
