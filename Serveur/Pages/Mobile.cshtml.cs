@@ -28,8 +28,10 @@ public class MobileModel : PageModel
     private async Task<MobileSnapshot> CreateSnapshotAsync()
     {
         var startOfDay = DateTime.Today;
+        var startOfTomorrow = startOfDay.AddDays(1);
         var patients = await _db.Patients.AsNoTracking()
-            .Where(patient => !patient.IsArchived)
+            .Where(patient => !patient.IsArchived &&
+                patient.HoldTime >= startOfDay && patient.HoldTime < startOfTomorrow)
             .OrderBy(patient => patient.IsTaken)
             .ThenBy(patient => patient.HoldTime)
             .Select(patient => new MobilePatient(

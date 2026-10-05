@@ -18,7 +18,7 @@
 
     <main class="mobile-content">
         <section class="mobile-summary" aria-label="Résumé">
-            <div><strong data-patient-count>@Model.Snapshot.Patients.Count</strong><span>patients actifs</span></div>
+            <div><strong data-patient-count>@Model.Snapshot.Patients.Count</strong><span>patients aujourd’hui</span></div>
             <div><strong data-message-count>@Model.Snapshot.Messages.Count</strong><span>messages aujourd’hui</span></div>
             <button type="button" data-refresh><span>↻</span><small>Actualiser</small></button>
         </section>
@@ -26,7 +26,7 @@
         <p class="mobile-status" data-status role="status">À jour</p>
 
         <section class="mobile-view is-active" data-view="patients">
-            <div class="mobile-section-title"><div><p>File active</p><h1>Patients</h1></div><span data-patient-badge>@Model.Snapshot.Patients.Count</span></div>
+            <div class="mobile-section-title"><div><p>Aujourd’hui</p><h1>Patients</h1></div><span data-patient-badge>@Model.Snapshot.Patients.Count</span></div>
             <div class="mobile-list" data-patient-list></div>
         </section>
 

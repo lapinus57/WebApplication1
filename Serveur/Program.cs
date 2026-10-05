@@ -103,6 +103,7 @@ app.Use(async (context, next) =>
 {
     var isAdministrationPage = context.Request.Path == "/" ||
         context.Request.Path.StartsWithSegments("/Index") ||
+        context.Request.Path.StartsWithSegments("/Mobile") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)

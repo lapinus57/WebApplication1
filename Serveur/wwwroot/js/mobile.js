@@ -21,7 +21,7 @@
           <small>${escape(patient.position || 'Salle non renseignée')}${patient.annotation ? ` — ${escape(patient.annotation)}` : ''}</small>
         </div>
         <span class="patient-state">${patient.isTaken ? 'Terminé' : 'En attente'}</span>
-      </article>`).join('') : emptyState('Aucun patient actif', 'La file des patients est vide.');
+      </article>`).join('') : emptyState('Aucun patient aujourd’hui', 'La file des patients du jour est vide.');
   }
 
   function renderMessages() {
