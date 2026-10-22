@@ -38,6 +38,8 @@ namespace Client
         public static string UserName { get; set; } = string.Empty;
         public static UserInfo? LastUserChanged { get; set; }
         public static HotKeyService HotKeys { get; } = new HotKeyService();
+        private readonly UnhandledUiErrorReporter _uiErrorReporter = new();
+        private DispatcherQueue? _uiErrorDispatcher;
         private DispatcherQueueTimer? _agendaTimer;
         private bool _agendaSwitchInProgress;
         private bool _restartScheduled;
@@ -53,6 +55,7 @@ namespace Client
         {
             this.InitializeComponent();
 
+            _uiErrorDispatcher = DispatcherQueue.GetForCurrentThread();
             this.UnhandledException += App_UnhandledException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
@@ -1110,39 +1113,21 @@ namespace Client
 
         private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
-            if (e.Exception is Exception ex)
-            {
-                Logger.LogException("Unhandled UI exception", ex, "CLI01");
-            }
-            else
-            {
-                Logger.Log("Unhandled UI exception without an Exception instance.");
-            }
-
-            e.Handled = true;
-
-            if (MainWindow is MainWindow window && window.Content is FrameworkElement root)
-            {
-                window.DispatcherQueue.TryEnqueue(async () =>
+            // Never inspect Window.Content/XamlRoot or create a XAML dialog while WinUI is reporting
+            // a native fault. That can synchronously re-enter this handler until the stack overflows.
+            _uiErrorReporter.Report(
+                log: () =>
                 {
-                    try
-                    {
-                        var dialog = new ContentDialog
-                        {
-                            Title = "Erreur inattendue",
-                            Content = "Une erreur est survenue. Un journal a été enregistré dans les données locales.",
-                            CloseButtonText = "Fermer",
-                            XamlRoot = root.XamlRoot
-                        };
-
-                        await dialog.ShowAsync();
-                    }
-                    catch
-                    {
-                        // Ignore dialog errors – the dispatcher may not be available during shutdown.
-                    }
-                });
-            }
+                    if (e.Exception is Exception ex)
+                        Logger.LogException("Unhandled UI exception", ex, "CLI01");
+                    else
+                        Logger.Log("Unhandled UI exception without an Exception instance.");
+                },
+                markHandled: () => e.Handled = true,
+                enqueue: callback => _uiErrorDispatcher?.TryEnqueue(() => callback()) == true,
+                notify: () => MessageBox(IntPtr.Zero,
+                    "Une erreur est survenue. Le diagnostic initial a été enregistré dans les données locales (code CLI01).",
+                    "Erreur EyeChat", 0x00000010));
         }
 
         private void CurrentDomain_UnhandledException(object? sender, System.UnhandledExceptionEventArgs e)
