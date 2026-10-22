@@ -21,6 +21,11 @@ namespace Client.SmsMail.Services
         public string Channel { get; set; } = string.Empty;
         public string Contact { get; set; } = string.Empty;
         public string Family { get; set; } = string.Empty;
+        public string PeopleDisplay { get; set; } = string.Empty;
+        public DateTime AppointmentStart { get; set; }
+        public string AppointmentTimeDisplay => AppointmentStart.ToString("HH:mm", CultureInfo.InvariantCulture);
+        public string ArrivalHint => CalendarStart == AppointmentStart ? string.Empty : "Arrivée " + CalendarStart.ToString("HH:mm", CultureInfo.InvariantCulture);
+        public string BodyDisplay => Channel == "Mail" ? MailTextPreview.Convert(Body) : Body;
         public string Subject { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
         public string Key { get; set; } = string.Empty;
@@ -70,6 +75,7 @@ namespace Client.SmsMail.Services
             var rdvs = appointments.Where(r => r.DateRDV.Date == date.Date && !r.IsCancelled).OrderBy(r => r.HeureRDV).ToList();
             var families = settings.UseEyeEmailFamilies ? (preparedFamilies?.ToList() ?? EyeEmailFamilyGrouping.Build(rdvs))
                 : rdvs.Select(r => { var family = new RdvFamille(); family.RDVs.Add(r); return family; }).ToList();
+            var originalTimes = families.SelectMany(f => f.RDVs).Distinct().ToDictionary(r => r, r => r.HeureRDV);
             // Group on original appointment data; only reminder copies change time.
             // Rules are applied once, so 11:30 -> 11:20 -> 11:10 never chains.
             if (settings.AdjustReminderTimes)
@@ -77,7 +83,11 @@ namespace Client.SmsMail.Services
                 var rules = ReminderTimes.Validate(settings.ReminderTimeRules);
                 var copies = families.SelectMany(f => f.RDVs).Distinct().ToDictionary(r => r,
                     r => JsonSerializer.Deserialize<RdvInfo>(JsonSerializer.Serialize(r))!);
-                foreach (var copy in copies.Values) copy.HeureRDV = ReminderTimes.Apply(copy.HeureRDV, rules);
+                foreach (var pair in copies)
+                {
+                    originalTimes[pair.Value] = originalTimes[pair.Key];
+                    pair.Value.HeureRDV = ReminderTimes.Apply(pair.Value.HeureRDV, rules);
+                }
                 families = families.Select(f =>
                 {
                     var copy = new RdvFamille { Numero = f.Numero };
@@ -123,6 +133,8 @@ namespace Client.SmsMail.Services
                     var key = ContactKey(date, channel, group.Key);
                     result.Add(new PreparedMessage { Channel = channel, Contact = group.Key,
                         Family = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")),
+                        PeopleDisplay = string.Join(Environment.NewLine, people.OrderBy(r => originalTimes[r]).Select(r => $"{r.Prenom} {r.Nom}".Trim()).Distinct()),
+                        AppointmentStart = date.Date + people.Min(r => originalTimes[r].TimeOfDay),
                         Subject = settings.Subject, Body = body, Key = key,
                         ReservationKeys = channel == "SMS" ? people.SelectMany(p => familyKeys[p]).Distinct().ToList() : new(),
                         ProviderService = channel == "SMS" ? settings.Sms.ServiceName : settings.Email.SmtpHost,

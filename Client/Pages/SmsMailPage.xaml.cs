@@ -297,17 +297,6 @@ namespace Client.Pages
             DispatcherQueue.TryEnqueue(() => PreparationExpander.StartBringIntoView());
         }
         private async void ReviewTimes_Click(object sender, RoutedEventArgs e) => await RunAsync(() => ShowTextPreviewAsync("SMS", "Horaires réels → heures d’arrivée annoncées", TimeChangesText.Text));
-        private async void ReadMessage_Click(object sender, RoutedEventArgs e)
-        {
-            if ((sender as FrameworkElement)?.DataContext is PreparedMessage message) await ReadPreparedMessageAsync(message);
-        }
-        private async void MessageRow_Click(object sender, ItemClickEventArgs e)
-        {
-            if (e.ClickedItem is PreparedMessage message) await ReadPreparedMessageAsync(message);
-        }
-        private Task ReadPreparedMessageAsync(PreparedMessage message) => RunAsync(() => ShowTextPreviewAsync(message.Channel,
-            message.Family + Environment.NewLine + message.Contact + " · " + message.Subject + Environment.NewLine + message.Status + " · " + message.Metrics, message.Body));
-
         private async Task ShowTextPreviewAsync(string channel, string caption, string body)
         {
             var text = new TextBox

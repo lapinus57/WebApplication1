@@ -42,6 +42,18 @@ static class ReminderTimeChecks
         catch (InvalidOperationException) { count++; }
         try { ReminderTimes.Validate(new[] { new AppointmentTimeRule { To = TimeSpan.FromDays(1) } }); throw new Exception("Invalid time allowed"); }
         catch (InvalidOperationException) { count++; }
+        Check(mail.AppointmentStart == day.AddHours(11.5) && mail.AppointmentTimeDisplay == "11:30", "RDV column keeps the original appointment time");
+        Check(mail.ArrivalHint == "Arrivée 11:20", "Adjusted arrival is clearly distinguished from appointment time");
+        Check(mail.PeopleDisplay == "Alice Test" + Environment.NewLine + "Bob Test", "People column lists names only, one per line");
+        Check(mail.BodyDisplay.Contains("11:20") && !mail.BodyDisplay.Contains("<table"), "Message column displays readable text with announced time");
+        var interleaved = MessagePreparation.Prepare(new[]
+        {
+            new RdvInfo { Id = 11, ReferenceFamilyNumber = 11, Prenom = "A", Nom = "Premier", DateRDV = day, HeureRDV = day.AddHours(11.5), Tel1 = "0611111111" },
+            new RdvInfo { Id = 22, ReferenceFamilyNumber = 22, Prenom = "B", Nom = "Second", DateRDV = day, HeureRDV = day.AddHours(11).AddMinutes(25), Tel1 = "0622222222" }
+        }, day, settings);
+        var sorted = MessageSelection.Visible(interleaved, "SMS", "");
+        Check(sorted.Select(m => m.AppointmentTimeDisplay).SequenceEqual(new[] { "11:25", "11:30" }), "Table sorts by real time rather than adjusted arrival");
+        Check(sorted.All(m => m.BodyDisplay == m.Body), "SMS message column preserves message text exactly");
         return count;
     }
 }
