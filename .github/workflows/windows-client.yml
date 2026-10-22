@@ -1,0 +1,25 @@
+name: Windows client
+
+on:
+  pull_request:
+    branches: [master2]
+    paths:
+      - 'Client/**'
+      - 'tests/SmsMail.Tests/**'
+      - '.github/workflows/windows-client.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Verify message preparation, OVH signing and duplicate prevention
+        run: dotnet run --project tests/SmsMail.Tests --configuration Release
+      - name: Compile WinUI client without package signing
+        run: dotnet build Client/Client.csproj --configuration Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=false

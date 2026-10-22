@@ -58,6 +58,8 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Data.OleDb" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.22" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Pages\SystemPage.xaml">
@@ -95,3 +97,4 @@
     <AppxBundlePlatforms>x86</AppxBundlePlatforms>
   </PropertyGroup>
 </Project>
+
