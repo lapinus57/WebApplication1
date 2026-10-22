@@ -40,7 +40,7 @@
                                 <AppBarButton Label="Tester mail / SMS" Icon="Send" Click="TestSend_Click" />
                                 <CommandBar.SecondaryCommands>
                                     <AppBarButton Label="Importer des rendez-vous JSON" Click="Import_Click" />
-                                    <AppBarButton Label="Adapter les horaires des rappels" Click="ReminderTimes_Click" />
+                                    <AppBarButton Label="Heures d’arrivée dans les rappels" Click="ReminderTimes_Click" />
                                     <AppBarButton Label="Consulter le solde SMS" Click="Balance_Click" />
                                 </CommandBar.SecondaryCommands>
                             </CommandBar>
@@ -65,7 +65,7 @@
                         <TextBlock Text="Seuls les messages cochés et visibles seront envoyés. Choisissez un canal pour envoyer uniquement les mails ou les SMS." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="2. Vérifier et envoyer" FontSize="18" FontWeight="SemiBold" />
                         <TextBlock x:Name="SummaryText" Text="Commencez par charger les rendez-vous du jour choisi." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <Expander Header="Vérifier les horaires ajustés" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                        <Expander Header="Vérifier les heures d’arrivée annoncées" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                             <ScrollViewer MaxHeight="140"><TextBlock x:Name="TimeChangesText" Text="Aucun horaire ajusté." TextWrapping="Wrap" /></ScrollViewer>
                         </Expander>
                         <CommandBar Background="Transparent" DefaultLabelPosition="Right" HorizontalContentAlignment="Left">
@@ -219,14 +219,14 @@
                         <TextBox x:Name="CabinetAddressText" Header="Adresse du cabinet (mail et calendrier)" />
                         <NumberBox x:Name="DurationNumber" Header="Durée de chaque rendez-vous en minutes" Minimum="1" Maximum="480" Value="30" />
                     </StackPanel></Expander>
-                    <Expander x:Name="ReminderTimesExpander" Header="Horaires affichés dans les rappels" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <Expander x:Name="ReminderTimesExpander" Header="Heures d’arrivée annoncées dans les rappels" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Remplacer certains horaires dans les SMS, mails et invitations ICS. Ces règles s’appliquent à tous les rendez-vous du créneau ; la base Access reste inchangée." TextWrapping="Wrap" />
-                            <CheckBox x:Name="AdjustTimesCheck" Content="Activer les remplacements d’horaires" Checked="Options_Changed" Unchecked="Options_Changed" />
+                            <TextBlock Text="Annoncer une arrivée plus tôt dans les SMS, mails et invitations ICS, par exemple 11:20 pour le rendez-vous de 11:30. L’horaire réel du rendez-vous et la base Access restent inchangés." TextWrapping="Wrap" />
+                            <CheckBox x:Name="AdjustTimesCheck" Content="Activer les heures d’arrivée personnalisées" Checked="Options_Changed" Unchecked="Options_Changed" />
                             <ListView x:Name="TimeRulesList" SelectionMode="None"><ListView.ItemTemplate><DataTemplate>
                                 <StackPanel Spacing="8" Padding="0,8">
-                                    <TimePicker Header="Horaire du rendez-vous" ClockIdentifier="24HourClock" Time="{Binding From, Mode=TwoWay}" />
-                                    <TimePicker Header="Horaire indiqué dans le rappel" ClockIdentifier="24HourClock" Time="{Binding To, Mode=TwoWay}" />
+                                    <TimePicker Header="Horaire réel du rendez-vous" ClockIdentifier="24HourClock" Time="{Binding From, Mode=TwoWay}" />
+                                    <TimePicker Header="Heure d’arrivée annoncée" ClockIdentifier="24HourClock" Time="{Binding To, Mode=TwoWay}" />
                                     <Button Content="Supprimer cette règle" Click="RemoveTimeRule_Click" />
                                 </StackPanel>
                             </DataTemplate></ListView.ItemTemplate></ListView>
