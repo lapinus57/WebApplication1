@@ -6,7 +6,7 @@
     <Grid Padding="16" RowSpacing="12">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel Spacing="4"><TextBlock Text="Préparation FO" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="Consignes de fond d’œil et prochains rendez-vous. Connexion avec le compte d’administration du serveur." TextWrapping="Wrap"/></StackPanel>
+            <StackPanel Spacing="4"><TextBlock Text="Préparation FO" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="Patients à préparer pour un fond d’œil, selon les consignes retrouvées dans Consultation." TextWrapping="Wrap"/></StackPanel>
             <Button Grid.Column="1" Content="Recharger" Click="Reload_Click" VerticalAlignment="Center"/>
         </Grid>
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="True" IsClosable="False" Severity="Informational" Message="Connexion à la page sécurisée du serveur…"/>

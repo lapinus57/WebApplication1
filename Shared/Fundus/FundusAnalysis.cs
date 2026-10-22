@@ -10,7 +10,7 @@ namespace EyeChat.Fundus;
 
 public enum FoStatus { Planned, Verify, ProbablyPerformed }
 public enum FoFindingKind { Request, Potential, Performed, Cancelled }
-public sealed record FoConsultation(string Id, DateTime Date, string Text, string FollowUpText = "");
+public sealed record FoConsultation(string Id, DateTime Date, string Text, string RefractionText = "");
 public sealed record FoFinding(FoFindingKind Kind, string Excerpt);
 public sealed record FoAnalysis(string SourceId, DateTime SourceDate, string Excerpt, FoStatus Status,
     string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate);
@@ -41,7 +41,7 @@ public static class FundusAnalysis
     private static bool Has(string value, string pattern) => Regex.IsMatch(value, pattern,
         RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
 
-    public static IReadOnlyList<FoFinding> Detect(string original, bool followUpField = false)
+    public static IReadOnlyList<FoFinding> Detect(string original)
     {
         var result = new List<FoFinding>();
         // Retain the source's spelling, punctuation and accents in the evidence.
@@ -73,20 +73,34 @@ public static class FundusAnalysis
                 continue;
             }
             // A bare FO result (e.g. FO normal) is neither a new request nor proof of completion.
-            if (followUpField || future || notDone || uncertain || Has(text, @"\b(?:a realiser|a effectuer|doit|devra|sera|surveiller|controle a)\b"))
+            if (future || notDone || uncertain || Has(text, @"\b(?:a realiser|a effectuer|doit|devra|sera|surveiller|controle a)\b"))
                 result.Add(new(FoFindingKind.Potential, excerpt));
         }
         return result;
     }
 
+    private static IEnumerable<FoFinding> ClinicalFindings(FoConsultation consultation)
+    {
+        var observations = Detect(consultation.Text);
+        var refraction = Detect(consultation.RefractionText);
+        var findings = observations.Concat(refraction).ToList();
+        if (observations.Count == 0 || refraction.Count == 0) return findings;
+        bool contradicts = findings.Any(f => f.Kind == FoFindingKind.Cancelled) &&
+            findings.Any(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential);
+        // Observation and REFRACTION describe the same visit, not successive visits.
+        // A new explicit future request remains open even when the current visit records a completed FO.
+        return findings.Select(f => contradicts && f.Kind == FoFindingKind.Request ? f with { Kind = FoFindingKind.Potential } : f)
+            .OrderBy(f => f.Kind switch { FoFindingKind.Performed => 0, FoFindingKind.Cancelled => 1, FoFindingKind.Potential => 2, _ => 3 });
+    }
+
     public static FoAnalysis? Analyze(IEnumerable<FoConsultation> consultations, DateTime now)
     {
         var rows = consultations.Where(c => c.Date <= now).OrderBy(c => c.Date).ThenBy(c => c.Id, StringComparer.Ordinal).ToList();
-        var hash = Hash(string.Join("\n", rows.Select(c => $"{c.Id.Length}:{c.Id}|{c.Date:O}|{Hash(c.Text)}|{Hash(c.FollowUpText)}")));
+        var hash = Hash(string.Join("\n", rows.Select(c => $"{c.Id.Length}:{c.Id}|{c.Date:O}|{Hash(c.Text)}|{Hash(c.RefractionText)}")));
         FoAnalysis? active = null;
         foreach (var group in rows.GroupBy(c => c.Date))
         {
-            var events = group.SelectMany(c => Detect(c.Text).Concat(Detect(c.FollowUpText, true)).Select(f => (Consultation: c, Finding: f))).ToList();
+            var events = group.SelectMany(c => ClinicalFindings(c).Select(f => (Consultation: c, Finding: f))).ToList();
             // Distinct consultations with identical timestamps cannot establish a reliable order.
             var sameTimeConflict = group.Count() > 1 && events.Any(e => e.Finding.Kind is FoFindingKind.Request or FoFindingKind.Potential)
                 && events.Any(e => e.Finding.Kind is FoFindingKind.Performed or FoFindingKind.Cancelled);
