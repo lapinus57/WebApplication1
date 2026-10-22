@@ -32,12 +32,22 @@ public sealed class FoMapping
         return new FoMapping
         {
             PatientsTable = p, PatientId = Field(p, "Code Patient"),
+            LastName = Field(p, "Nom"), FirstName = Field(p, "Prénom", "Prenom"),
             ConsultationsTable = c, ConsultationId = Field(c, "N° consultation"),
             ConsultationPatientId = Field(c, "Code patient"), ConsultationDate = Field(c, "Date"),
-            ObservationFields = new[] { Field(c, "Observation"), Field(c, "ProchainRDV") }.Where(f => f != "").ToArray(),
+            ObservationFields = new[] { Field(c, "Observation"), Field(c, "REFRACTION") }.Where(f => f != "").ToArray(),
             AppointmentsTable = a, AppointmentPatientId = Field(a, "Code Patient"),
-            AppointmentDate = Field(a, "Date", "DateRdv"), AppointmentTime = Field(a, "Heure")
+            AppointmentDate = Field(a, "Date", "DateRdv"), AppointmentTime = Field(a, "Heure"),
+            Cancelled = Field(a, "Annulé", "Annule")
         };
+    }
+
+    public void SelectClinicalFields(IReadOnlyList<FoField> fields)
+    {
+        ObservationFields = new[] { "Observation", "REFRACTION" }.Select(name =>
+            fields.FirstOrDefault(f => f.Table == ConsultationsTable && f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Name
+            ?? throw new FoDataException($"Champ médical requis absent de la table choisie : {name}."))
+            .ToArray();
     }
 
     public void Validate(IReadOnlyList<FoField> fields)
@@ -54,8 +64,10 @@ public sealed class FoMapping
         Require(ConsultationsTable, ConsultationId, "identifiant consultation");
         Require(ConsultationsTable, ConsultationPatientId, "patient de la consultation");
         Require(ConsultationsTable, ConsultationDate, "date de consultation");
-        if (ObservationFields == null || ObservationFields.Length == 0 || ObservationFields.Length > 12)
-            throw new FoDataException("Sélectionnez de 1 à 12 champs de texte médical.");
+        if (ObservationFields == null || ObservationFields.Length != 2 ||
+            !ObservationFields.Contains("Observation", StringComparer.OrdinalIgnoreCase) ||
+            !ObservationFields.Contains("REFRACTION", StringComparer.OrdinalIgnoreCase))
+            throw new FoDataException("L’analyse FO doit utiliser les champs Observation et REFRACTION.");
         foreach (var field in ObservationFields) Require(ConsultationsTable, field, "texte médical");
         Require(AppointmentsTable, AppointmentPatientId, "patient du rendez-vous");
         Require(AppointmentsTable, AppointmentDate, "date du rendez-vous");

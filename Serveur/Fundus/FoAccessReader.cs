@@ -52,6 +52,7 @@ public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuratio
     {
         using var connection = ReadOnlyAccess.Open(Options());
         var schema = Schema(connection);
+        mapping.SelectClinicalFields(schema);
         mapping.Validate(schema);
         var now = Now;
         var appointments = new Dictionary<string, DateTime>(StringComparer.Ordinal);
@@ -105,9 +106,9 @@ public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuratio
                     if (!ids.Add(consultationId)) throw new FoDataException("L’identifiant consultation choisi n’est pas unique pour un patient.");
                     var date = Date(reader.GetValue(1));
                     if (date > now) continue;
-                    var (text, followUp) = ClinicalText(reader, mapping, 2);
-                    if (text.Length + followUp.Length > 100_000 || rows.Count >= 10_000) throw new FoDataException("Volume d’observations inhabituel. Vérifiez les champs choisis ; l’analyse a été interrompue sans résultat partiel.");
-                    rows.Add(new(consultationId, date, text, followUp));
+                    var (text, refraction) = ClinicalText(reader, mapping, 2);
+                    if (text.Length + refraction.Length > 100_000 || rows.Count >= 10_000) throw new FoDataException("Volume d’observations inhabituel. Vérifiez les champs choisis ; l’analyse a été interrompue sans résultat partiel.");
+                    rows.Add(new(consultationId, date, text, refraction));
                 }
             }
             result.Add(new(id, name, appointment, rows));
@@ -119,6 +120,7 @@ public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuratio
     {
         using var connection = ReadOnlyAccess.Open(Options());
         var schema = Schema(connection);
+        mapping.SelectClinicalFields(schema);
         mapping.Validate(schema);
         using var command = connection.CreateCommand();
         command.CommandText = $"SELECT {Q(mapping.ConsultationDate)}, {string.Join(", ", mapping.ObservationFields.Select(Q))} FROM {Q(mapping.ConsultationsTable)} WHERE {Q(mapping.ConsultationPatientId)} = ? AND {Q(mapping.ConsultationId)} = ?";
@@ -126,23 +128,23 @@ public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuratio
         AddKey(command, schema, mapping.ConsultationsTable, mapping.ConsultationId, consultationId);
         using var reader = command.ExecuteReader()!;
         if (!reader.Read()) throw new FoDataException("La consultation source n’est plus disponible. Actualisez l’analyse.");
-        var (text, followUp) = ClinicalText(reader, mapping, 1);
-        var row = new FoConsultation(consultationId, Date(reader.GetValue(0)), text, followUp);
+        var (text, refraction) = ClinicalText(reader, mapping, 1);
+        var row = new FoConsultation(consultationId, Date(reader.GetValue(0)), text, refraction);
         if (reader.Read()) throw new FoDataException("Plusieurs consultations correspondent à cet identifiant. Vérifiez le rapprochement.");
         return row;
     }
 
-    private static (string Text, string FollowUp) ClinicalText(OleDbDataReader reader, FoMapping mapping, int offset)
+    private static (string Text, string Refraction) ClinicalText(OleDbDataReader reader, FoMapping mapping, int offset)
     {
         var texts = new List<string>();
-        var followUp = "";
+        var refraction = "";
         for (int i = 0; i < mapping.ObservationFields.Length; i++)
         {
             var text = MedicalText(reader.GetValue(offset + i));
-            if (mapping.ObservationFields[i].Equals("ProchainRDV", StringComparison.OrdinalIgnoreCase)) followUp = text;
+            if (mapping.ObservationFields[i].Equals("REFRACTION", StringComparison.OrdinalIgnoreCase)) refraction = text;
             else texts.Add(text);
         }
-        return (string.Join("\n", texts), followUp);
+        return (string.Join("\n", texts), refraction);
     }
 
     private static void AddKey(OleDbCommand command, IReadOnlyList<FoField> schema, string table, string column, string value)

@@ -42,20 +42,28 @@ Check(Analyze((-1, exact))?.Excerpt == exact, "Exact evidence preserves accents"
 Check(Analyze((-1, "Pas de FO prévu. Prévoir FO au prochain contrôle."))?.Status == FoStatus.Planned, "Negation scoped to sentence");
 Check(Analyze((-1, "FO prochaine fois"))?.EvidenceHash != Analyze((-1, "FO prochaine fois."))?.EvidenceHash, "Edited source invalidates review");
 
-Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "", "FO")], day)?.Status == FoStatus.Verify, "Bare FO in confirmed follow-up field");
-Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "", "FO prochaine fois")], day)?.Status == FoStatus.Planned, "Follow-up instruction");
-Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "", "Pas de FO prévu")], day) == null, "Negated follow-up instruction");
+Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "", "FO")], day) == null, "Bare FO in REFRACTION is not a future instruction");
+Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "", "FO prochaine fois")], day)?.Status == FoStatus.Planned, "Future instruction in REFRACTION");
+Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "", "Pas de FO prévu")], day) == null, "Negated instruction in REFRACTION");
 Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "FO")], day) == null, "Bare observation is not an instruction");
-var realSchema = new[] { new FoField("Consultation", "N° consultation", 3), new("Consultation", "Code patient", 3), new("Consultation", "Date", 7), new("Consultation", "Observation", 130), new("Consultation", "ProchainRDV", 130) };
+Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "FO prochaine fois", "FO réalisé")], day)?.Status == FoStatus.Planned, "Current FO in REFRACTION does not close a future instruction in Observation");
+Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "FO réalisé", "FO prochaine fois")], day)?.Status == FoStatus.Planned, "Future instruction works regardless of the clinical field");
+Check(FundusAnalysis.Analyze([new("1", day.AddDays(-1), "FO non nécessaire", "FO prochaine fois")], day)?.Status == FoStatus.Verify, "Contradictory clinical fields need verification");
+Check(FundusAnalysis.Analyze([new("1", day.AddDays(-2), "FO prochaine fois"), new("2", day.AddDays(-1), "", "FO réalisé")], day)?.Status == FoStatus.ProbablyPerformed, "Later completion in REFRACTION");
+var realSchema = new[] { new FoField("Consultation", "N° consultation", 3), new("Consultation", "Code patient", 3), new("Consultation", "Date", 7), new("Consultation", "Observation", 130), new("Consultation", "ProchainRDV", 130), new("Consultation", "REFRACTION", 130) };
 var suggested = FoMapping.Suggest(realSchema);
 Check(suggested.ConsultationId == "N° consultation" && suggested.ConsultationPatientId == "Code patient", "Confirmed consultation key suggestions");
-Check(suggested.ObservationFields.SequenceEqual(new[] { "Observation", "ProchainRDV" }), "Confirmed text fields suggested");
+Check(suggested.ObservationFields.SequenceEqual(new[] { "Observation", "REFRACTION" }), "Confirmed text fields suggested");
 Check(suggested.PatientId == "" && suggested.AppointmentDate == "", "Never invent fields absent from inspected schema");
 
-var map = new FoMapping { PatientsTable = "P", PatientId = "Id", LastName = "Nom", FirstName = "Prénom", ConsultationsTable = "C", ConsultationId = "Id", ConsultationPatientId = "Patient", ConsultationDate = "Date", ObservationFields = ["Texte"], AppointmentsTable = "A", AppointmentPatientId = "Patient", AppointmentDate = "Date", AppointmentTime = "Heure", NoCancellationColumn = true };
-var fields = new[] { new FoField("P", "Id", 3), new("P", "Nom", 130), new("P", "Prénom", 130), new("C", "Id", 3), new("C", "Patient", 3), new("C", "Date", 7), new("C", "Texte", 130), new("A", "Patient", 3), new("A", "Date", 7), new("A", "Heure", 7) };
+var map = new FoMapping { PatientsTable = "P", PatientId = "Id", LastName = "Nom", FirstName = "Prénom", ConsultationsTable = "C", ConsultationId = "Id", ConsultationPatientId = "Patient", ConsultationDate = "Date", ObservationFields = ["Observation", "REFRACTION"], AppointmentsTable = "A", AppointmentPatientId = "Patient", AppointmentDate = "Date", AppointmentTime = "Heure", NoCancellationColumn = true };
+var fields = new[] { new FoField("P", "Id", 3), new("P", "Nom", 130), new("P", "Prénom", 130), new("C", "Id", 3), new("C", "Patient", 3), new("C", "Date", 7), new("C", "Observation", 130), new("C", "REFRACTION", 130), new("A", "Patient", 3), new("A", "Date", 7), new("A", "Heure", 7) };
+map.SelectClinicalFields(fields);
+Check(map.ObservationFields.SequenceEqual(new[] { "Observation", "REFRACTION" }), "Only the two clinical fields are selected");
+try { map.SelectClinicalFields(fields.Where(f => f.Name != "REFRACTION").ToList()); Check(false, "Missing REFRACTION must fail"); } catch (FoDataException) { count++; }
+map.SelectClinicalFields(fields);
 map.Validate(fields); count++;
-try { map.Validate(fields.Where(f => f.Name != "Texte").ToList()); Check(false, "Unknown observation should fail"); } catch (FoDataException) { count++; }
+try { map.Validate(fields.Where(f => f.Name != "Observation").ToList()); Check(false, "Unknown observation should fail"); } catch (FoDataException) { count++; }
 map.NoCancellationColumn = false;
 try { map.Validate(fields); Check(false, "Cancellation cannot be silently assumed absent"); } catch (FoDataException) { count++; }
 map.NoCancellationColumn = true;
@@ -77,6 +85,27 @@ reader.Patients = [new("42", "Patient TEST", day.AddHours(2), [new("12", day.Add
 await store.RefreshAsync(day.Date, day.Date.AddDays(1), default);
 var alert = await db.FoAlerts.SingleAsync();
 Check(alert.Status == FoStatus.Planned && alert.Excerpt == "FO prochaine fois", "Initial persistence");
+// Simulate an installed legacy configuration and approval before the field correction.
+var settings = await db.FoSettings.SingleAsync();
+var legacyMap = System.Text.Json.JsonSerializer.Deserialize<FoMapping>(settings.MappingJson)!;
+legacyMap.ObservationFields = ["Observation", "ProchainRDV"];
+settings.MappingJson = System.Text.Json.JsonSerializer.Serialize(legacyMap);
+settings.SourceKey = reader.SourceKey(legacyMap);
+alert.SourceKey = settings.SourceKey;
+alert.ManualStatus = FoStatus.Verify;
+alert.ReviewedBy = "admin-test";
+await db.SaveChangesAsync();
+reader.Fail = true;
+try { await store.RefreshAsync(day.Date, day.Date.AddDays(1), default); Check(false, "Failed migration must not change settings"); } catch (FoDataException) { count++; }
+Check((await db.FoSettings.AsNoTracking().SingleAsync()).MappingJson.Contains("ProchainRDV"), "Settings upgrade waits for a complete successful read");
+reader.Fail = false;
+await store.RefreshAsync(day.Date, day.Date.AddDays(1), default);
+Check(reader.LastFields.SequenceEqual(new[] { "Observation", "REFRACTION" }), "Legacy configuration never reads ProchainRDV");
+Check(!settings.MappingJson.Contains("ProchainRDV") && settings.MappingJson.Contains("REFRACTION"), "Successful refresh persists corrected field selection");
+Check(await db.FoAlerts.CountAsync() == 1 && alert.ManualStatus == FoStatus.Verify, "Relevant manual review survives field migration without duplication");
+reader.SourceName = "another-database";
+try { await store.RefreshAsync(day.Date, day.Date.AddDays(1), default); Check(false, "Source change must still require configuration"); } catch (FoDataException) { count++; }
+reader.SourceName = "source";
 await store.ReviewAsync(alert.Id, alert.EvidenceHash, FoStatus.Verify, "admin-test", default);
 await store.RefreshAsync(day.Date, day.Date.AddDays(1), default);
 Check(await db.FoAlerts.CountAsync() == 1 && alert.ManualStatus == FoStatus.Verify, "Refresh is deduplicated and preserves review");
@@ -84,7 +113,7 @@ reader.Patients = [reader.Patients[0] with { Appointment = day.AddHours(3) }];
 await store.RefreshAsync(day.Date, day.Date.AddDays(1), default);
 Check(alert.ManualStatus == FoStatus.Verify && alert.NextAppointment == day.AddHours(3), "Appointment change preserves relevant review");
 var oldHash = alert.EvidenceHash;
-reader.Patients = [reader.Patients[0] with { Consultations = [new("12", day.AddDays(-10), "FO prochaine fois"), new("13", day.AddDays(-1), "FO réalisé")] }];
+reader.Patients = [reader.Patients[0] with { Consultations = [new("12", day.AddDays(-10), "FO prochaine fois"), new("13", day.AddDays(-1), "", "FO réalisé")] }];
 await store.RefreshAsync(day.Date, day.Date.AddDays(1), default);
 Check(alert.Status == FoStatus.ProbablyPerformed && alert.ManualStatus == null, "New consultation clears obsolete review");
 try { await store.ReviewAsync(alert.Id, oldHash, FoStatus.Planned, "admin-test", default); Check(false, "Stale review"); } catch (FoDataException) { count++; }
@@ -143,6 +172,55 @@ var reviewResponse = await http.PostAsync("/Fundus?handler=Review", new FormUrlE
 Check(reviewResponse.IsSuccessStatusCode && (await reviewResponse.Content.ReadAsStringAsync()).Contains("Validation manuelle"), "Valid review through real form binding");
 var sourceResponse = await http.GetAsync("/Fundus?from=2026-10-22&to=2026-10-22&source=" + persisted.Id);
 Check(sourceResponse.IsSuccessStatusCode && (await sourceResponse.Content.ReadAsStringAsync()).Contains("consultation-source"), "Source text read on demand");
+
+// Opening the page schedules one protected POST; a GET itself must not mutate stored analysis.
+int loadsBefore = reader.LoadCount;
+var landing = await http.GetStringAsync("/Fundus");
+Check(landing.Contains("data-auto-search=\"true\"") && landing.Contains("value=\"2026-10-28\""), "Opening shows automatic search and defaults to seven days");
+Check(reader.LoadCount == loadsBefore, "GET does not run a database refresh");
+Check(html.Contains("data-auto-search=\"false\""), "Settings view does not trigger automatic search");
+Check(refreshed.Contains("data-auto-search=\"false\""), "Refresh response cannot loop into another automatic refresh");
+Check((await sourceResponse.Content.ReadAsStringAsync()).Contains("data-auto-search=\"false\""), "Source reading does not refresh the entire list");
+
+reader.Patients = [
+    new("early", "Premier TEST", day.AddHours(1), [new("1", day.AddDays(-1), "", "FO prochaine fois")]),
+    new("late", "Second TEST", day.AddDays(2), [new("2", day.AddDays(-3), "FO prochaine fois"), new("3", day.AddDays(-1), "RAS")]),
+    new("done", "Termine TEST", day.AddDays(1), [new("4", day.AddDays(-3), "FO prochaine fois"), new("5", day.AddDays(-1), "", "FO réalisé")])
+];
+async Task<string> SearchPage(string status = "") => await (await http.PostAsync("/Fundus?handler=Refresh", new FormUrlEncodedContent(new Dictionary<string,string> {
+    ["From"] = "2026-10-22", ["To"] = "2026-10-28", ["Status"] = status, ["__RequestVerificationToken"] = token
+}))).Content.ReadAsStringAsync();
+var candidates = await SearchPage();
+Check(candidates.Contains("Premier TEST") && candidates.Contains("Second TEST") && !candidates.Contains("Termine TEST"), "Default list includes both planned and uncertain patients, excluding completed ones");
+Check(candidates.IndexOf("Premier TEST", StringComparison.Ordinal) < candidates.IndexOf("Second TEST", StringComparison.Ordinal), "Patients ordered by appointment");
+Check(candidates.Contains("fo-patient-search") && candidates.Contains("REFRACTION"), "Name search and actual source fields visible");
+var completed = await SearchPage("ProbablyPerformed");
+Check(completed.Contains("Termine TEST") && !completed.Contains("Premier TEST"), "Completed cases remain available in their own filter");
+reader.Fail = true;
+var failurePage = await SearchPage();
+Check(failurePage.Contains("Premier TEST") && failurePage.Contains("fo-error") && !failurePage.Contains("Aucun patient avec un rendez-vous"), "Failed refresh keeps prior results and displays failure, not a false empty result");
+Check(failurePage.Contains("data-auto-search=\"false\""), "Failure cannot trigger an automatic retry loop");
+reader.Fail = false;
+reader.Patients = [];
+var empty = await SearchPage();
+Check(empty.Contains("Aucun patient avec un rendez-vous futur") && !empty.Contains("Premier TEST"), "Successful empty agenda clears the visible list");
+reader.Patients = [new("none", "Sans consigne TEST", day.AddHours(1), [new("6", day.AddDays(-1), "RAS", "Correction stable")])];
+var noInstruction = await SearchPage();
+Check(noInstruction.Contains("Aucune consigne de FO retenue") && !noInstruction.Contains("Aucun patient avec un rendez-vous futur"), "No instruction and empty agenda have distinct messages");
+var invalidDate = await http.GetStringAsync("/Fundus?From=invalide");
+Check(invalidDate.Contains("fo-error") && !invalidDate.Contains("data-auto-search=\"true\""), "Invalid dates do not auto-search silently");
+// The configuration form supplies identifiers, not an arbitrary list of medical fields.
+var mappingValues = new Dictionary<string,string> {
+    ["__RequestVerificationToken"] = token, ["Mapping.PatientsTable"] = "P", ["Mapping.PatientId"] = "Id",
+    ["Mapping.LastName"] = "Nom", ["Mapping.FirstName"] = "Prénom", ["Mapping.ConsultationsTable"] = "C",
+    ["Mapping.ConsultationId"] = "Id", ["Mapping.ConsultationPatientId"] = "Patient", ["Mapping.ConsultationDate"] = "Date",
+    ["Mapping.AppointmentsTable"] = "A", ["Mapping.AppointmentPatientId"] = "Patient", ["Mapping.AppointmentDate"] = "Date",
+    ["Mapping.AppointmentTime"] = "Heure", ["Mapping.NoCancellationColumn"] = "true",
+    ["Mapping.ObservationFields"] = "ProchainRDV"
+};
+var configuredPage = await (await http.PostAsync("/Fundus?handler=Mapping", new FormUrlEncodedContent(mappingValues))).Content.ReadAsStringAsync();
+Check(configuredPage.Contains("data-auto-search=\"true\"") && !configuredPage.Contains("id=\"fo-mapping\""), "Saving settings transitions directly to patient search");
+Check(!(await db.FoSettings.AsNoTracking().SingleAsync()).MappingJson.Contains("ProchainRDV"), "Posted legacy text selection cannot override the required clinical fields");
 Console.WriteLine($"{count} FO checks passed.");
 
 sealed class FakeReader : IFoAccessReader
@@ -152,8 +230,17 @@ sealed class FakeReader : IFoAccessReader
     public IReadOnlyList<FoField> Fields { get; set; } = [];
     public IReadOnlyList<FoPatientData> Patients { get; set; } = [];
     public bool Fail { get; set; }
+    public string SourceName { get; set; } = "source";
+    public string[] LastFields { get; private set; } = [];
+    public int LoadCount { get; private set; }
     public IReadOnlyList<FoField> Inspect() => Fields;
-    public string SourceKey(FoMapping mapping) => "test-source";
-    public FoDataSet Load(FoMapping mapping, DateTime from, DateTime until, CancellationToken ct) => Fail ? throw new FoDataException("Simulated failure") : new("test-source", Patients);
+    public string SourceKey(FoMapping mapping) => FundusAnalysis.Hash(SourceName + System.Text.Json.JsonSerializer.Serialize(mapping));
+    public FoDataSet Load(FoMapping mapping, DateTime from, DateTime until, CancellationToken ct)
+    {
+        LoadCount++;
+        LastFields = mapping.ObservationFields.ToArray();
+        if (Fail) throw new FoDataException("Simulated failure");
+        return new(SourceKey(mapping), Patients.Where(p => p.Appointment >= from && p.Appointment < until && p.Appointment >= Now).ToList());
+    }
     public FoConsultation ReadConsultation(FoMapping mapping, string patientId, string consultationId) => Patients.Single(p => p.Id == patientId).Consultations.Single(c => c.Id == consultationId);
 }
