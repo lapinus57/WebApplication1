@@ -28,6 +28,9 @@ public static class FoMedicalText
         "head", "script", "style", "template", "noscript", "iframe", "object", "embed", "svg", "canvas",
         "img", "input", "button", "select", "textarea", "del", "s", "strike"
     };
+    private static readonly string HtmlPattern = @"<!--|<!DOCTYPE\s+html\b|</?(?:" + string.Join("|",
+        Blocks.Concat(Ignored).Concat(new[] { "html", "body", "title", "meta", "link", "span", "font", "b", "strong",
+            "i", "em", "u", "ins", "br", "a", "td", "th", "sub", "sup", "code", "small", "big", "center", "label" }).Distinct()) + @")\b[^>]*>";
 
     static FoMedicalText() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -60,8 +63,7 @@ public static class FoMedicalText
         }
     }
 
-    private static bool IsHtml(string text) => Regex.IsMatch(text,
-        @"<!DOCTYPE\s+html\b|</?(?:html|body|head|title|meta|link|p|div|span|font|b|strong|i|em|u|s|strike|del|ins|br|hr|a|img|ul|ol|li|table|thead|tbody|tfoot|tr|td|th|pre|blockquote|h[1-6]|section|article|script|style|object|iframe)\b[^>]*>",
+    private static bool IsHtml(string text) => Regex.IsMatch(text, HtmlPattern,
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, RegexLimit);
 
     private static string HtmlText(string html)

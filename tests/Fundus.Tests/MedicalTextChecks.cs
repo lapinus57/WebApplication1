@@ -37,6 +37,9 @@ internal static class MedicalTextChecks
         Equal("<p>&lt;script&gt;FO&lt;/script&gt;</p>", "<script>FO</script>", "Decoded literals remain plain text");
         Equal("<html><head><title>FO à prévoir</title><style>.x { color:red; }</style></head><body><!-- FO à prévoir --><script>FO à prévoir</script><p>RAS</p></body></html>", "RAS", "Scripts, styles, metadata and comments are not clinical text");
         Equal("<p title='FO à prévoir'>RAS</p><img src='https://example.invalid/patient' alt='FO à prévoir'><iframe src='file:///patient'>FO à prévoir</iframe>", "RAS", "External resources and attributes are never loaded or analyzed");
+        Equal("<!-- FO à prévoir -->", "", "Comment-only field is HTML, not a clinical instruction");
+        Equal("<template>FO à prévoir</template>", "", "Template-only fragment is not clinical text");
+        Equal("<input value='FO à prévoir'><svg><text>FO à prévoir</text></svg>", "", "Non-text HTML fragment is not analyzed as raw markup");
         Equal("<p hidden>FO à prévoir</p><span style='display: none !important'>FO à prévoir</span><del>FO à prévoir</del><p>RAS</p>", "RAS", "Hidden and deleted instructions excluded");
         Equal("<span style='visibility:hidden'>FO à prévoir</span><span style='text-decoration: line-through'>FO à prévoir</span>RAS", "RAS", "Hidden and struck-through style excluded");
 
