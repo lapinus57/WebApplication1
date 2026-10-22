@@ -42,7 +42,7 @@ namespace Client.SmsMail.Services
             {
                 From = new MailAddress(_settings.FromAddress, _settings.FromDisplayName),
                 Sender = new MailAddress(_settings.SenderAddress),
-                Subject = prepared.Subject, Body = prepared.Body, IsBodyHtml = true,
+                Subject = prepared.Subject, IsBodyHtml = true,
                 DeliveryNotificationOptions = DeliveryNotificationOptions.OnSuccess | DeliveryNotificationOptions.OnFailure | DeliveryNotificationOptions.Delay
             };
             message.To.Add(new MailAddress(prepared.Contact));
@@ -51,6 +51,10 @@ namespace Client.SmsMail.Services
             message.Headers.Add("Disposition-Notification-To", _settings.SenderAddress);
             message.BodyEncoding = Encoding.UTF8;
             message.SubjectEncoding = Encoding.UTF8;
+            // With alternate views, System.Net.Mail serializes Body as text/plain
+            // even when IsBodyHtml is true. Declare the HTML MIME part explicitly.
+            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+                prepared.Body, Encoding.UTF8, MediaTypeNames.Text.Html));
             if (calendar != null)
             {
                 var contentType = new ContentType("text/calendar") { CharSet = "utf-8" };
