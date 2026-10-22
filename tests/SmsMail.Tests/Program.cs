@@ -103,8 +103,9 @@ Check(unfolded.Contains(@"\,\;\nLOCATION:injection") && unfolded.Split("\r\n").C
 var mailSettings = new EmailSettings { FromAddress = "cabinet@example.com", SenderAddress = "cabinet@example.com" };
 using (var email = new MailService(mailSettings).CreateMessage(invitation))
 {
-    Check(email.IsBodyHtml && email.Body == invitation.Body, "HTML model remains the mail body");
-    Check(email.AlternateViews.Single().ContentType.Parameters["method"] == "PUBLISH", "Calendar MIME alternative is a request");
+    using var htmlReader = new StreamReader(email.AlternateViews.Single(v => v.ContentType.MediaType == "text/html").ContentStream);
+    Check(htmlReader.ReadToEnd() == invitation.Body, "HTML model is an explicit HTML alternative");
+    Check(email.AlternateViews.Single(v => v.ContentType.MediaType == "text/calendar").ContentType.Parameters["method"] == "PUBLISH", "Calendar MIME alternative uses PUBLISH");
     Check(email.Attachments.Single().Name == "rendez-vous.ics" && email.Attachments.Single().ContentType.MediaType == "text/calendar", "ICS file attached");
     using var reader = new StreamReader(email.Attachments.Single().ContentStream);
     string WithoutStamp(string value) => string.Join("\r\n", value.Split("\r\n").Where(line => !line.StartsWith("DTSTAMP:")));
@@ -130,6 +131,32 @@ foreach (var input in new[] { ("", ""), ("invalid", ""), ("a@example.com;b@examp
 }
 using (var testEmail = new MailService(mailSettings).CreateMessage(mailOnly[0]))
     Check(testEmail.Attachments.Single().Name == "rendez-vous.ics", "Test mail includes its calendar invitation");
+// Inspect the serialized MIME, not only MailMessage.IsBodyHtml: alternate views
+// can cause System.Net.Mail to serialize Body as text/plain.
+foreach (var includeCalendar in new[] { true, false })
+foreach (var prepared in new[] { invitation, mailOnly[0] })
+{
+    prepared.CalendarStart = day.AddHours(10);
+    prepared.CalendarEnd = day.AddHours(10.5);
+    prepared.IncludeCalendar = includeCalendar;
+    var pickup = Path.Combine(Path.GetTempPath(), "eyechat-mime-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(pickup);
+    try
+    {
+        using var message = new MailService(mailSettings).CreateMessage(prepared);
+        using var smtp = new System.Net.Mail.SmtpClient
+        {
+            DeliveryMethod = System.Net.Mail.SmtpDeliveryMethod.SpecifiedPickupDirectory,
+            PickupDirectoryLocation = pickup
+        };
+        await smtp.SendMailAsync(message);
+        using var mime = MimeKit.MimeMessage.Load(Directory.GetFiles(pickup).Single());
+        Check(mime.HtmlBody?.TrimEnd() == prepared.Body.TrimEnd(), "Serialized reminder/test mail retains a text/html body with and without ICS");
+        Check(mime.TextBody == null || !mime.TextBody.Contains("<div"), "Raw HTML is never sent as text/plain");
+        Check(mime.Attachments.Any(a => a.ContentType.MimeType == "text/calendar") == includeCalendar, "Serialized ICS attachment follows calendar option");
+    }
+    finally { Directory.Delete(pickup, true); }
+}
 checks += await EyeEmailChecks.RunAsync();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
