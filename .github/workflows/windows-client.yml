@@ -5,6 +5,9 @@ on:
     branches: [master2]
     paths:
       - 'Client/**'
+      - 'Serveur/**'
+      - 'Shared/**'
+      - 'tests/Fundus.Tests/**'
       - 'tests/SmsMail.Tests/**'
       - '.github/workflows/windows-client.yml'
 
@@ -21,5 +24,9 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Verify message preparation, OVH signing and duplicate prevention
         run: dotnet run --project tests/SmsMail.Tests --configuration Release
+      - name: Verify fundus detection, chronology and SQLite reconciliation
+        run: dotnet run --project tests/Fundus.Tests --configuration Release
+      - name: Compile server and Razor pages
+        run: dotnet build Serveur/Serveur.csproj --configuration Release
       - name: Compile WinUI client without package signing
         run: dotnet build Client/Client.csproj --configuration Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=false

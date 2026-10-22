@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ChatServeur;
+using ChatServeur.Fundus;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging;
@@ -86,6 +87,8 @@ builder.Services.AddSignalR(o =>
     o.MaximumReceiveMessageSize = 2 * 1024 * 1024;
 });
 builder.Services.AddHostedService<ReminderService>();
+builder.Services.AddScoped<IFoAccessReader, FoAccessReader>();
+builder.Services.AddScoped<FoStore>();
 
 var app = builder.Build();
 var logger = app.Logger;
@@ -104,6 +107,7 @@ app.Use(async (context, next) =>
     var isAdministrationPage = context.Request.Path == "/" ||
         context.Request.Path.StartsWithSegments("/Index") ||
         context.Request.Path.StartsWithSegments("/Mobile") ||
+        context.Request.Path.StartsWithSegments("/Fundus") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)
@@ -133,6 +137,7 @@ using (var scope = app.Services.CreateScope())
         throw;
     }
 
+    FoSchema.Ensure(db);
     EnsurePatientsTable(db, logger);
     EnsureArchivedColumn(db, logger);
     EnsureIsDeletedColumn(db, logger);

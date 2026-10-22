@@ -61,22 +61,8 @@ namespace Client.SmsMail.Services
         });
 
         private static string Quote(string value) => "[" + value.Replace("]", "]]") + "]";
-        private static OleDbConnection Open(AppointmentSearchConfig config, MachineConfig machine)
-        {
-            if (string.IsNullOrWhiteSpace(config.DatabasePath)) throw new InvalidOperationException("Renseignez la base Access dans les paramètres RDV.");
-            foreach (var provider in new[] { machine.AccessOleDbProvider, "Microsoft.ACE.OLEDB.16.0", "Microsoft.ACE.OLEDB.12.0", "Microsoft.Jet.OLEDB.4.0" }.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                var builder = new OleDbConnectionStringBuilder { Provider = provider, DataSource = config.DatabasePath };
-                builder["Mode"] = "Read";
-                if (!string.IsNullOrWhiteSpace(machine.AccessWorkgroupPath)) builder["Jet OLEDB:System Database"] = machine.AccessWorkgroupPath;
-                if (!string.IsNullOrWhiteSpace(machine.AccessUserName)) builder["User ID"] = machine.AccessUserName;
-                if (!string.IsNullOrWhiteSpace(machine.AccessPassword)) builder["Password"] = machine.AccessPassword;
-                var connection = new OleDbConnection(builder.ConnectionString);
-                try { connection.Open(); return connection; }
-                catch (InvalidOperationException ex) when (ex.Message.Contains("not registered", StringComparison.OrdinalIgnoreCase)) { connection.Dispose(); }
-                catch { connection.Dispose(); throw; }
-            }
-            throw new InvalidOperationException("Aucun fournisseur Access OLE DB compatible. Installez ACE de même architecture que le client (x64/x86).");
-        }
+        private static OleDbConnection Open(AppointmentSearchConfig config, MachineConfig machine) =>
+            EyeChat.Data.ReadOnlyAccess.Open(new(config.DatabasePath, machine.AccessOleDbProvider,
+                machine.AccessWorkgroupPath, machine.AccessUserName, machine.AccessPassword));
     }
 }
