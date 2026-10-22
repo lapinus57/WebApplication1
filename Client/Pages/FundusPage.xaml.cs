@@ -72,7 +72,9 @@ public sealed partial class FundusPage : Page
 
     private void Busy(bool busy)
     {
-        SearchControls.IsEnabled = SettingsButton.IsEnabled = PatientsList.IsEnabled = !busy;
+        foreach (var control in SearchControls.Children.OfType<Control>()) control.IsEnabled = !busy;
+        if (!busy) FromDate.IsEnabled = ToDate.IsEnabled = PeriodBox.SelectedIndex == 3;
+        SettingsButton.IsEnabled = PatientsList.IsEnabled = !busy;
         LoadingBar.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
     }
 
