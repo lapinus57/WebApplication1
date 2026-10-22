@@ -262,8 +262,7 @@ namespace Client.Pages
                 message.Selected = false;
                 message.Status = "Déjà traité — consulter l'historique";
             }
-            MessagesList.ItemsSource = _messages;
-            MessagesList.SelectedItem = _messages.FirstOrDefault();
+            FilterMessages();
             SummaryText.Text = $"{_messages.Count(m => m.Channel == "Mail")} mail(s), {_messages.Count(m => m.Channel == "SMS")} SMS";
             StatusText.Text = $"{_families.Count} famille(s) EyeEmail ; {_appointments.Count} RDV chargés, {_appointments.Count(r => r.IsCancelled)} annulé(s) exclus. Vérifiez les destinataires et les messages avant l'envoi.";
         }
@@ -367,9 +366,12 @@ namespace Client.Pages
             StatusText.Text = string.Join(Environment.NewLine, outcomes);
         });
 
-        private async void Send_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        private async void Send_Click(object sender, RoutedEventArgs e) => await SendSelectedAsync(null);
+        private async void SendMail_Click(object sender, RoutedEventArgs e) => await SendSelectedAsync("Mail");
+        private async void SendSms_Click(object sender, RoutedEventArgs e) => await SendSelectedAsync("SMS");
+        private Task SendSelectedAsync(string? channel) => RunAsync(async () =>
         {
-            var selected = _messages.Where(m => m.Selected).ToList();
+            var selected = MessageSelection.ForSending(VisibleMessages(), channel);
             if (selected.Count == 0) { StatusText.Text = "Sélectionnez au moins un message à envoyer."; return; }
             var settings = ReadSettings();
             if (string.IsNullOrWhiteSpace(settings.Cabinet)) throw new InvalidOperationException("Renseignez le nom du cabinet puis préparez les messages.");
@@ -431,8 +433,7 @@ namespace Client.Pages
                 message.Status = status;
                 message.Selected = false;
             }
-            MessagesList.ItemsSource = null;
-            MessagesList.ItemsSource = _messages;
+            FilterMessages();
             await ReloadHistoryAsync();
             StatusText.Text = $"{accepted} accepté(s), {skipped} déjà traité(s), {uncertain} à vérifier.";
         });
@@ -466,15 +467,82 @@ namespace Client.Pages
             FilterHistory();
         }
 
+        private static string FilterChannel(ComboBox filter) => (filter?.SelectedItem as ComboBoxItem)?.Tag as string ?? string.Empty;
+        private List<PreparedMessage> VisibleMessages() => MessageSelection.Visible(_messages, FilterChannel(SendChannelFilter), SendSearch?.Text ?? string.Empty);
+        private void FilterMessages()
+        {
+            if (MessagesList == null || SendChannelFilter == null || SendSearch == null) return;
+            var current = MessagesList.SelectedItem;
+            var visible = VisibleMessages();
+            MessagesList.ItemsSource = null;
+            MessagesList.ItemsSource = visible;
+            MessagesList.SelectedItem = current is PreparedMessage message && visible.Contains(message) ? message : visible.FirstOrDefault();
+            UpdateSelectionSummary();
+        }
+        private void UpdateSelectionSummary()
+        {
+            if (SelectionSummary == null) return;
+            var visible = VisibleMessages();
+            var selected = MessageSelection.ForSending(visible);
+            SelectionSummary.Text = _messages.Count == 0 ? "Aucun message préparé. Chargez les rendez-vous pour commencer."
+                : visible.Count == 0 ? "Aucun message ne correspond aux filtres."
+                : $"{visible.Count} affiché(s) sur {_messages.Count} · À envoyer : {selected.Count(m => m.Channel == "Mail")} mail(s) et {selected.Count(m => m.Channel == "SMS")} SMS";
+        }
+        private void SendFilter_Changed(object sender, SelectionChangedEventArgs e) => FilterMessages();
+        private void SendSearch_Changed(object sender, TextChangedEventArgs e) => FilterMessages();
+        private void MessageSelection_Changed(object sender, RoutedEventArgs e)
+        {
+            // Read after the two-way binding has updated the model.
+            DispatcherQueue.TryEnqueue(UpdateSelectionSummary);
+        }
+
         private void FilterHistory()
         {
             if (HistoryList == null || HistoryFilter == null) return;
-            var filter = HistoryFilter.Text;
-            HistoryList.ItemsSource = _entries.Where(h => h.Contact.Contains(filter, StringComparison.OrdinalIgnoreCase)
-                || h.Status.Contains(filter, StringComparison.OrdinalIgnoreCase) || h.Channel.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+            var filter = HistoryFilter.Text.Trim();
+            var channel = FilterChannel(HistoryChannelFilter);
+            var visible = _entries.Where(h => (channel.Length == 0 || h.Channel == channel)
+                && (h.Contact.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || h.Status.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || h.CreatedAt.Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
+            HistoryList.ItemsSource = visible;
+            if (HistorySummary != null) HistorySummary.Text = _entries.Count == 0 ? "Aucun envoi enregistré sur ce poste."
+                : visible.Count == 0 ? "Aucun envoi ne correspond aux filtres."
+                : $"{visible.Count} envoi(s) affiché(s) sur {_entries.Count} · {visible.Count(h => h.Channel == "Mail")} mail(s) · {visible.Count(h => h.Channel == "SMS")} SMS";
         }
-
         private void HistoryFilter_TextChanged(object sender, TextChangedEventArgs e) => FilterHistory();
+        private void HistoryChannel_Changed(object sender, SelectionChangedEventArgs e) => FilterHistory();
+        private async void HistoryMessage_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is not MessageHistoryEntry entry) return;
+            await RunAsync(async () =>
+            {
+                var text = new TextBox { Text = entry.Body, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 360 };
+                var panel = new StackPanel { Spacing = 12 };
+                panel.Children.Add(new TextBlock { Text = entry.CreatedAt + " · " + entry.Status, TextWrapping = TextWrapping.Wrap });
+                panel.Children.Add(text);
+                var viewer = entry.Channel == "Mail" ? new WebView2 { Height = 360 } : null;
+                if (viewer != null) { text.Visibility = Visibility.Collapsed; panel.Children.Add(viewer); }
+                var dialog = new ContentDialog { Title = entry.Channel + " · " + entry.Contact, Content = panel,
+                    CloseButtonText = "Fermer", XamlRoot = XamlRoot };
+                dialog.Opened += async (_, _) =>
+                {
+                    if (viewer == null) return;
+                    try
+                    {
+                        await viewer.EnsureCoreWebView2Async();
+                        viewer.CoreWebView2.Settings.IsScriptEnabled = false;
+                        viewer.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
+                        viewer.CoreWebView2.NavigationStarting += (_, args) => { if (args.Uri != "about:blank") args.Cancel = true; };
+                        viewer.NavigateToString(PreviewDocument(entry.Body));
+                        text.Visibility = Visibility.Collapsed;
+                    }
+                    catch { viewer.Visibility = Visibility.Collapsed; text.Visibility = Visibility.Visible; }
+                };
+                try { await dialog.ShowAsync(); }
+                finally { viewer?.Close(); }
+            });
+        }
 
         private async void History_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
@@ -501,17 +569,60 @@ namespace Client.Pages
             StatusText.Text = $"Statuts SMS actualisés ; {errors} statut(s) indisponible(s). Utilisez Retours mail (IMAP) pour lire les notifications mail.";
         });
 
-        private void MessagesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private bool _mailPreviewReady;
+        private async void MailPreview_Loaded(object sender, RoutedEventArgs e)
         {
-            if (MessagePreview != null) MessagePreview.Text = (MessagesList.SelectedItem as PreparedMessage)?.Body ?? string.Empty;
+            if (_mailPreviewReady) return;
+            try
+            {
+                await MailPreview.EnsureCoreWebView2Async();
+                MailPreview.CoreWebView2.Settings.IsScriptEnabled = false;
+                MailPreview.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                MailPreview.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
+                MailPreview.CoreWebView2.NavigationStarting += (_, args) =>
+                {
+                    if (args.Uri != "about:blank") args.Cancel = true;
+                };
+                _mailPreviewReady = true;
+                UpdateMessagePreview();
+            }
+            catch (Exception) { PreviewCaption.Text = "Aperçu visuel indisponible. Le contenu HTML reste consultable ci-dessous."; MailPreview.Visibility = Visibility.Collapsed; MessagePreview.Visibility = Visibility.Visible; }
+        }
+
+        private void UpdateMessagePreview()
+        {
+            if (MessagePreview == null || MailPreview == null) return;
+            var message = MessagesList.SelectedItem as PreparedMessage;
+            MessagePreview.Text = message?.Body ?? string.Empty;
+            PreviewCaption.Text = message == null ? "Sélectionnez un message pour le consulter ici."
+                : message.Channel == "Mail" ? message.Contact + " · " + message.Subject : message.Contact + " · " + message.Metrics;
+            bool isMail = message?.Channel == "Mail";
+            MailPreview.Visibility = isMail ? Visibility.Visible : Visibility.Collapsed;
+            MessagePreview.Visibility = isMail && _mailPreviewReady ? Visibility.Collapsed : Visibility.Visible;
+            if (isMail && _mailPreviewReady)
+                MailPreview.NavigateToString(PreviewDocument(message!.Body));
+        }
+
+        private static string PreviewDocument(string body) => "<!doctype html><html><head><meta charset='utf-8'><meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:;\"><style>body{margin:0;padding:12px;background:#f3f5f7;font-family:Segoe UI,Arial,sans-serif;overflow-wrap:anywhere}img{max-width:100%}</style></head><body>" + body + "</body></html>";
+
+        private void MessagesList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateMessagePreview();
+        private void SelectAll_Click(object sender, RoutedEventArgs e) => SetMessageSelection(true);
+        private void SelectNone_Click(object sender, RoutedEventArgs e) => SetMessageSelection(false);
+        private void SetMessageSelection(bool selected)
+        {
+            var processed = _entries.Select(entry => entry.Key).ToHashSet();
+            foreach (var message in VisibleMessages()) message.Selected = selected && !processed.Contains(message.Key);
+            FilterMessages();
+            StatusText.Text = $"{MessageSelection.ForSending(VisibleMessages()).Count} message(s) visible(s) sélectionné(s).";
         }
 
         private void ClearMessages()
         {
             _messages.Clear();
+            UpdateSelectionSummary();
             _preparedSignature = string.Empty;
             if (MessagesList != null) MessagesList.ItemsSource = null;
-            if (MessagePreview != null) MessagePreview.Text = string.Empty;
+            UpdateMessagePreview();
             if (SummaryText != null) SummaryText.Text = "Préparez les messages avant l'envoi.";
         }
 

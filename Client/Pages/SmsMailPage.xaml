@@ -4,75 +4,132 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:Client.SmsMail.Models">
-    <Grid Padding="16" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Page.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="16" />
+        </Style>
+    </Page.Resources>
+    <Grid Padding="24" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <TextBlock Text="SMS et mail" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
+        <StackPanel Spacing="4" Margin="0,0,0,16">
+            <TextBlock Text="SMS et mail" Style="{ThemeResource TitleTextBlockStyle}" />
+            <TextBlock Text="Préparez vos rappels, vérifiez les destinataires et envoyez en toute simplicité." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
         <Pivot x:Name="Workspace" Grid.Row="1">
-            <PivotItem Header="Rendez-vous et envoi">
+            <PivotItem Header="Envois">
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Spacing="8">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <CalendarDatePicker x:Name="DayPicker" Header="Jour des rendez-vous" DateChanged="DayPicker_DateChanged" />
-                            <Button Content="Charger les rendez-vous" Click="Load_Click" VerticalAlignment="Bottom" />
-                            <Button Content="Importer JSON" Click="Import_Click" VerticalAlignment="Bottom" />
-                            <Button Content="Solde SMS" Click="Balance_Click" VerticalAlignment="Bottom" />
-                            <Button Content="Tester mail / SMS" Click="TestSend_Click" VerticalAlignment="Bottom" />
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="1. Choisir les rendez-vous" FontWeight="SemiBold" FontSize="18" />
+                            <CommandBar Background="Transparent" DefaultLabelPosition="Right" HorizontalContentAlignment="Left">
+                                <CommandBar.Content><CalendarDatePicker x:Name="DayPicker" AutomationProperties.Name="Jour des rendez-vous" DateChanged="DayPicker_DateChanged" Margin="0,0,12,0" /></CommandBar.Content>
+                                <AppBarButton Label="Charger" Icon="Download" Click="Load_Click" />
+                                <AppBarButton Label="Tester mail / SMS" Icon="Send" Click="TestSend_Click" />
+                                <CommandBar.SecondaryCommands>
+                                    <AppBarButton Label="Importer des rendez-vous JSON" Click="Import_Click" />
+                                    <AppBarButton Label="Consulter le solde SMS" Click="Balance_Click" />
+                                </CommandBar.SecondaryCommands>
+                            </CommandBar>
+                            <Expander Header="Options de préparation" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="4">
+                                    <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par famille" Checked="Options_Changed" Unchecked="Options_Changed" />
+                                    <CheckBox x:Name="SmsOnlyNoEmail" Content="Envoyer un SMS seulement si la famille n’a pas de mail valide" Checked="Options_Changed" Unchecked="Options_Changed" />
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
-                        <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par familles selon EyeEmail" Checked="Options_Changed" Unchecked="Options_Changed" />
-                        <CheckBox x:Name="SmsOnlyNoEmail" Content="Envoyer un SMS uniquement en l'absence d'adresse mail valide"
-                                  Checked="Options_Changed" Unchecked="Options_Changed" />
+                    </Border>
+                    <StackPanel Grid.Row="1" Spacing="8">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="SendChannelFilter" Header="Canal à afficher / envoyer" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="SendFilter_Changed">
+                                <ComboBoxItem Content="Tous les canaux" Tag="" /><ComboBoxItem Content="Mails uniquement" Tag="Mail" /><ComboBoxItem Content="SMS uniquement" Tag="SMS" />
+                            </ComboBox>
+                            <TextBox x:Name="SendSearch" Grid.Column="1" Header="Rechercher un destinataire" PlaceholderText="Nom, famille, mail ou téléphone…" TextChanged="SendSearch_Changed" />
+                        </Grid>
+                        <TextBlock x:Name="SelectionSummary" Text="Aucun message préparé." TextWrapping="Wrap" FontWeight="SemiBold" />
+                        <TextBlock Text="Seuls les messages cochés et visibles seront envoyés. Choisissez un canal pour envoyer uniquement les mails ou les SMS." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="2. Vérifier et envoyer" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock x:Name="SummaryText" Text="Commencez par charger les rendez-vous du jour choisi." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <CommandBar Background="Transparent" DefaultLabelPosition="Right" HorizontalContentAlignment="Left">
+                            <AppBarButton Label="Préparer" Icon="Refresh" Click="Prepare_Click" />
+                            <AppBarButton Label="Cocher les résultats" Icon="SelectAll" Click="SelectAll_Click" />
+                            <AppBarButton Label="Décocher les résultats" Icon="ClearSelection" Click="SelectNone_Click" />
+                            <AppBarButton Label="Envoyer les mails" Icon="Mail" Click="SendMail_Click" ToolTipService.ToolTip="Envoyer uniquement les mails cochés et visibles" />
+                            <AppBarButton Label="Envoyer les SMS" Icon="Message" Click="SendSms_Click" ToolTipService.ToolTip="Envoyer uniquement les SMS cochés et visibles" />
+                            <CommandBar.SecondaryCommands>
+                                <AppBarButton Label="Envoyer toute la sélection visible (mails et SMS)" Click="Send_Click" />
+                            </CommandBar.SecondaryCommands>
+                        </CommandBar>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
-                        <TextBlock x:Name="SummaryText" Text="Chargez les rendez-vous pour préparer les messages." VerticalAlignment="Center" />
-                        <Button Content="Préparer les messages" Click="Prepare_Click" />
-                        <Button Content="Envoyer la sélection" Click="Send_Click" />
-                    </StackPanel>
-                    <Grid Grid.Row="2" ColumnSpacing="12">
+                    <Grid Grid.Row="2" ColumnSpacing="16" RowSpacing="12">
+                        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <VisualStateManager.VisualStateGroups><VisualStateGroup>
+                            <VisualState x:Name="Narrow"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers><VisualState.Setters>
+                                <Setter Target="PreviewCard.(Grid.Row)" Value="1" />
+                                <Setter Target="PreviewCard.(Grid.Column)" Value="0" />
+                                <Setter Target="PreviewCard.(Grid.ColumnSpan)" Value="2" />
+                                <Setter Target="MessagesList.(Grid.ColumnSpan)" Value="2" />
+                            </VisualState.Setters></VisualState>
+                            <VisualState x:Name="Wide"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1100" /></VisualState.StateTriggers><VisualState.Setters>
+                                <Setter Target="PreviewCard.(Grid.RowSpan)" Value="2" />
+                                <Setter Target="MessagesList.(Grid.RowSpan)" Value="2" />
+                            </VisualState.Setters></VisualState>
+                        </VisualStateGroup></VisualStateManager.VisualStateGroups>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <ListView x:Name="MessagesList" SelectionChanged="MessagesList_SelectionChanged" SelectionMode="Single">
+                        <ListView Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="12" AutomationProperties.Name="Messages à envoyer" x:Name="MessagesList" SelectionChanged="MessagesList_SelectionChanged" SelectionMode="Single">
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Spacing="4" Padding="4">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" Content="{Binding Channel}" />
-                                            <TextBlock Text="{Binding Contact}" VerticalAlignment="Center" />
-                                        </StackPanel>
+                                    <StackPanel Spacing="6" Padding="8">
+                                        <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" Content="{Binding Channel}" Checked="MessageSelection_Changed" Unchecked="MessageSelection_Changed" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Contact}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </Grid>
                                         <TextBlock Text="{Binding Family}" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Metrics}" />
+                                        <TextBlock Text="{Binding Subject}" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="{Binding Metrics}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
-                        <Grid Grid.Column="1" RowSpacing="8">
-                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                            <TextBlock Text="Message préparé (SMS ou contenu HTML du mail)" TextWrapping="Wrap" FontWeight="SemiBold" />
-                            <TextBox x:Name="MessagePreview" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto" />
-                        </Grid>
+                        <Border x:Name="PreviewCard" Grid.Column="1" Style="{StaticResource Card}">
+                            <Grid RowSpacing="8">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <TextBlock Text="Aperçu du message" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock x:Name="PreviewCaption" Grid.Row="1" Text="Sélectionnez un message pour le consulter ici." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBox x:Name="MessagePreview" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" AutomationProperties.Name="Contenu du message" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                                <WebView2 x:Name="MailPreview" Grid.Row="2" Visibility="Collapsed" Loaded="MailPreview_Loaded" />
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Grid>
             </PivotItem>
-            <PivotItem Header="Familles EyeEmail">
+            <PivotItem Header="Familles">
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Reconstituer les familles" Click="Prepare_Click" />
-                        <Button Content="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
-                        <Button Content="Comparer l'historique RDV" Click="HistoricalFamilies_Click" />
-                    </StackPanel>
+                    <CommandBar Background="Transparent" DefaultLabelPosition="Right">
+                        <AppBarButton Label="Reconstituer les familles" Icon="Refresh" Click="Prepare_Click" />
+                        <CommandBar.SecondaryCommands>
+                            <AppBarButton Label="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
+                            <AppBarButton Label="Comparer l’historique RDV" Click="HistoricalFamilies_Click" />
+                        </CommandBar.SecondaryCommands>
+                    </CommandBar>
                     <TextBlock Grid.Row="1" Text="Vérifiez les personnes et coordonnées avant l'envoi. Les regroupements historiques proposés nécessitent votre validation." TextWrapping="Wrap" />
                     <ListView x:Name="FamiliesList" Grid.Row="2" SelectionMode="None">
                         <ListView.ItemTemplate><DataTemplate>
@@ -90,24 +147,36 @@
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <StackPanel Spacing="8">
-                        <TextBox x:Name="HistoryFilter" PlaceholderText="Filtrer par contact ou statut" Width="250" TextChanged="HistoryFilter_TextChanged" />
-                        <Button Content="Actualiser les statuts SMS" Click="History_Click" />
-                        <Button Content="Retours mail (IMAP)" Click="MailReports_Click" />
-                        <Button Content="Importer historique EyeEmail" Click="ImportHistory_Click" />
-                        <Button Content="Exporter CSV" Click="Export_Click" />
+                        <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="HistoryChannelFilter" Header="Canal" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="HistoryChannel_Changed">
+                                <ComboBoxItem Content="Tous les canaux" Tag="" /><ComboBoxItem Content="Mails" Tag="Mail" /><ComboBoxItem Content="SMS" Tag="SMS" />
+                            </ComboBox>
+                            <TextBox x:Name="HistoryFilter" Grid.Column="1" Header="Rechercher dans les envois" PlaceholderText="Destinataire, date ou statut…" TextChanged="HistoryFilter_TextChanged" />
+                        </Grid>
+                        <TextBlock x:Name="HistorySummary" Text="Aucun envoi enregistré." TextWrapping="Wrap" FontWeight="SemiBold" />
+                        <CommandBar Background="Transparent" DefaultLabelPosition="Right">
+                            <AppBarButton Label="Statuts SMS" Icon="Refresh" Click="History_Click" />
+                            <AppBarButton Label="Retours mail" Icon="Mail" Click="MailReports_Click" />
+                            <CommandBar.SecondaryCommands>
+                                <AppBarButton Label="Importer l’historique EyeEmail" Click="ImportHistory_Click" />
+                                <AppBarButton Label="Exporter en CSV" Click="Export_Click" />
+                            </CommandBar.SecondaryCommands>
+                        </CommandBar>
                     </StackPanel>
                     <ListView x:Name="HistoryList" Grid.Row="1" SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Padding="4" Spacing="4">
-                                    <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <TextBlock Text="{Binding Channel}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Contact}" />
-                                        <TextBlock Text="{Binding CreatedAt}" />
+                                <Border Style="{StaticResource Card}" Margin="0,4" HorizontalAlignment="Stretch">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding Contact}" FontWeight="SemiBold" FontSize="16" TextWrapping="Wrap" />
+                                        <StackPanel Orientation="Horizontal" Spacing="16">
+                                            <TextBlock Text="{Binding Channel}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding CreatedAt}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                                        <Button Content="Lire le message envoyé" Click="HistoryMessage_Click" />
                                     </StackPanel>
-                                    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap" MaxHeight="100" />
-                                </StackPanel>
+                                </Border>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
@@ -119,25 +188,32 @@
                         <TextBlock Text="Variables : [PRENOMS], [CABINET], [ADRESSE_CABINET], [DATE], [DATE_LONGUE], [DatejourL], [DatejourC], [HEURE], [LISTE_PERSONNES]" TextWrapping="Wrap" />
                         <TextBox x:Name="SubjectText" Header="Objet du mail" />
                         <TextBox x:Name="SmsTemplateText" Header="Modèle SMS" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
-                        <TextBox x:Name="EmailTemplateText" TextChanged="EmailHtml_Changed" Header="Modèle e-mail HTML" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="240" />
-                        <TextBlock Text="Éditeur visuel EyeEmail" FontSize="18" />
+                        <Expander Header="Code HTML du modèle (avancé)" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <TextBox x:Name="EmailTemplateText" TextChanged="EmailHtml_Changed" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="200" FontFamily="Consolas" AutomationProperties.Name="Code HTML du mail" />
+                        </Expander>
+                        <TextBlock Text="Personnaliser le mail" FontSize="18" />
                         <WebView2 x:Name="EmailEditor" Height="440" Loaded="EmailEditor_Loaded" />
                         <TextBlock Text="Les options d’invitation et d’alertes calendrier se règlent dans Paramètres." TextWrapping="Wrap" />
                         <Button Content="Appliquer le modèle de rappel du cabinet" Click="ApplyEmailModel_Click" />
-                        <Button Content="Enregistrer les modèles" Click="Save_Click" />
+                        <Button Style="{StaticResource AccentButtonStyle}" Content="Enregistrer les modèles" Click="Save_Click" />
                     </StackPanel>
                 </ScrollViewer>
             </PivotItem>
             <PivotItem Header="Paramètres">
                 <ScrollViewer>
-                    <StackPanel Spacing="12" MaxWidth="700" HorizontalAlignment="Left" Padding="0,0,16,16">
+                    <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Stretch" Padding="0,0,16,16">
                         <TextBlock Text="Les rendez-vous utilisent la base Access des paramètres RDV et les identifiants Access du poste." TextWrapping="Wrap" />
-                        <TextBox x:Name="CabinetText" Header="Nom du cabinet" Width="550" />
+                    <Expander Header="Votre cabinet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True"><StackPanel Spacing="12">
+                        <TextBox x:Name="CabinetText" Header="Nom du cabinet" />
                         <TextBox x:Name="CabinetAddressText" Header="Adresse du cabinet (mail et calendrier)" />
                         <NumberBox x:Name="DurationNumber" Header="Durée de chaque rendez-vous en minutes" Minimum="1" Maximum="480" Value="30" />
+                    </StackPanel></Expander>
+                    <Expander Header="Regroupement des familles" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <TextBlock Text="Familles EyeEmail" FontSize="18" FontWeight="SemiBold" />
                         <TextBox x:Name="FamilyDatabaseText" Header="Base familles EyeEmail facultative (.mdb / .accdb)" />
                         <Button Content="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
+                    </StackPanel></Expander>
+                    <Expander Header="Invitation calendrier et rappels" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <TextBlock Text="Invitation et alertes calendrier" FontSize="18" FontWeight="SemiBold" />
                         <CheckBox x:Name="CalendarInviteCheck" Content="Joindre l'invitation ICS" />
                         <CheckBox x:Name="CalendarAlarmsCheck" Content="Inclure les alertes calendrier" />
@@ -154,12 +230,16 @@
                             </DataTemplate></ListView.ItemTemplate>
                         </ListView>
                         <Button Content="Ajouter une alerte" Click="AddAlert_Click" />
+                    </StackPanel></Expander>
+                    <Expander Header="Envoi de SMS · OVH" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <TextBlock Text="Compte SMS OVH" FontSize="18" FontWeight="SemiBold" />
                         <TextBox x:Name="SmsAccountText" Header="Nom du service SMS" />
                         <TextBox x:Name="SmsSenderText" Header="Expéditeur SMS autorisé par OVH" />
                         <TextBox x:Name="SmsAppKeyText" Header="Application key" />
                         <PasswordBox x:Name="SmsSecretText" Header="Application secret" />
                         <PasswordBox x:Name="SmsConsumerText" Header="Consumer key" />
+                    </StackPanel></Expander>
+                    <Expander Header="Envoi de mails · SMTP" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <TextBlock Text="Compte mail SMTP" FontSize="18" FontWeight="SemiBold" />
                         <TextBox x:Name="SmtpHostText" Header="Serveur SMTP" />
                         <NumberBox x:Name="SmtpPortNumber" Header="Port SMTP (STARTTLS : 587)" Minimum="1" Maximum="65535" Value="587" />
@@ -168,11 +248,14 @@
                         <PasswordBox x:Name="MailPasswordText" Header="Mot de passe SMTP" />
                         <TextBox x:Name="MailFromText" Header="Adresse d'envoi et de retour des notifications" />
                         <TextBox x:Name="MailDisplayText" Header="Nom de l'expéditeur" />
+                    </StackPanel></Expander>
+                    <Expander Header="Suivi des mails · IMAP" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <TextBlock Text="Notifications mail IMAP (facultatif, mêmes identifiants que SMTP)" TextWrapping="Wrap" />
                         <TextBox x:Name="ImapHostText" Header="Serveur IMAP" />
                         <NumberBox x:Name="ImapPortNumber" Header="Port IMAP TLS" Value="993" Minimum="1" Maximum="65535" />
                         <TextBox x:Name="BounceFilterText" Header="Expéditeur des retours (ex. mailer-daemon)" />
-                        <Button Content="Enregistrer les paramètres" Click="Save_Click" />
+                    </StackPanel></Expander>
+                        <Button Style="{StaticResource AccentButtonStyle}" Content="Enregistrer les paramètres" Click="Save_Click" />
                         <Button Content="Tester mail / SMS" Click="TestSend_Click" />
                         <TextBlock Text="Paramètres et identifiants sont chiffrés pour votre compte Windows. L'historique reste sur ce poste." TextWrapping="Wrap" />
                     </StackPanel>

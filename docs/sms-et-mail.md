@@ -113,3 +113,24 @@ réservations, import SQLite, analyse DSN et API OVH simulée. Aucun message ré
 n'est envoyé par les tests. Le workflow Windows compile le client WinUI sur les
 pull requests vers master2. Les bases Access réelles, comptes et rendu visuel
 restent à vérifier sur le poste Windows de déploiement.
+
+## Affichage et sélection des envois
+
+Dans Envois, choisir Tous les canaux, Mails uniquement ou SMS uniquement, puis
+rechercher éventuellement un nom, une famille ou un contact. Le compteur indique
+les mails et SMS cochés parmi les résultats visibles. Cocher / décocher les
+résultats agit uniquement sur cette liste et ne sélectionne pas les messages déjà
+traités. Les choix masqués sont conservés mais ne sont jamais envoyés tant qu'ils
+restent masqués.
+
+Envoyer les mails et Envoyer les SMS limitent explicitement l'envoi au canal
+indiqué, parmi les messages cochés et visibles. Le menu propose également l'envoi
+de toute la sélection visible. La confirmation récapitule les quantités exactes.
+Le filtre d'envoi ne change pas la règle de préparation « SMS seulement sans mail » :
+pour préparer aussi des SMS aux familles avec mail, désactiver cette option puis
+préparer à nouveau.
+
+L'historique dispose d'un filtre par canal et d'une recherche par destinataire,
+date affichée ou statut. Chaque carte présente le contact, le canal, la date et
+le résultat. Lire le message envoyé ouvre son contenu complet, avec rendu HTML
+pour les mails et texte pour les SMS. Les aperçus ne chargent aucun contenu distant.
