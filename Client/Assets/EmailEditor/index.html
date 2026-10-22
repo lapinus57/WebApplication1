@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <title>Éditeur de modèle e-mail</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #0057b7;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        #toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px 20px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #d0d0d0;
+        }
+
+        #toolbar button,
+        #toolbar select {
+            border: 1px solid #c7c7c7;
+            border-radius: 4px;
+            background-color: #ffffff;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #toolbar button:hover,
+        #toolbar select:hover {
+            background-color: #edf4ff;
+        }
+
+        #editor {
+            flex: 1;
+            margin: 16px;
+            padding: 16px;
+            background-color: #ffffff;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            overflow: auto;
+        }
+
+        #editor:focus {
+            outline: 2px solid #0057b7;
+        }
+
+        #helper {
+            padding: 12px 20px 20px;
+            color: #444444;
+            background-color: #f5f5f5;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        #status {
+            font-weight: 600;
+            color: #0057b7;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1e1e1e;
+            }
+
+            header {
+                background-color: #1b3a57;
+            }
+
+            #toolbar {
+                background-color: #2c2c2c;
+                border-bottom-color: #3f3f3f;
+            }
+
+            #toolbar button,
+            #toolbar select {
+                background-color: #3a3a3a;
+                border-color: #4a4a4a;
+                color: #ffffff;
+            }
+
+            #toolbar button:hover,
+            #toolbar select:hover {
+                background-color: #4a4a4a;
+            }
+
+            #editor {
+                background-color: #2c2c2c;
+                color: #ffffff;
+                border-color: #3f3f3f;
+            }
+
+            #helper {
+                background-color: #1e1e1e;
+                color: #d0d0d0;
+            }
+
+            #status {
+                color: #8ab4f8;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>Modèle d'e-mail</header>
+        <div id="toolbar">
+            <button type="button" data-command="bold">Gras</button>
+            <button type="button" data-command="italic">Italique</button>
+            <button type="button" data-command="underline">Souligné</button>
+            <button type="button" data-command="insertUnorderedList">Liste à puces</button>
+            <button type="button" data-command="insertOrderedList">Liste numérotée</button>
+            <button type="button" data-command="formatBlock" data-value="p">Paragraphe</button>
+            <button type="button" data-command="formatBlock" data-value="h2">Titre</button>
+            <select id="fontSelect">
+                <option value="">Police par défaut</option>
+                <option value="Arial">Arial</option>
+                <option value="Calibri">Calibri</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Segoe UI">Segoe UI</option>
+                <option value="Tahoma">Tahoma</option>
+                <option value="Times New Roman">Times New Roman</option>
+            </select>
+        </div>
+        <div id="editor" contenteditable="true"></div>
+        <div id="helper">
+            <p><span id="status">0 caractère</span></p>
+            <p>Utilisez les variables <code>[PRENOMS]</code>, <code>[HEURE]</code>, <code>[DATE_LONGUE]</code>, <code>[DATE_COURTE]</code> et <code>[CABINET]</code> pour personnaliser vos e-mails. Les balises historiques (<code>[PrenomsSMS]</code>, <code>[Heur:]</code>, etc.) restent valides.</p>
+            <p>Le modèle est sauvegardé dans l'application quand vous cliquez sur <strong>"Enregistrer le modèle e-mail"</strong>.</p>
+        </div>
+    </div>
+    <script>
+        const editor = document.getElementById('editor');
+        const toolbar = document.getElementById('toolbar');
+        const fontSelect = document.getElementById('fontSelect');
+        const status = document.getElementById('status');
+        let suppressNotification = false;
+        let currentVersion = 0;
+
+        function updateStatus() {
+            const text = editor.innerText || '';
+            const length = text.trim().length;
+            status.textContent = length + (length > 1 ? ' caractères' : ' caractère');
+        }
+
+        function notifyHost() {
+            if (suppressNotification) {
+                return;
+            }
+
+            const html = editor.innerHTML;
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ type: 'contentChanged', payload: html, version: currentVersion });
+            }
+        }
+
+        function notifyReady() {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({ type: 'editorReady' });
+            }
+        }
+
+        toolbar.addEventListener('click', event => {
+            const button = event.target.closest('button[data-command]');
+            if (!button) {
+                return;
+            }
+
+            const command = button.getAttribute('data-command');
+            const value = button.getAttribute('data-value');
+            document.execCommand(command, false, value);
+            editor.focus();
+            updateStatus();
+            notifyHost();
+        });
+
+        fontSelect.addEventListener('change', () => {
+            const fontName = fontSelect.value;
+            if (fontName) {
+                document.execCommand('fontName', false, fontName);
+            } else {
+                document.execCommand('removeFormat', false, null);
+            }
+            editor.focus();
+            updateStatus();
+            notifyHost();
+        });
+
+        editor.addEventListener('input', () => {
+            updateStatus();
+            notifyHost();
+        });
+
+        editor.addEventListener('blur', notifyHost);
+
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', event => {
+                const data = event.data || {};
+                if (data.type === 'loadHtml') {
+                    suppressNotification = true;
+                    editor.innerHTML = data.payload || '';
+                    suppressNotification = false;
+                    updateStatus();
+                    if (typeof data.version === 'number') {
+                        currentVersion = data.version;
+                    }
+                }
+            });
+        }
+
+        updateStatus();
+        notifyReady();
+    </script>
+</body>
+</html>
+

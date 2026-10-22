@@ -32,11 +32,12 @@ namespace Client.SmsMail.Services
             // the production fallback rule suppresses SMS for mail recipients.
             if (email.Length > 0) examples.Add(Example(email, string.Empty));
             if (phone.Length > 0) examples.Add(Example(string.Empty, normalizedPhone));
-            var messages = MessagePreparation.Prepare(examples, day, settings);
+            var messages = examples.SelectMany(example => MessagePreparation.Prepare(new[] { example }, day, settings)).ToList();
             foreach (var message in messages)
             {
                 message.Key = "test-" + Guid.NewGuid().ToString("N");
                 message.Subject = "[TEST] " + settings.Subject;
+                message.CalendarSubject = "[TEST] " + settings.CalendarSubject;
                 message.Body = message.Channel == "Mail"
                     ? "<p><strong>MESSAGE DE TEST — rendez-vous fictif, aucune réservation réelle.</strong></p>" + message.Body
                     : "[TEST - RDV fictif] " + message.Body;
@@ -53,3 +54,4 @@ namespace Client.SmsMail.Services
         }
     }
 }
+

@@ -88,7 +88,7 @@ winter.DateRDV = new DateTime(2025, 11, 27); winter.HeureRDV = winter.DateRDV.Ad
 var invitation = MessagePreparation.Prepare(new[] { winter }, winter.DateRDV, calendarSettings).Single();
 var ics = CalendarInvitation.Create(invitation, "cabinet@example.com");
 Check(ics.Contains("DTSTART:20251127T090000Z\r\n") && ics.Contains("DTEND:20251127T093000Z\r\n"), "Paris winter offset and 30 minute duration");
-Check(ics.Contains("METHOD:REQUEST") && ics.Contains("ORGANIZER:mailto:cabinet@example.com"), "Calendar invitation has method and organizer");
+Check(ics.Contains("METHOD:PUBLISH") && ics.Contains("ORGANIZER:mailto:cabinet@example.com"), "Calendar invitation has method and organizer");
 Check(ics.Contains("ATTENDEE;ROLE=REQ-PARTICIPANT;RSVP=FALSE:mailto:alice@example.com"), "Only current recipient is invited");
 Check(invitation.Body.Contains("Rappel de Rendez-vous") && invitation.Body.Contains("#4CAF50") && invitation.Body.Contains("37 rue"), "Uploaded mail presentation and address are applied");
 var uid = ics.Split("\r\n").Single(l => l.StartsWith("UID:"));
@@ -104,7 +104,7 @@ var mailSettings = new EmailSettings { FromAddress = "cabinet@example.com", Send
 using (var email = new MailService(mailSettings).CreateMessage(invitation))
 {
     Check(email.IsBodyHtml && email.Body == invitation.Body, "HTML model remains the mail body");
-    Check(email.AlternateViews.Single().ContentType.Parameters["method"] == "REQUEST", "Calendar MIME alternative is a request");
+    Check(email.AlternateViews.Single().ContentType.Parameters["method"] == "PUBLISH", "Calendar MIME alternative is a request");
     Check(email.Attachments.Single().Name == "rendez-vous.ics" && email.Attachments.Single().ContentType.MediaType == "text/calendar", "ICS file attached");
     using var reader = new StreamReader(email.Attachments.Single().ContentStream);
     string WithoutStamp(string value) => string.Join("\r\n", value.Split("\r\n").Where(line => !line.StartsWith("DTSTAMP:")));
@@ -130,6 +130,7 @@ foreach (var input in new[] { ("", ""), ("invalid", ""), ("a@example.com;b@examp
 }
 using (var testEmail = new MailService(mailSettings).CreateMessage(mailOnly[0]))
     Check(testEmail.Attachments.Single().Name == "rendez-vous.ics", "Test mail includes its calendar invitation");
+checks += await EyeEmailChecks.RunAsync();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
@@ -159,3 +160,4 @@ sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
     }
     static HttpResponseMessage Reply(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
 }
+

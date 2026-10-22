@@ -7,6 +7,7 @@ using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using Client.SmsMail.Configuration;
 using Client.SmsMail.Models;
 
@@ -22,6 +23,10 @@ namespace Client.SmsMail.Services
         public string Body { get; set; } = string.Empty;
         public string Key { get; set; } = string.Empty;
         public string ProviderService { get; set; } = string.Empty;
+        public bool IncludeCalendar { get; set; } = true;
+        public bool CalendarIsBusy { get; set; } = true;
+        public string CalendarSubject { get; set; } = string.Empty;
+        public List<AlertConfiguration> CalendarAlarms { get; set; } = new();
         public DateTime CalendarStart { get; set; }
         public DateTime CalendarEnd { get; set; }
         public string CalendarTimeZone { get; set; } = "Europe/Paris";
@@ -33,6 +38,16 @@ namespace Client.SmsMail.Services
 
     public static class MessagePreparation
     {
+        public static string PreparationSignature(SmsMailSettings settings) => JsonSerializer.Serialize(new
+        {
+            settings.Cabinet, settings.CabinetAddress, settings.Subject, settings.SmsTemplate, settings.EmailTemplate,
+            settings.SmsOnlyWhenNoEmail, settings.UseEyeEmailFamilies, settings.FamilyDatabasePath,
+            settings.AppointmentDurationMinutes, settings.CalendarTimeZone, settings.CalendarSubject,
+            settings.SendCalendarInvites, settings.SendCalendarAlarms, settings.CalendarIsBusy,
+            Alerts = settings.Alerts.Select(a => new { a.OffsetMinutes, a.Label }).ToArray(),
+            settings.Sms.ServiceName, settings.Email.SmtpHost, settings.Email.FromAddress
+        });
+
         public static string NormalizePhone(string value)
         {
             value = Regex.Replace((value ?? string.Empty).Split('(')[0], @"[\s.\-()]", "");
@@ -47,20 +62,29 @@ namespace Client.SmsMail.Services
                 if (MailAddress.TryCreate(match.Value, out var address)) yield return address.Address.ToLowerInvariant();
         }
 
-        public static List<PreparedMessage> Prepare(IEnumerable<RdvInfo> appointments, DateTime date, SmsMailSettings settings)
+        public static List<PreparedMessage> Prepare(IEnumerable<RdvInfo> appointments, DateTime date, SmsMailSettings settings, IReadOnlyList<RdvFamille>? preparedFamilies = null)
         {
-            // Never infer a family from an address or a remark alone: shared contact
-            // details are required before including several patients in one message.
             var rdvs = appointments.Where(r => r.DateRDV.Date == date.Date && !r.IsCancelled).OrderBy(r => r.HeureRDV).ToList();
+            var families = settings.UseEyeEmailFamilies ? (preparedFamilies?.ToList() ?? EyeEmailFamilyGrouping.Build(rdvs))
+                : rdvs.Select(r => { var family = new RdvFamille(); family.RDVs.Add(r); return family; }).ToList();
+            var mailRows = new List<(RdvInfo Rdv, string Contact)>();
+            var smsRows = new List<(RdvInfo Rdv, string Contact)>();
+            foreach (var family in families)
+            {
+                var emails = family.RDVs.SelectMany(r => Emails(r.Email).Concat(r.AdditionalEmails.SelectMany(Emails))).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var phones = family.RDVs.SelectMany(r => new[] { NormalizePhone(r.Tel1), NormalizePhone(r.Tel2) }).Where(p => p.Length > 0).Distinct().ToList();
+                foreach (var contact in emails) mailRows.AddRange(family.RDVs.Select(r => (r, contact)));
+                if (!settings.SmsOnlyWhenNoEmail || emails.Count == 0)
+                    foreach (var contact in phones) smsRows.AddRange(family.RDVs.Select(r => (r, contact)));
+            }
             var result = new List<PreparedMessage>();
-            AddChannel("Mail", r => Emails(r.Email).Concat(r.AdditionalEmails.SelectMany(Emails)).Distinct());
-            AddChannel("SMS", r => settings.SmsOnlyWhenNoEmail && Emails(r.Email).Concat(r.AdditionalEmails.SelectMany(Emails)).Any()
-                ? Array.Empty<string>() : new[] { NormalizePhone(r.Tel1), NormalizePhone(r.Tel2) }.Where(p => p.Length > 0).Distinct());
+            AddChannel("Mail", mailRows);
+            AddChannel("SMS", smsRows);
             return result;
 
-            void AddChannel(string channel, Func<RdvInfo, IEnumerable<string>> contacts)
+            void AddChannel(string channel, IEnumerable<(RdvInfo Rdv, string Contact)> contacts)
             {
-                foreach (var group in rdvs.SelectMany(r => contacts(r).Select(c => (Rdv: r, Contact: c))).GroupBy(x => x.Contact, StringComparer.OrdinalIgnoreCase))
+                foreach (var group in contacts.GroupBy(x => x.Contact, StringComparer.OrdinalIgnoreCase))
                 {
                     var people = group.Select(x => x.Rdv).Distinct().OrderBy(r => r.HeureRDV).ToList();
                     var body = Render(channel == "SMS" ? settings.SmsTemplate : settings.EmailTemplate, people, settings.Cabinet, channel == "Mail", settings.CabinetAddress);
@@ -71,6 +95,10 @@ namespace Client.SmsMail.Services
                         Family = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")),
                         Subject = settings.Subject, Body = body, Key = key,
                         ProviderService = channel == "SMS" ? settings.Sms.ServiceName : settings.Email.SmtpHost,
+                        IncludeCalendar = settings.SendCalendarInvites,
+                        CalendarIsBusy = settings.CalendarIsBusy,
+                        CalendarSubject = settings.CalendarSubject,
+                        CalendarAlarms = settings.SendCalendarAlarms ? settings.Alerts.Select(a => new AlertConfiguration { Label = a.Label, OffsetMinutes = a.OffsetMinutes }).ToList() : new(),
                         CalendarStart = date.Date + people.Min(r => r.HeureRDV.TimeOfDay),
                         CalendarEnd = date.Date + people.Max(r => r.HeureRDV.TimeOfDay) + TimeSpan.FromMinutes(Math.Clamp(settings.AppointmentDurationMinutes, 1, 480)),
                         CalendarTimeZone = settings.CalendarTimeZone,
@@ -88,15 +116,17 @@ namespace Client.SmsMail.Services
             string Encode(string value) => html ? WebUtility.HtmlEncode(value) : value;
             var names = string.Join(", ", people.Select(r => r.Prenom).Distinct());
             var persons = string.Join("", people.Select(r => $"<li>{WebUtility.HtmlEncode($"{r.Prenom} {r.Nom}")} — {r.HeureRDV:HH:mm}</li>"));
-            var replacements = new Dictionary<string, string>
+            var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["[ADRESSE_CABINET]"] = Encode(cabinetAddress), ["[PRENOMS]"] = Encode(names), ["[CABINET]"] = Encode(cabinet),
                 ["[DATE_LONGUE]"] = first.DateRDV.ToString("dddd dd MMMM yyyy", culture),
-                ["[DATE]"] = first.DateRDV.ToString("dd/MM/yyyy", culture),
+                ["[DATE]"] = first.DateRDV.ToString(html ? "dddd dd MMMM yyyy" : "dd/MM/yyyy", culture),
+                ["[DatejourL]"] = first.DateRDV.ToString("d/MM/yyyy", culture),
+                ["[DatejourC]"] = first.DateRDV.ToString("d/MM", culture),
                 ["[HEURE]"] = first.HeureRDV.ToString("HH:mm", culture),
                 ["[LISTE_PERSONNES]"] = html ? persons : string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}"))
             };
-            return Regex.Replace(template, @"\[[A-Z_]+\]", m => replacements.TryGetValue(m.Value, out var value) ? value : m.Value);
+            return Regex.Replace(template, @"\[[A-Z_]+\]", m => replacements.TryGetValue(m.Value, out var value) ? value : m.Value, RegexOptions.IgnoreCase);
         }
 
         public static string SmsMetrics(string text)
@@ -111,3 +141,4 @@ namespace Client.SmsMail.Services
         }
     }
 }
+
