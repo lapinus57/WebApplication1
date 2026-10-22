@@ -85,3 +85,38 @@ simulée (signature, crédits décimaux, soumission, erreurs, réception).
 Aucun message réel n'est envoyé. Le workflow Windows compile aussi le client
 WinUI pour les pull requests vers `master2`. La connexion à la base Access et
 les comptes réels doivent être vérifiés sur le poste Windows de déploiement.
+
+## Modèle du cabinet et invitation calendrier
+
+Le modèle HTML par défaut reprend le mail fourni : titre vert, rappel du cabinet,
+jour et heure, adresse et personnes concernées. La date, les personnes, l'heure,
+le cabinet et l'adresse sont remplacés par les données de l'envoi. La variable
+`[ADRESSE_CABINET]` est disponible. Le modèle standard précédent est migré à la
+lecture des paramètres ; les modèles personnalisés sont conservés. Le bouton
+« Appliquer le modèle de rappel du cabinet » permet de remplacer volontairement
+le modèle en cours, puis de l'enregistrer.
+
+Chaque mail comprend une invitation `text/calendar; method=REQUEST` et une pièce
+jointe `rendez-vous.ics`. Les dates UTC sont calculées depuis `Europe/Paris`, avec
+les heures d'été/hiver. La durée par défaut est de 30 minutes, modifiable dans les
+paramètres. Pour un contact partageant plusieurs RDV, l'événement couvre du
+premier horaire au dernier, augmenté de cette durée. L'organisateur est l'adresse
+d'envoi ; seul le destinataire courant est invité. Le UID reste identique pour
+le même jour/contact afin d'éviter les événements dupliqués lors de l'import.
+Aucune réponse de participation n'est demandée ni traitée. L'affichage de
+l'invitation dépend du logiciel mail ; la pièce jointe reste importable.
+
+## Tester les envois
+
+Le bouton **Tester mail / SMS**, présent dans les rendez-vous et les paramètres,
+ouvre deux champs facultatifs : adresse mail et numéro mobile. Renseigner l'un,
+l'autre ou les deux, puis **Envoyer le test**. Seuls ces contacts reçoivent un
+exemple, avec les modèles et paramètres actuellement affichés, même non encore
+enregistrés. Aucun chargement de rendez-vous ni de patient n'est nécessaire.
+L'exemple utilise « Utilisateur TEST » et un rendez-vous fictif demain à 10 h,
+heure de Paris. Le mail inclut l'invitation ICS. Les deux canaux sont testés même
+si l'option SMS uniquement sans mail est activée. Les résultats apparaissent par
+canal et sont enregistrés dans l'historique avec la mention TEST. Un nouveau test
+explicite reste possible ; il ne bloque pas les rappels réels. Les SMS de test
+consomment les crédits OVH habituels. Une acceptation fournisseur ne garantit pas
+la réception ; vérifier la boîte mail, les indésirables et le téléphone.
