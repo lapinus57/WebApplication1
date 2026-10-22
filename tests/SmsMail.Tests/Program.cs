@@ -173,6 +173,7 @@ Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", "
 checks += await EyeEmailChecks.RunAsync();
 checks += await FamilySmsChecks.RunAsync();
 checks += ReminderTimeChecks.Run();
+checks += MailTextPreviewChecks.Run();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
