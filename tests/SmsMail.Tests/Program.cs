@@ -157,6 +157,19 @@ foreach (var prepared in new[] { invitation, mailOnly[0] })
     }
     finally { Directory.Delete(pickup, true); }
 }
+var selectionCases = new List<PreparedMessage>
+{
+    new() { Channel = "Mail", Contact = "alice@example.com", Family = "Alice", Selected = true },
+    new() { Channel = "SMS", Contact = "+33612345678", Family = "Alice", Selected = true },
+    new() { Channel = "Mail", Contact = "bob@example.com", Family = "Bob", Selected = false }
+};
+var visibleMail = MessageSelection.Visible(selectionCases, "Mail", "");
+Check(visibleMail.Count == 2 && MessageSelection.ForSending(visibleMail).Count == 1, "Mail-only view excludes selected hidden SMS and unchecked mail");
+Check(MessageSelection.ForSending(visibleMail, "SMS").Count == 0, "Explicit SMS action cannot send hidden SMS from mail view");
+Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "SMS", "")).Single().Channel == "SMS", "SMS-only send excludes mail");
+Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", " bob ")).Count == 0, "Search-hidden checked recipients are not sent");
+Check(MessageSelection.ForSending(selectionCases, "Mail").Single().Contact == "alice@example.com", "Explicit mail send excludes SMS in mixed view");
+Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", "ALICE")).Count == 2, "Mixed view supports family search without losing either channel");
 checks += await EyeEmailChecks.RunAsync();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
