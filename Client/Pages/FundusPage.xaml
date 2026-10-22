@@ -1,15 +1,92 @@
 <Page
     x:Class="Client.Pages.FundusPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Loaded="Page_Loaded" Unloaded="Page_Unloaded">
-    <Grid Padding="16" RowSpacing="12">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-        <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel Spacing="4"><TextBlock Text="Préparation FO" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="Patients à préparer pour un fond d’œil, selon les consignes retrouvées dans Consultation." TextWrapping="Wrap"/></StackPanel>
-            <Button Grid.Column="1" Content="Recharger" Click="Reload_Click" VerticalAlignment="Center"/>
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Padding="20" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel Spacing="4">
+                <TextBlock Text="Préparation FO" FontSize="26" FontWeight="SemiBold"/>
+                <TextBlock Text="Les patients à préparer pour un fond d’œil, classés par prochain rendez-vous." TextWrapping="Wrap" Opacity="0.8"/>
+            </StackPanel>
+            <Button x:Name="SettingsButton" Grid.Column="1" Content="Champs Access" Click="Settings_Click" VerticalAlignment="Center"/>
         </Grid>
-        <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="True" IsClosable="False" Severity="Informational" Message="Connexion à la page sécurisée du serveur…"/>
-        <WebView2 x:Name="Browser" Grid.Row="2"/>
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="SearchControls" Orientation="Horizontal" Spacing="12" Padding="0,0,0,4">
+                <ComboBox x:Name="PeriodBox" Header="Période" Width="180" SelectedIndex="2" SelectionChanged="Period_Changed">
+                    <ComboBoxItem Content="Aujourd’hui"/><ComboBoxItem Content="Demain"/>
+                    <ComboBoxItem Content="7 prochains jours"/><ComboBoxItem Content="Personnalisée"/>
+                </ComboBox>
+                <CalendarDatePicker x:Name="FromDate" Header="Du" Width="155" IsEnabled="False"/>
+                <CalendarDatePicker x:Name="ToDate" Header="Au (inclus)" Width="155" IsEnabled="False"/>
+                <Button Content="Rechercher les patients" Click="Search_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom"/>
+            </StackPanel>
+        </ScrollViewer>
+        <InfoBar x:Name="StatusBar" Grid.Row="2" IsOpen="True" IsClosable="False" Severity="Informational" Message="Chargement des patients…"/>
+        <Grid Grid.Row="3" ColumnSpacing="12">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions>
+            <TextBox x:Name="PatientFilter" Header="Rechercher dans la liste" PlaceholderText="Nom, prénom ou identifiant" TextChanged="Filter_Changed"/>
+            <ComboBox x:Name="StateFilter" Grid.Column="1" Header="État" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="State_Changed">
+                <ComboBoxItem Content="À préparer / à vérifier"/><ComboBoxItem Content="FO à prévoir"/>
+                <ComboBoxItem Content="À vérifier"/><ComboBoxItem Content="FO probablement réalisé"/><ComboBoxItem Content="Tous les états"/>
+            </ComboBox>
+        </Grid>
+        <ScrollViewer x:Name="TableScroller" Grid.Row="4" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+            <Grid MinWidth="980" Width="{Binding ActualWidth, ElementName=TableScroller}" RowSpacing="2">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Border Padding="12,10" Background="{ThemeResource ControlFillColorSecondaryBrush}" CornerRadius="6">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="100"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Rendez-vous ↑" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="1" Text="Patient" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="2" Text="Consigne retrouvée" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="3" Text="État FO" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="4" Text="Consultation" FontWeight="SemiBold"/>
+                    </Grid>
+                </Border>
+                <ListView x:Name="PatientsList" Grid.Row="1" SelectionMode="None" Padding="0" HorizontalContentAlignment="Stretch">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/></Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="12,14" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="100"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding AppointmentText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Text="{Binding PatientName}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding PatientId}" Opacity="0.7" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="6">
+                                        <TextBlock Text="{Binding Excerpt}" TextWrapping="Wrap" MaxLines="4" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="4"><TextBlock Text="Consultation du" Opacity="0.7" FontSize="12"/><TextBlock Text="{Binding SourceText}" Opacity="0.7" FontSize="12"/></StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" Spacing="6">
+                                        <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding ReviewText}" Opacity="0.7" FontSize="12" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="4" Content="Consulter" Click="Details_Click" VerticalAlignment="Top" AutomationProperties.Name="Lire et vérifier la consultation source"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <TextBlock x:Name="EmptyText" Grid.Row="1" Text="" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="24"/>
+            </Grid>
+        </ScrollViewer>
+        <StackPanel Grid.Row="5" Spacing="5">
+            <ProgressBar x:Name="LoadingBar" IsIndeterminate="True" Visibility="Collapsed"/>
+            <TextBlock x:Name="SummaryText" TextWrapping="Wrap" FontWeight="SemiBold"/>
+            <TextBlock Text="Consignes issues d’Observation et REFRACTION · À confirmer dans le dossier avant préparation." FontSize="12" Opacity="0.7" TextWrapping="Wrap"/>
+        </StackPanel>
     </Grid>
 </Page>

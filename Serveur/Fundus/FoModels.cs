@@ -32,5 +32,3 @@ public sealed class FoAlert
     public FoStatus EffectiveStatus => ManualStatus ?? Status;
 }
 
-public sealed record FoPatientData(string Id, string Name, DateTime Appointment, IReadOnlyList<FoConsultation> Consultations);
-public sealed record FoDataSet(string SourceKey, IReadOnlyList<FoPatientData> Patients);

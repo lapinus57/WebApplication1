@@ -1,10 +1,33 @@
 # Préparation FO
 
-La page **Préparation FO** affiche les patients susceptibles d’avoir un fond d’œil, à partir des champs **Observation** et **REFRACTION** de la table Access **Consultation**, rapprochés des prochains rendez-vous. La période initiale couvre les 7 prochains jours et peut être modifiée. Elle est accessible depuis le nouvel onglet EyeChat ou `https://serveur:5443/Fundus`. Elle utilise la connexion d’administration du serveur existante (cookie HTTPS). Les comptes du chat ne donnent pas, à eux seuls, accès aux observations.
+La page **Préparation FO** affiche les patients susceptibles d’avoir un fond d’œil, à partir des champs **Observation** et **REFRACTION** de la table Access **Consultation**, rapprochés des prochains rendez-vous. La période initiale couvre les 7 prochains jours et peut être modifiée. Le client affiche un tableau Windows ; une page d’administration serveur reste disponible séparément.
 
-## Installation et première utilisation
+## Onglet Windows (client)
 
-1. Mettre à jour **le serveur et le client**. La page s’ouvre dans le WebView2 déjà utilisé par le client. Le certificat HTTPS du serveur doit être reconnu par Windows ; aucun contournement de certificat n’est ajouté.
+L’onglet est maintenant une **page WinUI native** : aucun navigateur intégré, redirection web, port 5443 ou certificat serveur n’est nécessaire pour afficher les patients. La connexion EyeChat reste nécessaire pour récupérer le chemin déjà configuré dans **Paramètres → Recherche RDV**. La lecture Access et l’analyse tournent sur le poste, en arrière-plan.
+
+1. Mettre à jour le client. Le compte Windows du poste doit avoir accès en lecture au fichier Access et disposer du fournisseur ACE de la même architecture que le client. Les réglages locaux ACE/groupe de travail des paramètres RDV sont réutilisés.
+2. Ouvrir **Préparation FO** : une seule recherche démarre, sur les 7 prochains jours. Les noms de champs sont suggérés à partir du schéma réel et des paramètres RDV existants. Si des champs manquent, utiliser **Champs Access** pour vérifier les correspondances. L’absence d’un champ d’annulation exige une confirmation explicite.
+3. Choisir aujourd’hui, demain, 7 jours ou une période personnalisée, puis **Rechercher les patients**. La liste est triée par prochain rendez-vous ; nom, identifiant, consigne, date de consultation et état sont visibles dans le tableau. La recherche par nom et les filtres d’état agissent immédiatement sur cette liste.
+4. **Consulter** ouvre les champs Observation et REFRACTION en texte lisible et permet une relecture manuelle. Avant de l’enregistrer, le dossier est relu et son empreinte vérifiée pour refuser une validation obsolète.
+
+Le chargement est protégé contre les appels simultanés et les notifications Loaded répétées. Quitter l’onglet annule le travail et interdit à une réponse tardive de remplir une ancienne page. Un échec conserve la dernière liste avec un avertissement et la période effectivement analysée. Aucun appel récursif au gestionnaire Loaded n’est utilisé.
+
+Le contrôle d’accès du client repose sur les droits Windows du fichier Access et, si présents, ses identifiants de groupe de travail, comme les autres lecteurs Access du poste. Le nom choisi dans le chat ne constitue pas une authentification à la base. Ne donner ces droits qu’aux postes/comptes habilités. Aucune observation ne transite par le hub du chat et aucun nouveau point d’accès réseau médical n’est créé.
+
+Les correspondances de champs et relectures sont propres au **profil Windows de ce poste**, chiffrées avec DPAPI CurrentUser dans `%LOCALAPPDATA%/EyeChat/Fundus`. Seuls une clé de patient hachée avec la source, une empreinte de consultation, l’état et l’auteur/date de relecture sont conservés ; aucun nom de patient, extrait, compte rendu ou mot de passe Access n’y est copié. Une modification clinique invalide la relecture ; un déplacement du rendez-vous seul la conserve. Ces relectures ne sont pas synchronisées avec les validations de la page d’administration serveur.
+
+### Erreur StackOverflowException
+
+La pile fournie pointait vers `App_UnhandledException`, lors de l’accès natif à `window.Content`. Le gestionnaire d’erreur ne consulte plus Window.Content/XamlRoot et ne crée plus de ContentDialog. Il journalise l’exception initiale (CLI01), protège toute la notification contre la réentrance et programme une boîte Windows indépendante de XAML après le retour du gestionnaire. Les échecs de journalisation, de dispatcher ou de notification ne relancent pas de dialogue. Cela supprime le chemin de récursion identifié ; une éventuelle erreur initiale distincte reste à diagnostiquer dans CLI01.
+
+## Page d’administration serveur (optionnelle)
+
+La page `https://serveur:5443/Fundus` reste disponible séparément pour les utilisateurs de l’administration. Elle conserve son authentification HTTPS et ses résultats/validations partagés en SQLite. Elle n’est plus embarquée dans l’onglet Windows.
+
+### Installation de la page serveur
+
+1. Mettre à jour le serveur puis ouvrir son adresse HTTPS dans un navigateur. Le certificat HTTPS doit être reconnu par Windows ; aucun contournement n’est ajouté.
 2. Donner au compte Windows du service serveur l’accès en lecture à la base Access. Par défaut, le chemin provient des paramètres **Recherche RDV** conservés dans `ServerConfigs.AppointmentSearchJson`. Si ce chemin ne convient qu’aux postes clients, définir `FoAccess:DatabasePath` sur le serveur.
 3. Installer un fournisseur ACE de la même architecture que le processus serveur. Pour une base protégée par un groupe de travail, configurer sur le serveur `FoAccess:Provider`, `FoAccess:WorkgroupPath`, `FoAccess:UserName`, `FoAccess:Password`. Ces valeurs ne sont ni envoyées au navigateur, ni stockées dans les nouvelles tables SQLite. Les réglages du poste client ne sont pas transférés automatiquement.
 4. Lors de la première ouverture, la page propose les **Réglages Access**. Les tables et colonnes proviennent réellement de `GetOleDbSchemaTable`. Vérifier les clés de rapprochement, les noms/prénoms et le champ d’annulation. Les deux champs médicaux sont fixés à `Observation` et `REFRACTION` ; leur présence est vérifiée avant lecture. L’absence d’un champ d’annulation exige une confirmation explicite.
@@ -26,7 +49,7 @@ Aucun `.mdb` n’est livré dans le dépôt. L’utilisateur a fourni la structu
 
 Les identifiants et dates sont **suggérés uniquement s’ils existent dans le schéma lu**. Les types réels, le format du texte, les champs de nom/prénom de Patients et le champ d’annulation de l’agenda restent à vérifier sur la base du cabinet. `Observation` et `REFRACTION` sont obligatoires pour cette analyse. `ProchainRDV`, signalé comme toujours vide par l’utilisateur, n’est plus utilisé ni lu dans les requêtes médicales.
 
-Les accès SMS/mail existants utilisent `Patients.[Code Patient]` et `Ag_rdv.[Code Patient]`, avec date et heure configurables. Le nouveau lecteur reprend la même connexion OLE DB, extraite dans `Shared/ReadOnlyAccess.cs`, et force `Mode=Read`. Le formulaire permet de choisir les noms exacts de chaque table et champ ; aucune requête ne suppose un champ absent. Les identifiants SQL sont issus du schéma puis échappés et les valeurs sont paramétrées avec le type OLE DB du champ.
+Les accès SMS/mail existants utilisent `Patients.[Code Patient]` et `Ag_rdv.[Code Patient]`, avec date et heure configurables. Le lecteur commun `Shared/Fundus/FoAccessData.cs` utilise la connexion OLE DB de `Shared/ReadOnlyAccess.cs` et force `Mode=Read`. Le serveur conserve un adaptateur pour ses propres paramètres ; le client réutilise le même lecteur. Le formulaire permet de choisir les noms exacts de chaque table et champ ; aucune requête ne suppose un champ absent. Les identifiants SQL sont issus du schéma puis échappés et les valeurs sont paramétrées avec le type OLE DB du champ.
 
 Pour une période, le lecteur :
 
@@ -51,7 +74,7 @@ La liste principale montre **FO à prévoir** et **À vérifier**. Les cas **FO 
 
 Le lien **Lire la consultation source** relit directement Observation et REFRACTION dans Access, affichés dans deux sections distinctes. Le texte est encodé par Razor et présenté comme texte simple. Il n’est pas inséré comme HTML. Les champs RTF/HTML, les dates/heures invalides, les clés manquantes et les volumes excessifs interrompent l’analyse avec une explication plutôt que produire silencieusement une liste partielle.
 
-## SQLite et actualisation
+## SQLite et actualisation de la page serveur
 
 `FoSettings` conserve la correspondance des champs. `FoAlerts` conserve la clé de source, l’identifiant et le nom du patient, son prochain rendez-vous, la clé/date de consultation source, un extrait de 600 caractères maximum, l’état, un éventuel extrait ultérieur, l’empreinte de la chronologie et les dates d’analyse/relecture. Les comptes rendus complets ne sont pas recopiés.
 
@@ -63,7 +86,7 @@ Les lectures et écritures passent par la page Razor authentifiée ; aucune obse
 
 ## Vérification et limites
 
-- `dotnet run --project tests/Fundus.Tests` : moteur, chronologie, schéma, mises à jour SQLite, validations, authentification Razor et anti-CSRF, avec données fictives.
+- `dotnet run --project tests/Fundus.Tests` : moteur, chronologie, schéma, mises à jour SQLite, validations, authentification Razor et anti-CSRF, filtres natifs, annulation/rechargement de page et réentrance du gestionnaire d’erreur, avec données fictives.
 - `dotnet run --project tests/SmsMail.Tests` : régressions du module SMS/mail.
 - `dotnet build Serveur/Serveur.csproj --configuration Release` : serveur et vues Razor.
 - Le workflow Windows compile aussi le client WinUI.
