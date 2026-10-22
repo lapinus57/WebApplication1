@@ -171,6 +171,7 @@ Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", "
 Check(MessageSelection.ForSending(selectionCases, "Mail").Single().Contact == "alice@example.com", "Explicit mail send excludes SMS in mixed view");
 Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", "ALICE")).Count == 2, "Mixed view supports family search without losing either channel");
 checks += await EyeEmailChecks.RunAsync();
+checks += await FamilySmsChecks.RunAsync();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler

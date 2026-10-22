@@ -16,6 +16,6 @@ namespace Client.SmsMail.Services
         }
 
         public static List<PreparedMessage> ForSending(IEnumerable<PreparedMessage> visible, string? channel = null) =>
-            visible.Where(message => message.Selected && (channel == null || message.Channel == channel)).ToList();
+            visible.Where(message => message.Selected && message.CanSend && (channel == null || message.Channel == channel)).ToList();
     }
 }

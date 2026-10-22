@@ -16,6 +16,8 @@ namespace Client.SmsMail.Services
     public sealed class PreparedMessage
     {
         public bool Selected { get; set; } = true;
+        public bool CanSend { get; set; } = true;
+        public List<string> ReservationKeys { get; set; } = new();
         public string Channel { get; set; } = string.Empty;
         public string Contact { get; set; } = string.Empty;
         public string Family { get; set; } = string.Empty;
@@ -67,6 +69,7 @@ namespace Client.SmsMail.Services
             var rdvs = appointments.Where(r => r.DateRDV.Date == date.Date && !r.IsCancelled).OrderBy(r => r.HeureRDV).ToList();
             var families = settings.UseEyeEmailFamilies ? (preparedFamilies?.ToList() ?? EyeEmailFamilyGrouping.Build(rdvs))
                 : rdvs.Select(r => { var family = new RdvFamille(); family.RDVs.Add(r); return family; }).ToList();
+            var familyKeys = new Dictionary<RdvInfo, List<string>>();
             var mailRows = new List<(RdvInfo Rdv, string Contact)>();
             var smsRows = new List<(RdvInfo Rdv, string Contact)>();
             foreach (var family in families)
@@ -74,8 +77,19 @@ namespace Client.SmsMail.Services
                 var emails = family.RDVs.SelectMany(r => Emails(r.Email).Concat(r.AdditionalEmails.SelectMany(Emails))).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 var phones = family.RDVs.SelectMany(r => new[] { NormalizePhone(r.Tel1), NormalizePhone(r.Tel2) }).Where(p => p.Length > 0).Distinct().ToList();
                 foreach (var contact in emails) mailRows.AddRange(family.RDVs.Select(r => (r, contact)));
-                if (!settings.SmsOnlyWhenNoEmail || emails.Count == 0)
-                    foreach (var contact in phones) smsRows.AddRange(family.RDVs.Select(r => (r, contact)));
+                // One destination per family. Prefer a valid Tel1, then Tel2;
+                // patient order is stable even if appointment times change.
+                var members = family.RDVs.OrderBy(r => r.Id).ThenBy(r => r.Nom, StringComparer.Ordinal)
+                    .ThenBy(r => r.Prenom, StringComparer.Ordinal).ToList();
+                var primary = members.Select(r => NormalizePhone(r.Tel1)).FirstOrDefault(p => p.Length > 0)
+                    ?? members.Select(r => NormalizePhone(r.Tel2)).FirstOrDefault(p => p.Length > 0);
+                var guards = phones.Select(p => ContactKey(date, "SMS", p))
+                    .Concat(members.Where(r => r.Id > 0).Select(r => GuardKey(date, "patient", r.Id)))
+                    .Concat(members.Where(r => r.ReferenceFamilyNumber > 0).Select(r => GuardKey(date, "family", r.ReferenceFamilyNumber)))
+                    .Distinct().ToList();
+                foreach (var member in members) familyKeys[member] = guards;
+                if ((!settings.SmsOnlyWhenNoEmail || emails.Count == 0) && primary != null)
+                    smsRows.AddRange(family.RDVs.Select(r => (r, primary)));
             }
             var result = new List<PreparedMessage>();
             AddChannel("Mail", mailRows);
@@ -90,10 +104,11 @@ namespace Client.SmsMail.Services
                     var body = Render(channel == "SMS" ? settings.SmsTemplate : settings.EmailTemplate, people, settings.Cabinet, channel == "Mail", settings.CabinetAddress);
                     // Stable across refreshes and template edits: an accepted reminder
                     // for this day/contact must not be submitted twice by accident.
-                    var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{date:yyyy-MM-dd}|{channel}|{group.Key}")));
+                    var key = ContactKey(date, channel, group.Key);
                     result.Add(new PreparedMessage { Channel = channel, Contact = group.Key,
                         Family = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")),
                         Subject = settings.Subject, Body = body, Key = key,
+                        ReservationKeys = channel == "SMS" ? people.SelectMany(p => familyKeys[p]).Distinct().ToList() : new(),
                         ProviderService = channel == "SMS" ? settings.Sms.ServiceName : settings.Email.SmtpHost,
                         IncludeCalendar = settings.SendCalendarInvites,
                         CalendarIsBusy = settings.CalendarIsBusy,
@@ -107,6 +122,11 @@ namespace Client.SmsMail.Services
                 }
             }
         }
+
+        private static string ContactKey(DateTime day, string channel, string contact) =>
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{day:yyyy-MM-dd}|{channel}|{contact}")));
+        private static string GuardKey(DateTime day, string kind, int id) =>
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{day:yyyy-MM-dd}|SMS|{kind}|{id}")));
 
         public static string Render(string template, IReadOnlyList<RdvInfo> people, string cabinet, bool html, string cabinetAddress = "")
         {
