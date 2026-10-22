@@ -44,12 +44,19 @@
                     </CommandBar>
                     <Grid Grid.Row="1" RowSpacing="8" ColumnSpacing="12">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <ComboBox x:Name="SendChannelFilter" AutomationProperties.Name="Filtrer les envois par canal" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="SendFilter_Changed">
                             <ComboBoxItem Content="Tous les messages" Tag="" /><ComboBoxItem Content="Mails" Tag="Mail" /><ComboBoxItem Content="SMS" Tag="SMS" />
                         </ComboBox>
                         <TextBox x:Name="SendSearch" Grid.Column="1" AutomationProperties.Name="Rechercher un destinataire" PlaceholderText="Rechercher un nom, une adresse mail ou un téléphone…" TextChanged="SendSearch_Changed" />
-                        <TextBlock x:Name="SummaryText" Grid.Row="1" Grid.ColumnSpan="2" Text="Choisissez un jour, puis chargez les rendez-vous." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="SmsFamilySizeFilter" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="Nombre minimum de personnes pour envoyer un SMS" SelectionChanged="SmsFamilySize_Changed" ToolTipService.ToolTip="Personnes ayant un rendez-vous ce jour dans la famille regroupée. Le seuil ne limite pas les mails.">
+                                <ComboBoxItem Content="SMS : 1 (toutes)" /><ComboBoxItem Content="SMS : 2 et plus" /><ComboBoxItem Content="SMS : 3+" />
+                            </ComboBox>
+                            <CheckBox x:Name="SmsOnlyNoEmail" Grid.Column="1" Content="Pas de SMS si la famille a un mail valide" Checked="Options_Changed" Unchecked="Options_Changed" />
+                        </Grid>
+                        <TextBlock x:Name="SummaryText" Grid.Row="2" Grid.ColumnSpan="2" Text="Choisissez un jour, puis chargez les rendez-vous." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </Grid>
                     <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
                         <Grid>
@@ -224,7 +231,7 @@
                     </Expander>
                     <Expander x:Name="PreparationExpander" Header="Préparation des rappels et familles" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par famille" Checked="Options_Changed" Unchecked="Options_Changed" />
-                        <CheckBox x:Name="SmsOnlyNoEmail" Content="Envoyer un SMS seulement si la famille n’a pas de mail valide" Checked="Options_Changed" Unchecked="Options_Changed" />
+                        <TextBlock Text="Le seuil de personnes et l’option SMS sans mail se règlent directement dans Envois." TextWrapping="Wrap" />
                         <TextBlock Text="Un seul SMS par famille et par jour de rendez-vous. Le numéro retenu est visible dans le tableau." TextWrapping="Wrap" />
                         <TextBlock Text="Familles EyeEmail" FontSize="18" FontWeight="SemiBold" />
                         <TextBox x:Name="FamilyDatabaseText" Header="Base familles EyeEmail facultative (.mdb / .accdb)" />

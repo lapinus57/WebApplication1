@@ -60,6 +60,7 @@ namespace Client.Pages
                 CabinetAddressText.Text = _settings.CabinetAddress;
                 DurationNumber.Value = _settings.AppointmentDurationMinutes;
                 SmsOnlyNoEmail.IsChecked = _settings.SmsOnlyWhenNoEmail;
+                SmsFamilySizeFilter.SelectedIndex = Math.Clamp(_settings.SmsMinimumFamilySize, 1, 3) - 1;
                 UseFamiliesCheck.IsChecked = _settings.UseEyeEmailFamilies;
                 FamilyDatabaseText.Text = _settings.FamilyDatabasePath;
                 CalendarInviteCheck.IsChecked = _settings.SendCalendarInvites;
@@ -100,6 +101,7 @@ namespace Client.Pages
             if (double.IsNaN(SmtpPortNumber.Value)) throw new InvalidOperationException("Renseignez le port SMTP.");
             return new SmsMailSettings
             {
+                SmsMinimumFamilySize = SmsFamilySizeFilter.SelectedIndex + 1,
                 AdjustReminderTimes = AdjustTimesCheck.IsChecked == true,
                 ReminderTimeRules = _timeRules.Select(r => new AppointmentTimeRule { From = r.From, To = r.To }).ToList(),
                 UseEyeEmailFamilies = UseFamiliesCheck.IsChecked == true, FamilyDatabasePath = FamilyDatabaseText.Text.Trim(),
@@ -632,6 +634,7 @@ namespace Client.Pages
         }
 
         private void Options_Changed(object sender, RoutedEventArgs e) => ClearMessages();
+        private void SmsFamilySize_Changed(object sender, SelectionChangedEventArgs e) => ClearMessages();
 
         private async void Import_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
