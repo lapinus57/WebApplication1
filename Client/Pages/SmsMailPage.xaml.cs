@@ -501,9 +501,53 @@ namespace Client.Pages
             StatusText.Text = $"Statuts SMS actualisés ; {errors} statut(s) indisponible(s). Utilisez Retours mail (IMAP) pour lire les notifications mail.";
         });
 
-        private void MessagesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private bool _mailPreviewReady;
+        private async void MailPreview_Loaded(object sender, RoutedEventArgs e)
         {
-            if (MessagePreview != null) MessagePreview.Text = (MessagesList.SelectedItem as PreparedMessage)?.Body ?? string.Empty;
+            if (_mailPreviewReady) return;
+            try
+            {
+                await MailPreview.EnsureCoreWebView2Async();
+                MailPreview.CoreWebView2.Settings.IsScriptEnabled = false;
+                MailPreview.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                MailPreview.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
+                MailPreview.CoreWebView2.NavigationStarting += (_, args) =>
+                {
+                    if (args.Uri != "about:blank") args.Cancel = true;
+                };
+                _mailPreviewReady = true;
+                UpdateMessagePreview();
+            }
+            catch (Exception) { PreviewCaption.Text = "Aperçu visuel indisponible. Le contenu HTML reste consultable ci-dessous."; MailPreview.Visibility = Visibility.Collapsed; MessagePreview.Visibility = Visibility.Visible; }
+        }
+
+        private void UpdateMessagePreview()
+        {
+            if (MessagePreview == null || MailPreview == null) return;
+            var message = MessagesList.SelectedItem as PreparedMessage;
+            MessagePreview.Text = message?.Body ?? string.Empty;
+            PreviewCaption.Text = message == null ? "Sélectionnez un message pour le consulter ici."
+                : message.Channel == "Mail" ? message.Contact + " · " + message.Subject : message.Contact + " · " + message.Metrics;
+            bool isMail = message?.Channel == "Mail";
+            MailPreview.Visibility = isMail ? Visibility.Visible : Visibility.Collapsed;
+            MessagePreview.Visibility = isMail && _mailPreviewReady ? Visibility.Collapsed : Visibility.Visible;
+            if (isMail && _mailPreviewReady)
+                MailPreview.NavigateToString("<!doctype html><html><head><meta charset='utf-8'><meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:;\"><style>body{margin:0;padding:12px;background:#f3f5f7;font-family:Segoe UI,Arial,sans-serif;overflow-wrap:anywhere}img{max-width:100%}</style></head><body>" + message!.Body + "</body></html>");
+        }
+
+        private void MessagesList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateMessagePreview();
+        private void SelectAll_Click(object sender, RoutedEventArgs e) => SetMessageSelection(true);
+        private void SelectNone_Click(object sender, RoutedEventArgs e) => SetMessageSelection(false);
+        private void SetMessageSelection(bool selected)
+        {
+            var processed = _entries.Select(entry => entry.Key).ToHashSet();
+            foreach (var message in _messages) message.Selected = selected && !processed.Contains(message.Key);
+            // PreparedMessage is a plain model: refresh the list to reflect bulk edits.
+            var current = MessagesList.SelectedItem;
+            MessagesList.ItemsSource = null;
+            MessagesList.ItemsSource = _messages;
+            MessagesList.SelectedItem = current;
+            StatusText.Text = $"{_messages.Count(message => message.Selected)} message(s) sélectionné(s).";
         }
 
         private void ClearMessages()
@@ -511,7 +555,7 @@ namespace Client.Pages
             _messages.Clear();
             _preparedSignature = string.Empty;
             if (MessagesList != null) MessagesList.ItemsSource = null;
-            if (MessagePreview != null) MessagePreview.Text = string.Empty;
+            UpdateMessagePreview();
             if (SummaryText != null) SummaryText.Text = "Préparez les messages avant l'envoi.";
         }
 
