@@ -37,7 +37,7 @@ namespace Client.SmsMail.Services
 
         public MailMessage CreateMessage(PreparedMessage prepared)
         {
-            var calendar = CalendarInvitation.Create(prepared, _settings.FromAddress);
+            var calendar = prepared.IncludeCalendar ? CalendarInvitation.Create(prepared, _settings.FromAddress) : null;
             var message = new MailMessage
             {
                 From = new MailAddress(_settings.FromAddress, _settings.FromDisplayName),
@@ -47,16 +47,21 @@ namespace Client.SmsMail.Services
             };
             message.To.Add(new MailAddress(prepared.Contact));
             message.Headers.Add("Content-Language", "fr");
+            message.Headers.Add("Message-ID", "<" + prepared.Key + "@eyechat.local>");
             message.Headers.Add("Disposition-Notification-To", _settings.SenderAddress);
             message.BodyEncoding = Encoding.UTF8;
             message.SubjectEncoding = Encoding.UTF8;
-            var contentType = new ContentType("text/calendar") { CharSet = "utf-8" };
-            contentType.Parameters.Add("method", "REQUEST");
-            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(calendar, contentType));
-            var attachment = Attachment.CreateAttachmentFromString(calendar, "rendez-vous.ics", Encoding.UTF8, "text/calendar");
-            attachment.ContentType.Parameters.Add("method", "REQUEST");
-            message.Attachments.Add(attachment);
+            if (calendar != null)
+            {
+                var contentType = new ContentType("text/calendar") { CharSet = "utf-8" };
+                contentType.Parameters.Add("method", "PUBLISH");
+                message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(calendar, contentType));
+                var attachment = Attachment.CreateAttachmentFromString(calendar, "rendez-vous.ics", Encoding.UTF8, "text/calendar");
+                attachment.ContentType.Parameters.Add("method", "PUBLISH");
+                message.Attachments.Add(attachment);
+            }
             return message;
         }
     }
 }
+

@@ -4,6 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Runtime.Versioning;
+using System.Collections.Generic;
+using Client.SmsMail.Models;
 
 namespace Client.SmsMail.Configuration
 {
@@ -15,6 +17,13 @@ namespace Client.SmsMail.Configuration
         public string CabinetAddress { get; set; } = "37 rue de la République, 57320 BOUZONVILLE";
         public int AppointmentDurationMinutes { get; set; } = 30;
         public string CalendarTimeZone { get; set; } = "Europe/Paris";
+        public bool UseEyeEmailFamilies { get; set; } = true;
+        public string FamilyDatabasePath { get; set; } = string.Empty;
+        public bool SendCalendarInvites { get; set; } = true;
+        public bool SendCalendarAlarms { get; set; } = true;
+        public bool CalendarIsBusy { get; set; } = true;
+        public string CalendarSubject { get; set; } = "RDV Ophtalmologique";
+        public List<AlertConfiguration> Alerts { get; set; } = new();
         public bool SmsOnlyWhenNoEmail { get; set; } = true;
         public string Subject { get; set; } = "Rappel de rendez-vous";
         public string SmsTemplate { get; set; } = "Bonjour [PRENOMS], rendez-vous chez [CABINET] le [DATE_LONGUE] à [HEURE]. Merci de prévenir en cas d'empêchement.";
@@ -65,3 +74,4 @@ namespace Client.SmsMail.Configuration
         }
     }
 }
+
