@@ -52,13 +52,26 @@
                         </StackPanel>
                     </Border>
                     <StackPanel Grid.Row="1" Spacing="8">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="SendChannelFilter" Header="Canal à afficher / envoyer" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="SendFilter_Changed">
+                                <ComboBoxItem Content="Tous les canaux" Tag="" /><ComboBoxItem Content="Mails uniquement" Tag="Mail" /><ComboBoxItem Content="SMS uniquement" Tag="SMS" />
+                            </ComboBox>
+                            <TextBox x:Name="SendSearch" Grid.Column="1" Header="Rechercher un destinataire" PlaceholderText="Nom, famille, mail ou téléphone…" TextChanged="SendSearch_Changed" />
+                        </Grid>
+                        <TextBlock x:Name="SelectionSummary" Text="Aucun message préparé." TextWrapping="Wrap" FontWeight="SemiBold" />
+                        <TextBlock Text="Seuls les messages cochés et visibles seront envoyés. Choisissez un canal pour envoyer uniquement les mails ou les SMS." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="2. Vérifier et envoyer" FontSize="18" FontWeight="SemiBold" />
                         <TextBlock x:Name="SummaryText" Text="Commencez par charger les rendez-vous du jour choisi." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <CommandBar Background="Transparent" DefaultLabelPosition="Right" HorizontalContentAlignment="Left">
                             <AppBarButton Label="Préparer" Icon="Refresh" Click="Prepare_Click" />
-                            <AppBarButton Label="Tout cocher" Icon="SelectAll" Click="SelectAll_Click" />
-                            <AppBarButton Label="Tout décocher" Icon="ClearSelection" Click="SelectNone_Click" />
-                            <AppBarButton Label="Envoyer la sélection" Icon="Send" Click="Send_Click" />
+                            <AppBarButton Label="Cocher les résultats" Icon="SelectAll" Click="SelectAll_Click" />
+                            <AppBarButton Label="Décocher les résultats" Icon="ClearSelection" Click="SelectNone_Click" />
+                            <AppBarButton Label="Envoyer les mails" Icon="Mail" Click="SendMail_Click" ToolTipService.ToolTip="Envoyer uniquement les mails cochés et visibles" />
+                            <AppBarButton Label="Envoyer les SMS" Icon="Message" Click="SendSms_Click" ToolTipService.ToolTip="Envoyer uniquement les SMS cochés et visibles" />
+                            <CommandBar.SecondaryCommands>
+                                <AppBarButton Label="Envoyer toute la sélection visible (mails et SMS)" Click="Send_Click" />
+                            </CommandBar.SecondaryCommands>
                         </CommandBar>
                     </StackPanel>
                     <Grid Grid.Row="2" ColumnSpacing="16" RowSpacing="12">
@@ -83,12 +96,13 @@
                             <ListView.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Spacing="6" Padding="8">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" Content="{Binding Channel}" />
-                                            <TextBlock Text="{Binding Contact}" VerticalAlignment="Center" />
-                                        </StackPanel>
+                                        <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" Content="{Binding Channel}" Checked="MessageSelection_Changed" Unchecked="MessageSelection_Changed" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Contact}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </Grid>
                                         <TextBlock Text="{Binding Family}" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Metrics}" />
+                                        <TextBlock Text="{Binding Subject}" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="{Binding Metrics}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </DataTemplate>
@@ -133,7 +147,13 @@
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <StackPanel Spacing="8">
-                        <TextBox x:Name="HistoryFilter" PlaceholderText="Rechercher un destinataire ou un statut…" AutomationProperties.Name="Rechercher dans l’historique" TextChanged="HistoryFilter_TextChanged" />
+                        <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="HistoryChannelFilter" Header="Canal" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="HistoryChannel_Changed">
+                                <ComboBoxItem Content="Tous les canaux" Tag="" /><ComboBoxItem Content="Mails" Tag="Mail" /><ComboBoxItem Content="SMS" Tag="SMS" />
+                            </ComboBox>
+                            <TextBox x:Name="HistoryFilter" Grid.Column="1" Header="Rechercher dans les envois" PlaceholderText="Destinataire, date ou statut…" TextChanged="HistoryFilter_TextChanged" />
+                        </Grid>
+                        <TextBlock x:Name="HistorySummary" Text="Aucun envoi enregistré." TextWrapping="Wrap" FontWeight="SemiBold" />
                         <CommandBar Background="Transparent" DefaultLabelPosition="Right">
                             <AppBarButton Label="Statuts SMS" Icon="Refresh" Click="History_Click" />
                             <AppBarButton Label="Retours mail" Icon="Mail" Click="MailReports_Click" />
@@ -146,15 +166,17 @@
                     <ListView x:Name="HistoryList" Grid.Row="1" SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Padding="4" Spacing="4">
-                                    <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <TextBlock Text="{Binding Channel}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Contact}" />
-                                        <TextBlock Text="{Binding CreatedAt}" />
+                                <Border Style="{StaticResource Card}" Margin="0,4" HorizontalAlignment="Stretch">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding Contact}" FontWeight="SemiBold" FontSize="16" TextWrapping="Wrap" />
+                                        <StackPanel Orientation="Horizontal" Spacing="16">
+                                            <TextBlock Text="{Binding Channel}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding CreatedAt}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                                        <Button Content="Lire le message envoyé" Click="HistoryMessage_Click" />
                                     </StackPanel>
-                                    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap" MaxHeight="100" />
-                                </StackPanel>
+                                </Border>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
