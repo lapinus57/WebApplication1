@@ -159,3 +159,28 @@ figure encore parmi les coordonnées connues. Les anciens journaux ne contiennen
 pas les identifiants familiaux : un lien avec une famille dont toutes les
 coordonnées ont changé ne peut pas être reconstitué. La protection reste locale
 au journal du poste, et dépend des familles/identifiants disponibles.
+
+## Aperçu des mails et horaires de rappel
+
+L’aperçu conserve sa hauteur compacte pour les SMS et s’agrandit pour les mails.
+Agrandir le mail ouvre un lecteur plus large adapté à la fenêtre. Les aperçus
+restent locaux, sans scripts ni ressources distantes ; le rendu final dépend du
+logiciel mail du destinataire.
+
+Paramètres > Horaires affichés dans les rappels permet de remplacer un créneau
+par un autre. Les exemples 11:30 → 11:20 et 18:00 → 17:50 sont proposés, désactivés
+par défaut. Activer les remplacements, modifier/ajouter/supprimer les règles,
+enregistrer les paramètres puis préparer les messages. Un raccourci Adapter les
+horaires des rappels figure dans le menu de chargement des envois.
+
+Ces règles s’appliquent à tous les rendez-vous correspondant à l’heure et à la
+minute d’origine, pour les SMS, les mails et les ICS. Le regroupement familial
+utilise les données d’origine ; aucune écriture n’est effectuée dans Access.
+Vérifier les horaires ajustés détaille les personnes et horaires avant/après pour
+la préparation courante. Les règles ne se cumulent pas : 11:30 → 11:20 n’applique
+pas ensuite une autre règle 11:20 → 11:10. Deux règles pour le même créneau sont
+refusées. Les rendez-vous hors des créneaux restent inchangés.
+
+Les clés anti-doublon ne dépendent pas de l’heure : modifier un horaire n’autorise
+pas à renvoyer un rappel déjà traité. Toute modification des règles exige une
+nouvelle préparation avant l’envoi.
