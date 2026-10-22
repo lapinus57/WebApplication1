@@ -27,6 +27,7 @@ namespace Client.Pages
         private List<PreparedMessage> _messages = new();
         private List<MessageHistoryEntry> _entries = new();
         private readonly ObservableCollection<AlertConfiguration> _alerts = new();
+        private readonly ObservableCollection<AppointmentTimeRule> _timeRules = new();
         private List<RdvFamille> _families = new();
         private Dictionary<int, List<(DateTime Date, DateTime? RdvTime, DateTime? ArrivalTime)>> _appointmentHistory = new();
         private readonly Dictionary<string, bool> _familyDecisions = new();
@@ -65,6 +66,9 @@ namespace Client.Pages
                 CalendarAlarmsCheck.IsChecked = _settings.SendCalendarAlarms;
                 CalendarBusyCheck.IsChecked = _settings.CalendarIsBusy;
                 CalendarSubjectText.Text = _settings.CalendarSubject;
+                AdjustTimesCheck.IsChecked = _settings.AdjustReminderTimes;
+                foreach (var rule in _settings.ReminderTimeRules) _timeRules.Add(rule);
+                TimeRulesList.ItemsSource = _timeRules;
                 foreach (var alert in _settings.Alerts) _alerts.Add(alert);
                 AlertsList.ItemsSource = _alerts;
                 SubjectText.Text = _settings.Subject;
@@ -96,6 +100,8 @@ namespace Client.Pages
             if (double.IsNaN(SmtpPortNumber.Value)) throw new InvalidOperationException("Renseignez le port SMTP.");
             return new SmsMailSettings
             {
+                AdjustReminderTimes = AdjustTimesCheck.IsChecked == true,
+                ReminderTimeRules = _timeRules.Select(r => new AppointmentTimeRule { From = r.From, To = r.To }).ToList(),
                 UseEyeEmailFamilies = UseFamiliesCheck.IsChecked == true, FamilyDatabasePath = FamilyDatabaseText.Text.Trim(),
                 SendCalendarInvites = CalendarInviteCheck.IsChecked == true,
                 SendCalendarAlarms = CalendarAlarmsCheck.IsChecked == true, CalendarIsBusy = CalendarBusyCheck.IsChecked == true,
@@ -254,6 +260,10 @@ namespace Client.Pages
             FamiliesList.ItemsSource = _families;
             AppointmentsList.ItemsSource = working;
             _messages = MessagePreparation.Prepare(working, day, _settings, _families);
+            var rules = _settings.AdjustReminderTimes ? ReminderTimes.Validate(_settings.ReminderTimeRules) : new();
+            var changes = working.Where(r => r.DateRDV.Date == day && !r.IsCancelled && ReminderTimes.Apply(r.HeureRDV, rules) != r.HeureRDV)
+                .Select(r => $"{r.Prenom} {r.Nom} : {r.HeureRDV:HH:mm} → {ReminderTimes.Apply(r.HeureRDV, rules):HH:mm}").ToList();
+            TimeChangesText.Text = changes.Count == 0 ? "Aucun horaire ajusté." : string.Join(Environment.NewLine, changes);
             _preparedSignature = MessagePreparation.PreparationSignature(_settings);
             await ReloadHistoryAsync();
             var sent = await _history.LoadReservedKeysAsync();
@@ -266,6 +276,45 @@ namespace Client.Pages
             FilterMessages();
             SummaryText.Text = $"{_messages.Count(m => m.Channel == "Mail")} mail(s), {_messages.Count(m => m.Channel == "SMS")} SMS";
             StatusText.Text = $"{_families.Count} famille(s) EyeEmail ; {_appointments.Count} RDV chargés, {_appointments.Count(r => r.IsCancelled)} annulé(s) exclus. Vérifiez les destinataires et les messages avant l'envoi.";
+        }
+
+        private void ReminderTimes_Click(object sender, RoutedEventArgs e)
+        {
+            Workspace.SelectedItem = SettingsTab;
+            ReminderTimesExpander.IsExpanded = true;
+            DispatcherQueue.TryEnqueue(() => ReminderTimesExpander.StartBringIntoView());
+        }
+        private void AddTimeRule_Click(object sender, RoutedEventArgs e) => _timeRules.Add(new AppointmentTimeRule());
+        private void RemoveTimeRule_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is AppointmentTimeRule rule) _timeRules.Remove(rule);
+            ClearMessages();
+        }
+        private async void LargePreview_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessagesList.SelectedItem is not PreparedMessage message) { StatusText.Text = "Sélectionnez un message dans le tableau."; return; }
+            await RunAsync(async () =>
+            {
+                var viewer = new WebView2 { Height = Math.Clamp(XamlRoot.Size.Height - 230, 160, 650) };
+                var panel = new StackPanel { Spacing = 12, Width = Math.Clamp(XamlRoot.Size.Width - 120, 240, 860) };
+                panel.Children.Add(new TextBlock { Text = message.Contact + " · " + message.Subject, TextWrapping = TextWrapping.Wrap });
+                panel.Children.Add(viewer);
+                var dialog = new ContentDialog { Title = "Aperçu du mail", Content = panel, CloseButtonText = "Fermer", XamlRoot = XamlRoot };
+                dialog.Resources["ContentDialogMaxWidth"] = 960.0;
+                dialog.Opened += async (_, _) =>
+                {
+                    try
+                    {
+                        await viewer.EnsureCoreWebView2Async();
+                        viewer.CoreWebView2.Settings.IsScriptEnabled = false;
+                        viewer.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
+                        viewer.CoreWebView2.NavigationStarting += (_, args) => { if (args.Uri != "about:blank") args.Cancel = true; };
+                        viewer.NavigateToString(PreviewDocument(message.Body));
+                    }
+                    catch { panel.Children.Remove(viewer); panel.Children.Add(new TextBlock { Text = "L’aperçu nécessite le composant Microsoft Edge WebView2.", TextWrapping = TextWrapping.Wrap }); }
+                };
+                try { await dialog.ShowAsync(); } finally { viewer.Close(); }
+            });
         }
 
         private async void Prepare_Click(object sender, RoutedEventArgs e) => await RunAsync(PrepareAsync);
@@ -588,17 +637,19 @@ namespace Client.Pages
                 _mailPreviewReady = true;
                 UpdateMessagePreview();
             }
-            catch (Exception) { PreviewCaption.Text = "Aperçu visuel indisponible. Le contenu HTML reste consultable ci-dessous."; MailPreview.Visibility = Visibility.Collapsed; MessagePreview.Visibility = Visibility.Visible; }
+            catch (Exception) { PreviewCaption.Text = "Aperçu visuel indisponible : vérifiez l’installation de Microsoft Edge WebView2."; MailPreview.Visibility = Visibility.Collapsed; MessagePreview.Visibility = Visibility.Visible; }
         }
 
         private void UpdateMessagePreview()
         {
-            if (MessagePreview == null || MailPreview == null) return;
+            if (MessagePreview == null || MailPreview == null || LargePreviewButton == null) return;
             var message = MessagesList.SelectedItem as PreparedMessage;
-            MessagePreview.Text = message?.Body ?? string.Empty;
+            MessagePreview.Text = message?.Channel == "Mail" ? "Chargement de l’aperçu du mail…" : message?.Body ?? string.Empty;
             PreviewCaption.Text = message == null ? "Sélectionnez un message pour le consulter ici."
                 : message.Channel == "Mail" ? message.Contact + " · " + message.Subject : message.Contact + " · " + message.Metrics;
             bool isMail = message?.Channel == "Mail";
+            LargePreviewButton.Visibility = isMail ? Visibility.Visible : Visibility.Collapsed;
+            PreviewRow.Height = new GridLength(isMail ? 340 : 200);
             MailPreview.Visibility = isMail ? Visibility.Visible : Visibility.Collapsed;
             MessagePreview.Visibility = isMail && _mailPreviewReady ? Visibility.Collapsed : Visibility.Visible;
             if (isMail && _mailPreviewReady)
@@ -625,6 +676,7 @@ namespace Client.Pages
             _preparedSignature = string.Empty;
             if (MessagesList != null) MessagesList.ItemsSource = null;
             UpdateMessagePreview();
+            if (TimeChangesText != null) TimeChangesText.Text = "Préparez les messages pour vérifier les horaires ajustés.";
             if (SummaryText != null) SummaryText.Text = "Préparez les messages avant l'envoi.";
         }
 

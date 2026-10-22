@@ -43,6 +43,7 @@ namespace Client.SmsMail.Services
         public static string PreparationSignature(SmsMailSettings settings) => JsonSerializer.Serialize(new
         {
             settings.Cabinet, settings.CabinetAddress, settings.Subject, settings.SmsTemplate, settings.EmailTemplate,
+            settings.AdjustReminderTimes, Rules = settings.ReminderTimeRules.Select(r => new { r.From, r.To }).ToArray(),
             settings.SmsOnlyWhenNoEmail, settings.UseEyeEmailFamilies, settings.FamilyDatabasePath,
             settings.AppointmentDurationMinutes, settings.CalendarTimeZone, settings.CalendarSubject,
             settings.SendCalendarInvites, settings.SendCalendarAlarms, settings.CalendarIsBusy,
@@ -69,6 +70,21 @@ namespace Client.SmsMail.Services
             var rdvs = appointments.Where(r => r.DateRDV.Date == date.Date && !r.IsCancelled).OrderBy(r => r.HeureRDV).ToList();
             var families = settings.UseEyeEmailFamilies ? (preparedFamilies?.ToList() ?? EyeEmailFamilyGrouping.Build(rdvs))
                 : rdvs.Select(r => { var family = new RdvFamille(); family.RDVs.Add(r); return family; }).ToList();
+            // Group on original appointment data; only reminder copies change time.
+            // Rules are applied once, so 11:30 -> 11:20 -> 11:10 never chains.
+            if (settings.AdjustReminderTimes)
+            {
+                var rules = ReminderTimes.Validate(settings.ReminderTimeRules);
+                var copies = families.SelectMany(f => f.RDVs).Distinct().ToDictionary(r => r,
+                    r => JsonSerializer.Deserialize<RdvInfo>(JsonSerializer.Serialize(r))!);
+                foreach (var copy in copies.Values) copy.HeureRDV = ReminderTimes.Apply(copy.HeureRDV, rules);
+                families = families.Select(f =>
+                {
+                    var copy = new RdvFamille { Numero = f.Numero };
+                    foreach (var row in f.RDVs) copy.RDVs.Add(copies[row]);
+                    return copy;
+                }).ToList();
+            }
             var familyKeys = new Dictionary<RdvInfo, List<string>>();
             var mailRows = new List<(RdvInfo Rdv, string Contact)>();
             var smsRows = new List<(RdvInfo Rdv, string Contact)>();

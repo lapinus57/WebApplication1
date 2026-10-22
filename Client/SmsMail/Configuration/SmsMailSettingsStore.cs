@@ -17,6 +17,8 @@ namespace Client.SmsMail.Configuration
         public string CabinetAddress { get; set; } = "37 rue de la République, 57320 BOUZONVILLE";
         public int AppointmentDurationMinutes { get; set; } = 30;
         public string CalendarTimeZone { get; set; } = "Europe/Paris";
+        public bool AdjustReminderTimes { get; set; }
+        public List<AppointmentTimeRule> ReminderTimeRules { get; set; } = new() { new(), new() { From = new TimeSpan(18, 0, 0), To = new TimeSpan(17, 50, 0) } };
         public bool UseEyeEmailFamilies { get; set; } = true;
         public string FamilyDatabasePath { get; set; } = string.Empty;
         public bool SendCalendarInvites { get; set; } = true;
