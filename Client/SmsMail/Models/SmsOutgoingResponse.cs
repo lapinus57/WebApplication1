@@ -24,7 +24,7 @@ namespace Client.SmsMail.Models
         public int? DifferedDelivery { get; set; }
 
         [JsonPropertyName("id")]
-        public int Id { get; set; }
+        public long Id { get; set; }
 
         [JsonPropertyName("message")]
         public string Message { get; set; } = string.Empty;
@@ -60,4 +60,5 @@ namespace Client.SmsMail.Models
         public string? Status { get; set; }
     }
 }
+
 

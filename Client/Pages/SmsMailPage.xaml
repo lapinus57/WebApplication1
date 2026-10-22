@@ -27,6 +27,7 @@
                             <Button Content="Solde SMS" Click="Balance_Click" VerticalAlignment="Bottom" />
                             <Button Content="Tester mail / SMS" Click="TestSend_Click" VerticalAlignment="Bottom" />
                         </StackPanel>
+                        <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par familles selon EyeEmail" Checked="Options_Changed" Unchecked="Options_Changed" />
                         <CheckBox x:Name="SmsOnlyNoEmail" Content="Envoyer un SMS uniquement en l'absence d'adresse mail valide"
                                   Checked="Options_Changed" Unchecked="Options_Changed" />
                     </StackPanel>
@@ -64,12 +65,35 @@
                     </Grid>
                 </Grid>
             </PivotItem>
+            <PivotItem Header="Familles EyeEmail">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Reconstituer les familles" Click="Prepare_Click" />
+                        <Button Content="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
+                        <Button Content="Comparer l'historique RDV" Click="HistoricalFamilies_Click" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Text="Vérifiez les personnes et coordonnées avant l'envoi. Les regroupements historiques proposés nécessitent votre validation." TextWrapping="Wrap" />
+                    <ListView x:Name="FamiliesList" Grid.Row="2" SelectionMode="None">
+                        <ListView.ItemTemplate><DataTemplate>
+                            <StackPanel Padding="8" Spacing="6">
+                                <TextBlock Text="{Binding Numero}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding MembersDisplay}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ContactsDisplay}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding MethodsDisplay}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate></ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </PivotItem>
             <PivotItem Header="Historique">
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel Spacing="8">
                         <TextBox x:Name="HistoryFilter" PlaceholderText="Filtrer par contact ou statut" Width="250" TextChanged="HistoryFilter_TextChanged" />
                         <Button Content="Actualiser les statuts SMS" Click="History_Click" />
+                        <Button Content="Retours mail (IMAP)" Click="MailReports_Click" />
+                        <Button Content="Importer historique EyeEmail" Click="ImportHistory_Click" />
                         <Button Content="Exporter CSV" Click="Export_Click" />
                     </StackPanel>
                     <ListView x:Name="HistoryList" Grid.Row="1" SelectionMode="None">
@@ -92,11 +116,13 @@
             <PivotItem Header="Modèles">
                 <ScrollViewer>
                     <StackPanel Spacing="12" Padding="0,0,16,16">
-                        <TextBlock Text="Variables : [PRENOMS], [CABINET], [ADRESSE_CABINET], [DATE], [DATE_LONGUE], [HEURE], [LISTE_PERSONNES]" TextWrapping="Wrap" />
+                        <TextBlock Text="Variables : [PRENOMS], [CABINET], [ADRESSE_CABINET], [DATE], [DATE_LONGUE], [DatejourL], [DatejourC], [HEURE], [LISTE_PERSONNES]" TextWrapping="Wrap" />
                         <TextBox x:Name="SubjectText" Header="Objet du mail" />
                         <TextBox x:Name="SmsTemplateText" Header="Modèle SMS" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
-                        <TextBox x:Name="EmailTemplateText" Header="Modèle e-mail HTML" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="240" />
-                        <TextBlock Text="Chaque mail contient une invitation calendrier (.ics), en heure de Paris." TextWrapping="Wrap" />
+                        <TextBox x:Name="EmailTemplateText" TextChanged="EmailHtml_Changed" Header="Modèle e-mail HTML" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="240" />
+                        <TextBlock Text="Éditeur visuel EyeEmail" FontSize="18" />
+                        <WebView2 x:Name="EmailEditor" Height="440" Loaded="EmailEditor_Loaded" />
+                        <TextBlock Text="Les options d’invitation et d’alertes calendrier se règlent dans Paramètres." TextWrapping="Wrap" />
                         <Button Content="Appliquer le modèle de rappel du cabinet" Click="ApplyEmailModel_Click" />
                         <Button Content="Enregistrer les modèles" Click="Save_Click" />
                     </StackPanel>
@@ -109,6 +135,25 @@
                         <TextBox x:Name="CabinetText" Header="Nom du cabinet" Width="550" />
                         <TextBox x:Name="CabinetAddressText" Header="Adresse du cabinet (mail et calendrier)" />
                         <NumberBox x:Name="DurationNumber" Header="Durée de chaque rendez-vous en minutes" Minimum="1" Maximum="480" Value="30" />
+                        <TextBlock Text="Familles EyeEmail" FontSize="18" FontWeight="SemiBold" />
+                        <TextBox x:Name="FamilyDatabaseText" Header="Base familles EyeEmail facultative (.mdb / .accdb)" />
+                        <Button Content="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
+                        <TextBlock Text="Invitation et alertes calendrier" FontSize="18" FontWeight="SemiBold" />
+                        <CheckBox x:Name="CalendarInviteCheck" Content="Joindre l'invitation ICS" />
+                        <CheckBox x:Name="CalendarAlarmsCheck" Content="Inclure les alertes calendrier" />
+                        <CheckBox x:Name="CalendarBusyCheck" Content="Marquer le créneau occupé" />
+                        <TextBox x:Name="CalendarSubjectText" Header="Objet de l'événement calendrier" />
+                        <ListView x:Name="AlertsList" SelectionMode="None">
+                            <ListView.ItemTemplate><DataTemplate>
+                                <StackPanel Spacing="4" Padding="0,4">
+                                    <TextBox Header="Libellé de l'alerte" Text="{Binding Label, Mode=TwoWay}" />
+                                    <NumberBox Header="Minutes avant le rendez-vous (1440 = 1 jour)" Value="{Binding OffsetMinutes, Mode=TwoWay}" Minimum="0" Maximum="525600" />
+                                    <TextBlock Text="{Binding OffsetDisplay}" />
+                                    <Button Content="Supprimer cette alerte" Click="DeleteAlert_Click" />
+                                </StackPanel>
+                            </DataTemplate></ListView.ItemTemplate>
+                        </ListView>
+                        <Button Content="Ajouter une alerte" Click="AddAlert_Click" />
                         <TextBlock Text="Compte SMS OVH" FontSize="18" FontWeight="SemiBold" />
                         <TextBox x:Name="SmsAccountText" Header="Nom du service SMS" />
                         <TextBox x:Name="SmsSenderText" Header="Expéditeur SMS autorisé par OVH" />
@@ -123,6 +168,10 @@
                         <PasswordBox x:Name="MailPasswordText" Header="Mot de passe SMTP" />
                         <TextBox x:Name="MailFromText" Header="Adresse d'envoi et de retour des notifications" />
                         <TextBox x:Name="MailDisplayText" Header="Nom de l'expéditeur" />
+                        <TextBlock Text="Notifications mail IMAP (facultatif, mêmes identifiants que SMTP)" TextWrapping="Wrap" />
+                        <TextBox x:Name="ImapHostText" Header="Serveur IMAP" />
+                        <NumberBox x:Name="ImapPortNumber" Header="Port IMAP TLS" Value="993" Minimum="1" Maximum="65535" />
+                        <TextBox x:Name="BounceFilterText" Header="Expéditeur des retours (ex. mailer-daemon)" />
                         <Button Content="Enregistrer les paramètres" Click="Save_Click" />
                         <Button Content="Tester mail / SMS" Click="TestSend_Click" />
                         <TextBlock Text="Paramètres et identifiants sont chiffrés pour votre compte Windows. L'historique reste sur ce poste." TextWrapping="Wrap" />
@@ -154,3 +203,4 @@
         </StackPanel>
     </Grid>
 </Page>
+

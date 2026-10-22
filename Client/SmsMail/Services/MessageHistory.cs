@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
@@ -64,6 +68,65 @@ namespace Client.SmsMail.Services
             await command.ExecuteNonQueryAsync();
         }
 
+        public async Task<int> ApplyReportAsync(MailDeliveryReport report, string smtpHost)
+        {
+            await using var connection = await OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE MessageHistory SET Status=$status WHERE MessageKey=$key AND Channel='Mail' AND lower(Contact)=$recipient AND ProviderService=$host";
+            command.Parameters.AddWithValue("$status", report.Status);
+            command.Parameters.AddWithValue("$key", report.MessageKey);
+            command.Parameters.AddWithValue("$recipient", report.Recipient.ToLowerInvariant());
+            command.Parameters.AddWithValue("$host", smtpHost);
+            return await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task<DateTimeOffset?> EarliestMailAsync(string smtpHost)
+        {
+            await using var connection = await OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT MIN(CreatedAt) FROM MessageHistory WHERE Channel='Mail' AND ProviderService=$host";
+            command.Parameters.AddWithValue("$host", smtpHost);
+            return DateTimeOffset.TryParse(Convert.ToString(await command.ExecuteScalarAsync()), out var date) ? date : null;
+        }
+
+        public async Task<int> ImportEyeEmailAsync(string path)
+        {
+            await using var source = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Mode = SqliteOpenMode.ReadOnly }.ToString());
+            await source.OpenAsync();
+            await using var destination = await OpenAsync();
+            using var transaction = destination.BeginTransaction();
+            int count = 0, sources = 0;
+            foreach (var kind in new[] { "Mail", "SMS" })
+            {
+                var table = kind == "Mail" ? "MailLog" : "SmsOutgoing";
+                using var exists = source.CreateCommand();
+                exists.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$name";
+                exists.Parameters.AddWithValue("$name", table);
+                if (Convert.ToInt32(await exists.ExecuteScalarAsync()) == 0) continue;
+                sources++;
+                using var select = source.CreateCommand();
+                select.CommandText = kind == "Mail" ? "SELECT Id, ToAddress, Body, Status, SentAt FROM MailLog" : "SELECT Id, Receiver, Message, Status, CreationDatetime FROM SmsOutgoing";
+                using var reader = await select.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    string Text(int column) => reader.IsDBNull(column) ? string.Empty : Convert.ToString(reader.GetValue(column), CultureInfo.InvariantCulture) ?? string.Empty;
+                    var rawDate = Text(4);
+                    if (!DateTimeOffset.TryParse(rawDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date))
+                        throw new InvalidDataException("Date invalide dans l'historique EyeEmail (" + table + ", ligne " + Text(0) + ").");
+                    var key = "eyeemail-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(kind + "|" + Text(0) + "|" + Text(1) + "|" + rawDate + "|" + Text(2))));
+                    using var insert = destination.CreateCommand(); insert.Transaction = transaction;
+                    insert.CommandText = "INSERT OR IGNORE INTO MessageHistory VALUES ($key,$kind,$contact,$body,$status,$date,NULL,'EyeEmail archive')";
+                    insert.Parameters.AddWithValue("$key", key); insert.Parameters.AddWithValue("$kind", kind);
+                    insert.Parameters.AddWithValue("$contact", Text(1)); insert.Parameters.AddWithValue("$body", Text(2));
+                    insert.Parameters.AddWithValue("$status", "[EyeEmail] " + Text(3)); insert.Parameters.AddWithValue("$date", date.ToUniversalTime().ToString("O"));
+                    count += await insert.ExecuteNonQueryAsync();
+                }
+            }
+            if (sources == 0) throw new InvalidDataException("Aucune table MailLog ou SmsOutgoing dans cet historique EyeEmail.");
+            transaction.Commit();
+            return count;
+        }
+
         public async Task<List<MessageHistoryEntry>> LoadAsync()
         {
             await using var connection = await OpenAsync();
@@ -81,3 +144,4 @@ namespace Client.SmsMail.Services
         }
     }
 }
+

@@ -1,122 +1,115 @@
-# SMS et mail
+# SMS et mail — référence EyeEmail
 
-L'onglet reprend les modèles `RdvInfo`, les requêtes et signatures OVH et les
-notifications SMTP de `lapinus57/smsmailv2Winui` (révision
-`e9a71754a6dcbd0fde67e6cf612a804d7cedfa06`). Le projet de référence contient
-encore des données de démonstration et des boutons non reliés : cette intégration
-les remplace par un parcours de chargement, préparation, sélection et envoi.
+L'onglet est aligné sur [lapinus57/EyeEmail](https://github.com/lapinus57/EyeEmail),
+révision `eb49ce0ffe175438150e6baa0fd1f6b719a1e5ae`. Il reprend son mappage des
+rendez-vous, la consolidation des doublons, les regroupements de familles,
+l'éditeur HTML local et les options calendrier. Le modèle fourni par le cabinet
+et le bouton de test sont conservés.
 
-## Première utilisation
+## Configuration et utilisation
 
-1. Configurer la base Access dans les paramètres RDV et les identifiants/fournisseur
-   Access dans les paramètres du poste, comme pour la recherche RDV.
-2. Dans **SMS et mail > Paramètres**, renseigner le cabinet, le compte OVH
-   (application key, application secret, consumer key, service SMS, expéditeur
-   autorisé) et le compte SMTP. Le port 587 utilise STARTTLS ; le SMTP implicite
-   sur le port 465 n'est pas pris en charge par `System.Net.Mail.SmtpClient`.
-3. Enregistrer les paramètres et adapter les modèles SMS et HTML.
-4. Choisir le jour puis charger les rendez-vous. La lecture utilise les tables
-   EyeSoft `ag_rdv` et `patients`, avec les mêmes colonnes que l'application SMS
-   d'origine. Le nom de table et les colonnes de date/heure viennent des paramètres
-   RDV existants. La base Access n'est pas modifiée.
-5. Vérifier les contacts et messages, cocher les envois souhaités puis confirmer.
+1. Configurer Access dans les paramètres RDV et les identifiants du poste.
+2. Renseigner le cabinet et les comptes OVH / SMTP dans SMS et mail > Paramètres.
+   SMTP utilise STARTTLS, généralement sur 587 ; le TLS implicite 465 n'est pas
+   pris en charge par le transport SMTP actuel.
+3. Adapter les modèles SMS et HTML, les options calendrier et les alarmes.
+   L'éditeur HTML fonctionne localement, sans service externe.
+4. Choisir le jour, charger les rendez-vous et préparer les messages.
+5. Vérifier les familles, contacts et messages ; sélectionner les envois puis confirmer.
 
-L'import JSON accepte également un tableau de `RdvInfo` :
+Les lectures Access ne modifient pas les bases. Le mappage accepte les alias
+EyeEmail, plusieurs adresses mail et les téléphones annotés. Les rendez-vous
+annulés et ABSENCE sont exclus. Les doublons d'un même patient et jour sont
+consolidés en conservant le premier horaire et les coordonnées complémentaires.
+Un tableau JSON de `RdvInfo` peut aussi être importé.
 
-```json
-[
-  {
-    "Nom": "Exemple",
-    "Prenom": "Camille",
-    "DateRDV": "2026-10-23T00:00:00",
-    "HeureRDV": "2026-10-23T09:30:00",
-    "Tel1": "",
-    "Email": ""
-  }
-]
-```
+## Familles EyeEmail
 
-Seuls les rendez-vous du jour sélectionné sont préparés. Les rendez-vous annulés
-et les lignes ABSENCE sont exclus lors du chargement Access. Les coordonnées
-partagées sont regroupées en un message par contact et par canal ; le premier
-horaire est utilisé et la liste HTML précise les horaires individuels. Aucune
-fusion n'est faite sur la seule ressemblance des noms ou adresses. Vérifier la
-sélection avant chaque envoi. Les numéros français 06/07 sont normalisés en +33 ;
-les numéros internationaux sont attendus au format +/00. Les mails multiples
-dans un champ sont reconnus. L'option « SMS uniquement en l'absence de mail »
-utilise la validité syntaxique des adresses, pas leur délivrabilité réelle.
+L'option de regroupement est activée par défaut. Les passes reprennent EyeEmail :
+téléphone/mail, adresse et ville, adresse, remarques, nom et date de création,
+puis historique si demandé. La liste Familles EyeEmail affiche les membres,
+contacts et méthodes utilisées. Vérifier les rapprochements avant l'envoi.
 
-Les variables disponibles sont `[PRENOMS]`, `[CABINET]`, `[DATE]`, `[DATE_LONGUE]`,
-`[HEURE]` et `[LISTE_PERSONNES]`. Le nombre de segments SMS est estimé sur le
-message final, en tenant compte du GSM étendu et de l'Unicode. La facturation
-réelle reste celle d'OVH.
+Une base familles Access facultative peut être choisie. Elle accepte
+`FamilyMembership(FamilyId, PersonId)` ou l'ancien
+`Patients(NumeroFamille, CodePatient)`, ainsi que `Person`, `ContactChannel` et
+`RefContactType`. Les périodes de validité sont prises en compte. Les familles
+connues priment sur les déductions ; une appartenance active contradictoire est
+signalée. La base reste en lecture seule.
 
-## Historique et données du poste
+Le bouton Comparer l'historique RDV lit les huit années précédant l'année
+courante. Chaque rapprochement historique proposé requiert une confirmation.
+Le regroupement est recalculé à la préparation. Désactiver l'option familles
+permet de revenir à la préparation par personne puis contact partagé.
+
+Les messages énumèrent tous les rendez-vous de la famille. L'option SMS seulement
+sans mail est évaluée au niveau de la famille, selon la validité syntaxique des
+adresses. Les numéros français mobiles sont normalisés en +33. Un contact commun
+reçoit un seul message par canal. Le nombre de segments SMS reste une estimation ;
+la facturation réelle est celle d'OVH.
+
+## Modèles et calendrier
+
+Variables : `[PRENOMS]`, `[CABINET]`, `[ADRESSE_CABINET]`, `[DATE]`,
+`[DATE_LONGUE]`, `[DatejourL]`, `[DatejourC]`, `[HEURE]`, `[LISTE_PERSONNES]`.
+La casse des variables est indifférente. DATE est longue dans le HTML et courte
+dans le SMS. Les modèles personnalisés existants sont conservés. Le bouton
+Appliquer le modèle de rappel du cabinet restaure volontairement le modèle fourni.
+
+L'invitation ICS est facultative. Elle utilise `METHOD:PUBLISH`, comme EyeEmail,
+un objet personnalisable, l'état occupé/libre et des alarmes DISPLAY configurables
+(en minutes avant le rendez-vous). Les alarmes peuvent être désactivées séparément.
+Les heures UTC sont calculées depuis Europe/Paris avec changement été/hiver.
+L'événement couvre du premier rendez-vous au dernier, augmenté de la durée
+configurée (30 minutes par défaut). Son UID est stable par jour/contact.
+Aucune réponse de participation n'est traitée. Le rendu dépend du logiciel mail ;
+la pièce jointe rendez-vous.ics reste importable.
+
+## Historique, retours et migration
 
 Les paramètres sont chiffrés par DPAPI pour l'utilisateur Windows dans
-`%LOCALAPPDATA%/EyeChat/SmsMail/settings.dat`. Aucune clé ou configuration privée
-du dépôt de référence n'est importée. Le journal SQLite `history.db`, au même
-endroit, contient les destinataires et messages ; il est local au poste et
-exportable en CSV. Les postes distincts ne partagent pas la protection contre
-les doublons.
+`%LOCALAPPDATA%/EyeChat/SmsMail/settings.dat`. Les comptes privés du dépôt de
+référence ne sont pas importés. `history.db` contient localement les destinataires
+et messages, exportables en CSV. Les postes ne partagent pas ce journal.
 
 Une réservation durable par jour/contact/canal précède chaque appel fournisseur.
-Un nouvel envoi est bloqué même après rechargement ou changement de modèle.
-Si l'application s'arrête ou si le réseau échoue pendant un envoi, l'historique
-demande de vérifier le résultat chez le fournisseur : aucun nouvel essai
-automatique ne risque de répéter le message. Un échec de journalisation après
-acceptation ne relance pas l'envoi. Le journal n'est pas effacé par l'interface.
+Elle protège des renvois après rechargement ou changement de modèle. Une issue
+réseau incertaine demande une vérification chez le fournisseur ; aucun nouvel
+essai automatique n'est effectué. Une acceptation SMTP/OVH ne prouve pas la réception.
 
-« Accepté par SMTP/OVH » ne signifie pas reçu. Le bouton d'actualisation récupère
-les statuts SMS OVH. Les notifications mail sont demandées à l'adresse d'envoi,
-mais leur disponibilité dépend du serveur destinataire ; elles se consultent
-dans la boîte mail. L'intégration ne supprime ni ne traite automatiquement les
-messages IMAP. Les anciens journaux SQL de SMSMail ne sont pas importés.
+Actualiser les statuts SMS interroge OVH. Retours mail (IMAP) lit les notifications
+avec le serveur, port et filtre expéditeur configurés et les identifiants SMTP.
+La boîte est ouverte en lecture seule : aucun mail supprimé ou marqué lu.
+Les DSN sont rapprochés par identifiant du message, destinataire et compte SMTP ;
+les retours non identifiables sont ignorés. Le fournisseur doit proposer IMAP
+avec ces identifiants et fournir des notifications exploitables.
 
-## Validation
+Importer historique EyeEmail lit les tables SQLite `MailLog` et `SmsOutgoing`
+en lecture seule. L'import est idempotent, étiqueté EyeEmail et conserve la source.
+Ces archives restent consultables mais ne bloquent pas les nouveaux rappels :
+leur date d'envoi ne permet pas de déduire sûrement le jour du rendez-vous.
+
+L'alignement porte sur l'onglet d'envoi. Les utilitaires autonomes d'import de
+patients et de reconstruction destructive de la base familles ne sont pas
+intégrés. Les actions de fusion/ajout simulées dans EyeEmail ne sont pas reprises.
+Les comptes configurables, le journal durable et la confirmation d'envoi sont
+conservés au lieu de copier les constantes et suppressions automatiques de la source.
+
+## Tester
+
+Tester mail / SMS accepte une adresse mail, un numéro ou les deux. Le test utilise
+les modèles et paramètres affichés, même non enregistrés, et un rendez-vous fictif
+demain à 10 h à Paris pour Utilisateur TEST. Le mail respecte les options ICS et
+alarmes. Les deux canaux sont testés même avec SMS seulement sans mail activé.
+Les résultats sont journalisés comme TEST ; ils ne bloquent pas les vrais rappels.
+Les SMS de test consomment les crédits habituels.
 
 ```sh
 dotnet run --project tests/SmsMail.Tests
 ```
 
-Ce programme de vérification teste préparation, coordonnées, regroupement,
-annulations, modèles HTML, segments SMS, réservation persistante et API OVH
-simulée (signature, crédits décimaux, soumission, erreurs, réception).
-Aucun message réel n'est envoyé. Le workflow Windows compile aussi le client
-WinUI pour les pull requests vers `master2`. La connexion à la base Access et
-les comptes réels doivent être vérifiés sur le poste Windows de déploiement.
-
-## Modèle du cabinet et invitation calendrier
-
-Le modèle HTML par défaut reprend le mail fourni : titre vert, rappel du cabinet,
-jour et heure, adresse et personnes concernées. La date, les personnes, l'heure,
-le cabinet et l'adresse sont remplacés par les données de l'envoi. La variable
-`[ADRESSE_CABINET]` est disponible. Le modèle standard précédent est migré à la
-lecture des paramètres ; les modèles personnalisés sont conservés. Le bouton
-« Appliquer le modèle de rappel du cabinet » permet de remplacer volontairement
-le modèle en cours, puis de l'enregistrer.
-
-Chaque mail comprend une invitation `text/calendar; method=REQUEST` et une pièce
-jointe `rendez-vous.ics`. Les dates UTC sont calculées depuis `Europe/Paris`, avec
-les heures d'été/hiver. La durée par défaut est de 30 minutes, modifiable dans les
-paramètres. Pour un contact partageant plusieurs RDV, l'événement couvre du
-premier horaire au dernier, augmenté de cette durée. L'organisateur est l'adresse
-d'envoi ; seul le destinataire courant est invité. Le UID reste identique pour
-le même jour/contact afin d'éviter les événements dupliqués lors de l'import.
-Aucune réponse de participation n'est demandée ni traitée. L'affichage de
-l'invitation dépend du logiciel mail ; la pièce jointe reste importable.
-
-## Tester les envois
-
-Le bouton **Tester mail / SMS**, présent dans les rendez-vous et les paramètres,
-ouvre deux champs facultatifs : adresse mail et numéro mobile. Renseigner l'un,
-l'autre ou les deux, puis **Envoyer le test**. Seuls ces contacts reçoivent un
-exemple, avec les modèles et paramètres actuellement affichés, même non encore
-enregistrés. Aucun chargement de rendez-vous ni de patient n'est nécessaire.
-L'exemple utilise « Utilisateur TEST » et un rendez-vous fictif demain à 10 h,
-heure de Paris. Le mail inclut l'invitation ICS. Les deux canaux sont testés même
-si l'option SMS uniquement sans mail est activée. Les résultats apparaissent par
-canal et sont enregistrés dans l'historique avec la mention TEST. Un nouveau test
-explicite reste possible ; il ne bloque pas les rappels réels. Les SMS de test
-consomment les crédits OVH habituels. Une acceptation fournisseur ne garantit pas
-la réception ; vérifier la boîte mail, les indésirables et le téléphone.
+Les vérifications couvrent mappage, familles, annulations, modèles, calendrier,
+réservations, import SQLite, analyse DSN et API OVH simulée. Aucun message réel
+n'est envoyé par les tests. Le workflow Windows compile le client WinUI sur les
+pull requests vers master2. Les bases Access réelles, comptes et rendu visuel
+restent à vérifier sur le poste Windows de déploiement.

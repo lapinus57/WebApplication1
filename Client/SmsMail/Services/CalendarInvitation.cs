@@ -38,17 +38,23 @@ namespace Client.SmsMail.Services
             }
             Line("BEGIN:VCALENDAR");
             Line("PRODID:-//EyeChat//Rappels de rendez-vous//FR");
-            Line("VERSION:2.0"); Line("CALSCALE:GREGORIAN"); Line("METHOD:REQUEST");
+            Line("VERSION:2.0"); Line("CALSCALE:GREGORIAN"); Line("METHOD:PUBLISH");
             Line("BEGIN:VEVENT");
             Line("UID:" + Escape(prepared.Key) + "@eyechaT.local");
             Line("DTSTAMP:" + Stamp(DateTime.UtcNow));
             Line("DTSTART:" + Stamp(start)); Line("DTEND:" + Stamp(end));
-            Line("SUMMARY:" + Escape(prepared.Subject));
+            Line("SUMMARY:" + Escape(string.IsNullOrWhiteSpace(prepared.CalendarSubject) ? prepared.Subject : prepared.CalendarSubject));
             Line("DESCRIPTION:" + Escape(prepared.CalendarDescription));
             Line("LOCATION:" + Escape(prepared.CalendarLocation));
             Line("ORGANIZER:mailto:" + from);
             Line("ATTENDEE;ROLE=REQ-PARTICIPANT;RSVP=FALSE:mailto:" + attendee);
-            Line("SEQUENCE:0"); Line("STATUS:CONFIRMED"); Line("TRANSP:OPAQUE");
+            Line("SEQUENCE:0"); Line("STATUS:CONFIRMED"); Line("TRANSP:" + (prepared.CalendarIsBusy ? "OPAQUE" : "TRANSPARENT"));
+            foreach (var alarm in prepared.CalendarAlarms)
+            {
+                if (alarm.OffsetMinutes < 0 || alarm.OffsetMinutes > 525600) throw new InvalidOperationException("Une alerte calendrier doit être comprise entre 0 et 525600 minutes avant le rendez-vous.");
+                Line("BEGIN:VALARM"); Line("TRIGGER:-PT" + alarm.OffsetMinutes.ToString(CultureInfo.InvariantCulture) + "M");
+                Line("ACTION:DISPLAY"); Line("DESCRIPTION:" + Escape(alarm.Label)); Line("END:VALARM");
+            }
             Line("END:VEVENT"); Line("END:VCALENDAR");
             return result.ToString();
         }
@@ -57,3 +63,4 @@ namespace Client.SmsMail.Services
             .Replace("\r", "\n").Replace("\n", "\\n").Replace(";", "\\;").Replace(",", "\\,");
     }
 }
+

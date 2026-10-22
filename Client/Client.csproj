@@ -23,6 +23,9 @@
     <None Remove="Pages\SystemPage.xaml" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Assets\EmailEditor\index.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\earth.png" />
     <Content Include="Assets\EyeChat.png" />
     <Content Include="Assets\secretaria.png" />
@@ -58,6 +61,7 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Data.OleDb" Version="8.0.0" />
+    <PackageReference Include="MailKit" Version="4.18.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.22" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
@@ -97,4 +101,5 @@
     <AppxBundlePlatforms>x86</AppxBundlePlatforms>
   </PropertyGroup>
 </Project>
+
 
