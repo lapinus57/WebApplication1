@@ -290,12 +290,13 @@ namespace Client.Pages
             if ((sender as FrameworkElement)?.DataContext is AppointmentTimeRule rule) _timeRules.Remove(rule);
             ClearMessages();
         }
-        private async void LargePreview_Click(object sender, RoutedEventArgs e)
+        private void PreparationOptions_Click(object sender, RoutedEventArgs e)
         {
-            if (MessagesList.SelectedItem is not PreparedMessage message) { StatusText.Text = "Sélectionnez un message dans le tableau."; return; }
-            await RunAsync(() => ShowTextPreviewAsync(message.Channel, message.Contact + " · " + message.Subject, message.Body));
+            Workspace.SelectedItem = SettingsTab;
+            PreparationExpander.IsExpanded = true;
+            DispatcherQueue.TryEnqueue(() => PreparationExpander.StartBringIntoView());
         }
-
+        private async void ReviewTimes_Click(object sender, RoutedEventArgs e) => await RunAsync(() => ShowTextPreviewAsync("SMS", "Horaires réels → heures d’arrivée annoncées", TimeChangesText.Text));
         private async Task ShowTextPreviewAsync(string channel, string caption, string body)
         {
             var text = new TextBox
@@ -521,18 +522,20 @@ namespace Client.Pages
         private void FilterMessages()
         {
             if (MessagesList == null || SendChannelFilter == null || SendSearch == null) return;
-            var current = MessagesList.SelectedItem;
+
             var visible = VisibleMessages();
             MessagesList.ItemsSource = null;
             MessagesList.ItemsSource = visible;
-            MessagesList.SelectedItem = current is PreparedMessage message && visible.Contains(message) ? message : visible.FirstOrDefault();
+
             UpdateSelectionSummary();
         }
         private void UpdateSelectionSummary()
         {
-            if (SelectionSummary == null) return;
+            if (SelectionSummary == null || EmptyMessagesPanel == null) return;
             var visible = VisibleMessages();
             var selected = MessageSelection.ForSending(visible);
+            EmptyMessagesPanel.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            EmptyMessagesText.Text = _messages.Count == 0 ? "Vos messages apparaîtront ici" : "Aucun résultat pour ces filtres";
             SelectionSummary.Text = _messages.Count == 0 ? "Aucun message préparé. Chargez les rendez-vous pour commencer."
                 : visible.Count == 0 ? "Aucun message ne correspond aux filtres."
                 : $"{visible.Count} affiché(s) sur {_messages.Count} · À envoyer : {selected.Count(m => m.Channel == "Mail")} mail(s) et {selected.Count(m => m.Channel == "SMS")} SMS";
@@ -592,20 +595,6 @@ namespace Client.Pages
             StatusText.Text = $"Statuts SMS actualisés ; {errors} statut(s) indisponible(s). Utilisez Retours mail (IMAP) pour lire les notifications mail.";
         });
 
-        private void UpdateMessagePreview()
-        {
-            if (MessagePreview == null || LargePreviewButton == null) return;
-            var message = MessagesList.SelectedItem as PreparedMessage;
-            bool isMail = message?.Channel == "Mail";
-            MessagePreview.Text = isMail ? MailTextPreview.Convert(message!.Body) : message?.Body ?? string.Empty;
-            PreviewCaption.Text = message == null ? "Sélectionnez un message pour le consulter ici."
-                : isMail ? message.Contact + " · " + message.Subject + " — Aperçu texte ; le mail sera envoyé en HTML."
-                : message.Contact + " · " + message.Metrics;
-            LargePreviewButton.Visibility = isMail ? Visibility.Visible : Visibility.Collapsed;
-            PreviewRow.Height = new GridLength(isMail ? 300 : 200);
-        }
-
-        private void MessagesList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateMessagePreview();
         private void SelectAll_Click(object sender, RoutedEventArgs e) => SetMessageSelection(true);
         private void SelectNone_Click(object sender, RoutedEventArgs e) => SetMessageSelection(false);
         private void SetMessageSelection(bool selected)
@@ -622,7 +611,7 @@ namespace Client.Pages
             UpdateSelectionSummary();
             _preparedSignature = string.Empty;
             if (MessagesList != null) MessagesList.ItemsSource = null;
-            UpdateMessagePreview();
+
             if (TimeChangesText != null) TimeChangesText.Text = "Préparez les messages pour vérifier les horaires ajustés.";
             if (SummaryText != null) SummaryText.Text = "Préparez les messages avant l'envoi.";
         }
