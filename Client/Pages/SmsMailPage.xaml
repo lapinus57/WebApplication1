@@ -78,16 +78,16 @@
                                             <TextBlock Grid.Column="4" Text="{Binding Contact}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,12,0" />
                                             <StackPanel Grid.Column="5" Spacing="6" Margin="0,4,16,0">
                                                 <TextBlock Text="{Binding TableSummary}" TextWrapping="Wrap" IsTextSelectionEnabled="True" LineHeight="21" />
-                                                <HyperlinkButton Content="Détails du mail" FontSize="12" Padding="0" MinHeight="0" HorizontalAlignment="Left" Visibility="{Binding Channel, Converter={StaticResource MailChannelVisibility}}">
-                                                    <HyperlinkButton.Flyout><Flyout Opening="MailDetails_Opening">
+                                                <Button Background="Transparent" BorderThickness="0" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Content="Détails du mail" FontSize="12" Padding="0" MinHeight="0" HorizontalAlignment="Left" Visibility="{Binding Channel, Converter={StaticResource MailChannelVisibility}}">
+                                                    <Button.Flyout><Flyout Opening="MailDetails_Opening">
                                                         <ScrollViewer MaxHeight="420" MaxWidth="540">
                                                             <StackPanel Spacing="8">
                                                                 <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                                                 <TextBlock Text="{Binding BodyDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" LineHeight="21" />
                                                             </StackPanel>
                                                         </ScrollViewer>
-                                                    </Flyout></HyperlinkButton.Flyout>
-                                                </HyperlinkButton>
+                                                    </Flyout></Button.Flyout>
+                                                </Button>
                                             </StackPanel>
                                             <TextBlock Grid.Column="6" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                         </Grid>
