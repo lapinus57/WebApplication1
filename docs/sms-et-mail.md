@@ -105,3 +105,18 @@ d'envoi ; seul le destinataire courant est invité. Le UID reste identique pour
 le même jour/contact afin d'éviter les événements dupliqués lors de l'import.
 Aucune réponse de participation n'est demandée ni traitée. L'affichage de
 l'invitation dépend du logiciel mail ; la pièce jointe reste importable.
+
+## Tester les envois
+
+Le bouton **Tester mail / SMS**, présent dans les rendez-vous et les paramètres,
+ouvre deux champs facultatifs : adresse mail et numéro mobile. Renseigner l'un,
+l'autre ou les deux, puis **Envoyer le test**. Seuls ces contacts reçoivent un
+exemple, avec les modèles et paramètres actuellement affichés, même non encore
+enregistrés. Aucun chargement de rendez-vous ni de patient n'est nécessaire.
+L'exemple utilise « Utilisateur TEST » et un rendez-vous fictif demain à 10 h,
+heure de Paris. Le mail inclut l'invitation ICS. Les deux canaux sont testés même
+si l'option SMS uniquement sans mail est activée. Les résultats apparaissent par
+canal et sont enregistrés dans l'historique avec la mention TEST. Un nouveau test
+explicite reste possible ; il ne bloque pas les rappels réels. Les SMS de test
+consomment les crédits OVH habituels. Une acceptation fournisseur ne garantit pas
+la réception ; vérifier la boîte mail, les indésirables et le téléphone.

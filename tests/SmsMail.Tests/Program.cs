@@ -107,11 +107,29 @@ using (var email = new MailService(mailSettings).CreateMessage(invitation))
     Check(email.AlternateViews.Single().ContentType.Parameters["method"] == "REQUEST", "Calendar MIME alternative is a request");
     Check(email.Attachments.Single().Name == "rendez-vous.ics" && email.Attachments.Single().ContentType.MediaType == "text/calendar", "ICS file attached");
     using var reader = new StreamReader(email.Attachments.Single().ContentStream);
-    Check(reader.ReadToEnd() == ics, "Calendar attachment matches invitation contents");
+    string WithoutStamp(string value) => string.Join("\r\n", value.Split("\r\n").Where(line => !line.StartsWith("DTSTAMP:")));
+    Check(WithoutStamp(reader.ReadToEnd()) == WithoutStamp(ics), "Calendar attachment matches invitation contents");
 }
 invitation.CalendarStart = new DateTime(2026, 3, 29, 2, 30, 0); invitation.CalendarEnd = invitation.CalendarStart.AddHours(1);
 try { CalendarInvitation.Create(invitation, "cabinet@example.com"); throw new Exception("Invalid DST time accepted"); }
 catch (InvalidOperationException) { checks++; }
+var testSettings = new SmsMailSettings { SmsOnlyWhenNoEmail = true };
+var mailOnly = TestMessagePreparation.Create(testSettings, "essai@example.com", "", day);
+Check(mailOnly.Count == 1 && mailOnly[0].Channel == "Mail" && mailOnly[0].Contact == "essai@example.com", "Mail-only test targets the entered address");
+var smsOnly = TestMessagePreparation.Create(testSettings, "", "06 12 34 56 78", day);
+Check(smsOnly.Count == 1 && smsOnly[0].Channel == "SMS" && smsOnly[0].Contact == "+33612345678", "SMS-only test normalises the entered number");
+var bothTests = TestMessagePreparation.Create(testSettings, "essai@example.com", "0612345678", day);
+Check(bothTests.Count == 2 && testSettings.SmsOnlyWhenNoEmail, "Both channels tested without changing fallback settings");
+Check(bothTests.All(m => m.Body.Contains("TEST") && m.Subject.StartsWith("[TEST]")), "Tests are explicitly marked");
+Check(bothTests.All(m => m.CalendarStart == day.AddDays(1).AddHours(10) && m.Family == "Utilisateur TEST"), "Only a fictitious appointment is used");
+Check(TestMessagePreparation.Create(testSettings, "essai@example.com", "", day)[0].Key != mailOnly[0].Key, "Explicit tests can be repeated without blocking real reminders");
+foreach (var input in new[] { ("", ""), ("invalid", ""), ("a@example.com;b@example.com", ""), ("", "0123456789") })
+{
+    try { TestMessagePreparation.Create(testSettings, input.Item1, input.Item2, day); throw new Exception("Invalid test destination accepted"); }
+    catch (InvalidOperationException) { checks++; }
+}
+using (var testEmail = new MailService(mailSettings).CreateMessage(mailOnly[0]))
+    Check(testEmail.Attachments.Single().Name == "rendez-vous.ics", "Test mail includes its calendar invitation");
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler

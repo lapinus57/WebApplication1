@@ -166,6 +166,81 @@ namespace Client.Pages
             StatusText.Text = $"Solde OVH : {balance} crédit(s) SMS.";
         });
 
+        private async void TestSend_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            var email = new TextBox { Header = "Adresse mail de test (facultative)", PlaceholderText = "vous@exemple.fr", MinWidth = 320 };
+            var phone = new TextBox { Header = "Numéro mobile de test (facultatif)", PlaceholderText = "06… ou +33…" };
+            var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            var panel = new StackPanel { Spacing = 12 };
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Saisissez une adresse mail, un numéro, ou les deux. Les modèles et paramètres actuellement affichés seront utilisés pour un rendez-vous fictif demain à 10 h (heure de Paris). Le mail inclut l'invitation .ics. L'envoi SMS consomme les crédits habituels.",
+                TextWrapping = TextWrapping.Wrap
+            });
+            panel.Children.Add(email); panel.Children.Add(phone); panel.Children.Add(error);
+            var dialog = new ContentDialog
+            {
+                Title = "Tester le mail et les SMS", Content = panel, PrimaryButtonText = "Envoyer le test",
+                CloseButtonText = "Annuler", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot
+            };
+            List<PreparedMessage>? prepared = null;
+            SmsMailSettings? settings = null;
+            dialog.PrimaryButtonClick += (_, args) =>
+            {
+                try
+                {
+                    settings = ReadSettings();
+                    var zone = TimeZoneInfo.FindSystemTimeZoneById(settings.CalendarTimeZone);
+                    var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date;
+                    prepared = TestMessagePreparation.Create(settings, email.Text, phone.Text, today);
+                    if (prepared.Any(m => m.Channel == "SMS")) new SmsService(settings.Sms).Validate();
+                    if (prepared.Any(m => m.Channel == "Mail"))
+                    {
+                        var mail = new MailService(settings.Email);
+                        mail.Validate();
+                        foreach (var item in prepared.Where(m => m.Channel == "Mail"))
+                            using (mail.CreateMessage(item)) { }
+                    }
+                }
+                catch (Exception ex) { args.Cancel = true; error.Text = ex.Message; }
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary || prepared == null || settings == null) return;
+            var outcomes = new List<string>();
+            foreach (var message in prepared)
+            {
+                if (_unloaded) break;
+                if (!await _history.ReserveAsync(message)) continue;
+                string status;
+                long? providerId = null;
+                try
+                {
+                    if (message.Channel == "Mail")
+                    {
+                        await new MailService(settings.Email).SendAsync(message);
+                        status = "[TEST] Accepté par SMTP — réception non confirmée";
+                    }
+                    else
+                    {
+                        var response = await new SmsService(settings.Sms).SendSmsAsync(message.Contact, message.Body);
+                        if (response.Ids.Length > 0 && response.ValidReceivers.Length > 0)
+                        {
+                            providerId = response.Ids[0];
+                            status = "[TEST] Accepté par OVH — réception en attente";
+                        }
+                        else status = "[TEST] Non accepté par OVH — vérifier le compte";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    status = "[TEST] Résultat non confirmé — vérifier le compte avant un nouvel essai. " + ex.Message;
+                }
+                await _history.UpdateAsync(message.Key, status, providerId);
+                outcomes.Add($"{message.Channel} vers {message.Contact} : {status}");
+            }
+            await ReloadHistoryAsync();
+            StatusText.Text = string.Join(Environment.NewLine, outcomes);
+        });
+
         private async void Send_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             var selected = _messages.Where(m => m.Selected).ToList();

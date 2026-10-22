@@ -25,6 +25,7 @@
                             <Button Content="Charger les rendez-vous" Click="Load_Click" VerticalAlignment="Bottom" />
                             <Button Content="Importer JSON" Click="Import_Click" VerticalAlignment="Bottom" />
                             <Button Content="Solde SMS" Click="Balance_Click" VerticalAlignment="Bottom" />
+                            <Button Content="Tester mail / SMS" Click="TestSend_Click" VerticalAlignment="Bottom" />
                         </StackPanel>
                         <CheckBox x:Name="SmsOnlyNoEmail" Content="Envoyer un SMS uniquement en l'absence d'adresse mail valide"
                                   Checked="Options_Changed" Unchecked="Options_Changed" />
@@ -123,6 +124,7 @@
                         <TextBox x:Name="MailFromText" Header="Adresse d'envoi et de retour des notifications" />
                         <TextBox x:Name="MailDisplayText" Header="Nom de l'expéditeur" />
                         <Button Content="Enregistrer les paramètres" Click="Save_Click" />
+                        <Button Content="Tester mail / SMS" Click="TestSend_Click" />
                         <TextBlock Text="Paramètres et identifiants sont chiffrés pour votre compte Windows. L'historique reste sur ce poste." TextWrapping="Wrap" />
                     </StackPanel>
                 </ScrollViewer>
