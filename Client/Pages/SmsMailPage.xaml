@@ -3,8 +3,10 @@
     x:Class="Client.Pages.SmsMailPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:models="using:Client.SmsMail.Models">
+    xmlns:models="using:Client.SmsMail.Models"
+    xmlns:local="using:Client.Pages">
     <Page.Resources>
+        <local:MailChannelVisibilityConverter x:Key="MailChannelVisibility" />
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
             <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
@@ -42,12 +44,19 @@
                     </CommandBar>
                     <Grid Grid.Row="1" RowSpacing="8" ColumnSpacing="12">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <ComboBox x:Name="SendChannelFilter" AutomationProperties.Name="Filtrer les envois par canal" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="SendFilter_Changed">
                             <ComboBoxItem Content="Tous les messages" Tag="" /><ComboBoxItem Content="Mails" Tag="Mail" /><ComboBoxItem Content="SMS" Tag="SMS" />
                         </ComboBox>
                         <TextBox x:Name="SendSearch" Grid.Column="1" AutomationProperties.Name="Rechercher un destinataire" PlaceholderText="Rechercher un nom, une adresse mail ou un téléphone…" TextChanged="SendSearch_Changed" />
-                        <TextBlock x:Name="SummaryText" Grid.Row="1" Grid.ColumnSpan="2" Text="Choisissez un jour, puis chargez les rendez-vous." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="SmsFamilySizeFilter" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="Nombre minimum de personnes pour envoyer un SMS" SelectionChanged="SmsFamilySize_Changed" ToolTipService.ToolTip="Personnes ayant un rendez-vous ce jour dans la famille regroupée. Le seuil ne limite pas les mails.">
+                                <ComboBoxItem Content="SMS : 1 (toutes)" /><ComboBoxItem Content="SMS : 2 et plus" /><ComboBoxItem Content="SMS : 3+" />
+                            </ComboBox>
+                            <CheckBox x:Name="SmsOnlyNoEmail" Grid.Column="1" Content="Pas de SMS si la famille a un mail valide" Checked="Options_Changed" Unchecked="Options_Changed" />
+                        </Grid>
+                        <TextBlock x:Name="SummaryText" Grid.Row="2" Grid.ColumnSpan="2" Text="Choisissez un jour, puis chargez les rendez-vous." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </Grid>
                     <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
                         <Grid>
@@ -58,13 +67,13 @@
                                 <TextBlock Grid.Column="2" Text="Canal" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="3" Text="Personnes" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="4" Text="Destinataire" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="5" Text="Message" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="5" Text="Résumé / message" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="6" Text="Statut" FontWeight="SemiBold" />
                             </Grid>
                             <ListView x:Name="MessagesList" Grid.Row="1" AutomationProperties.Name="Tableau des messages à envoyer" SelectionMode="None" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible">
                                 <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="0" /></Style></ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate><DataTemplate>
-                                    <Border Padding="12,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                    <Border Padding="12,6" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                                         <Grid MinHeight="44"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="86" /><ColumnDefinition Width="60" /><ColumnDefinition Width="1.3*" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="3*" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
                                             <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" IsEnabled="{Binding CanSend}" AutomationProperties.Name="{Binding Contact}" Checked="MessageSelection_Changed" Unchecked="MessageSelection_Changed" VerticalAlignment="Top" />
                                             <StackPanel Grid.Column="1" Spacing="4" Margin="0,4,8,0">
@@ -74,7 +83,19 @@
                                             <TextBlock Grid.Column="2" Text="{Binding Channel}" FontWeight="SemiBold" Margin="0,4,8,0" />
                                             <TextBlock Grid.Column="3" Text="{Binding PeopleDisplay}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,12,0" />
                                             <TextBlock Grid.Column="4" Text="{Binding Contact}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,12,0" />
-                                            <TextBlock Grid.Column="5" Text="{Binding BodyDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,16,0" LineHeight="21" />
+                                            <StackPanel Grid.Column="5" Spacing="6" Margin="0,4,16,0">
+                                                <TextBlock Text="{Binding TableSummary}" TextWrapping="Wrap" IsTextSelectionEnabled="True" LineHeight="21" />
+                                                <Button Background="Transparent" BorderThickness="0" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Content="Détails du mail" FontSize="12" Padding="0" MinHeight="0" HorizontalAlignment="Left" Visibility="{Binding Channel, Converter={StaticResource MailChannelVisibility}}">
+                                                    <Button.Flyout><Flyout Opening="MailDetails_Opening">
+                                                        <ScrollViewer MaxHeight="420" MaxWidth="540">
+                                                            <StackPanel Spacing="8">
+                                                                <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding BodyDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" LineHeight="21" />
+                                                            </StackPanel>
+                                                        </ScrollViewer>
+                                                    </Flyout></Button.Flyout>
+                                                </Button>
+                                            </StackPanel>
                                             <TextBlock Grid.Column="6" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                         </Grid>
                                     </Border>
@@ -108,23 +129,57 @@
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <CommandBar Background="Transparent" DefaultLabelPosition="Right">
-                        <AppBarButton Label="Reconstituer les familles" Icon="Refresh" Click="Prepare_Click" />
+                        <AppBarButton Label="Actualiser les familles" Icon="Refresh" Click="Prepare_Click" />
                         <CommandBar.SecondaryCommands>
                             <AppBarButton Label="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
                             <AppBarButton Label="Comparer l’historique RDV" Click="HistoricalFamilies_Click" />
                         </CommandBar.SecondaryCommands>
                     </CommandBar>
-                    <TextBlock Grid.Row="1" Text="Vérifiez les personnes et coordonnées avant l'envoi. Les regroupements historiques proposés nécessitent votre validation." TextWrapping="Wrap" />
-                    <ListView x:Name="FamiliesList" Grid.Row="2" SelectionMode="None">
-                        <ListView.ItemTemplate><DataTemplate>
-                            <StackPanel Padding="8" Spacing="6">
-                                <TextBlock Text="{Binding Numero}" FontWeight="SemiBold" />
-                                <TextBlock Text="{Binding MembersDisplay}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding ContactsDisplay}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding MethodsDisplay}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </DataTemplate></ListView.ItemTemplate>
-                    </ListView>
+                    <Grid Grid.Row="1" RowSpacing="8" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <ComboBox x:Name="FamilySizeFilter" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="Afficher les familles selon leur taille" SelectionChanged="FamilySize_Changed">
+                            <ComboBoxItem Content="Toutes les familles" /><ComboBoxItem Content="1 personne" /><ComboBoxItem Content="2 personnes et +" /><ComboBoxItem Content="3 personnes et +" />
+                        </ComboBox>
+                        <TextBox x:Name="FamilySearch" Grid.Column="1" PlaceholderText="Rechercher une personne, un téléphone, un mail ou une famille…" AutomationProperties.Name="Rechercher une famille" TextChanged="FamilySearch_Changed" />
+                        <TextBlock x:Name="FamiliesSummary" Grid.Row="1" Grid.ColumnSpan="2" Text="Chargez et préparez les rendez-vous pour consulter les familles." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Grid>
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                            <Grid Padding="12,12,28,12" Background="{ThemeResource ControlFillColorSecondaryBrush}"><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="2.5*" /><ColumnDefinition Width="1.4*" /><ColumnDefinition Width="1.8*" /><ColumnDefinition Width="1.3*" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="Famille" FontWeight="SemiBold" />
+                                <Grid Grid.Column="1" Margin="0,0,16,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="56" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Personnes" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="RDV ↑" FontWeight="SemiBold" ToolTipService.ToolTip="Horaires réels des rendez-vous ; familles classées par premier RDV" />
+                                </Grid>
+                                <TextBlock Grid.Column="2" Text="Téléphones" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="3" Text="Mails" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="4" Text="Regroupement" TextWrapping="Wrap" FontWeight="SemiBold" />
+                            </Grid>
+                            <ListView x:Name="FamiliesList" Grid.Row="1" SelectionMode="None" AutomationProperties.Name="Tableau des familles" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="0" /></Style></ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate><DataTemplate>
+                                    <Border Padding="12,12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="2.5*" /><ColumnDefinition Width="1.4*" /><ColumnDefinition Width="1.8*" /><ColumnDefinition Width="1.3*" /></Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="4" Margin="0,0,12,0"><TextBlock Text="{Binding TitleDisplay}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="{Binding CountDisplay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" /></StackPanel>
+                                            <ItemsControl Grid.Column="1" ItemsSource="{Binding MemberRows}" Margin="0,0,16,0">
+                                                <ItemsControl.ItemTemplate><DataTemplate>
+                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="56" /></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,8,0" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Time}" />
+                                                    </Grid>
+                                                </DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Grid.Column="2" Text="{Binding PhonesDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,12,0" />
+                                            <TextBlock Grid.Column="3" Text="{Binding EmailsDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,12,0" />
+                                            <TextBlock Grid.Column="4" Text="{Binding GroupingDisplay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate></ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock x:Name="FamiliesEmpty" Grid.Row="1" Text="Aucune famille à afficher." FontSize="18" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24" IsHitTestVisible="False" />
+                        </Grid>
+                    </Border>
                 </Grid>
             </PivotItem>
             <PivotItem Header="Historique">
@@ -210,7 +265,7 @@
                     </Expander>
                     <Expander x:Name="PreparationExpander" Header="Préparation des rappels et familles" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par famille" Checked="Options_Changed" Unchecked="Options_Changed" />
-                        <CheckBox x:Name="SmsOnlyNoEmail" Content="Envoyer un SMS seulement si la famille n’a pas de mail valide" Checked="Options_Changed" Unchecked="Options_Changed" />
+                        <TextBlock Text="Le seuil de personnes et l’option SMS sans mail se règlent directement dans Envois." TextWrapping="Wrap" />
                         <TextBlock Text="Un seul SMS par famille et par jour de rendez-vous. Le numéro retenu est visible dans le tableau." TextWrapping="Wrap" />
                         <TextBlock Text="Familles EyeEmail" FontSize="18" FontWeight="SemiBold" />
                         <TextBox x:Name="FamilyDatabaseText" Header="Base familles EyeEmail facultative (.mdb / .accdb)" />

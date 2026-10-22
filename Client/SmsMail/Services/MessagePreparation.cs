@@ -25,7 +25,16 @@ namespace Client.SmsMail.Services
         public DateTime AppointmentStart { get; set; }
         public string AppointmentTimeDisplay => AppointmentStart.ToString("HH:mm", CultureInfo.InvariantCulture);
         public string ArrivalHint => CalendarStart == AppointmentStart ? string.Empty : "Arrivée " + CalendarStart.ToString("HH:mm", CultureInfo.InvariantCulture);
-        public string BodyDisplay => Channel == "Mail" ? MailTextPreview.Convert(Body) : Body;
+        public string BodyDisplay => Channel == "Mail" ? MailTextPreview.ForTable(Body, PeopleDisplay) : Body;
+        public string CabinetDisplay { get; set; } = string.Empty;
+        public string AddressDisplay { get; set; } = string.Empty;
+        public string TableSummary => Channel != "Mail" || CalendarStart == default ? BodyDisplay
+            : string.Join(Environment.NewLine, new[]
+            {
+                (Subject.StartsWith("[TEST]", StringComparison.Ordinal) ? "[TEST] " : string.Empty)
+                    + CalendarStart.ToString("dddd dd/MM/yyyy · HH:mm", CultureInfo.GetCultureInfo("fr-FR")),
+                CabinetDisplay, AddressDisplay
+            }.Where(line => !string.IsNullOrWhiteSpace(line)));
         public string Subject { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
         public string Key { get; set; } = string.Empty;
@@ -49,7 +58,7 @@ namespace Client.SmsMail.Services
         {
             settings.Cabinet, settings.CabinetAddress, settings.Subject, settings.SmsTemplate, settings.EmailTemplate,
             settings.AdjustReminderTimes, Rules = settings.ReminderTimeRules.Select(r => new { r.From, r.To }).ToArray(),
-            settings.SmsOnlyWhenNoEmail, settings.UseEyeEmailFamilies, settings.FamilyDatabasePath,
+            settings.SmsMinimumFamilySize, settings.SmsOnlyWhenNoEmail, settings.UseEyeEmailFamilies, settings.FamilyDatabasePath,
             settings.AppointmentDurationMinutes, settings.CalendarTimeZone, settings.CalendarSubject,
             settings.SendCalendarInvites, settings.SendCalendarAlarms, settings.CalendarIsBusy,
             Alerts = settings.Alerts.Select(a => new { a.OffsetMinutes, a.Label }).ToArray(),
@@ -72,6 +81,8 @@ namespace Client.SmsMail.Services
 
         public static List<PreparedMessage> Prepare(IEnumerable<RdvInfo> appointments, DateTime date, SmsMailSettings settings, IReadOnlyList<RdvFamille>? preparedFamilies = null)
         {
+            if (settings.SmsMinimumFamilySize < 1 || settings.SmsMinimumFamilySize > 3)
+                throw new InvalidOperationException("Choisissez un seuil SMS de 1, 2 ou 3 personnes et plus.");
             var rdvs = appointments.Where(r => r.DateRDV.Date == date.Date && !r.IsCancelled).OrderBy(r => r.HeureRDV).ToList();
             var families = settings.UseEyeEmailFamilies ? (preparedFamilies?.ToList() ?? EyeEmailFamilyGrouping.Build(rdvs))
                 : rdvs.Select(r => { var family = new RdvFamille(); family.RDVs.Add(r); return family; }).ToList();
@@ -114,7 +125,10 @@ namespace Client.SmsMail.Services
                     .Concat(members.Where(r => r.ReferenceFamilyNumber > 0).Select(r => GuardKey(date, "family", r.ReferenceFamilyNumber)))
                     .Distinct().ToList();
                 foreach (var member in members) familyKeys[member] = guards;
-                if ((!settings.SmsOnlyWhenNoEmail || emails.Count == 0) && primary != null)
+                var personCount = members.Select(r => r.Id > 0 ? "id:" + r.Id
+                    : "name:" + (r.Nom ?? string.Empty).Trim() + "|" + (r.Prenom ?? string.Empty).Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                if (personCount >= settings.SmsMinimumFamilySize
+                    && (!settings.SmsOnlyWhenNoEmail || emails.Count == 0) && primary != null)
                     smsRows.AddRange(family.RDVs.Select(r => (r, primary)));
             }
             var result = new List<PreparedMessage>();
@@ -136,6 +150,7 @@ namespace Client.SmsMail.Services
                         PeopleDisplay = string.Join(Environment.NewLine, people.OrderBy(r => originalTimes[r]).Select(r => $"{r.Prenom} {r.Nom}".Trim()).Distinct()),
                         AppointmentStart = date.Date + people.Min(r => originalTimes[r].TimeOfDay),
                         Subject = settings.Subject, Body = body, Key = key,
+                        CabinetDisplay = settings.Cabinet, AddressDisplay = settings.CabinetAddress,
                         ReservationKeys = channel == "SMS" ? people.SelectMany(p => familyKeys[p]).Distinct().ToList() : new(),
                         ProviderService = channel == "SMS" ? settings.Sms.ServiceName : settings.Email.SmtpHost,
                         IncludeCalendar = settings.SendCalendarInvites,

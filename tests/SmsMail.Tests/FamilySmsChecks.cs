@@ -46,6 +46,31 @@ static class FamilySmsChecks
             Check(test.ReservationKeys.Count == 0 && test.Key.StartsWith("test-"), "Test SMS never reserves real family guards");
         }
         finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(directory, true); }
+        var families = Enumerable.Range(1, 4).SelectMany(size => Enumerable.Range(0, size).Select(index => new RdvInfo
+        {
+            Id = size * 100 + index, ReferenceFamilyNumber = size, Nom = "Famille" + size, Prenom = "Personne" + index,
+            DateRDV = day, HeureRDV = day.AddHours(9 + size), Tel1 = "061234567" + size,
+            Email = index == 0 ? "famille" + size + "@example.com" : ""
+        })).ToArray();
+        settings.SmsOnlyWhenNoEmail = false;
+        for (int minimum = 1; minimum <= 3; minimum++)
+        {
+            settings.SmsMinimumFamilySize = minimum;
+            var messages = MessagePreparation.Prepare(families, day, settings);
+            Check(messages.Count(m => m.Channel == "SMS") == 5 - minimum, "Minimum SMS family size filters only small families");
+            Check(messages.Count(m => m.Channel == "Mail") == 4, "Mail sends are unaffected by SMS size threshold");
+        }
+        var signature = MessagePreparation.PreparationSignature(settings);
+        settings.SmsMinimumFamilySize = 2;
+        Check(signature != MessagePreparation.PreparationSignature(settings), "Changing family threshold invalidates preparation");
+        settings.SmsOnlyWhenNoEmail = true;
+        Check(!MessagePreparation.Prepare(families, day, settings).Any(m => m.Channel == "SMS"), "One email on any family member excludes SMS when enabled");
+        families.Single(r => r.Id == 300).Email = "invalid";
+        Check(MessagePreparation.Prepare(families, day, settings).Count(m => m.Channel == "SMS") == 1, "Invalid email does not suppress eligible family SMS");
+        var duplicate = new RdvInfo { Id = 999, ReferenceFamilyNumber = 999, Nom = "Unique", Prenom = "Patient", DateRDV = day, HeureRDV = day.AddHours(9), Tel1 = "0612345678" };
+        Check(!MessagePreparation.Prepare(new[] { duplicate, duplicate }, day, settings).Any(m => m.Channel == "SMS"), "Duplicate appointments do not increase family person count");
+        settings.SmsMinimumFamilySize = 3;
+        Check(TestMessagePreparation.Create(settings, "", "0612345678", day).Single().Channel == "SMS" && settings.SmsMinimumFamilySize == 3, "Explicit SMS test bypasses threshold without changing settings");
         return count;
     }
 }
