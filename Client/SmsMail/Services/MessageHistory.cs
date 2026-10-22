@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,7 +34,7 @@ namespace Client.SmsMail.Services
             {
                 await connection.OpenAsync();
                 using var command = connection.CreateCommand();
-                command.CommandText = "CREATE TABLE IF NOT EXISTS MessageHistory (MessageKey TEXT PRIMARY KEY, Channel TEXT NOT NULL, Contact TEXT NOT NULL, Body TEXT NOT NULL, Status TEXT NOT NULL, CreatedAt TEXT NOT NULL, ProviderId INTEGER NULL, ProviderService TEXT NOT NULL)";
+                command.CommandText = "CREATE TABLE IF NOT EXISTS MessageHistory (MessageKey TEXT PRIMARY KEY, Channel TEXT NOT NULL, Contact TEXT NOT NULL, Body TEXT NOT NULL, Status TEXT NOT NULL, CreatedAt TEXT NOT NULL, ProviderId INTEGER NULL, ProviderService TEXT NOT NULL); CREATE TABLE IF NOT EXISTS MessageReservations (ReservationKey TEXT PRIMARY KEY, MessageKey TEXT NOT NULL)";
                 await command.ExecuteNonQueryAsync();
                 return connection;
             }
@@ -45,7 +46,23 @@ namespace Client.SmsMail.Services
         public async Task<bool> ReserveAsync(PreparedMessage message)
         {
             await using var connection = await OpenAsync();
+            // Immediate transaction: two processes cannot reserve different phones
+            // for the same family concurrently. Roll back every guard on a conflict.
+            using var transaction = connection.BeginTransaction(deferred: false);
+            var keys = message.ReservationKeys.Append(message.Key).Distinct().ToList();
+            foreach (var key in keys)
+            {
+                using var guard = connection.CreateCommand();
+                guard.Transaction = transaction;
+                guard.CommandText = "SELECT 1 FROM MessageHistory WHERE MessageKey=$key UNION ALL SELECT 1 FROM MessageReservations WHERE ReservationKey=$key LIMIT 1";
+                guard.Parameters.AddWithValue("$key", key);
+                if (await guard.ExecuteScalarAsync() != null) return false;
+                guard.CommandText = "INSERT INTO MessageReservations (ReservationKey,MessageKey) VALUES ($key,$message)";
+                guard.Parameters.AddWithValue("$message", message.Key);
+                await guard.ExecuteNonQueryAsync();
+            }
             using var command = connection.CreateCommand();
+            command.Transaction = transaction;
             command.CommandText = "INSERT OR IGNORE INTO MessageHistory VALUES ($key, $channel, $contact, $body, $status, $date, NULL, $service)";
             command.Parameters.AddWithValue("$key", message.Key);
             command.Parameters.AddWithValue("$channel", message.Channel);
@@ -54,7 +71,20 @@ namespace Client.SmsMail.Services
             command.Parameters.AddWithValue("$status", "Envoi commencé — résultat à vérifier");
             command.Parameters.AddWithValue("$date", DateTimeOffset.UtcNow.ToString("O"));
             command.Parameters.AddWithValue("$service", message.ProviderService);
-            return await command.ExecuteNonQueryAsync() == 1;
+            if (await command.ExecuteNonQueryAsync() != 1) return false;
+            transaction.Commit();
+            return true;
+        }
+
+        public async Task<HashSet<string>> LoadReservedKeysAsync()
+        {
+            await using var connection = await OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT MessageKey FROM MessageHistory UNION SELECT ReservationKey FROM MessageReservations";
+            using var reader = await command.ExecuteReaderAsync();
+            var keys = new HashSet<string>();
+            while (await reader.ReadAsync()) keys.Add(reader.GetString(0));
+            return keys;
         }
 
         public async Task UpdateAsync(string key, string status, long? providerId = null)

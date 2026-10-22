@@ -256,10 +256,11 @@ namespace Client.Pages
             _messages = MessagePreparation.Prepare(working, day, _settings, _families);
             _preparedSignature = MessagePreparation.PreparationSignature(_settings);
             await ReloadHistoryAsync();
-            var sent = _entries.Select(h => h.Key).ToHashSet();
-            foreach (var message in _messages.Where(m => sent.Contains(m.Key)))
+            var sent = await _history.LoadReservedKeysAsync();
+            foreach (var message in _messages.Where(m => sent.Contains(m.Key) || m.ReservationKeys.Any(sent.Contains)))
             {
                 message.Selected = false;
+                message.CanSend = false;
                 message.Status = "Déjà traité — consulter l'historique";
             }
             FilterMessages();
@@ -399,7 +400,7 @@ namespace Client.Pages
             foreach (var message in selected)
             {
                 if (_unloaded) break;
-                if (!await _history.ReserveAsync(message)) { skipped++; continue; }
+                if (!await _history.ReserveAsync(message)) { skipped++; message.Selected = false; message.CanSend = false; message.Status = "Déjà traité pour ce contact ou cette famille"; continue; }
                 string status;
                 long? providerId = null;
                 try
@@ -430,6 +431,7 @@ namespace Client.Pages
                 // Separate persistence from submission: a log failure must never
                 // trigger a second network send after the provider accepted it.
                 await _history.UpdateAsync(message.Key, status, providerId);
+                message.CanSend = false;
                 message.Status = status;
                 message.Selected = false;
             }
@@ -611,7 +613,7 @@ namespace Client.Pages
         private void SetMessageSelection(bool selected)
         {
             var processed = _entries.Select(entry => entry.Key).ToHashSet();
-            foreach (var message in VisibleMessages()) message.Selected = selected && !processed.Contains(message.Key);
+            foreach (var message in VisibleMessages()) message.Selected = selected && message.CanSend && !processed.Contains(message.Key);
             FilterMessages();
             StatusText.Text = $"{MessageSelection.ForSending(VisibleMessages()).Count} message(s) visible(s) sélectionné(s).";
         }
