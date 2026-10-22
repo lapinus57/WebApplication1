@@ -293,28 +293,26 @@ namespace Client.Pages
         private async void LargePreview_Click(object sender, RoutedEventArgs e)
         {
             if (MessagesList.SelectedItem is not PreparedMessage message) { StatusText.Text = "Sélectionnez un message dans le tableau."; return; }
-            await RunAsync(async () =>
+            await RunAsync(() => ShowTextPreviewAsync(message.Channel, message.Contact + " · " + message.Subject, message.Body));
+        }
+
+        private async Task ShowTextPreviewAsync(string channel, string caption, string body)
+        {
+            var text = new TextBox
             {
-                var viewer = new WebView2 { Height = Math.Clamp(XamlRoot.Size.Height - 230, 160, 650) };
-                var panel = new StackPanel { Spacing = 12, Width = Math.Clamp(XamlRoot.Size.Width - 120, 240, 860) };
-                panel.Children.Add(new TextBlock { Text = message.Contact + " · " + message.Subject, TextWrapping = TextWrapping.Wrap });
-                panel.Children.Add(viewer);
-                var dialog = new ContentDialog { Title = "Aperçu du mail", Content = panel, CloseButtonText = "Fermer", XamlRoot = XamlRoot };
-                dialog.Resources["ContentDialogMaxWidth"] = 960.0;
-                dialog.Opened += async (_, _) =>
-                {
-                    try
-                    {
-                        await viewer.EnsureCoreWebView2Async();
-                        viewer.CoreWebView2.Settings.IsScriptEnabled = false;
-                        viewer.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
-                        viewer.CoreWebView2.NavigationStarting += (_, args) => { if (args.Uri != "about:blank") args.Cancel = true; };
-                        viewer.NavigateToString(PreviewDocument(message.Body));
-                    }
-                    catch { panel.Children.Remove(viewer); panel.Children.Add(new TextBlock { Text = "L’aperçu nécessite le composant Microsoft Edge WebView2.", TextWrapping = TextWrapping.Wrap }); }
-                };
-                try { await dialog.ShowAsync(); } finally { viewer.Close(); }
-            });
+                Text = channel == "Mail" ? MailTextPreview.Convert(body) : body,
+                IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+                FontSize = 16, Padding = new Thickness(16),
+                Height = Math.Clamp(XamlRoot.Size.Height - 250, 160, 650),
+                Width = Math.Clamp(XamlRoot.Size.Width - 120, 240, 820)
+            };
+            ScrollViewer.SetVerticalScrollBarVisibility(text, ScrollBarVisibility.Auto);
+            var panel = new StackPanel { Spacing = 12 };
+            panel.Children.Add(new TextBlock { Text = caption, TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(text);
+            var dialog = new ContentDialog { Title = channel == "Mail" ? "Mail · aperçu texte" : "SMS", Content = panel, CloseButtonText = "Fermer", XamlRoot = XamlRoot };
+            dialog.Resources["ContentDialogMaxWidth"] = 920.0;
+            await dialog.ShowAsync();
         }
 
         private async void Prepare_Click(object sender, RoutedEventArgs e) => await RunAsync(PrepareAsync);
@@ -566,33 +564,7 @@ namespace Client.Pages
         private async void HistoryMessage_Click(object sender, RoutedEventArgs e)
         {
             if ((sender as FrameworkElement)?.DataContext is not MessageHistoryEntry entry) return;
-            await RunAsync(async () =>
-            {
-                var text = new TextBox { Text = entry.Body, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 360 };
-                var panel = new StackPanel { Spacing = 12 };
-                panel.Children.Add(new TextBlock { Text = entry.CreatedAt + " · " + entry.Status, TextWrapping = TextWrapping.Wrap });
-                panel.Children.Add(text);
-                var viewer = entry.Channel == "Mail" ? new WebView2 { Height = 360 } : null;
-                if (viewer != null) { text.Visibility = Visibility.Collapsed; panel.Children.Add(viewer); }
-                var dialog = new ContentDialog { Title = entry.Channel + " · " + entry.Contact, Content = panel,
-                    CloseButtonText = "Fermer", XamlRoot = XamlRoot };
-                dialog.Opened += async (_, _) =>
-                {
-                    if (viewer == null) return;
-                    try
-                    {
-                        await viewer.EnsureCoreWebView2Async();
-                        viewer.CoreWebView2.Settings.IsScriptEnabled = false;
-                        viewer.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
-                        viewer.CoreWebView2.NavigationStarting += (_, args) => { if (args.Uri != "about:blank") args.Cancel = true; };
-                        viewer.NavigateToString(PreviewDocument(entry.Body));
-                        text.Visibility = Visibility.Collapsed;
-                    }
-                    catch { viewer.Visibility = Visibility.Collapsed; text.Visibility = Visibility.Visible; }
-                };
-                try { await dialog.ShowAsync(); }
-                finally { viewer?.Close(); }
-            });
+            await RunAsync(() => ShowTextPreviewAsync(entry.Channel, entry.Contact + " · " + entry.CreatedAt + " · " + entry.Status, entry.Body));
         }
 
         private async void History_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
@@ -620,43 +592,18 @@ namespace Client.Pages
             StatusText.Text = $"Statuts SMS actualisés ; {errors} statut(s) indisponible(s). Utilisez Retours mail (IMAP) pour lire les notifications mail.";
         });
 
-        private bool _mailPreviewReady;
-        private async void MailPreview_Loaded(object sender, RoutedEventArgs e)
-        {
-            if (_mailPreviewReady) return;
-            try
-            {
-                await MailPreview.EnsureCoreWebView2Async();
-                MailPreview.CoreWebView2.Settings.IsScriptEnabled = false;
-                MailPreview.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-                MailPreview.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
-                MailPreview.CoreWebView2.NavigationStarting += (_, args) =>
-                {
-                    if (args.Uri != "about:blank") args.Cancel = true;
-                };
-                _mailPreviewReady = true;
-                UpdateMessagePreview();
-            }
-            catch (Exception) { PreviewCaption.Text = "Aperçu visuel indisponible : vérifiez l’installation de Microsoft Edge WebView2."; MailPreview.Visibility = Visibility.Collapsed; MessagePreview.Visibility = Visibility.Visible; }
-        }
-
         private void UpdateMessagePreview()
         {
-            if (MessagePreview == null || MailPreview == null || LargePreviewButton == null) return;
+            if (MessagePreview == null || LargePreviewButton == null) return;
             var message = MessagesList.SelectedItem as PreparedMessage;
-            MessagePreview.Text = message?.Channel == "Mail" ? "Chargement de l’aperçu du mail…" : message?.Body ?? string.Empty;
-            PreviewCaption.Text = message == null ? "Sélectionnez un message pour le consulter ici."
-                : message.Channel == "Mail" ? message.Contact + " · " + message.Subject : message.Contact + " · " + message.Metrics;
             bool isMail = message?.Channel == "Mail";
+            MessagePreview.Text = isMail ? MailTextPreview.Convert(message!.Body) : message?.Body ?? string.Empty;
+            PreviewCaption.Text = message == null ? "Sélectionnez un message pour le consulter ici."
+                : isMail ? message.Contact + " · " + message.Subject + " — Aperçu texte ; le mail sera envoyé en HTML."
+                : message.Contact + " · " + message.Metrics;
             LargePreviewButton.Visibility = isMail ? Visibility.Visible : Visibility.Collapsed;
-            PreviewRow.Height = new GridLength(isMail ? 340 : 200);
-            MailPreview.Visibility = isMail ? Visibility.Visible : Visibility.Collapsed;
-            MessagePreview.Visibility = isMail && _mailPreviewReady ? Visibility.Collapsed : Visibility.Visible;
-            if (isMail && _mailPreviewReady)
-                MailPreview.NavigateToString(PreviewDocument(message!.Body));
+            PreviewRow.Height = new GridLength(isMail ? 300 : 200);
         }
-
-        private static string PreviewDocument(string body) => "<!doctype html><html><head><meta charset='utf-8'><meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:;\"><style>body{margin:0;padding:12px;background:#f3f5f7;font-family:Segoe UI,Arial,sans-serif;overflow-wrap:anywhere}img{max-width:100%}</style></head><body>" + body + "</body></html>";
 
         private void MessagesList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateMessagePreview();
         private void SelectAll_Click(object sender, RoutedEventArgs e) => SetMessageSelection(true);
