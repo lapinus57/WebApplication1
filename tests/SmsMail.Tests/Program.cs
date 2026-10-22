@@ -172,6 +172,7 @@ Check(MessageSelection.ForSending(selectionCases, "Mail").Single().Contact == "a
 Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", "ALICE")).Count == 2, "Mixed view supports family search without losing either channel");
 checks += await EyeEmailChecks.RunAsync();
 checks += await FamilySmsChecks.RunAsync();
+checks += ReminderTimeChecks.Run();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
