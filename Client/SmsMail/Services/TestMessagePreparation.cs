@@ -36,6 +36,7 @@ namespace Client.SmsMail.Services
             foreach (var message in messages)
             {
                 message.Key = "test-" + Guid.NewGuid().ToString("N");
+                message.ReservationKeys.Clear();
                 message.Subject = "[TEST] " + settings.Subject;
                 message.CalendarSubject = "[TEST] " + settings.CalendarSubject;
                 message.Body = message.Channel == "Mail"

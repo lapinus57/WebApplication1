@@ -134,3 +134,28 @@ L'historique dispose d'un filtre par canal et d'une recherche par destinataire,
 date affichée ou statut. Chaque carte présente le contact, le canal, la date et
 le résultat. Lire le message envoyé ouvre son contenu complet, avec rendu HTML
 pour les mails et texte pour les SMS. Les aperçus ne chargent aucun contenu distant.
+
+## Tableau des envois et SMS par famille
+
+La liste Envois est un tableau : sélection, canal, destinataire, personnes,
+contenu/longueur et statut. Les colonnes restent alignées, avec défilement horizontal
+sur les fenêtres étroites et aperçu du message sous le tableau.
+
+Une famille regroupée produit un seul SMS contenant ses personnes, même avec
+plusieurs mobiles. La préparation choisit un Téléphone 1 valide en priorité, puis
+Téléphone 2 ; les membres sont ordonnés par identifiant pour stabiliser ce choix.
+Le destinataire reste visible avant confirmation. Activer le regroupement des
+familles et vérifier les rapprochements pour inclure tous leurs rendez-vous.
+
+Le journal réserve atomiquement, pour le jour du rendez-vous, les numéros connus,
+les identifiants patients et l'identifiant de famille EyeEmail disponible. Une
+repréparation, un changement de numéro ou le redémarrage du client ne permettent
+pas de répéter un envoi déjà réservé pour cette famille identifiable. Un résultat
+incertain reste bloqué et doit être vérifié chez OVH. Le lendemain de rendez-vous
+est une réservation distincte ; les tests restent indépendants.
+
+Les anciens envois sont reconnus par leurs clés de contact lorsque le numéro
+figure encore parmi les coordonnées connues. Les anciens journaux ne contiennent
+pas les identifiants familiaux : un lien avec une famille dont toutes les
+coordonnées ont changé ne peut pas être reconstitué. La protection reste locale
+au journal du poste, et dépend des familles/identifiants disponibles.
