@@ -121,11 +121,10 @@
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="Aperçu du message" FontSize="18" FontWeight="SemiBold" />
-                                    <Button x:Name="LargePreviewButton" Grid.Column="1" Content="Agrandir le mail" Click="LargePreview_Click" Visibility="Collapsed" />
+                                    <Button x:Name="LargePreviewButton" Grid.Column="1" Content="Lire en grand" Click="LargePreview_Click" Visibility="Collapsed" />
                                 </Grid>
                                 <TextBlock x:Name="PreviewCaption" Grid.Row="1" Text="Sélectionnez un message pour le consulter ici." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <TextBox x:Name="MessagePreview" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" AutomationProperties.Name="Contenu du message" ScrollViewer.VerticalScrollBarVisibility="Auto" />
-                                <WebView2 x:Name="MailPreview" Grid.Row="2" Visibility="Collapsed" Loaded="MailPreview_Loaded" />
+                                <TextBox x:Name="MessagePreview" FontSize="16" Padding="16" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" AutomationProperties.Name="Contenu du message" ScrollViewer.VerticalScrollBarVisibility="Auto" />
                             </Grid>
                         </Border>
                     </Grid>
