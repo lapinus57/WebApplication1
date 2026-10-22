@@ -25,7 +25,16 @@ namespace Client.SmsMail.Services
         public DateTime AppointmentStart { get; set; }
         public string AppointmentTimeDisplay => AppointmentStart.ToString("HH:mm", CultureInfo.InvariantCulture);
         public string ArrivalHint => CalendarStart == AppointmentStart ? string.Empty : "Arrivée " + CalendarStart.ToString("HH:mm", CultureInfo.InvariantCulture);
-        public string BodyDisplay => Channel == "Mail" ? MailTextPreview.Convert(Body) : Body;
+        public string BodyDisplay => Channel == "Mail" ? MailTextPreview.ForTable(Body, PeopleDisplay) : Body;
+        public string CabinetDisplay { get; set; } = string.Empty;
+        public string AddressDisplay { get; set; } = string.Empty;
+        public string TableSummary => Channel != "Mail" || CalendarStart == default ? BodyDisplay
+            : string.Join(Environment.NewLine, new[]
+            {
+                (Subject.StartsWith("[TEST]", StringComparison.Ordinal) ? "[TEST] " : string.Empty)
+                    + CalendarStart.ToString("dddd dd/MM/yyyy · HH:mm", CultureInfo.GetCultureInfo("fr-FR")),
+                CabinetDisplay, AddressDisplay
+            }.Where(line => !string.IsNullOrWhiteSpace(line)));
         public string Subject { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
         public string Key { get; set; } = string.Empty;
@@ -136,6 +145,7 @@ namespace Client.SmsMail.Services
                         PeopleDisplay = string.Join(Environment.NewLine, people.OrderBy(r => originalTimes[r]).Select(r => $"{r.Prenom} {r.Nom}".Trim()).Distinct()),
                         AppointmentStart = date.Date + people.Min(r => originalTimes[r].TimeOfDay),
                         Subject = settings.Subject, Body = body, Key = key,
+                        CabinetDisplay = settings.Cabinet, AddressDisplay = settings.CabinetAddress,
                         ReservationKeys = channel == "SMS" ? people.SelectMany(p => familyKeys[p]).Distinct().ToList() : new(),
                         ProviderService = channel == "SMS" ? settings.Sms.ServiceName : settings.Email.SmtpHost,
                         IncludeCalendar = settings.SendCalendarInvites,

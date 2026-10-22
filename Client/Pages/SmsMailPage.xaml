@@ -3,8 +3,10 @@
     x:Class="Client.Pages.SmsMailPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:models="using:Client.SmsMail.Models">
+    xmlns:models="using:Client.SmsMail.Models"
+    xmlns:local="using:Client.Pages">
     <Page.Resources>
+        <local:MailChannelVisibilityConverter x:Key="MailChannelVisibility" />
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
             <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
@@ -58,13 +60,13 @@
                                 <TextBlock Grid.Column="2" Text="Canal" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="3" Text="Personnes" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="4" Text="Destinataire" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="5" Text="Message" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="5" Text="Résumé / message" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="6" Text="Statut" FontWeight="SemiBold" />
                             </Grid>
                             <ListView x:Name="MessagesList" Grid.Row="1" AutomationProperties.Name="Tableau des messages à envoyer" SelectionMode="None" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible">
                                 <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="0" /></Style></ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate><DataTemplate>
-                                    <Border Padding="12,10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                    <Border Padding="12,6" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                                         <Grid MinHeight="44"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="86" /><ColumnDefinition Width="60" /><ColumnDefinition Width="1.3*" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="3*" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
                                             <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" IsEnabled="{Binding CanSend}" AutomationProperties.Name="{Binding Contact}" Checked="MessageSelection_Changed" Unchecked="MessageSelection_Changed" VerticalAlignment="Top" />
                                             <StackPanel Grid.Column="1" Spacing="4" Margin="0,4,8,0">
@@ -74,7 +76,19 @@
                                             <TextBlock Grid.Column="2" Text="{Binding Channel}" FontWeight="SemiBold" Margin="0,4,8,0" />
                                             <TextBlock Grid.Column="3" Text="{Binding PeopleDisplay}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,12,0" />
                                             <TextBlock Grid.Column="4" Text="{Binding Contact}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,12,0" />
-                                            <TextBlock Grid.Column="5" Text="{Binding BodyDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,16,0" LineHeight="21" />
+                                            <StackPanel Grid.Column="5" Spacing="6" Margin="0,4,16,0">
+                                                <TextBlock Text="{Binding TableSummary}" TextWrapping="Wrap" IsTextSelectionEnabled="True" LineHeight="21" />
+                                                <HyperlinkButton Content="Détails du mail" FontSize="12" Padding="0" MinHeight="0" HorizontalAlignment="Left" Visibility="{Binding Channel, Converter={StaticResource MailChannelVisibility}}">
+                                                    <HyperlinkButton.Flyout><Flyout Opening="MailDetails_Opening">
+                                                        <ScrollViewer MaxHeight="420" MaxWidth="540">
+                                                            <StackPanel Spacing="8">
+                                                                <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding BodyDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" LineHeight="21" />
+                                                            </StackPanel>
+                                                        </ScrollViewer>
+                                                    </Flyout></HyperlinkButton.Flyout>
+                                                </HyperlinkButton>
+                                            </StackPanel>
                                             <TextBlock Grid.Column="6" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                         </Grid>
                                     </Border>

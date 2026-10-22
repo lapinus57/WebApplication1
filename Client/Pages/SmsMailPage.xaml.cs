@@ -297,6 +297,12 @@ namespace Client.Pages
             DispatcherQueue.TryEnqueue(() => PreparationExpander.StartBringIntoView());
         }
         private async void ReviewTimes_Click(object sender, RoutedEventArgs e) => await RunAsync(() => ShowTextPreviewAsync("SMS", "Horaires réels → heures d’arrivée annoncées", TimeChangesText.Text));
+        private void MailDetails_Opening(object sender, object e)
+        {
+            if (sender is Flyout flyout && flyout.Content is FrameworkElement content
+                && flyout.Target is FrameworkElement target) content.DataContext = target.DataContext;
+        }
+
         private async Task ShowTextPreviewAsync(string channel, string caption, string body)
         {
             var text = new TextBox

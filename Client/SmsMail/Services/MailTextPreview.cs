@@ -9,6 +9,21 @@ namespace Client.SmsMail.Services
     // Display only: the HTML body used by SMTP is never replaced.
     public static class MailTextPreview
     {
+        public static string ForTable(string? html, string people)
+        {
+            var text = Convert(html);
+            foreach (var person in people.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var name = person.Trim();
+                if (name.Length == 0) continue;
+                // Only remove a trailing time on a known person's own line.
+                // The appointment time and arrival information elsewhere remain.
+                text = Regex.Replace(text, @"(?m)^(?<person>(?:• )?" + Regex.Escape(name)
+                    + @")\s+[—–-]\s+\d{2}:\d{2}\s*$", "${person}");
+            }
+            return text;
+        }
+
         public static string Convert(string? html)
         {
             if (string.IsNullOrWhiteSpace(html)) return string.Empty;
