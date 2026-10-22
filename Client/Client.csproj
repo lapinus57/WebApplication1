@@ -20,6 +20,7 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_BREAK_ON_UNHANDLED_EXCEPTION</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\Shared\ReadOnlyAccess.cs" Link="Services\ReadOnlyAccess.cs" />
     <None Remove="Pages\SystemPage.xaml" />
   </ItemGroup>
   <ItemGroup>

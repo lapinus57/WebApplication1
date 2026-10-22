@@ -104,6 +104,7 @@
                 <NavigationViewItem Content="Historique" Tag="HistoryPage" Icon="People" />
                 <NavigationViewItem Content="Recherche RDV" Tag="AppointmentSearchPage" Icon="CalendarDay" />
                 <NavigationViewItem Content="SMS et mail" Tag="SmsMailPage" Icon="Mail" />
+                <NavigationViewItem Content="Préparation FO" Tag="FundusPage" Icon="View" />
             </NavigationView.MenuItems>
             <Frame x:Name="contentFrame" Padding="-2" />
         </NavigationView>
