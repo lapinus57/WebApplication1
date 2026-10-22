@@ -92,6 +92,6 @@
     <SignAssembly>False</SignAssembly>
     <DefaultLanguage>fr-FR</DefaultLanguage>
     <AppInstallerUri>https://github.com/lapinus57/WebApplication1/releases/latest/download/</AppInstallerUri>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+    <AppxBundlePlatforms>x86</AppxBundlePlatforms>
   </PropertyGroup>
 </Project>

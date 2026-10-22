@@ -614,7 +614,7 @@ namespace ChatServeur
                 return;
             }
 
-            user.Status = isAway ? "Absent" : string.Empty;
+            user.Status = isAway ? "Absent 👻" : string.Empty;
             user.Rooms = new List<string> { isAway ? "👻👻👻" : activeRoom?.Trim() ?? string.Empty };
             AllUsers[user.Username] = user;
             await Clients.All.SendAsync("UserListUpdated", BaseUsers.Concat(AllUsers.Values).ToList());
