@@ -1,6 +1,8 @@
 using System;
 using System.Net;
 using System.Net.Mail;
+using System.Text;
+using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
 using Client.SmsMail.Configuration;
@@ -23,7 +25,20 @@ namespace Client.SmsMail.Services
         public async Task SendAsync(PreparedMessage prepared)
         {
             Validate();
-            using var message = new MailMessage
+            using var message = CreateMessage(prepared);
+            using var smtp = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+            {
+                EnableSsl = _settings.EnableSsl, DeliveryMethod = SmtpDeliveryMethod.Network,
+                Credentials = new NetworkCredential(_settings.UserName, _settings.Password), Timeout = 30000
+            };
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await smtp.SendMailAsync(message, timeout.Token);
+        }
+
+        public MailMessage CreateMessage(PreparedMessage prepared)
+        {
+            var calendar = CalendarInvitation.Create(prepared, _settings.FromAddress);
+            var message = new MailMessage
             {
                 From = new MailAddress(_settings.FromAddress, _settings.FromDisplayName),
                 Sender = new MailAddress(_settings.SenderAddress),
@@ -33,13 +48,15 @@ namespace Client.SmsMail.Services
             message.To.Add(new MailAddress(prepared.Contact));
             message.Headers.Add("Content-Language", "fr");
             message.Headers.Add("Disposition-Notification-To", _settings.SenderAddress);
-            using var smtp = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
-            {
-                EnableSsl = _settings.EnableSsl, DeliveryMethod = SmtpDeliveryMethod.Network,
-                Credentials = new NetworkCredential(_settings.UserName, _settings.Password), Timeout = 30000
-            };
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            await smtp.SendMailAsync(message, timeout.Token);
+            message.BodyEncoding = Encoding.UTF8;
+            message.SubjectEncoding = Encoding.UTF8;
+            var contentType = new ContentType("text/calendar") { CharSet = "utf-8" };
+            contentType.Parameters.Add("method", "REQUEST");
+            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(calendar, contentType));
+            var attachment = Attachment.CreateAttachmentFromString(calendar, "rendez-vous.ics", Encoding.UTF8, "text/calendar");
+            attachment.ContentType.Parameters.Add("method", "REQUEST");
+            message.Attachments.Add(attachment);
+            return message;
         }
     }
 }

@@ -91,10 +91,12 @@
             <PivotItem Header="Modèles">
                 <ScrollViewer>
                     <StackPanel Spacing="12" Padding="0,0,16,16">
-                        <TextBlock Text="Variables : [PRENOMS], [CABINET], [DATE], [DATE_LONGUE], [HEURE], [LISTE_PERSONNES]" TextWrapping="Wrap" />
+                        <TextBlock Text="Variables : [PRENOMS], [CABINET], [ADRESSE_CABINET], [DATE], [DATE_LONGUE], [HEURE], [LISTE_PERSONNES]" TextWrapping="Wrap" />
                         <TextBox x:Name="SubjectText" Header="Objet du mail" />
                         <TextBox x:Name="SmsTemplateText" Header="Modèle SMS" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
                         <TextBox x:Name="EmailTemplateText" Header="Modèle e-mail HTML" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="240" />
+                        <TextBlock Text="Chaque mail contient une invitation calendrier (.ics), en heure de Paris." TextWrapping="Wrap" />
+                        <Button Content="Appliquer le modèle de rappel du cabinet" Click="ApplyEmailModel_Click" />
                         <Button Content="Enregistrer les modèles" Click="Save_Click" />
                     </StackPanel>
                 </ScrollViewer>
@@ -104,6 +106,8 @@
                     <StackPanel Spacing="12" MaxWidth="700" HorizontalAlignment="Left" Padding="0,0,16,16">
                         <TextBlock Text="Les rendez-vous utilisent la base Access des paramètres RDV et les identifiants Access du poste." TextWrapping="Wrap" />
                         <TextBox x:Name="CabinetText" Header="Nom du cabinet" Width="550" />
+                        <TextBox x:Name="CabinetAddressText" Header="Adresse du cabinet (mail et calendrier)" />
+                        <NumberBox x:Name="DurationNumber" Header="Durée de chaque rendez-vous en minutes" Minimum="1" Maximum="480" Value="30" />
                         <TextBlock Text="Compte SMS OVH" FontSize="18" FontWeight="SemiBold" />
                         <TextBox x:Name="SmsAccountText" Header="Nom du service SMS" />
                         <TextBox x:Name="SmsSenderText" Header="Expéditeur SMS autorisé par OVH" />

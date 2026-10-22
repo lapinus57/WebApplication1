@@ -22,6 +22,11 @@ namespace Client.SmsMail.Services
         public string Body { get; set; } = string.Empty;
         public string Key { get; set; } = string.Empty;
         public string ProviderService { get; set; } = string.Empty;
+        public DateTime CalendarStart { get; set; }
+        public DateTime CalendarEnd { get; set; }
+        public string CalendarTimeZone { get; set; } = "Europe/Paris";
+        public string CalendarLocation { get; set; } = string.Empty;
+        public string CalendarDescription { get; set; } = string.Empty;
         public string Status { get; set; } = "À envoyer";
         public string Metrics => Channel == "SMS" ? MessagePreparation.SmsMetrics(Body) : "HTML";
     }
@@ -58,19 +63,24 @@ namespace Client.SmsMail.Services
                 foreach (var group in rdvs.SelectMany(r => contacts(r).Select(c => (Rdv: r, Contact: c))).GroupBy(x => x.Contact, StringComparer.OrdinalIgnoreCase))
                 {
                     var people = group.Select(x => x.Rdv).Distinct().OrderBy(r => r.HeureRDV).ToList();
-                    var body = Render(channel == "SMS" ? settings.SmsTemplate : settings.EmailTemplate, people, settings.Cabinet, channel == "Mail");
+                    var body = Render(channel == "SMS" ? settings.SmsTemplate : settings.EmailTemplate, people, settings.Cabinet, channel == "Mail", settings.CabinetAddress);
                     // Stable across refreshes and template edits: an accepted reminder
                     // for this day/contact must not be submitted twice by accident.
                     var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{date:yyyy-MM-dd}|{channel}|{group.Key}")));
                     result.Add(new PreparedMessage { Channel = channel, Contact = group.Key,
                         Family = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")),
                         Subject = settings.Subject, Body = body, Key = key,
-                        ProviderService = channel == "SMS" ? settings.Sms.ServiceName : settings.Email.SmtpHost });
+                        ProviderService = channel == "SMS" ? settings.Sms.ServiceName : settings.Email.SmtpHost,
+                        CalendarStart = date.Date + people.Min(r => r.HeureRDV.TimeOfDay),
+                        CalendarEnd = date.Date + people.Max(r => r.HeureRDV.TimeOfDay) + TimeSpan.FromMinutes(Math.Clamp(settings.AppointmentDurationMinutes, 1, 480)),
+                        CalendarTimeZone = settings.CalendarTimeZone,
+                        CalendarLocation = settings.Cabinet + ", " + settings.CabinetAddress,
+                        CalendarDescription = "Rappel de rendez-vous pour " + string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")) });
                 }
             }
         }
 
-        public static string Render(string template, IReadOnlyList<RdvInfo> people, string cabinet, bool html)
+        public static string Render(string template, IReadOnlyList<RdvInfo> people, string cabinet, bool html, string cabinetAddress = "")
         {
             if (people.Count == 0) return string.Empty;
             var culture = CultureInfo.GetCultureInfo("fr-FR");
@@ -80,7 +90,7 @@ namespace Client.SmsMail.Services
             var persons = string.Join("", people.Select(r => $"<li>{WebUtility.HtmlEncode($"{r.Prenom} {r.Nom}")} — {r.HeureRDV:HH:mm}</li>"));
             var replacements = new Dictionary<string, string>
             {
-                ["[PRENOMS]"] = Encode(names), ["[CABINET]"] = Encode(cabinet),
+                ["[ADRESSE_CABINET]"] = Encode(cabinetAddress), ["[PRENOMS]"] = Encode(names), ["[CABINET]"] = Encode(cabinet),
                 ["[DATE_LONGUE]"] = first.DateRDV.ToString("dddd dd MMMM yyyy", culture),
                 ["[DATE]"] = first.DateRDV.ToString("dd/MM/yyyy", culture),
                 ["[HEURE]"] = first.HeureRDV.ToString("HH:mm", culture),
