@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Mail;
+using System.Text.Json;
 using Client.SmsMail.Configuration;
 using Client.SmsMail.Models;
 
@@ -32,7 +33,10 @@ namespace Client.SmsMail.Services
             // the production fallback rule suppresses SMS for mail recipients.
             if (email.Length > 0) examples.Add(Example(email, string.Empty));
             if (phone.Length > 0) examples.Add(Example(string.Empty, normalizedPhone));
-            var messages = examples.SelectMany(example => MessagePreparation.Prepare(new[] { example }, day, settings)).ToList();
+            // A test explicitly targets the entered contact, regardless of family-size filters.
+            var testSettings = JsonSerializer.Deserialize<SmsMailSettings>(JsonSerializer.Serialize(settings))!;
+            testSettings.SmsMinimumFamilySize = 1;
+            var messages = examples.SelectMany(example => MessagePreparation.Prepare(new[] { example }, day, testSettings)).ToList();
             foreach (var message in messages)
             {
                 message.Key = "test-" + Guid.NewGuid().ToString("N");

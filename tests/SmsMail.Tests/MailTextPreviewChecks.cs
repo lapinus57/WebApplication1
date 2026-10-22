@@ -24,6 +24,12 @@ static class MailTextPreviewChecks
         Check(rendered.Contains("MESSAGE DE TEST") && rendered.Contains("Rappel de Rendez-vous") && rendered.Contains("10:00") && rendered.Contains("Utilisateur TEST"), "Actual cabinet template stays complete and readable");
         Check(!rendered.Contains("<table") && !rendered.Contains("style="), "Layout table and styles disappear");
         Check(mail.Body == body && mail.Body.Contains("<table"), "Preview conversion never replaces the outgoing HTML body");
+        var patientHtml = "<p>Heure : 08:30</p><ul><li>Zehra GOKSEN — 08:30</li><li>Autre personne — 09:00</li></ul>";
+        var tableText = MailTextPreview.ForTable(patientHtml, "Zehra GOKSEN");
+        Check(tableText.Contains("• Zehra GOKSEN") && !tableText.Contains("GOKSEN —"), "Known person name loses its appended time in table details");
+        Check(tableText.Contains("Heure : 08:30") && tableText.Contains("Autre personne — 09:00"), "Appointment time and unrelated text are preserved");
+        Check(mail.TableSummary.Contains("10:00") && !mail.TableSummary.Contains("Utilisateur TEST") && !mail.TableSummary.Contains("Bonjour"), "Compact summary retains arrival time without duplicated people or greetings");
+        Check(mail.TableSummary.StartsWith("[TEST]") && mail.Body == body, "Test marker and outgoing body survive compact display");
         return count;
     }
 }

@@ -27,6 +27,7 @@ namespace Client.SmsMail.Configuration
         public string CalendarSubject { get; set; } = "RDV Ophtalmologique";
         public List<AlertConfiguration> Alerts { get; set; } = new();
         public bool SmsOnlyWhenNoEmail { get; set; } = true;
+        public int SmsMinimumFamilySize { get; set; } = 1;
         public string Subject { get; set; } = "Rappel de rendez-vous";
         public string SmsTemplate { get; set; } = "Bonjour [PRENOMS], rendez-vous chez [CABINET] le [DATE_LONGUE] à [HEURE]. Merci de prévenir en cas d'empêchement.";
         public const string LegacyEmailTemplate = "<html><body><p>Bonjour [PRENOMS],</p><p>Votre rendez-vous chez [CABINET] est prévu le [DATE_LONGUE] à [HEURE].</p><ul>[LISTE_PERSONNES]</ul></body></html>";

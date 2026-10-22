@@ -60,6 +60,7 @@ namespace Client.Pages
                 CabinetAddressText.Text = _settings.CabinetAddress;
                 DurationNumber.Value = _settings.AppointmentDurationMinutes;
                 SmsOnlyNoEmail.IsChecked = _settings.SmsOnlyWhenNoEmail;
+                SmsFamilySizeFilter.SelectedIndex = Math.Clamp(_settings.SmsMinimumFamilySize, 1, 3) - 1;
                 UseFamiliesCheck.IsChecked = _settings.UseEyeEmailFamilies;
                 FamilyDatabaseText.Text = _settings.FamilyDatabasePath;
                 CalendarInviteCheck.IsChecked = _settings.SendCalendarInvites;
@@ -100,6 +101,7 @@ namespace Client.Pages
             if (double.IsNaN(SmtpPortNumber.Value)) throw new InvalidOperationException("Renseignez le port SMTP.");
             return new SmsMailSettings
             {
+                SmsMinimumFamilySize = SmsFamilySizeFilter.SelectedIndex + 1,
                 AdjustReminderTimes = AdjustTimesCheck.IsChecked == true,
                 ReminderTimeRules = _timeRules.Select(r => new AppointmentTimeRule { From = r.From, To = r.To }).ToList(),
                 UseEyeEmailFamilies = UseFamiliesCheck.IsChecked == true, FamilyDatabasePath = FamilyDatabaseText.Text.Trim(),
@@ -257,7 +259,7 @@ namespace Client.Pages
             _families = _settings.UseEyeEmailFamilies
                 ? await Task.Run(() => EyeEmailFamilyGrouping.Build(working.Where(r => r.DateRDV.Date == day), _appointmentHistory,
                     _appointmentHistory.Count > 0 ? ConfirmHistoricalFamily : null)) : new();
-            FamiliesList.ItemsSource = _families;
+            FilterFamilies();
             AppointmentsList.ItemsSource = working;
             _messages = MessagePreparation.Prepare(working, day, _settings, _families);
             var rules = _settings.AdjustReminderTimes ? ReminderTimes.Validate(_settings.ReminderTimeRules) : new();
@@ -297,6 +299,12 @@ namespace Client.Pages
             DispatcherQueue.TryEnqueue(() => PreparationExpander.StartBringIntoView());
         }
         private async void ReviewTimes_Click(object sender, RoutedEventArgs e) => await RunAsync(() => ShowTextPreviewAsync("SMS", "Horaires réels → heures d’arrivée annoncées", TimeChangesText.Text));
+        private void MailDetails_Opening(object sender, object e)
+        {
+            if (sender is Flyout flyout && flyout.Content is FrameworkElement content
+                && flyout.Target is FrameworkElement target) content.DataContext = target.DataContext;
+        }
+
         private async Task ShowTextPreviewAsync(string channel, string caption, string body)
         {
             var text = new TextBox
@@ -548,6 +556,27 @@ namespace Client.Pages
             DispatcherQueue.TryEnqueue(UpdateSelectionSummary);
         }
 
+        private void FilterFamilies()
+        {
+            if (FamiliesList == null || FamilySearch == null || FamilySizeFilter == null || FamiliesSummary == null || FamiliesEmpty == null) return;
+            var query = FamilySearch.Text.Trim();
+            var size = FamilySizeFilter.SelectedIndex;
+            var visible = _families.Where(f => (size <= 0 || (size == 1 ? f.PersonCount == 1 : f.PersonCount >= size))
+                && (f.TitleDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || f.MembersDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || f.PhonesDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || f.EmailsDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(f => f.FirstAppointment).ThenBy(f => f.Numero).ToList();
+            FamiliesList.ItemsSource = visible;
+            FamiliesEmpty.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            FamiliesEmpty.Text = _families.Count == 0 ? "Aucune famille préparée." : "Aucune famille ne correspond aux filtres.";
+            FamiliesSummary.Text = _families.Count == 0
+                ? "Chargez les rendez-vous et activez le regroupement des familles dans les options de préparation."
+                : $"{visible.Count} famille(s) affichée(s) sur {_families.Count} · {visible.Sum(f => f.PersonCount)} personne(s) · Tri par premier rendez-vous. Ces filtres ne modifient pas les envois.";
+        }
+        private void FamilySearch_Changed(object sender, TextChangedEventArgs e) => FilterFamilies();
+        private void FamilySize_Changed(object sender, SelectionChangedEventArgs e) => FilterFamilies();
+
         private void FilterHistory()
         {
             if (HistoryList == null || HistoryFilter == null) return;
@@ -621,11 +650,12 @@ namespace Client.Pages
             ClearMessages();
             _appointments.Clear();
             _families.Clear(); _appointmentHistory.Clear(); _familyDecisions.Clear();
-            if (FamiliesList != null) FamiliesList.ItemsSource = null;
+            FilterFamilies();
             if (AppointmentsList != null) AppointmentsList.ItemsSource = null;
         }
 
         private void Options_Changed(object sender, RoutedEventArgs e) => ClearMessages();
+        private void SmsFamilySize_Changed(object sender, SelectionChangedEventArgs e) => ClearMessages();
 
         private async void Import_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
