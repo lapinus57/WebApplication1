@@ -23,6 +23,7 @@
                 <div class="topbar-state"><span></span> Service démarré</div>
                 @if (User.Identity?.IsAuthenticated == true)
                 {
+                    <a asp-page="/Fundus">Préparation FO</a>
                     <span class="admin-name">@User.Identity.Name</span>
                     <form method="post" asp-page="/Logout"><button class="logout-button" type="submit">Déconnexion</button></form>
                 }

@@ -1,0 +1,105 @@
+@page
+@model Serveur.Pages.FundusModel
+@using EyeChat.Fundus
+@using System.Globalization
+@{
+    ViewData["Title"] = "Préparation FO";
+    ViewData["HideChrome"] = true;
+    var from = (Model.From ?? Model.Today).ToString("yyyy-MM-dd");
+    var to = (Model.To ?? Model.Today).ToString("yyyy-MM-dd");
+    var fr = CultureInfo.GetCultureInfo("fr-FR");
+}
+<link rel="stylesheet" href="~/css/fundus.css" asp-append-version="true" />
+<div class="fo-page">
+    <header class="fo-heading">
+        <div><span class="fo-eyebrow">PRÉPARATION DES CONSULTATIONS</span><h1>Fonds d’œil à prévoir</h1><p>Les consignes du dossier, rapprochées des prochains rendez-vous.</p></div>
+        <div class="fo-account"><span>@User.Identity?.Name</span><form method="post" asp-page="/Logout"><button type="submit">Déconnexion</button></form></div>
+    </header>
+    <p class="fo-help">Aide à la préparation : chaque alerte doit être relue dans le dossier. L’absence de mention de réalisation ne permet pas de conclure que l’examen reste à faire.</p>
+    @if (!string.IsNullOrEmpty(Model.Error)) { <div class="fo-error" role="alert">@Model.Error</div> }
+    @if (!string.IsNullOrEmpty(Model.Notice)) { <div class="fo-notice" role="status">@Model.Notice</div> }
+    <nav class="fo-shortcuts" aria-label="Périodes">
+        <a asp-page="/Fundus" asp-route-from="@Model.Today.ToString("yyyy-MM-dd")" asp-route-to="@Model.Today.ToString("yyyy-MM-dd")">Aujourd’hui</a>
+        <a asp-page="/Fundus" asp-route-from="@Model.Today.AddDays(1).ToString("yyyy-MM-dd")" asp-route-to="@Model.Today.AddDays(1).ToString("yyyy-MM-dd")">Demain</a>
+        <a asp-page="/Fundus" asp-route-from="@Model.Today.ToString("yyyy-MM-dd")" asp-route-to="@Model.Today.AddDays(6).ToString("yyyy-MM-dd")">Les 7 prochains jours</a>
+        <a asp-page="/Fundus" asp-route-configure="true">Configurer les champs Access</a>
+    </nav>
+    <form method="get" class="fo-filters">
+        <label>Du<input type="date" name="From" value="@from" min="@Model.Today.ToString("yyyy-MM-dd")" required /></label>
+        <label>Au<input type="date" name="To" value="@to" min="@Model.Today.ToString("yyyy-MM-dd")" required /></label>
+        <label>État<select asp-for="Status"><option value="">Tous les états</option><option value="Planned">FO à prévoir</option><option value="Verify">À vérifier</option><option value="ProbablyPerformed">FO probablement réalisé</option></select></label>
+        <button type="submit">Afficher</button>
+    </form>
+    @if (!Model.Configured && !Model.ShowMapping)
+    {
+        <section class="fo-empty"><h2>Associer les champs de votre base</h2><p>Le nom des champs de Consultation n’est pas défini dans EyeChat. Inspectez la base réelle, puis choisissez les identifiants, les dates et les observations à lire.</p><a asp-route-configure="true">Lire le schéma Access</a></section>
+    }
+    @if (Model.ShowMapping)
+    {
+        <section class="fo-config">
+            <h2>Correspondance avec votre base Access</h2>
+            <p>Les choix ci-dessous proviennent du schéma lu sur le serveur. Access reste en lecture seule. Le même identifiant patient doit relier les trois tables.</p>
+            <form method="post" asp-page-handler="Mapping" id="fo-mapping">
+                <input type="hidden" name="From" value="@from" /><input type="hidden" name="To" value="@to" />
+                @foreach (var group in new[] { "Patients", "Consultations", "Appointments" })
+                {
+                    var tableProperty = group + "Table";
+                    var selectedTable = (string)typeof(FoMapping).GetProperty(tableProperty)!.GetValue(Model.Mapping)!;
+                    var columnProperties = group switch {
+                        "Patients" => new[] { ("PatientId", "Identifiant patient"), ("LastName", "Nom"), ("FirstName", "Prénom") },
+                        "Consultations" => new[] { ("ConsultationId", "Identifiant consultation"), ("ConsultationPatientId", "Identifiant patient de la consultation"), ("ConsultationDate", "Date de la consultation") },
+                        _ => new[] { ("AppointmentPatientId", "Identifiant patient du rendez-vous"), ("AppointmentDate", "Date du rendez-vous"), ("AppointmentTime", "Heure du rendez-vous"), ("Cancelled", "Annulation (optionnel si absence confirmée)") }
+                    };
+                    <fieldset class="fo-map-group"><legend>@(group == "Patients" ? "Patients" : group == "Consultations" ? "Consultations" : "Agenda")</legend>
+                        <label>Table<select name="Mapping.@tableProperty" class="fo-table" required><option value="">Choisir une table</option>@foreach (var table in Model.Fields.Select(f => f.Table).Distinct()) { <option value="@table" selected="@(table == selectedTable)">@table</option> }</select></label>
+                        @foreach (var (property, label) in columnProperties)
+                        {
+                            var value = (string)typeof(FoMapping).GetProperty(property)!.GetValue(Model.Mapping)!;
+                            <label>@label<select name="Mapping.@property" class="fo-column" required="@(property != "Cancelled")"><option value="">Choisir un champ</option>@foreach (var field in Model.Fields) { <option value="@field.Name" data-table="@field.Table" selected="@(field.Table == selectedTable && field.Name == value)">@field.Name</option> }</select></label>
+                        }
+                        @if (group == "Consultations")
+                        {
+                            <label>Textes médicaux à analyser (Ctrl pour en sélectionner plusieurs)<select name="Mapping.ObservationFields" class="fo-column" multiple size="7" required>@foreach (var field in Model.Fields) { <option value="@field.Name" data-table="@field.Table" selected="@(field.Table == selectedTable && Model.Mapping.ObservationFields.Contains(field.Name))">@field.Name</option> }</select></label>
+                        }
+                        @if (group == "Appointments") { <label class="fo-checkbox"><input asp-for="Mapping.NoCancellationColumn" />J’ai vérifié : cette table ne possède pas de champ d’annulation.</label> }
+                    </fieldset>
+                }
+                <p class="fo-help">Les comptes rendus doivent être en texte simple. Un champ RTF/HTML ou un identifiant manquant interrompt l’analyse avec une indication, sans enregistrer de liste partielle.</p>
+                <button type="submit" class="fo-primary">Enregistrer les correspondances</button>
+            </form>
+        </section>
+    }
+    @if (Model.Configured)
+    {
+        <div class="fo-results-heading"><div><h2>@Model.Alerts.Count alerte(s) affichée(s)</h2><p>@Model.Total dans la période · horaires réels du cabinet · résultats de la dernière analyse</p></div>
+            <form method="post" asp-page-handler="Refresh" class="fo-refresh"><input type="hidden" name="From" value="@from" /><input type="hidden" name="To" value="@to" /><input type="hidden" name="Status" value="@Model.Status" /><button type="submit" class="fo-primary">Actualiser l’analyse</button></form>
+        </div>
+        @if (Model.Alerts.Count == 0) { <div class="fo-empty">Aucune alerte affichée. Actualisez l’analyse pour rechercher les consignes et rendez-vous actuels de cette période.</div> }
+        else
+        {
+            <div class="fo-table-wrap"><table class="fo-results"><thead><tr><th scope="col">Prochain RDV ↑</th><th scope="col">Patient</th><th scope="col">Consigne retrouvée</th><th scope="col">État et suivi</th></tr></thead><tbody>
+            @foreach (var alert in Model.Alerts)
+            {
+                <tr><td class="fo-appointment"><strong>@alert.NextAppointment?.ToString("HH:mm")</strong><span>@alert.NextAppointment?.ToString("ddd dd MMM yyyy", fr)</span></td>
+                    <td><strong>@alert.PatientName</strong><small>Identifiant @alert.PatientId</small></td>
+                    <td><small>Consultation du @alert.SourceDate.ToString("dd/MM/yyyy") · @alert.SourceConsultationId</small><blockquote>@alert.Excerpt</blockquote><a asp-route-from="@from" asp-route-to="@to" asp-route-status="@Model.Status" asp-route-source="@alert.Id">Lire la consultation source</a>
+                        @if (!string.IsNullOrEmpty(alert.LaterExcerpt)) { <details><summary>Élément ultérieur du @alert.LaterDate?.ToString("dd/MM/yyyy")</summary><blockquote>@alert.LaterExcerpt</blockquote></details> }
+                    </td>
+                    <td><span class="fo-badge fo-@alert.EffectiveStatus">@FundusAnalysis.Label(alert.EffectiveStatus)</span><p>@alert.Reason</p><small>Analysé le @alert.LastAnalysisUtc.ToString("dd/MM/yyyy HH:mm") UTC</small>
+                        @if (alert.ManualStatus.HasValue) { <small>Validation manuelle · @alert.ReviewedBy · @alert.ReviewedUtc?.ToString("dd/MM/yyyy HH:mm") UTC</small> }
+                        <details><summary>Vérifier / valider</summary><form method="post" asp-page-handler="Review" class="fo-review">
+                            <input type="hidden" name="id" value="@alert.Id" /><input type="hidden" name="evidenceHash" value="@alert.EvidenceHash" /><input type="hidden" name="From" value="@from" /><input type="hidden" name="To" value="@to" /><input type="hidden" name="Status" value="@Model.Status" />
+                            <label>Après relecture du dossier<select name="review"><option value="">Analyse automatique</option>@foreach (var state in Enum.GetValues<FoStatus>()) { <option value="@state" selected="@(alert.ManualStatus == state)">@FundusAnalysis.Label(state)</option> }</select></label><button type="submit">Enregistrer</button>
+                        </form></details>
+                    </td></tr>
+            }
+            </tbody></table></div>
+        }
+    }
+    @if (Model.Consultation != null)
+    {
+        <section class="fo-source" id="consultation-source" tabindex="-1"><h2>Consultation source du @Model.Consultation.Date.ToString("dd/MM/yyyy")</h2><p>Texte relu directement dans Access. Il peut avoir changé depuis la dernière analyse.</p><h3>Observations sélectionnées</h3><pre>@Model.Consultation.Text</pre>
+            @if (!string.IsNullOrEmpty(Model.Consultation.FollowUpText)) { <h3>ProchainRDV</h3><pre>@Model.Consultation.FollowUpText</pre> }<a asp-route-from="@from" asp-route-to="@to" asp-route-status="@Model.Status">Fermer la consultation</a></section>
+    }
+</div>
+<script src="~/js/fundus.js" asp-append-version="true"></script>
