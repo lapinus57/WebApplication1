@@ -72,7 +72,11 @@ Une négation de réalisation ne clôture pas une demande. Une annulation explic
 
 La liste principale montre **FO à prévoir** et **À vérifier**. Les cas **FO probablement réalisé** restent accessibles par le filtre d’état. Le tableau présente le nom, l’identifiant, le rendez-vous, la consigne et l’état ; les détails de suivi sont repliables.
 
-Le lien **Lire la consultation source** relit directement Observation et REFRACTION dans Access, affichés dans deux sections distinctes. Le texte est encodé par Razor et présenté comme texte simple. Il n’est pas inséré comme HTML. Les champs RTF/HTML, les dates/heures invalides, les clés manquantes et les volumes excessifs interrompent l’analyse avec une explication plutôt que produire silencieusement une liste partielle.
+**Consulter** dans le client, ou **Lire la consultation source** dans la page serveur, relit Observation et REFRACTION directement dans Access. Les deux champs sont affichés séparément en texte lisible. `Shared/Fundus/FoMedicalText.cs` convertit automatiquement les champs RTF et HTML avant l’analyse et avant l’affichage : aucune « version texte » distincte n’est nécessaire dans la base. Le texte brut est conservé tel quel ; les paragraphes, accents ANSI/Unicode, listes et cellules de tableau des formats enrichis sont restitués en texte.
+
+La conversion utilise RtfPipe et HtmlAgilityPack, entièrement en mémoire sur le poste ou le serveur. Elle n’ouvre aucun navigateur, ne charge aucun lien, image, feuille de style ou pièce jointe et n’envoie aucun compte rendu à un service externe. Les instructions de mise en forme, métadonnées, commentaires, scripts, textes explicitement masqués et textes barrés/supprimés sont exclus. Les styles externes/classes CSS ne sont pas calculés et les images ne font pas l’objet d’une reconnaissance de caractères. Le résultat est affiché comme texte par WinUI, et encodé par Razor sur le serveur ; aucune balise issue du dossier n’est exécutée.
+
+Le convertisseur limite la taille et la profondeur des documents et vérifie la structure RTF avant analyse. Un document invalide, trop imbriqué ou trop volumineux provoque un message explicite sans enregistrer de résultats partiels ; les anciennes lignes restent identifiées comme non actualisées. Les erreurs du parseur ne sont ni affichées ni journalisées, car elles peuvent contenir le texte médical. La base Access reste strictement en lecture seule.
 
 ## SQLite et actualisation de la page serveur
 
@@ -86,9 +90,9 @@ Les lectures et écritures passent par la page Razor authentifiée ; aucune obse
 
 ## Vérification et limites
 
-- `dotnet run --project tests/Fundus.Tests` : moteur, chronologie, schéma, mises à jour SQLite, validations, authentification Razor et anti-CSRF, filtres natifs, annulation/rechargement de page et réentrance du gestionnaire d’erreur, avec données fictives.
+- `dotnet run --project tests/Fundus.Tests` : moteur, chronologie, schéma, mises à jour SQLite, validations, authentification Razor et anti-CSRF, filtres natifs, annulation/rechargement de page, réentrance du gestionnaire d’erreur et conversion RTF/HTML (accents, négations, paragraphes, contenu masqué, liens et limites), avec données fictives.
 - `dotnet run --project tests/SmsMail.Tests` : régressions du module SMS/mail.
 - `dotnet build Serveur/Serveur.csproj --configuration Release` : serveur et vues Razor.
 - Le workflow Windows compile aussi le client WinUI.
 
-La lecture de la véritable base exige Windows/ACE et l’accès au fichier du cabinet, indisponibles dans l’environnement de développement. Pas de tâche planifiée : la page lance l’analyse à son ouverture après connexion/configuration, ou via le bouton de recherche. Période maximale : 93 jours ; maximum de 1 000 patients par actualisation et 10 000 consultations par patient. Les formats médicaux RTF/HTML doivent être adaptés après vérification de leur structure réelle.
+La lecture de la véritable base exige Windows/ACE et l’accès au fichier du cabinet, indisponibles dans l’environnement de développement. Pas de tâche planifiée : la page lance l’analyse à son ouverture après connexion/configuration, ou via le bouton de recherche. Période maximale : 93 jours ; maximum de 1 000 patients par actualisation et 10 000 consultations par patient. Les formats RTF/HTML usuels sont convertis automatiquement ; les variantes réelles du cabinet restent à vérifier sur le poste. Limites par champ : 1 000 000 de caractères source, 100 000 caractères de texte extrait et 64 niveaux d’imbrication. La limite existante de 100 000 caractères cumulés Observation + REFRACTION par consultation reste appliquée lors de la recherche.
