@@ -46,12 +46,14 @@ internal sealed class FoAnnualFollowUp
                     {
                         var before = text[..match.Index];
                         var after = text[(match.Index + match.Length)..];
+                        if (condition == Condition.Diabetes &&
+                            (Has(before, @"\b(?:pre|anti)\s*$") || Has(after, @"^\s+insipide\b"))) continue;
                         bool negative = Has(before, @"\b(?:pas|sans|absence|aucun\w*|non|ni)\s+(?:(?:de|du|d['’])\s*)?(?:antecedent\w*\s+(?:de\s+|d['’]))?$") ||
                             Has(after, @"^\s*:?\s*(?:absent\w*|exclu\w*|infirme\w*|resolu\w*|gueri\w*|non\s+(?:confirme\w*|retenu\w*))\b|^\s*:?\s*non\s*[.!]?$");
                         // Negation of a complication ("pas de rétinopathie diabétique") is
                         // not negation of the diabetic context. Never infer HTO from a number/drug.
                         if (!negative && (Has(text, Uncertain) ||
-                            Has(text, @"\b(?:ancien\w*|gestationnel\w*|resolu\w*|gueri\w*)\b"))) continue;
+                            Has(text, @"\b(?:gestationnel\w*|resolu\w*|gueri\w*)\b"))) continue;
                         yield return new(condition, source, original, negative);
                     }
                 }

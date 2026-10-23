@@ -14,6 +14,7 @@ internal static class AnnualFollowUpChecks
         {
             "DIABÈTE", "Patient diabétique", "Patiente diabétique de type 2", "Diabète non insulinodépendant",
             "Diabète non traité", "DNID", "DID", "Antécédent personnel de diabète",
+            "Diabète ancien", "Diabète depuis 2020", "HTO ancienne traitée",
             "SURVEILLANCE OPHTALMOLOGIQUE CHEZ UN DIABETIQUE", "PAS DE RÉTINOPATHIE DIABÉTIQUE",
             "Rétinopathie diabétique minime", "HTO", "SURVEILLANCE TRAITEMENT DE HTO", "H.T.O.",
             "Hypertension oculaire", "Hypertonie oculaire traitée", "Hypertension intra-oculaire",
@@ -35,6 +36,7 @@ internal static class AnnualFollowUpChecks
             "HTO non exclue", "Antécédents familiaux de diabète", "Mère diabétique", "HTO chez le père",
             "ATCD FAMILIAUX :\nDIABETE\nHTO", "Ancien diabète gestationnel", "Diabète résolu", "Prédiabète",
             "ATCD FAMILIAUX :\nDIABETE : OUI\nHTO : OUI",
+            "Pré-diabétique", "Traitement anti-diabétique", "Diabète insipide",
             "HTA", "Hypertension artérielle", "Tension", "Tonus élevé", "CONTRÔLE TONUS", "TOD 16 TOG 15",
             "CONTRÔLE TONUS\nAVEC TRAITEMENT", "REVOIR TONUS DS 6 MOIS", "TRAITEMENT HYPOTENSEUR"
         })
