@@ -62,11 +62,17 @@ Les horaires viennent uniquement de l’agenda `Ag_Rdv`. Aucun horaire ni dossie
 
 ## Détection et relecture
 
-Les expressions sont centralisées dans `Shared/Fundus/FundusAnalysis.cs`, avec des tests positifs, négatifs et ambigus. La recherche ignore casse, accents, ligature œ et variantes FO / F.O. Les extraits affichés conservent le texte original.
+Les expressions sont centralisées dans `Shared/Fundus/FundusAnalysis.cs` et `FoClinicalContext.cs`, avec des tests positifs, négatifs et ambigus. La recherche ignore casse, accents, ligature œ et variantes FO / F.O. Les extraits affichés conservent le texte original.
 
 - **FO à prévoir** : instruction explicite non clôturée.
-- **À vérifier** : formulation conditionnelle, incertaine, chronologie ambiguë ou consultation ultérieure sans preuve claire de réalisation.
+- **À vérifier** : formulation conditionnelle, incertaine, chronologie ambiguë, consultation ultérieure sans preuve claire de réalisation ou mention contextuelle de FOD/FOG, OCT ou bilan maculaire sans consigne explicite de prochain FO.
 - **FO probablement réalisé** : mention explicite de réalisation dans la chronologie de la demande, à confirmer si nécessaire.
+
+Les consignes de renouvellement sont reconnues : « refaire FO », « refaire l’examen des FO », « recontrôler les FO », ainsi que « FO dans 6 mois ». Les variantes DS, MOS, mois/an et les retours à la ligne entre action, examen et délai sont acceptés. L’extrait conserve le délai indiqué et la date de consultation reste visible. Aucune échéance n’est calculée automatiquement et aucun examen n’est avancé : il faut vérifier que le délai correspond au rendez-vous à préparer. Une négation de diagnostic telle que « pas de rétinopathie » ne vaut pas annulation d’une consigne de FO qui suit.
+
+Les mentions FOD/FOG (y compris le préfixe V3FOD), OCT et bilan maculaire peuvent faire apparaître un patient en **À vérifier**. Le bilan comparatif (y compris COMPATARATIF) nécessite une mention associée d’OCT ou de FOD/FOG dans Observation ou REFRACTION. Ces éléments donnent une piste de relecture, sans prescrire un FO ni confirmer qu’il a été réalisé. La raison est affichée dans le tableau. Une consigne explicite de FO reste prioritaire ; une annulation/réalisation explicite de même date ou ultérieure neutralise le contexte précédent. La mention contextuelle la plus récente est utilisée lorsqu’il n’y a pas de consigne explicite active.
+
+Un tonus, un traitement, une surveillance du diabète ou de la cataracte seuls ne déclenchent pas ce signalement. Les mentions historiques et négatives sont écartées ; « OCT » n’est pas recherché dans les noms de médicaments et une date telle que « 23 oct. 2026 » n’est pas assimilée à l’examen. Les tests utilisent des extraits synthétiques courts, sans recopier de dossiers, mesures ou traitements réels dans le dépôt.
 
 Une négation de réalisation ne clôture pas une demande. Une annulation explicite ultérieure la retire. Une nouvelle consigne peut rouvrir une demande après une réalisation. Une mention historique de réalisation ne suffit pas à clôturer une consigne récente. Observation et REFRACTION décrivent une même consultation : une réalisation courante dans un champ ne clôture pas une consigne explicitement future dans l’autre ; des consignes contradictoires restent à vérifier. Les règles ne constituent ni une interprétation exhaustive du langage médical, ni une décision médicale. Elles doivent être vérifiées sur des exemples représentatifs du cabinet avant utilisation quotidienne.
 

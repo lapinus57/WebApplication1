@@ -11,7 +11,7 @@ namespace EyeChat.Fundus;
 public enum FoStatus { Planned, Verify, ProbablyPerformed }
 public enum FoFindingKind { Request, Potential, Performed, Cancelled }
 public sealed record FoConsultation(string Id, DateTime Date, string Text, string RefractionText = "");
-public sealed record FoFinding(FoFindingKind Kind, string Excerpt);
+public sealed record FoFinding(FoFindingKind Kind, string Excerpt, string Reason = "");
 public sealed record FoAnalysis(string SourceId, DateTime SourceDate, string Excerpt, FoStatus Status,
     string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate);
 
@@ -19,7 +19,10 @@ public sealed record FoAnalysis(string SourceId, DateTime SourceDate, string Exc
 public static class FundusAnalysis
 {
     // Keep expressions together: each extension needs a positive, negative and ambiguous regression case.
-    private const string Exam = @"(?:\bf\s*\.?\s*o\.?\b|\bfonds?\s+d['’ ]?\s*(?:oeil|yeux)\b|\bdilat(?:er|ation)\b)";
+    internal const string Exam = @"(?:\bf\s*\.?\s*o(?:dg|d|g)?\.?\b|\bfonds?\s+d['’ ]?\s*(?:oeil|yeux)\b|\bdilat(?:er|ation)\b)";
+    internal const string RepeatRequest = @"\b(?:refaire|recontroler|controler|renouveler)\s+(?:(?:un|une|le|la|les|des|du|de)\s+|l['’]\s*)*(?:(?:examen|controle)\s+(?:(?:du|des|de|le|les)\s+|d['’])?)?" + Exam;
+    internal const string Delay = @"(?:dans|ds|d['’]ici|a)\s+(?:\d+|un|une|deux|trois|six|douze)\s*(?:mois|mos|m|ans?|annees?|semaines?|jours?)\b";
+    private const string ScheduledExam = Exam + @"\s+" + Delay;
     private const string Future = @"\b(?:prochain\w*|proch\.?|prevoir|prevu\w*|a faire|a dilater|revoir pour|faire\b.{0,30}\bpassage)\b";
     private const string Negative = @"\b(?:pas (?:de |d['’])?(?:fo|fond|dilat)|(?:fo|fond.{0,12}|dilatation)\s+(?:non necessaire|non indique|inutile)|sans (?:necessite de )?(?:fo|dilatation)|annul\w*\b.{0,25}(?:fo|fond|dilat))";
     private const string Done = @"\b(?:realis\w*|effectu\w*|fait\w*|dilate\w*)\b";
@@ -45,7 +48,7 @@ public static class FundusAnalysis
     {
         var result = new List<FoFinding>();
         // Retain the source's spelling, punctuation and accents in the evidence.
-        foreach (var part in Regex.Split(original, @"[\r\n;,]+|(?<![FfOo]\.)(?<=[.!?])\s+"))
+        foreach (var part in FoClinicalContext.Clauses(original))
         {
             var excerpt = part.Trim();
             var text = Normalize(excerpt);
@@ -54,16 +57,27 @@ public static class FundusAnalysis
             var future = Has(text, Future);
             var uncertain = Has(text, Uncertain);
             var notDone = Has(text, NotDone);
+            var repeat = Has(text, RepeatRequest);
+            var scheduled = Has(text, ScheduledExam);
+            if (repeat && Has(text, @"\b(?:(?:ne\s+)?(?:pas|plus|jamais)\s+|(?:inutile|pas necessaire|pas besoin)\s+de\s+)" + RepeatRequest))
+            {
+                result.Add(new(uncertain ? FoFindingKind.Potential : FoFindingKind.Cancelled, excerpt));
+                continue;
+            }
+            // A historical renewal plan is not a new instruction for the next visit.
+            if ((repeat || scheduled) && Has(text, @"\b(?:avait|avaient|etait|etaient|il y a|ancienne? consigne|antecedent\w*)\b")) continue;
             if (negated)
             {
                 result.Add(new(uncertain || notDone || Has(text, Done) ? FoFindingKind.Potential : FoFindingKind.Cancelled, excerpt));
                 continue;
             }
             // Require an explicit link between the exam and the instruction, not just any future plan.
-            if (future && Has(text, DirectFuture) && !Has(text, @"\b(?:pas|non)\s+(?:prevu|a prevoir|a faire)\b"))
+            if (((future && Has(text, DirectFuture)) || repeat || scheduled) && !Has(text, @"\b(?:pas|non)\s+(?:prevu|a prevoir|a faire)\b"))
             {
-                result.Add(new(uncertain || notDone || Has(text, DirectDone) || Has(text, @"\b(?:ne|pas)\b")
-                    ? FoFindingKind.Potential : FoFindingKind.Request, excerpt));
+                var kind = uncertain || notDone || Has(text, DirectDone) || Has(text, @"\b(?:ne|pas)\b")
+                    ? FoFindingKind.Potential : FoFindingKind.Request;
+                result.Add(new(kind, excerpt, kind == FoFindingKind.Request && (repeat || scheduled)
+                    ? "Consigne de contrôle du FO ; vérifier le délai indiqué." : ""));
                 continue;
             }
             if (Has(text, Historical)) continue;
@@ -98,9 +112,21 @@ public static class FundusAnalysis
         var rows = consultations.Where(c => c.Date <= now).OrderBy(c => c.Date).ThenBy(c => c.Id, StringComparer.Ordinal).ToList();
         var hash = Hash(string.Join("\n", rows.Select(c => $"{c.Id.Length}:{c.Id}|{c.Date:O}|{Hash(c.Text)}|{Hash(c.RefractionText)}")));
         FoAnalysis? active = null;
+        FoAnalysis? context = null;
         foreach (var group in rows.GroupBy(c => c.Date))
         {
             var events = group.SelectMany(c => ClinicalFindings(c).Select(f => (Consultation: c, Finding: f))).ToList();
+            // Contextual mentions can suggest a manual check, but cannot override an explicit
+            // cancellation/completion or establish that a new FO has been prescribed/performed.
+            if (events.Any(e => e.Finding.Kind is FoFindingKind.Cancelled or FoFindingKind.Performed)) context = null;
+            else
+            {
+                var candidate = group.Select(c => (Consultation: c, Finding: FoClinicalContext.Find(c)))
+                    .FirstOrDefault(c => c.Finding != null);
+                if (candidate.Finding != null)
+                    context = new(candidate.Consultation.Id, candidate.Consultation.Date, Clip(candidate.Finding.Excerpt),
+                        FoStatus.Verify, candidate.Finding.Reason, hash, "", null);
+            }
             // Distinct consultations with identical timestamps cannot establish a reliable order.
             var sameTimeConflict = group.Count() > 1 && events.Any(e => e.Finding.Kind is FoFindingKind.Request or FoFindingKind.Potential)
                 && events.Any(e => e.Finding.Kind is FoFindingKind.Performed or FoFindingKind.Cancelled);
@@ -112,7 +138,7 @@ public static class FundusAnalysis
                     if (active == null || active.Status == FoStatus.ProbablyPerformed || finding.Kind == FoFindingKind.Request)
                         active = new(consultation.Id, consultation.Date, Clip(finding.Excerpt),
                             finding.Kind == FoFindingKind.Request ? FoStatus.Planned : FoStatus.Verify,
-                            finding.Kind == FoFindingKind.Request ? "Consigne explicite retrouvée." : "Formulation à vérifier dans le dossier.",
+                            finding.Kind == FoFindingKind.Request ? (finding.Reason.Length > 0 ? finding.Reason : "Consigne explicite retrouvée.") : "Formulation à vérifier dans le dossier.",
                             hash, "", null);
                     else active = active with { Status = FoStatus.Verify, Reason = "Mention ultérieure incertaine.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
                 }
@@ -131,7 +157,8 @@ public static class FundusAnalysis
                     active = active with { Status = FoStatus.Verify, Reason = "Consultation ultérieure sans réalisation clairement établie." };
             }
         }
-        return active == null ? null : active with { EvidenceHash = hash };
+        var result = active ?? context;
+        return result == null ? null : result with { EvidenceHash = hash };
     }
 
     public static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

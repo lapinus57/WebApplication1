@@ -45,7 +45,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Rendez-vous ↑" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="1" Text="Patient" FontWeight="SemiBold"/>
-                        <TextBlock Grid.Column="2" Text="Consigne retrouvée" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="2" Text="Élément retrouvé" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="3" Text="État FO" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="4" Text="Consultation" FontWeight="SemiBold"/>
                     </Grid>
@@ -68,6 +68,7 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Spacing="6">
                                         <TextBlock Text="{Binding Excerpt}" TextWrapping="Wrap" MaxLines="4" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding ReasonText}" TextWrapping="Wrap" FontSize="12" Opacity="0.8"/>
                                         <StackPanel Orientation="Horizontal" Spacing="4"><TextBlock Text="Consultation du" Opacity="0.7" FontSize="12"/><TextBlock Text="{Binding SourceText}" Opacity="0.7" FontSize="12"/></StackPanel>
                                     </StackPanel>
                                     <StackPanel Grid.Column="3" Spacing="6">
