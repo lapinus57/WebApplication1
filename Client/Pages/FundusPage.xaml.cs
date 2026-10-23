@@ -209,7 +209,7 @@ public sealed partial class FundusPage : Page
             var panel = new StackPanel { Spacing = 12, MaxWidth = 620 };
             panel.Children.Add(Text($"Rendez-vous : {row.Appointment:dd/MM/yyyy à HH:mm}\nConsultation du {source.Date:dd/MM/yyyy} — n° {source.Id}"));
             panel.Children.Add(Text(row.Analysis.Reason));
-            panel.Children.Add(Text("Consigne détectée", true)); panel.Children.Add(Text(row.Excerpt));
+            panel.Children.Add(Text("Élément retrouvé", true)); panel.Children.Add(Text(row.Excerpt));
             if (!string.IsNullOrWhiteSpace(row.Analysis.LaterExcerpt))
             {
                 panel.Children.Add(Text($"Mention ultérieure ({row.Analysis.LaterDate:dd/MM/yyyy})", true));

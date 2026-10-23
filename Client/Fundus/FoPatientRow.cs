@@ -17,6 +17,7 @@ public sealed record FoPatientRow(string PatientId, string PatientName, DateTime
     public string AppointmentText => Appointment.ToString("ddd dd/MM/yyyy\nHH:mm", CultureInfo.GetCultureInfo("fr-FR"));
     public string SourceText => Analysis.SourceDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR"));
     public string Excerpt => Analysis.Excerpt;
+    public string ReasonText => Analysis.Reason;
     public string ReviewText => Review == null ? "Détection automatique" : $"Relu par {Review.Author}";
 
     // Source, patient and complete evidence must match; a new consultation invalidates a review.
