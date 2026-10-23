@@ -222,6 +222,7 @@ var configuredPage = await (await http.PostAsync("/Fundus?handler=Mapping", new 
 Check(configuredPage.Contains("data-auto-search=\"true\"") && !configuredPage.Contains("id=\"fo-mapping\""), "Saving settings transitions directly to patient search");
 Check(!(await db.FoSettings.AsNoTracking().SingleAsync()).MappingJson.Contains("ProchainRDV"), "Posted legacy text selection cannot override the required clinical fields");
 NativeChecks.Run(Check, day);
+MedicalTextChecks.Run(Check, day);
 Console.WriteLine($"{count} FO checks passed.");
 
 sealed class FakeReader : IFoAccessReader

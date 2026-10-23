@@ -137,7 +137,7 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         var refraction = "";
         for (int i = 0; i < mapping.ObservationFields.Length; i++)
         {
-            var text = MedicalText(reader.GetValue(offset + i));
+            var text = FoMedicalText.Read(reader.GetValue(offset + i));
             if (mapping.ObservationFields[i].Equals("REFRACTION", StringComparison.OrdinalIgnoreCase)) refraction = text;
             else texts.Add(text);
         }
@@ -182,13 +182,5 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         var text = Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim().ToLowerInvariant();
         return text switch { null or "" or "0" or "false" or "non" => false, "1" or "-1" or "true" or "oui" => true,
             _ => throw new FoDataException("Le champ d’annulation contient une valeur non reconnue. Valeurs admises : Oui/Non, True/False, 1/-1/0 ou vide.") };
-    }
-    private static string MedicalText(object value)
-    {
-        if (value == DBNull.Value) return "";
-        if (value is not string text) throw new FoDataException("Le champ médical sélectionné n’est pas un champ texte.");
-        if (text.TrimStart().StartsWith(@"{\rtf", StringComparison.OrdinalIgnoreCase) || System.Text.RegularExpressions.Regex.IsMatch(text, @"</?(?:html|div|p|br|span)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-            throw new FoDataException("Le compte rendu est au format RTF/HTML. Sélectionnez sa version texte ; ce format doit être adapté avant l’analyse pour éviter des résultats incomplets.");
-        return text;
     }
 }
