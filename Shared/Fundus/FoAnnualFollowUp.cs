@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace EyeChat.Fundus;
 
@@ -13,53 +12,10 @@ internal sealed class FoAnnualFollowUp
     private sealed record Mention(Condition Condition, FoConsultation Source, string Excerpt, bool Negative);
     private readonly Dictionary<Condition, Mention> current = new();
     private FoConsultation? lastCompletion;
-    private static readonly TimeSpan Limit = TimeSpan.FromMilliseconds(250);
-    private const string Diabetes = @"\b(?:diabete|diabetiques?|did|dnid)\b";
-    private const string OcularHypertension = @"\b(?:h\.?\s*t\.?\s*o\.?|hyper(?:tension|tonie)\s+(?:intra\s*)?oculaire|tension\s+(?:intra\s*)?oculaire\s+(?:elevee|haute))\b";
-    private const string Family = @"\b(?:familia\w*|mere|pere|parents?|frere|soeur|fils|fille|conjoint\w*|epou[sx]\w*)\b";
-    private const string Uncertain = @"\?|\b(?:si|possible|suspect\w*|suspicion|risque|depist\w*|recherch\w*|a confirmer|a eliminer|a exclure|non exclu\w*|eventuel\w*)\b";
-    private static bool Has(string value, string pattern) => Regex.IsMatch(value, pattern, RegexOptions.CultureInvariant, Limit);
-
-    private static IEnumerable<Mention> Read(FoConsultation source)
-    {
-        foreach (var field in new[] { source.Text, source.RefractionText })
-        {
-            bool familySection = false;
-            foreach (var original in FoClinicalContext.Clauses(field))
-            {
-                var text = FundusAnalysis.Normalize(original);
-                // A family-history heading can cover several following lines. Resume only at
-                // a known clinical heading or an explicitly personal/patient statement.
-                if (Has(text, @"^(?:atcd|antecedents?)\s+familia\w*\s*:?$"))
-                {
-                    familySection = true;
-                    continue;
-                }
-                if (Has(text, @"\b(?:patient\w*|personnel\w*)\b") ||
-                    Has(text, @"^(?:observation|refraction|examen|conclusion)\s*:"))
-                    familySection = false;
-                if (familySection || Has(text, Family)) continue;
-
-                foreach (var (condition, pattern) in new[] { (Condition.Diabetes, Diabetes), (Condition.OcularHypertension, OcularHypertension) })
-                {
-                    foreach (Match match in Regex.Matches(text, pattern, RegexOptions.CultureInvariant, Limit))
-                    {
-                        var before = text[..match.Index];
-                        var after = text[(match.Index + match.Length)..];
-                        if (condition == Condition.Diabetes &&
-                            (Has(before, @"\b(?:pre|anti)\s*$") || Has(after, @"^\s+insipide\b"))) continue;
-                        bool negative = Has(before, @"\b(?:pas|sans|absence|aucun\w*|non|ni)\s+(?:(?:de|du|d['’])\s*)?(?:antecedent\w*\s+(?:de\s+|d['’]))?$") ||
-                            Has(after, @"^\s*:?\s*(?:absent\w*|exclu\w*|infirme\w*|resolu\w*|gueri\w*|non\s+(?:confirme\w*|retenu\w*))\b|^\s*:?\s*non\s*[.!]?$");
-                        // Negation of a complication ("pas de rétinopathie diabétique") is
-                        // not negation of the diabetic context. Never infer HTO from a number/drug.
-                        if (!negative && (Has(text, Uncertain) ||
-                            Has(text, @"\b(?:gestationnel\w*|resolu\w*|gueri\w*)\b"))) continue;
-                        yield return new(condition, source, original, negative);
-                    }
-                }
-            }
-        }
-    }
+    private static IEnumerable<Mention> Read(FoConsultation source) => ConditionMentions.Read(source)
+        .Where(m => m.Assertion != ConditionAssertion.Uncertain)
+        .Select(m => new Mention(m.Condition == PatientCondition.Diabetes ? Condition.Diabetes : Condition.OcularHypertension,
+            m.Source, m.Excerpt, m.Assertion is ConditionAssertion.Negated or ConditionAssertion.Unconfirmed));
 
     public void Observe(IEnumerable<FoConsultation> consultations, bool cancelled, FoConsultation? completed)
     {

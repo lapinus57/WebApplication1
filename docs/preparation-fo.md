@@ -62,7 +62,10 @@ Les horaires viennent uniquement de l’agenda `Ag_Rdv`. Aucun horaire ni dossie
 
 ## Détection et relecture
 
-Les expressions sont centralisées dans `Shared/Fundus/FundusAnalysis.cs`, `FoClinicalContext.cs` et `FoAnnualFollowUp.cs`, avec des tests positifs, négatifs et ambigus. La recherche ignore casse, accents, ligature œ et variantes FO / F.O. Les extraits affichés conservent le texte original.
+Le serveur propose aussi un [registre de tous les patients pour le diabète et l’HTO](registre-patients.md),
+avec import complet d’Access, états distincts de la préparation FO et corrections manuelles conservées.
+
+Les expressions sont centralisées dans `Shared/Fundus/FundusAnalysis.cs`, `FoClinicalContext.cs`, `PatientConditions.cs` et `FoAnnualFollowUp.cs`, avec des tests positifs, négatifs et ambigus. La recherche ignore casse, accents, ligature œ et variantes FO / F.O. Les extraits affichés conservent le texte original.
 
 - **FO à prévoir** : instruction explicite non clôturée.
 - **À vérifier** : formulation conditionnelle, incertaine, chronologie ambiguë, consultation ultérieure sans preuve claire de réalisation, mention contextuelle de FOD/FOG, OCT ou bilan maculaire sans consigne explicite de prochain FO, ou suivi annuel lié à un contexte diabétique/HTO documenté.
@@ -107,4 +110,4 @@ Les lectures et écritures passent par la page Razor authentifiée ; aucune obse
 - `dotnet build Serveur/Serveur.csproj --configuration Release` : serveur et vues Razor.
 - Le workflow Windows compile aussi le client WinUI.
 
-La lecture de la véritable base exige Windows/ACE et l’accès au fichier du cabinet, indisponibles dans l’environnement de développement. Pas de tâche planifiée : la page lance l’analyse à son ouverture après connexion/configuration, ou via le bouton de recherche. Période maximale : 93 jours ; maximum de 1 000 patients par actualisation et 10 000 consultations par patient. Les formats RTF/HTML usuels sont convertis automatiquement ; les variantes réelles du cabinet restent à vérifier sur le poste. Limites par champ : 1 000 000 de caractères source, 100 000 caractères de texte extrait et 64 niveaux d’imbrication. La limite existante de 100 000 caractères cumulés Observation + REFRACTION par consultation reste appliquée lors de la recherche.
+La lecture de la véritable base exige Windows/ACE et l’accès au fichier du cabinet, indisponibles dans l’environnement de développement. Pas de tâche planifiée : la page lance l’analyse à son ouverture après connexion/configuration, ou via le bouton de recherche. Période maximale : 93 jours ; maximum de 1 000 patients par actualisation et 10 000 consultations par patient. Les formats RTF/HTML usuels sont convertis automatiquement ; les variantes réelles du cabinet restent à vérifier sur le poste. Limites par champ : 1 000 000 de caractères source, 100 000 caractères de texte extrait et 64 niveaux d’imbrication. Le lecteur commun limite les textes cumulés Observation + REFRACTION à 100 000 caractères par consultation et 5 000 000 par patient.

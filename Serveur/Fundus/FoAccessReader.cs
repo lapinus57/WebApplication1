@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatServeur.Fundus;
 
-public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuration) : IFoAccessReader
+public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuration) : IFoAccessReader, ChatServeur.Registry.IRegistryAccessReader
 {
     public DateTime Now => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
         TimeZoneInfo.FindSystemTimeZoneById(configuration["FoAccess:TimeZoneId"] ?? "Europe/Paris"));
@@ -28,6 +28,8 @@ public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuratio
     private FoAccessData Reader() => new(Options(), () => Now);
     public IReadOnlyList<FoField> Inspect() => Reader().Inspect();
     public string SourceKey(FoMapping mapping) => Reader().SourceKey(mapping);
+    public string RegistrySourceKey(FoMapping mapping) => Reader().RegistrySourceKey(mapping);
+    public IEnumerable<RegistryPatient> ReadRegistryPatients(FoMapping mapping, CancellationToken ct) => Reader().ReadRegistryPatients(mapping, ct);
     public FoDataSet Load(FoMapping mapping, DateTime from, DateTime until, CancellationToken cancellationToken)
         => Reader().Load(mapping, from, until, cancellationToken);
     public FoConsultation ReadConsultation(FoMapping mapping, string patientId, string consultationId)

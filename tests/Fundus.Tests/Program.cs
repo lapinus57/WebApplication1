@@ -225,6 +225,7 @@ NativeChecks.Run(Check, day);
 MedicalTextChecks.Run(Check, day);
 ClinicalWordingChecks.Run(Check, day);
 AnnualFollowUpChecks.Run(Check, day);
+await PatientRegistryChecks.RunAsync(Check, day);
 Console.WriteLine($"{count} FO checks passed.");
 
 sealed class FakeReader : IFoAccessReader

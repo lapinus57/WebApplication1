@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ChatServeur.Fundus;
+using ChatServeur.Registry;
 
 namespace ChatServeur
 {
@@ -11,6 +12,8 @@ namespace ChatServeur
 
         public DbSet<FoSettings> FoSettings => Set<FoSettings>();
         public DbSet<FoAlert> FoAlerts => Set<FoAlert>();
+        public DbSet<PatientRegistryEntry> PatientRegistry => Set<PatientRegistryEntry>();
+        public DbSet<PatientRegistrySettings> PatientRegistrySettings => Set<PatientRegistrySettings>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -18,6 +21,10 @@ namespace ChatServeur
             modelBuilder.Entity<FoAlert>().HasIndex(a => new { a.SourceKey, a.PatientId }).IsUnique();
             modelBuilder.Entity<FoAlert>().HasIndex(a => a.NextAppointment);
             modelBuilder.Entity<FoAlert>().Ignore(a => a.EffectiveStatus);
+            modelBuilder.Entity<PatientRegistryEntry>().HasIndex(p => new { p.SourceKey, p.AccessPatientId }).IsUnique();
+            modelBuilder.Entity<PatientRegistryEntry>().HasIndex(p => new { p.SourceKey, p.IsActive, p.LastName });
+            modelBuilder.Entity<PatientRegistryEntry>().Property(p => p.Revision).IsConcurrencyToken();
+            modelBuilder.Entity<PatientRegistrySettings>().Property(p => p.Revision).IsConcurrencyToken();
         }
 
         public DbSet<ChatMessage> Messages => Set<ChatMessage>();
