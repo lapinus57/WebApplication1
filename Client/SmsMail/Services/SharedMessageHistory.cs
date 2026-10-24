@@ -62,12 +62,21 @@ public sealed class SharedMessageHistory
         await SynchronizeAsync();
         var transfer = new HistoryTransfer
         {
-            Entry = new HistoryRecord { Key = message.Key, Channel = message.Channel, Contact = message.Contact, Body = message.Body, ProviderService = message.ProviderService },
+            Entry = new HistoryRecord { Key = message.Key, Channel = message.Channel, Contact = message.Contact, Body = message.Body, ProviderService = message.ProviderService,
+                Reference = message.Reference, Subject = message.Subject, TraceJson = message.TraceJson },
             ReservationKeys = message.ReservationKeys.ToList()
         };
         // The server is the only authority. No offline/local fallback can authorize a send.
         if (!await api.ReserveHistoryAsync(transfer)) return false;
         versions[message.Key] = 1;
+        // The mail cannot be dispatched unless its reference and frozen reasons
+        // can actually be retrieved from this server (also detects old servers).
+        if (message.Reference.Length > 0)
+        {
+            var saved = await api.GetHistoryMessageAsync(message.Key);
+            if (saved?.Reference != message.Reference || saved.TraceJson != message.TraceJson || saved.Body != message.Body || saved.Subject != message.Subject)
+                throw new InvalidOperationException("La traçabilité du mail n’a pas pu être vérifiée sur le serveur. Aucun mail envoyé. Mettez à jour le serveur et vérifiez l’historique ; la réservation est conservée.");
+        }
         await local.ReserveAsync(message);
         await sync.MarkImportedAsync(serverId, message.Key);
         return true;
@@ -118,7 +127,10 @@ public sealed class SharedMessageHistory
         .OrderByDescending(e => DateTimeOffset.Parse(e.CreatedAt, CultureInfo.InvariantCulture)).ThenBy(e => e.Key, StringComparer.Ordinal)
         .Select(e => new MessageHistoryEntry { Key = e.Key, Channel = e.Channel, Contact = e.Contact, Body = e.Body,
             Status = e.Status, CreatedAt = DateTimeOffset.Parse(e.CreatedAt, CultureInfo.InvariantCulture).ToLocalTime().ToString("g"),
-            ProviderId = e.ProviderId, ProviderService = e.ProviderService, Workstation = e.Workstation }).ToList();
+            ProviderId = e.ProviderId, ProviderService = e.ProviderService, Workstation = e.Workstation, Reference = e.Reference }).ToList();
+
+    public async Task<HistoryRecord> ReadDetailsAsync(string key) => await api.GetHistoryMessageAsync(key)
+        ?? throw new InvalidOperationException("Message introuvable dans l’historique partagé.");
 
     public async Task<string> ReadBodyAsync(string key) => (await api.GetHistoryMessageAsync(key))?.Body
         ?? throw new InvalidOperationException("Message introuvable dans l’historique partagé.");

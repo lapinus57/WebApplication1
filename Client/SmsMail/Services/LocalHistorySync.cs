@@ -27,13 +27,13 @@ internal sealed class LocalHistorySync
     public async Task<List<HistoryTransfer>> UnimportedAsync(string server)
     {
         await using var connection = await OpenAsync(); using var command = connection.CreateCommand();
-        command.CommandText = "SELECT MessageKey,Channel,Contact,Body,Status,CreatedAt,ProviderId,ProviderService FROM MessageHistory h WHERE NOT EXISTS (SELECT 1 FROM SharedHistoryImported i WHERE i.ServerId=$server AND i.MessageKey=h.MessageKey) ORDER BY h.rowid LIMIT 50";
+        command.CommandText = "SELECT h.MessageKey,h.Channel,h.Contact,h.Body,h.Status,h.CreatedAt,h.ProviderId,h.ProviderService,COALESCE(t.Reference,''),COALESCE(t.Subject,''),COALESCE(t.TraceJson,'') FROM MessageHistory h LEFT JOIN MessageTrace t ON t.MessageKey=h.MessageKey WHERE NOT EXISTS (SELECT 1 FROM SharedHistoryImported i WHERE i.ServerId=$server AND i.MessageKey=h.MessageKey) ORDER BY h.rowid LIMIT 50";
         command.Parameters.AddWithValue("$server", server); var entries = new List<HistoryTransfer>();
         using (var reader = await command.ExecuteReaderAsync())
             while (await reader.ReadAsync()) entries.Add(new HistoryTransfer { Entry = new HistoryRecord
             {
                 Key = reader.GetString(0), Channel = reader.GetString(1), Contact = reader.GetString(2), Body = reader.GetString(3),
-                Status = reader.GetString(4), CreatedAt = reader.GetString(5), ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6), ProviderService = reader.GetString(7)
+                Status = reader.GetString(4), CreatedAt = reader.GetString(5), ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6), ProviderService = reader.GetString(7), Reference = reader.GetString(8), Subject = reader.GetString(9), TraceJson = reader.GetString(10)
             }});
         foreach (var entry in entries)
         {

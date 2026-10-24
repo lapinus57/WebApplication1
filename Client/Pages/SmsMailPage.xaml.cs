@@ -343,7 +343,7 @@ namespace Client.Pages
             var panel = new StackPanel { Spacing = 12 };
             panel.Children.Add(new TextBlock { Text = caption, TextWrapping = TextWrapping.Wrap });
             panel.Children.Add(text);
-            var dialog = new ContentDialog { Title = channel == "Mail" ? "Mail · aperçu texte" : "SMS", Content = panel, CloseButtonText = "Fermer", XamlRoot = XamlRoot };
+            var dialog = new ContentDialog { Title = channel == "Mail" ? "Mail · aperçu texte" : channel == "Trace" ? "Pourquoi ces personnes ?" : "SMS", Content = panel, CloseButtonText = "Fermer", XamlRoot = XamlRoot };
             dialog.Resources["ContentDialogMaxWidth"] = 920.0;
             await dialog.ShowAsync();
         }
@@ -626,7 +626,8 @@ namespace Client.Pages
                 && (h.Contact.Contains(filter, StringComparison.OrdinalIgnoreCase)
                 || h.Status.Contains(filter, StringComparison.OrdinalIgnoreCase)
                 || h.Workstation.Contains(filter, StringComparison.OrdinalIgnoreCase)
-                || h.CreatedAt.Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
+                || h.CreatedAt.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || EyeChat.Messaging.MailReference.Matches(h.Reference, filter))).ToList();
             HistoryList.ItemsSource = visible;
             if (HistorySummary != null) HistorySummary.Text = _entries.Count == 0 ? "Aucun envoi enregistré dans l’historique partagé."
                 : visible.Count == 0 ? "Aucun envoi ne correspond aux filtres."
@@ -638,6 +639,17 @@ namespace Client.Pages
         {
             if ((sender as FrameworkElement)?.DataContext is not MessageHistoryEntry entry) return;
             await RunAsync(async () => await ShowTextPreviewAsync(entry.Channel, entry.Contact + " · " + entry.CreatedAt + " · " + entry.Status, await _history.ReadBodyAsync(entry.Key)));
+        }
+
+        private async void HistoryTrace_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is not MessageHistoryEntry entry) return;
+            await RunAsync(async () =>
+            {
+                var details = await _history.ReadDetailsAsync(entry.Key);
+                await ShowTextPreviewAsync("Trace", entry.ReferenceDisplay + " · " + entry.Contact + " · " + details.Subject,
+                    MailTracePreparation.Describe(details.TraceJson));
+            });
         }
 
         private async void History_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
@@ -744,9 +756,9 @@ namespace Client.Pages
                 if (value.Length > 0 && "=+-@\t\r".Contains(value[0])) value = "'" + value;
                 return "\"" + value.Replace("\"", "\"\"") + "\"";
             }
-            var csv = new StringBuilder("Canal;Contact;Date;Statut;Message\r\n");
+            var csv = new StringBuilder("Canal;Contact;Date;Statut;Reference;Message\r\n");
             foreach (var entry in _entries)
-                csv.AppendLine(string.Join(";", new[] { entry.Channel, entry.Contact, entry.CreatedAt, entry.Status, await _history.ReadBodyAsync(entry.Key) }.Select(Cell)));
+                csv.AppendLine(string.Join(";", new[] { entry.Channel, entry.Contact, entry.CreatedAt, entry.Status, EyeChat.Messaging.MailReference.Display(entry.Reference), await _history.ReadBodyAsync(entry.Key) }.Select(Cell)));
             await FileIO.WriteTextAsync(file, "\uFEFF" + csv);
             StatusText.Text = "Historique exporté.";
         });

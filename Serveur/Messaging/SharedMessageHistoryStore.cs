@@ -22,6 +22,9 @@ public sealed class SharedMessageHistoryStore
                   Body TEXT NOT NULL, Status TEXT NOT NULL, CreatedAt TEXT NOT NULL,
                   ProviderId INTEGER NULL, ProviderService TEXT NOT NULL, Version INTEGER NOT NULL,
                   Workstation TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS SharedMessageTrace (
+                  MessageKey TEXT PRIMARY KEY, Reference TEXT NOT NULL UNIQUE,
+                  Subject TEXT NOT NULL, TraceJson TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS SharedMessageReservations (ReservationKey TEXT PRIMARY KEY, MessageKey TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS SharedMessageUpdates (OperationId TEXT PRIMARY KEY, Applied INTEGER NOT NULL, Payload TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS SharedMessageIdentity (Id INTEGER PRIMARY KEY CHECK(Id=1), ServerId TEXT NOT NULL);
@@ -55,6 +58,13 @@ public sealed class SharedMessageHistoryStore
         var e = transfer.Entry;
         Text(e.Key, 160); Text(e.Contact, 1024, import); Text(e.Body, 200000, true);
         Text(e.ProviderService, 512, true); Text(e.Status, 2000, true);
+        Text(e.Reference, 20, true); Text(e.Subject, 2000, true); Text(e.TraceJson, 200000, true);
+        if (e.Reference.Length > 0 || e.TraceJson.Length > 0)
+        {
+            if (e.Channel != "Mail" || !MailReference.IsValid(e.Reference) || !e.Body.Contains(MailReference.Display(e.Reference), StringComparison.Ordinal))
+                throw new ArgumentException("Référence du mail invalide.");
+            MailTrace.Parse(e.TraceJson);
+        }
         if (e.Channel != "Mail" && e.Channel != "SMS") throw new ArgumentException("Canal d’historique invalide.");
         if (import && !DateTimeOffset.TryParse(e.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
             throw new ArgumentException("Date d’historique invalide.");
@@ -89,6 +99,18 @@ public sealed class SharedMessageHistoryStore
         command.Parameters.AddWithValue("$provider", import ? (object?)e.ProviderId ?? DBNull.Value : DBNull.Value);
         command.Parameters.AddWithValue("$service", e.ProviderService); command.Parameters.AddWithValue("$station", workstation);
         var added = await command.ExecuteNonQueryAsync() == 1;
+        if (added && e.Reference.Length > 0)
+        {
+            using var trace = connection.CreateCommand(); trace.Transaction = transaction;
+            trace.CommandText = "INSERT INTO SharedMessageTrace VALUES ($key,$reference,$subject,$trace)";
+            trace.Parameters.AddWithValue("$key", e.Key); trace.Parameters.AddWithValue("$reference", e.Reference);
+            trace.Parameters.AddWithValue("$subject", e.Subject); trace.Parameters.AddWithValue("$trace", e.TraceJson);
+            try { await trace.ExecuteNonQueryAsync(); }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+            {
+                throw new InvalidOperationException("Cette référence de mail est déjà utilisée. Préparez de nouveau les messages avant l’envoi.");
+            }
+        }
         transaction.Commit();
         return added;
     }
@@ -113,14 +135,15 @@ public sealed class SharedMessageHistoryStore
     {
         Key = reader.GetString(0), Channel = reader.GetString(1), Contact = reader.GetString(2), Body = reader.GetString(3),
         Status = reader.GetString(4), CreatedAt = reader.GetString(5), ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6),
-        ProviderService = reader.GetString(7), Version = reader.GetInt64(8), Workstation = reader.GetString(9)
+        ProviderService = reader.GetString(7), Version = reader.GetInt64(8), Workstation = reader.GetString(9),
+        Reference = reader.GetString(10), Subject = reader.GetString(11), TraceJson = reader.GetString(12)
     };
 
     public async Task<HistoryRecord?> GetAsync(string key)
     {
         Text(key, 160);
         await using var connection = await OpenAsync(); using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM SharedMessageHistory WHERE MessageKey=$key";
+        command.CommandText = "SELECT h.*,COALESCE(t.Reference,''),COALESCE(t.Subject,''),COALESCE(t.TraceJson,'') FROM SharedMessageHistory h LEFT JOIN SharedMessageTrace t ON t.MessageKey=h.MessageKey WHERE h.MessageKey=$key";
         command.Parameters.AddWithValue("$key", key);
         using var reader = await command.ExecuteReaderAsync();
         return await reader.ReadAsync() ? Read(reader) : null;
@@ -131,10 +154,10 @@ public sealed class SharedMessageHistoryStore
         if (cursor < 0) throw new ArgumentException("Page d’historique invalide.");
         await using var connection = await OpenAsync(); using var command = connection.CreateCommand();
         // Bodies are fetched on demand, keeping each SignalR response bounded.
-        command.CommandText = "SELECT MessageKey,Channel,Contact,'',Status,CreatedAt,ProviderId,ProviderService,Version,Workstation,rowid FROM SharedMessageHistory WHERE rowid>$cursor ORDER BY rowid LIMIT 50";
+        command.CommandText = "SELECT h.MessageKey,h.Channel,h.Contact,'',h.Status,h.CreatedAt,h.ProviderId,h.ProviderService,h.Version,h.Workstation,COALESCE(t.Reference,''),'','',h.rowid FROM SharedMessageHistory h LEFT JOIN SharedMessageTrace t ON t.MessageKey=h.MessageKey WHERE h.rowid>$cursor ORDER BY h.rowid LIMIT 50";
         command.Parameters.AddWithValue("$cursor", cursor);
         using var reader = await command.ExecuteReaderAsync(); var page = new HistoryPage(); long last = 0;
-        while (await reader.ReadAsync()) { page.Entries.Add(Read(reader)); last = reader.GetInt64(10); }
+        while (await reader.ReadAsync()) { page.Entries.Add(Read(reader)); last = reader.GetInt64(13); }
         page.NextCursor = page.Entries.Count == 50 ? last : 0;
         return page;
     }

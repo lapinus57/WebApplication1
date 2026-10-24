@@ -21,6 +21,10 @@ namespace Client.SmsMail.Services
         public long? ProviderId { get; set; }
         public string ProviderService { get; set; } = string.Empty;
         public string Workstation { get; set; } = string.Empty;
+        public string Reference { get; set; } = string.Empty;
+        public string ReferenceDisplay => Reference.Length == 0 ? string.Empty : "Référence : " + EyeChat.Messaging.MailReference.Display(Reference);
+        public string Subject { get; set; } = string.Empty;
+        public string TraceJson { get; set; } = string.Empty;
     }
 
     public sealed class MessageHistory
@@ -37,7 +41,7 @@ namespace Client.SmsMail.Services
             {
                 await connection.OpenAsync();
                 using var command = connection.CreateCommand();
-                command.CommandText = "CREATE TABLE IF NOT EXISTS MessageHistory (MessageKey TEXT PRIMARY KEY, Channel TEXT NOT NULL, Contact TEXT NOT NULL, Body TEXT NOT NULL, Status TEXT NOT NULL, CreatedAt TEXT NOT NULL, ProviderId INTEGER NULL, ProviderService TEXT NOT NULL); CREATE TABLE IF NOT EXISTS MessageReservations (ReservationKey TEXT PRIMARY KEY, MessageKey TEXT NOT NULL)";
+                command.CommandText = "CREATE TABLE IF NOT EXISTS MessageHistory (MessageKey TEXT PRIMARY KEY, Channel TEXT NOT NULL, Contact TEXT NOT NULL, Body TEXT NOT NULL, Status TEXT NOT NULL, CreatedAt TEXT NOT NULL, ProviderId INTEGER NULL, ProviderService TEXT NOT NULL); CREATE TABLE IF NOT EXISTS MessageReservations (ReservationKey TEXT PRIMARY KEY, MessageKey TEXT NOT NULL); CREATE TABLE IF NOT EXISTS MessageTrace (MessageKey TEXT PRIMARY KEY, Reference TEXT NOT NULL, Subject TEXT NOT NULL, TraceJson TEXT NOT NULL)";
                 await command.ExecuteNonQueryAsync();
                 return connection;
             }
@@ -75,6 +79,14 @@ namespace Client.SmsMail.Services
             command.Parameters.AddWithValue("$date", DateTimeOffset.UtcNow.ToString("O"));
             command.Parameters.AddWithValue("$service", message.ProviderService);
             if (await command.ExecuteNonQueryAsync() != 1) return false;
+            if (message.Reference.Length > 0)
+            {
+                using var trace = connection.CreateCommand(); trace.Transaction = transaction;
+                trace.CommandText = "INSERT INTO MessageTrace VALUES ($key,$reference,$subject,$trace)";
+                trace.Parameters.AddWithValue("$key", message.Key); trace.Parameters.AddWithValue("$reference", message.Reference);
+                trace.Parameters.AddWithValue("$subject", message.Subject); trace.Parameters.AddWithValue("$trace", message.TraceJson);
+                await trace.ExecuteNonQueryAsync();
+            }
             transaction.Commit();
             return true;
         }
@@ -164,14 +176,14 @@ namespace Client.SmsMail.Services
         {
             await using var connection = await OpenAsync();
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT MessageKey, Channel, Contact, Body, Status, CreatedAt, ProviderId, ProviderService FROM MessageHistory ORDER BY CreatedAt DESC";
+            command.CommandText = "SELECT h.MessageKey,h.Channel,h.Contact,h.Body,h.Status,h.CreatedAt,h.ProviderId,h.ProviderService,COALESCE(t.Reference,''),COALESCE(t.Subject,''),COALESCE(t.TraceJson,'') FROM MessageHistory h LEFT JOIN MessageTrace t ON t.MessageKey=h.MessageKey ORDER BY h.CreatedAt DESC";
             using var reader = await command.ExecuteReaderAsync();
             var entries = new List<MessageHistoryEntry>();
             while (await reader.ReadAsync()) entries.Add(new MessageHistoryEntry
             {
                 Key = reader.GetString(0), Channel = reader.GetString(1), Contact = reader.GetString(2), Body = reader.GetString(3),
                 Status = reader.GetString(4), CreatedAt = DateTimeOffset.Parse(reader.GetString(5)).ToLocalTime().ToString("g"),
-                ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6), ProviderService = reader.GetString(7)
+                ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6), ProviderService = reader.GetString(7), Reference = reader.GetString(8), Subject = reader.GetString(9), TraceJson = reader.GetString(10)
             });
             return entries;
         }

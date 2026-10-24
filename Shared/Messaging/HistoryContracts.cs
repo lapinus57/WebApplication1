@@ -13,6 +13,9 @@ public sealed class HistoryRecord
     public string CreatedAt { get; set; } = "";
     public long? ProviderId { get; set; }
     public string ProviderService { get; set; } = "";
+    public string Reference { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public string TraceJson { get; set; } = "";
     public long Version { get; set; }
     public string Workstation { get; set; } = "";
 }

@@ -54,7 +54,25 @@ internal static class SharedHistoryHubChecks
             transfer.Entry.Key = "hub-notify-failure"; transfer.ReservationKeys.Clear();
             check(await a.ReserveMessageHistory(transfer), "Notification failure does not invalidate committed reservation");
             check(!await b.ReserveMessageHistory(transfer), "Committed reservation remains effective despite notification failure");
+            var reference = "12345678901234567890";
+            var mail = new HistoryTransfer { Entry = new HistoryRecord
+            {
+                Key = "hub-traced-mail", Channel = "Mail", Contact = "test@example.com", Reference = reference,
+                Subject = "Rappel TEST", Body = "<p>Référence : " + MailReference.Display(reference) + "</p>",
+                TraceJson = System.Text.Json.JsonSerializer.Serialize(new MailTrace
+                {
+                    PreparedAtUtc = DateTimeOffset.UtcNow, GroupingEnabled = true,
+                    People = new() { new() { PatientId = 1, Name = "PATIENT TEST", DestinationReason = "Adresse directe TEST" } }
+                })
+            } };
+            check(await a.ReserveMessageHistory(mail), "Real hub reserves reference and audit");
+            var traced = await b.GetMessageHistoryEntry(mail.Entry.Key);
+            check(traced?.TraceJson == mail.Entry.TraceJson && traced.Reference == reference && traced.Subject == "Rappel TEST", "Second registered workstation retrieves exact trace through real hub");
+            var summary = (await b.GetMessageHistoryPage(0)).Entries.Single(e => e.Key == mail.Entry.Key);
+            check(summary.Reference == reference && summary.TraceJson == "" && summary.Body == "", "Real hub list exposes reference without large trace");
             await a.OnDisconnectedAsync(null); await b.OnDisconnectedAsync(null);
+            try { await Hub("history-test-a").GetMessageHistoryEntry(mail.Entry.Key); check(false, "Disconnected trace read must fail"); }
+            catch (HubException) { check(true, "Disconnected client cannot read trace by known key"); }
             try { await Hub("history-test-a").GetMessageHistoryPage(0); check(false, "Disconnected workstation must be denied"); }
             catch (HubException) { check(true, "Disconnected workstation loses shared history access"); }
         }

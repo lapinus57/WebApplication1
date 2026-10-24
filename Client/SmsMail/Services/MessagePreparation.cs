@@ -38,6 +38,8 @@ namespace Client.SmsMail.Services
         public string Subject { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
         public string Key { get; set; } = string.Empty;
+        public string Reference { get; set; } = string.Empty;
+        public string TraceJson { get; set; } = string.Empty;
         public string ProviderService { get; set; } = string.Empty;
         public bool IncludeCalendar { get; set; } = true;
         public bool CalendarIsBusy { get; set; } = true;
@@ -145,7 +147,10 @@ namespace Client.SmsMail.Services
                     // Stable across refreshes and template edits: an accepted reminder
                     // for this day/contact must not be submitted twice by accident.
                     var key = ContactKey(date, channel, group.Key);
-                    result.Add(new PreparedMessage { Channel = channel, Contact = group.Key,
+                    var reference = channel == "Mail" ? MailTracePreparation.CreateReference() : string.Empty;
+                    var trace = channel == "Mail" ? MailTracePreparation.Snapshot(people, families, originalTimes, group.Key, settings.UseEyeEmailFamilies) : string.Empty;
+                    if (channel == "Mail") body = MailTracePreparation.Footer(body, reference);
+                    result.Add(new PreparedMessage { Channel = channel, Contact = group.Key, Reference = reference, TraceJson = trace,
                         Family = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")),
                         PeopleDisplay = string.Join(Environment.NewLine, people.OrderBy(r => originalTimes[r]).Select(r => $"{r.Prenom} {r.Nom}".Trim()).Distinct()),
                         AppointmentStart = date.Date + people.Min(r => originalTimes[r].TimeOfDay),
