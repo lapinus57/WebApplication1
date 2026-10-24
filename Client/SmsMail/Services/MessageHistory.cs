@@ -20,12 +20,15 @@ namespace Client.SmsMail.Services
         public string CreatedAt { get; set; } = string.Empty;
         public long? ProviderId { get; set; }
         public string ProviderService { get; set; } = string.Empty;
+        public string Workstation { get; set; } = string.Empty;
     }
 
     public sealed class MessageHistory
     {
         private readonly string _connectionString;
         public MessageHistory(string path) => _connectionString = new SqliteConnectionStringBuilder { DataSource = path }.ToString();
+
+        public async Task InitializeAsync() { await using var connection = await OpenAsync(); }
 
         private async Task<SqliteConnection> OpenAsync()
         {

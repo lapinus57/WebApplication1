@@ -190,10 +190,12 @@
                             <ComboBox x:Name="HistoryChannelFilter" Header="Canal" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="HistoryChannel_Changed">
                                 <ComboBoxItem Content="Tous les canaux" Tag="" /><ComboBoxItem Content="Mails" Tag="Mail" /><ComboBoxItem Content="SMS" Tag="SMS" />
                             </ComboBox>
-                            <TextBox x:Name="HistoryFilter" Grid.Column="1" Header="Rechercher dans les envois" PlaceholderText="Destinataire, date ou statut…" TextChanged="HistoryFilter_TextChanged" />
+                            <TextBox x:Name="HistoryFilter" Grid.Column="1" Header="Rechercher dans les envois" PlaceholderText="Destinataire, poste, date ou statut…" TextChanged="HistoryFilter_TextChanged" />
                         </Grid>
                         <TextBlock x:Name="HistorySummary" Text="Aucun envoi enregistré." TextWrapping="Wrap" FontWeight="SemiBold" />
+                        <TextBlock x:Name="HistorySyncText" Text="Chargement de l’historique partagé…" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <CommandBar Background="Transparent" DefaultLabelPosition="Right">
+                            <AppBarButton Label="Actualiser l’historique" Icon="Refresh" Click="RefreshHistory_Click" />
                             <AppBarButton Label="Statuts SMS" Icon="Refresh" Click="History_Click" />
                             <AppBarButton Label="Retours mail" Icon="Mail" Click="MailReports_Click" />
                             <CommandBar.SecondaryCommands>
@@ -211,6 +213,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="16">
                                             <TextBlock Text="{Binding Channel}" FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding CreatedAt}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock Text="{Binding Workstation}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
                                         <Button Content="Lire le message envoyé" Click="HistoryMessage_Click" />

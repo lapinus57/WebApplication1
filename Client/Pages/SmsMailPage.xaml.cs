@@ -22,7 +22,10 @@ namespace Client.Pages
     public sealed partial class SmsMailPage : Page
     {
         private SmsMailSettings _settings = new();
-        private readonly MessageHistory _history;
+        private readonly SharedMessageHistory _history;
+        private Microsoft.UI.Dispatching.DispatcherQueueTimer? _historyRefreshTimer;
+        private bool _historyDirty = true;
+        private DateTime _lastHistoryRefresh;
         private List<RdvInfo> _appointments = new();
         private List<PreparedMessage> _messages = new();
         private List<MessageHistoryEntry> _entries = new();
@@ -42,14 +45,35 @@ namespace Client.Pages
         {
             InitializeComponent();
             Directory.CreateDirectory(SmsMailSettingsStore.DirectoryPath);
-            _history = new MessageHistory(Path.Combine(SmsMailSettingsStore.DirectoryPath, "history.db"));
+            _history = new SharedMessageHistory(Path.Combine(SmsMailSettingsStore.DirectoryPath, "history.db"), App.ChatService);
             Loaded += Page_Loaded;
-            Unloaded += (_, _) => _unloaded = true;
+            Unloaded += (_, _) =>
+            {
+                _unloaded = true;
+                App.ChatService.MessageHistoryChanged -= SharedHistory_Changed;
+                _historyRefreshTimer?.Stop();
+            };
         }
 
         private async void Page_Loaded(object sender, RoutedEventArgs e)
         {
             _unloaded = false;
+            App.ChatService.MessageHistoryChanged -= SharedHistory_Changed;
+            App.ChatService.MessageHistoryChanged += SharedHistory_Changed;
+            _historyDirty = true;
+            if (_historyRefreshTimer == null)
+            {
+                _historyRefreshTimer = DispatcherQueue.CreateTimer();
+                _historyRefreshTimer.Interval = TimeSpan.FromSeconds(3);
+                _historyRefreshTimer.Tick += async (_, _) =>
+                {
+                    if (_unloaded || _busy || (!_historyDirty && DateTime.UtcNow - _lastHistoryRefresh < TimeSpan.FromSeconds(30))) return;
+                    _historyDirty = false;
+                    _lastHistoryRefresh = DateTime.UtcNow;
+                    await RunAsync(ReloadHistoryAsync);
+                };
+            }
+            _historyRefreshTimer.Start();
             if (_loaded) return;
             _loaded = true;
             await RunAsync(async () =>
@@ -268,7 +292,7 @@ namespace Client.Pages
             TimeChangesText.Text = changes.Count == 0 ? "Aucun horaire ajusté." : string.Join(Environment.NewLine, changes);
             _preparedSignature = MessagePreparation.PreparationSignature(_settings);
             await ReloadHistoryAsync();
-            var sent = await _history.LoadReservedKeysAsync();
+            var sent = await _history.LoadReservedKeysAsync(_messages.SelectMany(m => m.ReservationKeys.Append(m.Key)));
             foreach (var message in _messages.Where(m => sent.Contains(m.Key) || m.ReservationKeys.Any(sent.Contains)))
             {
                 message.Selected = false;
@@ -412,9 +436,9 @@ namespace Client.Pages
                         else status = "[TEST] Non accepté par OVH — vérifier le compte";
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    status = "[TEST] Résultat non confirmé — vérifier le compte avant un nouvel essai. " + ex.Message;
+                    status = "[TEST] Résultat non confirmé — vérifier le compte avant un nouvel essai.";
                 }
                 await _history.UpdateAsync(message.Key, status, providerId);
                 outcomes.Add($"{message.Channel} vers {message.Contact} : {status}");
@@ -500,7 +524,7 @@ namespace Client.Pages
         {
             var settings = ReadSettings();
             var since = await _history.EarliestMailAsync(settings.Email.SmtpHost);
-            if (!since.HasValue) { StatusText.Text = "Aucun mail envoyé depuis ce compte dans l'historique local."; return; }
+            if (!since.HasValue) { StatusText.Text = "Aucun mail envoyé depuis ce compte dans l’historique partagé."; return; }
             var reports = await MailDeliveryReports.ReadAsync(settings.Email, since.Value);
             int matched = 0;
             foreach (var report in reports) matched += await _history.ApplyReportAsync(report, settings.Email.SmtpHost);
@@ -521,9 +545,25 @@ namespace Client.Pages
 
         private async Task ReloadHistoryAsync()
         {
-            _entries = await _history.LoadAsync();
-            FilterHistory();
+            try
+            {
+                var entries = await _history.LoadAsync();
+                if (_unloaded) return;
+                _entries = entries;
+                FilterHistory();
+                _lastHistoryRefresh = DateTime.UtcNow;
+                HistorySyncText.Text = "Historique partagé entre tous les postes · actualisé à " + DateTime.Now.ToString("HH:mm:ss")
+                    + (_history.Warning.Length == 0 ? "" : " · " + _history.Warning);
+            }
+            catch
+            {
+                if (!_unloaded) HistorySyncText.Text = "Historique partagé indisponible. La liste affichée n’est pas actualisée. Vérifiez la connexion et la mise à jour du serveur.";
+                throw;
+            }
         }
+
+        private void SharedHistory_Changed() => DispatcherQueue.TryEnqueue(() => _historyDirty = true);
+        private async void RefreshHistory_Click(object sender, RoutedEventArgs e) => await RunAsync(ReloadHistoryAsync);
 
         private static string FilterChannel(ComboBox filter) => (filter?.SelectedItem as ComboBoxItem)?.Tag as string ?? string.Empty;
         private List<PreparedMessage> VisibleMessages() => MessageSelection.Visible(_messages, FilterChannel(SendChannelFilter), SendSearch?.Text ?? string.Empty);
@@ -585,9 +625,10 @@ namespace Client.Pages
             var visible = _entries.Where(h => (channel.Length == 0 || h.Channel == channel)
                 && (h.Contact.Contains(filter, StringComparison.OrdinalIgnoreCase)
                 || h.Status.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || h.Workstation.Contains(filter, StringComparison.OrdinalIgnoreCase)
                 || h.CreatedAt.Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
             HistoryList.ItemsSource = visible;
-            if (HistorySummary != null) HistorySummary.Text = _entries.Count == 0 ? "Aucun envoi enregistré sur ce poste."
+            if (HistorySummary != null) HistorySummary.Text = _entries.Count == 0 ? "Aucun envoi enregistré dans l’historique partagé."
                 : visible.Count == 0 ? "Aucun envoi ne correspond aux filtres."
                 : $"{visible.Count} envoi(s) affiché(s) sur {_entries.Count} · {visible.Count(h => h.Channel == "Mail")} mail(s) · {visible.Count(h => h.Channel == "SMS")} SMS";
         }
@@ -596,14 +637,14 @@ namespace Client.Pages
         private async void HistoryMessage_Click(object sender, RoutedEventArgs e)
         {
             if ((sender as FrameworkElement)?.DataContext is not MessageHistoryEntry entry) return;
-            await RunAsync(() => ShowTextPreviewAsync(entry.Channel, entry.Contact + " · " + entry.CreatedAt + " · " + entry.Status, entry.Body));
+            await RunAsync(async () => await ShowTextPreviewAsync(entry.Channel, entry.Contact + " · " + entry.CreatedAt + " · " + entry.Status, await _history.ReadBodyAsync(entry.Key)));
         }
 
         private async void History_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             await ReloadHistoryAsync();
             var settings = ReadSettings();
-            var pending = _entries.Where(h => h.ProviderId.HasValue && h.ProviderService == settings.Sms.ServiceName
+            var pending = _entries.Where(h => h.Channel == "SMS" && h.ProviderId.HasValue && h.ProviderService == settings.Sms.ServiceName
                 && !h.Status.StartsWith("Reçu", StringComparison.Ordinal)).ToList();
             if (pending.Count == 0) { StatusText.Text = "Historique à jour. Aucun SMS en attente de statut."; return; }
             var sms = new SmsService(settings.Sms);
@@ -704,7 +745,8 @@ namespace Client.Pages
                 return "\"" + value.Replace("\"", "\"\"") + "\"";
             }
             var csv = new StringBuilder("Canal;Contact;Date;Statut;Message\r\n");
-            foreach (var entry in _entries) csv.AppendLine(string.Join(";", new[] { entry.Channel, entry.Contact, entry.CreatedAt, entry.Status, entry.Body }.Select(Cell)));
+            foreach (var entry in _entries)
+                csv.AppendLine(string.Join(";", new[] { entry.Channel, entry.Contact, entry.CreatedAt, entry.Status, await _history.ReadBodyAsync(entry.Key) }.Select(Cell)));
             await FileIO.WriteTextAsync(file, "\uFEFF" + csv);
             StatusText.Text = "Historique exporté.";
         });
