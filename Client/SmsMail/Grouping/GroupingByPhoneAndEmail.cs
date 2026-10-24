@@ -61,25 +61,33 @@ namespace Client.SmsMail.Services.Grouping
             {
                 var rdv = preparation.Rdv;
                 RdvFamille? famille = null;
+                string rule;
 
                 if (!string.IsNullOrEmpty(preparation.NormalizedTel1) &&
                     telMap.TryGetValue(preparation.NormalizedTel1, out famille))
                 {
-                    // Family found via Tel1
+                    rule = "Téléphone 1 commun avec un membre du groupe" + " (" + string.Join(", ", famille.RDVs
+                        .Where(r => NormalizePhoneNumber(r.Tel1) == preparation.NormalizedTel1 || NormalizePhoneNumber(r.Tel2) == preparation.NormalizedTel1)
+                        .Select(FamilyGroupingTrace.Person)) + ")";
                 }
                 else if (!string.IsNullOrEmpty(preparation.NormalizedTel2) &&
                          telMap.TryGetValue(preparation.NormalizedTel2, out famille))
                 {
-                    // Family found via Tel2
+                    rule = "Téléphone 2 commun avec un membre du groupe" + " (" + string.Join(", ", famille.RDVs
+                        .Where(r => NormalizePhoneNumber(r.Tel1) == preparation.NormalizedTel2 || NormalizePhoneNumber(r.Tel2) == preparation.NormalizedTel2)
+                        .Select(FamilyGroupingTrace.Person)) + ")";
                 }
                 else if (!string.IsNullOrEmpty(preparation.NormalizedEmail) &&
                          mailMap.TryGetValue(preparation.NormalizedEmail, out famille))
                 {
-                    // Family found via Email
+                    rule = "Adresse mail commune avec un membre du groupe" + " (" + string.Join(", ", famille.RDVs
+                        .Where(r => string.Equals(r.Email?.Trim(), preparation.NormalizedEmail, StringComparison.OrdinalIgnoreCase))
+                        .Select(FamilyGroupingTrace.Person)) + ")";
                 }
                 else
                 {
                     famille = TryFindFamilyByNameAndTemporalProximity(familles, rdv);
+                    rule = "Nom et proximité de création (10 min) ou de rendez-vous (30 min)";
                 }
 
                 if (famille is null)
@@ -90,6 +98,7 @@ namespace Client.SmsMail.Services.Grouping
                 }
 
                 FamilyUtilities.AddAppointmentToFamily(famille, rdv, preparation.NormalizedTel1, preparation.NormalizedTel2, preparation.NormalizedEmail);
+                FamilyGroupingTrace.Record(rule, famille.RDVs);
 
                 if (!string.IsNullOrEmpty(preparation.NormalizedTel1))
                 {

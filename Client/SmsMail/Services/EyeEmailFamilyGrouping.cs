@@ -17,7 +17,7 @@ namespace Client.SmsMail.Services
             var rows = new ObservableCollection<RdvInfo>(appointments.Where(r => !r.IsCancelled).OrderBy(r => r.HeureRDV));
             foreach (var row in rows)
             {
-                row.NumeroFamille = 0; row.Istried = false;
+                row.NumeroFamille = 0; row.Istried = false; row.GroupingReasons.Clear();
                 row.TriedMethodRound1 = row.TriedMethodRound2 = row.TriedMethodRound3 = row.TriedMethodRound4 = row.TriedMethodRound5 = row.TriedMethodRound6 = string.Empty;
                 row.FamilyMethodRound1 = row.FamilyMethodRound2 = row.FamilyMethodRound3 = row.FamilyMethodRound4 = row.FamilyMethodRound5 = row.FamilyMethodRound6 = null;
             }
@@ -32,15 +32,16 @@ namespace Client.SmsMail.Services
                     FamilyUtilities.AddAppointmentToFamily(family, row);
                     row.TriedMethodRound1 = "Famille EyeEmail";
                 }
+                FamilyGroupingTrace.Record("Appartenance à la famille EyeEmail " + known.Key, family.RDVs);
             }
             rows = new ObservableCollection<RdvInfo>(rows.Where(r => r.ReferenceFamilyNumber == 0));
             GroupingByPhoneAndEmail.Regrouper(rows, families, ref number);
-            GroupingByAddressAndCity.Regrouper(rows, families, ref number);
-            GroupingByAddress.Regrouper(rows, families, ref number);
+            FamilyGroupingTrace.Run("Adresse et ville correspondantes (normalisation EyeEmail)", families, () => GroupingByAddressAndCity.Regrouper(rows, families, ref number));
+            FamilyGroupingTrace.Run("Adresse et ville correspondantes (inclusion de texte EyeEmail)", families, () => GroupingByAddress.Regrouper(rows, families, ref number));
             // A singleton is still eligible for the subsequent remark/name/date passes.
             ReleaseSingletons();
-            GroupingByRemark.Regrouper(rows, families, ref number);
-            GroupingByNameAndCreationDate.Regrouper(rows, families, ref number);
+            FamilyGroupingTrace.Run("Regroupement ou fusion par la mention « avec » dans une remarque", families, () => GroupingByRemark.Regrouper(rows, families, ref number));
+            FamilyGroupingTrace.Run("Nom et proximité de création (10 min) ou de rendez-vous (30 min)", families, () => GroupingByNameAndCreationDate.Regrouper(rows, families, ref number));
             GroupingByDate.Regrouper(rows, families, ref number,
                 history ?? new Dictionary<int, List<(DateTime, DateTime?, DateTime?)>>(), confirmation);
             foreach (var row in rows.Where(r => r.NumeroFamille == 0))

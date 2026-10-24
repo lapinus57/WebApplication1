@@ -174,6 +174,8 @@ checks += await EyeEmailChecks.RunAsync();
 checks += await FamilySmsChecks.RunAsync();
 checks += ReminderTimeChecks.Run();
 checks += MailTextPreviewChecks.Run();
+checks += await SharedHistoryChecks.RunAsync();
+checks += await MailTraceChecks.RunAsync();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler

@@ -47,6 +47,8 @@ namespace Client.SmsMail.Services
             };
             message.To.Add(new MailAddress(prepared.Contact));
             message.Headers.Add("Content-Language", "fr");
+            if (EyeChat.Messaging.MailReference.IsValid(prepared.Reference))
+                message.Headers.Add("X-EyeChat-Reference", prepared.Reference);
             message.Headers.Add("Message-ID", "<" + prepared.Key + "@eyechat.local>");
             message.Headers.Add("Disposition-Notification-To", _settings.SenderAddress);
             message.BodyEncoding = Encoding.UTF8;

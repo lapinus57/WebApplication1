@@ -61,6 +61,7 @@ var dbPath = Path.Combine(dbFolder, "chat.db");
 
 builder.Services.AddDbContext<ChatDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
+builder.Services.AddSingleton(new ChatServeur.Messaging.SharedMessageHistoryStore(dbPath));
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

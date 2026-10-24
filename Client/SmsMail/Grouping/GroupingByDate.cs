@@ -65,6 +65,7 @@ namespace Client.SmsMail.Services.Grouping
                     if (confirmation?.Invoke(messageBuilder.ToString(), "Confirmation d'ajout à la famille") == true)
                     {
                         FamilyUtilities.AddAppointmentToFamily(famille, rdvNonGroupe);
+                        FamilyGroupingTrace.Record("Ajout confirmé par l’utilisateur : création à moins de 5 minutes de la moyenne du groupe", famille.RDVs);
                         rdvNonGroupe.FamilyMethodRound2 = famille.Numero;
                         break;
                     }
@@ -174,6 +175,7 @@ namespace Client.SmsMail.Services.Grouping
                         var nouvelleFamille = FamilyUtilities.CreateNewFamily(familles, ref numeroFamille);
                         FamilyUtilities.AddAppointmentToFamily(nouvelleFamille, rdv1);
                         FamilyUtilities.AddAppointmentToFamily(nouvelleFamille, rdv2);
+                        FamilyGroupingTrace.Record("Regroupement confirmé par l’utilisateur : proximité de création et de rendez-vous, historique commun", nouvelleFamille.RDVs);
                         rdvsNonGroupes.Remove(rdv1);
                         rdvsNonGroupes.Remove(rdv2);
                         i--;

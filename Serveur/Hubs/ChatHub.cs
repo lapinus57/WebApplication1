@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ChatServeur
 {
-    public class ChatHub : Hub
+    public partial class ChatHub : Hub
     {
         private sealed class PendingLoginRequest
         {
@@ -159,12 +159,14 @@ namespace ChatServeur
         private readonly ChatDbContext _db;
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<ChatHub> _logger;
+        private readonly Messaging.SharedMessageHistoryStore _messageHistory;
 
-        public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger)
+        public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, Messaging.SharedMessageHistoryStore messageHistory)
         {
             _db = db;
             _env = env;
             _logger = logger;
+            _messageHistory = messageHistory;
         }
 
         private string ToRelativeAvatar(string avatar)
