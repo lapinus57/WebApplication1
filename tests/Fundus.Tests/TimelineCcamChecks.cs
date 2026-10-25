@@ -64,11 +64,18 @@ internal static class TimelineCcamChecks
         check(Analyze(Visit("periphery", -400, "V3FOD : compte rendu\nRECONTROLE PERIPHERIE OD\nREVOIR DANS 1 AN"))?.Status == FoStatus.Planned, "Retinal peripheral recheck is detected with a generic follow-up deadline");
         check(Analyze(Visit("other", -400, "Recontrôler périphérie du champ visuel")) == null, "Non-retinal peripheral instruction is not assumed to be FO");
         check(Analyze(Visit("negative", -400, "V3FOD : compte rendu\nNe pas recontrôler périphérie OD")) == null, "Negated peripheral recheck is excluded");
+        foreach (var other in new[] { "Recontrôle périphérie OD non nécessaire", "Recontrôler périphérie du champ visuel", "Recontrôler périphérie cornéenne", "Recontrôle périphérie OD en 2020" })
+            check(Analyze(Visit("excluded", -400, "V3FOD : compte rendu\n" + other)) == null, "Eye context does not override negation, history or another structure: " + other);
         check(Analyze(Visit("conditional", -400, "V3FOD : compte rendu\nRecontrôler périphérie OD si nécessaire"))?.Status == FoStatus.Verify, "Conditional peripheral recheck remains uncertain");
         check(Analyze(request, Visit("negative-v3", -1, "Pas de V3FO prévu")) == null, "V3 negation closes a prior request");
         var conflicting = new FoConsultation("conflict", day.AddDays(-1), "Refaire FO dans 6 mois", "Refaire FO dans 1 an");
         var conflict = Analyze(conflicting);
         check(conflict?.Status == FoStatus.Verify && conflict.Reason.Contains("Délais FO contradictoires") && !conflict.Reason.Contains("Échéance calculée"), "Conflicting fields do not arbitrarily choose a deadline");
+        foreach (var ambiguous in new[] { "Refaire FO dans 6 mois ou dans 1 an", "Refaire FO\nRevoir dans 6 mois\nRevoir dans 1 an" })
+        {
+            var result = Analyze(Visit("ambiguous", -1, ambiguous));
+            check(result?.Status == FoStatus.Verify && result.Reason.Contains("Délais FO contradictoires") && !result.Reason.Contains("Échéance calculée"), "Ambiguous deadline differs from an absent deadline: " + ambiguous);
+        }
         var leap = new FoConsultation("leap", new DateTime(2028, 2, 29), "Refaire FO dans 1 an");
         check(FundusAnalysis.Analyze(new[] { leap }, new DateTime(2029, 2, 27), new DateTime(2029, 2, 28))?.Status == FoStatus.Planned, "Calendar year deadlines handle leap day");
 

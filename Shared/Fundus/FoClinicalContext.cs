@@ -72,8 +72,9 @@ internal static class FoClinicalContext
             var text = FundusAnalysis.Normalize(clause);
             const string action = @"\b(?:recontrole[r]?|controle[r]?|revoir|surveiller)\s+(?:la\s+)?peripherie\b";
             if (!Has(text, action) || Has(text, @"\b(?:pas|plus|jamais|inutile de|pas besoin de)\s+" + action) ||
-                Has(text, @"\b(?:avait|ancien\w*|antecedent\w*|il y a)\b")) continue;
-            return new(Has(text, @"\b(?:si|possible|eventuel\w*|a discuter|au besoin)\b|\?") ? FoFindingKind.Potential : FoFindingKind.Request,
+                Has(text, @"\b(?:avait|ancien\w*|antecedent\w*|il y a|en (?:19|20)\d{2})\b|\bchamp\s+visuel\b|\bcorne\w*\b") ||
+                Has(text, @"\bperipherie\b.{0,30}\b(?:non necessaire|non indique|inutile|annul\w*)\b")) continue;
+            return new(Has(text, @"\b(?:si|possible|eventuel\w*|a discuter|au besoin|surveiller)\b|\?") ? FoFindingKind.Potential : FoFindingKind.Request,
                 clause, "Contrôle de la périphérie rétinienne demandé ; préparation à confirmer.");
         }
         return null;

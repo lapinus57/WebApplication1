@@ -113,9 +113,9 @@ public static class FundusAnalysis
         // Within one field, preserve explicit paragraph order (including a later cancellation).
         if (FoClinicalContext.PeripheralRequest(consultation) is { } peripheral)
             findings.Add(findings.Any(f => f.Kind == FoFindingKind.Cancelled) ? peripheral with { Kind = FoFindingKind.Potential } : peripheral);
-        var deadlines = findings.Where(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential)
-            .Select(f => FoTiming.Due(consultation, f.Excerpt)).Where(d => d.HasValue).Distinct().ToList();
-        if (deadlines.Count > 1)
+        var timings = findings.Where(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential)
+            .Select(f => FoTiming.Read(consultation, f.Excerpt)).ToList();
+        if (timings.Any(t => t.Ambiguous) || timings.Select(t => t.Due).Where(d => d.HasValue).Distinct().Count() > 1)
             findings = findings.Select(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential
                 ? f with { Kind = FoFindingKind.Potential, AmbiguousTiming = true, Reason = "Délais FO contradictoires dans cette consultation : échéance à vérifier." } : f).ToList();
         var codes = FoCcam.FundusEvidence(consultation);
