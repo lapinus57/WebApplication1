@@ -59,10 +59,23 @@ internal static class FoClinicalContext
         var workup = eligible.FirstOrDefault(c => Has(c.Text, MacularWorkup) || (hasImaging && Has(c.Text, ComparativeWorkup)));
         if (workup.Original != null)
             return new(FoFindingKind.Potential, workup.Original, "Bilan mentionné ; vérifier si un FO est à préparer.");
-        var report = eligible.Where(c => Has(c.Text, EyeReport)).Take(2).ToList();
-        if (report.Count > 0)
-            return new(FoFindingKind.Potential, string.Join("\n", report.Select(c => c.Original)), "Compte rendu FOD/FOG ; pas de consigne explicite de prochain FO.");
-        var oct = eligible.FirstOrDefault(c => IsOct(c.Text));
-        return oct.Original == null ? null : new(FoFindingKind.Potential, oct.Original, "OCT mentionné ; vérifier si un FO est à préparer.");
+        // A normal report, OCT alone or a generic annual visit is not a new FO instruction.
+        return null;
+    }
+
+    public static FoFinding? PeripheralRequest(FoConsultation consultation)
+    {
+        var all = FundusAnalysis.Normalize(consultation.Text + "\n" + consultation.RefractionText);
+        if (!Has(all, EyeReport + @"|\bretin\w*\b")) return null;
+        foreach (var clause in Clauses(consultation.Text).Concat(Clauses(consultation.RefractionText)))
+        {
+            var text = FundusAnalysis.Normalize(clause);
+            const string action = @"\b(?:recontrole[r]?|controle[r]?|revoir|surveiller)\s+(?:la\s+)?peripherie\b";
+            if (!Has(text, action) || Has(text, @"\b(?:pas|plus|jamais|inutile de|pas besoin de)\s+" + action) ||
+                Has(text, @"\b(?:avait|ancien\w*|antecedent\w*|il y a)\b")) continue;
+            return new(Has(text, @"\b(?:si|possible|eventuel\w*|a discuter|au besoin)\b|\?") ? FoFindingKind.Potential : FoFindingKind.Request,
+                clause, "Contrôle de la périphérie rétinienne demandé ; préparation à confirmer.");
+        }
+        return null;
     }
 }

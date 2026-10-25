@@ -76,15 +76,16 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         {
             cancellationToken.ThrowIfCancellationRequested();
             yield return new(patient.Id, patient.LastName, patient.FirstName,
-                ReadClinicalTimeline(connection, schema, mapping, patient.Id, now, cancellationToken));
+                ReadClinicalTimeline(connection, schema, mapping, patient.Id, now, cancellationToken, includeActs: false));
         }
     }
 
     private static IReadOnlyList<FoConsultation> ReadClinicalTimeline(OleDbConnection connection, IReadOnlyList<FoField> schema,
-        FoMapping mapping, string id, DateTime now, CancellationToken cancellationToken)
+        FoMapping mapping, string id, DateTime now, CancellationToken cancellationToken, bool includeActs = true)
     {
         using var consultations = connection.CreateCommand();
-        consultations.CommandText = $"SELECT {Q(mapping.ConsultationId)}, {Q(mapping.ConsultationDate)}, {string.Join(", ", mapping.ObservationFields.Select(Q))} FROM {Q(mapping.ConsultationsTable)} WHERE {Q(mapping.ConsultationPatientId)} = ?";
+        var query = FoConsultationQuery.Create(mapping, schema, includeActs: includeActs);
+        consultations.CommandText = query.Sql;
         AddKey(consultations, schema, mapping.ConsultationsTable, mapping.ConsultationPatientId, id);
         var rows = new List<FoConsultation>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -94,14 +95,14 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         {
             cancellationToken.ThrowIfCancellationRequested();
             var consultationId = Key(reader.GetValue(0));
-            if (!ids.Add(consultationId)) throw new FoDataException("L’identifiant consultation choisi n’est pas unique pour un patient.");
+            if (!ids.Add(consultationId)) throw new FoDataException("Consultation dupliquée : vérifiez l’identifiant de consultation et l’unicité de Tarif.Code acte.");
             var date = Date(reader.GetValue(1));
             if (date > now) continue;
             var (text, refraction) = ClinicalText(reader, mapping, 2);
             totalCharacters += text.Length + refraction.Length;
             if (text.Length + refraction.Length > 100_000 || rows.Count >= 10_000 || totalCharacters > 5_000_000)
                 throw new FoDataException("Volume d’observations inhabituel. Vérifiez les champs choisis ; l’analyse a été interrompue sans résultat partiel.");
-            rows.Add(new(consultationId, date, text, refraction));
+            rows.Add(WithAct(new(consultationId, date, text, refraction), reader, mapping, query.HasActs));
         }
         return rows;
     }
@@ -163,15 +164,34 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         mapping.SelectClinicalFields(schema);
         mapping.Validate(schema);
         using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT {Q(mapping.ConsultationDate)}, {string.Join(", ", mapping.ObservationFields.Select(Q))} FROM {Q(mapping.ConsultationsTable)} WHERE {Q(mapping.ConsultationPatientId)} = ? AND {Q(mapping.ConsultationId)} = ?";
+        var query = FoConsultationQuery.Create(mapping, schema, single: true);
+        command.CommandText = query.Sql;
         AddKey(command, schema, mapping.ConsultationsTable, mapping.ConsultationPatientId, patientId);
         AddKey(command, schema, mapping.ConsultationsTable, mapping.ConsultationId, consultationId);
         using var reader = command.ExecuteReader()!;
         if (!reader.Read()) throw new FoDataException("La consultation source n’est plus disponible. Actualisez l’analyse.");
-        var (text, refraction) = ClinicalText(reader, mapping, 1);
-        var row = new FoConsultation(consultationId, Date(reader.GetValue(0)), text, refraction);
-        if (reader.Read()) throw new FoDataException("Plusieurs consultations correspondent à cet identifiant. Vérifiez le rapprochement.");
+        var (text, refraction) = ClinicalText(reader, mapping, 2);
+        var row = WithAct(new(consultationId, Date(reader.GetValue(1)), text, refraction), reader, mapping, query.HasActs);
+        if (reader.Read()) throw new FoDataException("Consultation dupliquée : vérifiez l’identifiant de consultation et l’unicité de Tarif.Code acte.");
         return row;
+    }
+
+    public IReadOnlyList<FoConsultation> ReadPatientTimeline(FoMapping mapping, string patientId, CancellationToken token)
+    {
+        using var connection = ReadOnlyAccess.Open(options);
+        var schema = Schema(connection);
+        mapping.SelectClinicalFields(schema);
+        mapping.Validate(schema);
+        return ReadClinicalTimeline(connection, schema, mapping, patientId, Now, token);
+    }
+
+    private static FoConsultation WithAct(FoConsultation row, OleDbDataReader reader, FoMapping mapping, bool available)
+    {
+        if (!available) return row;
+        int offset = 2 + mapping.ObservationFields.Length;
+        var local = Convert.ToString(reader.GetValue(offset), CultureInfo.InvariantCulture)?.Trim() ?? "";
+        if (local.Length > 128) throw new FoDataException("Le code acte local est trop long. Vérifiez le champ de liaison.");
+        return row with { CcamCodes = FoCcam.Parse(reader.GetValue(offset + 1)), LocalActCode = local, ActLinkAvailable = true };
     }
 
     private static (string Text, string Refraction) ClinicalText(OleDbDataReader reader, FoMapping mapping, int offset)

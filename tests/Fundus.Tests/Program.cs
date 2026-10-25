@@ -226,6 +226,7 @@ MedicalTextChecks.Run(Check, day);
 ClinicalWordingChecks.Run(Check, day);
 AnnualFollowUpChecks.Run(Check, day);
 await PatientRegistryChecks.RunAsync(Check, day);
+TimelineCcamChecks.Run(Check);
 Console.WriteLine($"{count} FO checks passed.");
 
 sealed class FakeReader : IFoAccessReader

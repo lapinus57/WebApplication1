@@ -55,7 +55,7 @@ internal static class AnnualFollowUpChecks
         check(Analyze("HTO\nFO non nécessaire") == null, "Same-visit explicit cancellation overrides annual rule");
         check(Timeline((-800, "HTO"), (-1, "FO non nécessaire")) == null, "Later cancellation overrides chronic context");
         check(Timeline((-800, "HTO"), (-10, "FO non nécessaire"), (-1, "HTO"))?.Status == FoStatus.Verify, "Fresh context after cancellation prompts a new review");
-        check(Analyze("DIABÈTE\nREFAIRE FO DANS 6 MOS")?.Status == FoStatus.Planned, "Explicit shorter interval keeps priority over annual rule");
+        check(Analyze("DIABÈTE\nREFAIRE FO DANS 6 MOS")?.Status == FoStatus.Verify, "Explicit shorter interval keeps priority over annual rule");
         check(Timeline((-800, "DIABETE\nFO prochaine fois"), (-1, "RAS"))?.Reason.Contains("Consultation ultérieure") == true, "Unresolved explicit instruction keeps its chronology");
 
         check(Analyze("DIABETE\nFO réalisé") == null, "Recent completed FO does not start an annual alert immediately");

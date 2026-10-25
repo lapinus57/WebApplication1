@@ -55,7 +55,7 @@ public sealed class FoStore(ChatDbContext db, IFoAccessReader reader)
             var source = reader.Load(mapping, from, until, ct);
             if (source.SourceKey != reader.SourceKey(mapping)) throw new FoDataException("La source Access a changé pendant la lecture. Relancez l’analyse.");
             // Analyze everything before opening a write transaction: no partial refresh on a read failure.
-            var analyses = source.Patients.Select(p => (Patient: p, Result: FundusAnalysis.Analyze(p.Consultations, reader.Now))).ToList();
+            var analyses = source.Patients.Select(p => (Patient: p, Result: FundusAnalysis.Analyze(p.Consultations, reader.Now, p.Appointment))).ToList();
             var now = DateTime.UtcNow;
             await using var transaction = await db.Database.BeginTransactionAsync(ct);
             var existing = await db.FoAlerts.Where(a => a.SourceKey == source.SourceKey || a.SourceKey == previousKey).ToListAsync(ct);
