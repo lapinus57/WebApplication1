@@ -27,6 +27,7 @@ public sealed partial class FundusPage : Page
     public FundusPage()
     {
         InitializeComponent();
+        AccessRuntimeText.Text = AccessRuntimeDiagnostics.ClientDescription + " · moteur Access de même architecture requis";
         _ready = true;
         UpdatePeriod();
         // Attach after XAML construction; repeated Loaded notifications must not reinitialize the page.
@@ -74,7 +75,7 @@ public sealed partial class FundusPage : Page
     {
         foreach (var control in SearchControls.Children.OfType<Control>()) control.IsEnabled = !busy;
         if (!busy) FromDate.IsEnabled = ToDate.IsEnabled = PeriodBox.SelectedIndex == 3;
-        SettingsButton.IsEnabled = PatientsList.IsEnabled = !busy;
+        SettingsButton.IsEnabled = AccessDiagnosticButton.IsEnabled = PatientsList.IsEnabled = !busy;
         LoadingBar.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -90,7 +91,7 @@ public sealed partial class FundusPage : Page
         // Never log provider errors or medical text; expected schema errors are safe to display.
         var message = ex is FoDataException ? ex.Message :
             "Impossible de lire les données FO. Vérifiez la connexion au serveur, le chemin Access des paramètres RDV et les droits du poste (fournisseur ACE et groupe de travail).";
-        Message(message + (_hasResults ? " La liste précédente reste affichée ; elle n’a pas été actualisée." : ""), InfoBarSeverity.Error);
+        Message(message + " " + AccessRuntimeDiagnostics.ClientDescription + ". Le bouton Diagnostic Access permet de vérifier l’installation du moteur sans ouvrir la base." + (_hasResults ? " La liste précédente reste affichée ; elle n’a pas été actualisée." : ""), InfoBarSeverity.Error);
         if (!_hasResults) EmptyText.Text = "Recherche non aboutie. Consultez le message ci-dessus puis réessayez.";
     }
 
@@ -256,6 +257,31 @@ public sealed partial class FundusPage : Page
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (operation.IsCurrent) ShowFailure(ex); }
+        finally { if (operation.IsCurrent) Busy(false); }
+    }
+
+    private async void AccessDiagnostic_Click(object sender, RoutedEventArgs e)
+    {
+        using var operation = _lifetime.TryStart();
+        if (operation == null) return;
+        Busy(true);
+        try
+        {
+            var provider = MachineConfig.Load().AccessOleDbProvider;
+            var report = await Task.Run(() => AccessRuntimeDiagnostics.Describe(provider), operation.Token);
+            if (!operation.IsCurrent) return;
+            await ShowDialogAsync(new ContentDialog
+            {
+                Title = "Diagnostic Access du poste", XamlRoot = XamlRoot, CloseButtonText = "Fermer",
+                Content = new ScrollViewer
+                {
+                    Content = Text(report), MaxHeight = 580, MaxWidth = 640,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                }
+            });
+        }
+        catch (OperationCanceledException) { }
+        catch { if (operation.IsCurrent) Message("Le diagnostic local n’a pas pu être lu. Aucun accès à la base n’a été effectué.", InfoBarSeverity.Error); }
         finally { if (operation.IsCurrent) Busy(false); }
     }
 

@@ -9,6 +9,7 @@ on:
       - 'Shared/**'
       - 'tests/Fundus.Tests/**'
       - 'tests/SmsMail.Tests/**'
+      - 'tests/Client.Configuration/**'
       - '.github/workflows/windows-client.yml'
 
 permissions:
@@ -22,11 +23,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Verify client CPU, runtime and package architecture
+        shell: pwsh
+        run: ./tests/Client.Configuration/Verify-Architectures.ps1
       - name: Verify message preparation, OVH signing and duplicate prevention
         run: dotnet run --project tests/SmsMail.Tests --configuration Release
       - name: Verify fundus detection, chronology and SQLite reconciliation
         run: dotnet run --project tests/Fundus.Tests --configuration Release
       - name: Compile server and Razor pages
         run: dotnet build Serveur/Serveur.csproj --configuration Release
-      - name: Compile WinUI client without package signing
+      - name: Compile WinUI x64 client without package signing
         run: dotnet build Client/Client.csproj --configuration Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=false
+      - name: Compile WinUI x86 client for 32-bit Access without package signing
+        run: dotnet build Client/Client.csproj --configuration Release -p:Platform=x86 -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=false
