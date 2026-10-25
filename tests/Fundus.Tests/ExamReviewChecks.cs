@@ -10,6 +10,7 @@ internal static class ExamReviewChecks
         var old = V("old", now.AddYears(-5), "FO réalisé");
         var recent = V("latest", now.AddDays(-1), "Surveillance", "Myopie -6,00");
         check(ExamReviewContext.ApplyMyopia(new[] { old, recent }, now, now, Unknown())[0].Decision == true, "Explicit strong myopia becomes due at five years");
+        check(ExamReviewContext.ApplyMyopia(new[] { old, recent with { RefractionText = "Myopie -5,50" } }, now, now, Unknown())[0].Decision == true, "Decimal comma is preserved for the myopia threshold");
         check(ExamReviewContext.ApplyMyopia(new[] { old, recent }, now, now.AddDays(-1), Unknown())[0].Decision == null, "Five-year boundary is not anticipated");
         check(ExamReviewContext.ApplyMyopia(new[] { recent }, now, now, Unknown())[0].Explanation.Contains("non retrouvé"), "Missing prior FO needs confirmation");
         foreach (var text in new[] { "Myopie -5,00", "Cylindre -6,00", "Pas de myopie -6,00", "Antécédent familial myopie -6,00", "Myopie +6,00", "Myopie -6,00 ?", "Possible myopie -6,00", "Fausse myopie -6,00" })
