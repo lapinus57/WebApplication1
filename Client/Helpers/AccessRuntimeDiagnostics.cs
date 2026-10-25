@@ -36,6 +36,7 @@ internal static class AccessRuntimeDiagnostics
                 output.AppendLine("  64 bits : " + Registration(provider, RegistryView.Registry64));
         }
         output.AppendLine();
+        output.AppendLine("Les fichiers des pilotes ne sont vérifiés que pour l’architecture du processus en cours.");
         output.AppendLine("La présence d’une déclaration et du fichier ne prouve pas que le moteur fonctionne. Ce diagnostic ne lance ni Office ni connexion Access.");
         output.AppendLine("Le moteur doit être compatible avec l’architecture du client en cours, même sur Windows 64 bits. Pour Office/Access 32 bits, utiliser le client x86 avec ACE 32 bits. Jet concerne les bases .mdb et les processus x86 uniquement.");
         output.AppendLine("Si le client est déjà x86 avec Office/Access 32 bits et que le message « système d’exploitation non configuré » persiste : fermer EyeChat et Office, puis utiliser Paramètres Windows → Applications → Microsoft Office/Access → Modifier → Réparation rapide (si proposée). Réessayer après la réparation ; si nécessaire, faire réparer l’installation Access Runtime/ACE existante par l’administrateur du poste.");
@@ -51,7 +52,11 @@ internal static class AccessRuntimeDiagnostics
             using var program = classes.OpenSubKey(provider + @"\CLSID", writable: false);
             if (program?.GetValue(null) is not string raw || !Guid.TryParse(raw, out var id)) return "non déclaré";
             using var server = classes.OpenSubKey(@"CLSID\" + id.ToString("B") + @"\InprocServer32", writable: false);
-            if (server?.GetValue(null) is not string path || string.IsNullOrWhiteSpace(path)) return "déclaration incomplète";
+            if (server?.GetValue(null, null, RegistryValueOptions.DoNotExpandEnvironmentNames) is not string path || string.IsNullOrWhiteSpace(path)) return "déclaration incomplète";
+            // Environment expansion and filesystem redirection follow this process.
+            // Do not report a missing DLL when inspecting the other registry view.
+            if ((view == RegistryView.Registry64) != Environment.Is64BitProcess)
+                return "déclaré (autre architecture ; fichier non vérifié)";
             path = Environment.ExpandEnvironmentVariables(path.Trim().Trim('"'));
             return File.Exists(path) ? "déclaré ; fichier du pilote présent" : "déclaré ; fichier du pilote absent ou inaccessible";
         }

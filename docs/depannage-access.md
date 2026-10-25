@@ -4,7 +4,7 @@ Si **Préparation FO** et **SMS et Mail** affichent tous les deux cette alerte, 
 
 ## Vérifier le programme réellement exécuté
 
-Dans Préparation FO, le pied de page indique **Client x86 (32 bits)** ou **Client x64 (64 bits)**, selon le processus réellement lancé. Le bouton **Diagnostic Access** consulte les déclarations Windows des fournisseurs, en 32 et 64 bits. Il ne lance pas Office, ne charge pas le pilote et n’ouvre aucune base. Le texte est sélectionnable pour être communiqué au support ; il contient l’architecture et les déclarations des moteurs, sans données patient, identifiants de connexion ni chemins de bases.
+Dans Préparation FO, le pied de page indique **Client x86 (32 bits)** ou **Client x64 (64 bits)**, selon le processus réellement lancé. Le bouton **Diagnostic Access** consulte les déclarations Windows des fournisseurs, en 32 et 64 bits. La présence du fichier du pilote est vérifiée uniquement dans l’architecture du client en cours, afin d’éviter les confusions de redirection Windows entre 32 et 64 bits. Il ne lance pas Office, ne charge pas le pilote et n’ouvre aucune base. Le texte est sélectionnable pour être communiqué au support ; il contient l’architecture et les déclarations des moteurs, sans données patient, identifiants de connexion ni chemins de bases.
 
 Une déclaration Windows et une DLL présente ne garantissent pas le bon fonctionnement du moteur : ses dépendances ou l’installation Office peuvent être endommagées. Le diagnostic ne teste pas les autorisations sur la base. Le fournisseur affiché comme configuré n’est pas forcément celui finalement sélectionné par la connexion, qui conserve ses fournisseurs de repli existants.
 
