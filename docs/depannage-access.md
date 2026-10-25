@@ -1,6 +1,16 @@
 # Alerte « Le système d’exploitation n’est pas actuellement configuré pour exécuter cette application »
 
-Si **Préparation FO** et **SMS et Mail** affichent tous les deux cette alerte, vérifier l’accès au moteur Access/Office commun aux deux onglets. L’ouverture de Préparation FO lance une recherche automatique, donc peut déclencher le chargement du pilote immédiatement. Le texte de cette alerte seul ne permet pas de confirmer la cause ; le poste réel reste à vérifier.
+Si **Préparation FO** et **SMS et Mail** affichent tous les deux cette alerte, vérifier l’accès au moteur Access/Office commun aux deux onglets. Le texte de cette alerte seul ne permet pas de confirmer la cause ; le poste réel reste à vérifier.
+
+## Si les alertes empêchent de cliquer sur Diagnostic Access
+
+L’ancien comportement lançait une recherche dès l’ouverture de Préparation FO, avant qu’il soit possible d’utiliser le diagnostic. Le pilote natif pouvait alors afficher des alertes bloquantes pendant cette lecture ; un `try/catch` C# ne permet pas de fermer ces fenêtres ou d’interrompre un appel ACE bloqué.
+
+Après mise à jour du client, **l’ouverture de Préparation FO ne lance plus aucune connexion Access**. Si une ancienne instance est encore bloquée, la fermer (ou arrêter son débogage dans Visual Studio), puis lancer la nouvelle compilation. Ouvrir l’onglet et cliquer directement sur **Diagnostic Access**, avant **Rechercher les patients** ou **Champs Access**. Le retour dans l’onglet et les changements de période/filtres ne relancent pas la lecture.
+
+Cette modification rend le diagnostic accessible avant tout appel au pilote par cette page. Elle ne répare pas le moteur Access et ne garantit pas qu’une recherche explicite n’affichera plus l’alerte. Ne pas lancer de recherche pendant la collecte du diagnostic. La base reste en lecture seule.
+
+Contrôle manuel sur le poste : ouvrir puis quitter/revenir dans l’onglet, changer la période et les filtres, et vérifier l’absence d’alerte avant toute recherche. Ouvrir le diagnostic et copier son texte. Une fois la cause identifiée et corrigée, vérifier séparément une recherche explicite dans FO et le chargement SMS/Mail.
 
 ## Vérifier le programme réellement exécuté
 
