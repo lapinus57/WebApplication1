@@ -83,9 +83,10 @@ public sealed partial class ExamLearningPage : Page
 
     private void RefreshReport()
     {
-        int tests = Store.Examples.Count(e => ExamLearningData.IsTest(e.Group));
-        SummaryText.Text = $"{Store.Examples.Count - tests} patient(s) d’entraînement · {tests} patient(s) de test · " +
-            (Store.Active == null ? "classement désactivé" : $"modèle actif {Store.Active.Id:N}");
+        int eligible = Store.Examples.Count(e => e.SourceVersion == 2);
+        int tests = Store.Examples.Count(e => e.SourceVersion == 2 && ExamLearningData.IsTest(e.Group));
+        SummaryText.Text = $"{eligible - tests} patient(s) d’entraînement · {tests} patient(s) de test · {Store.Examples.Count - eligible} ancien(s) dossier(s) à relire · " +
+            (Store.Active == null ? "classement appris désactivé" : Store.Active.FeatureVersion != "exam-local-v2" ? "ancien modèle : réentraînement requis" : $"modèle actif {Store.Active.Id:N}");
         ModelReport.Text = ExamDecisionTree.Report(Store.Candidate);
     }
 
@@ -209,7 +210,7 @@ public sealed partial class ExamLearningPage : Page
         // The editable draft must not mutate the already saved training collection.
         _draft = new ExamExample { SourceVersion = 2, Group = example.Group, Text = example.Text, AppointmentDay = example.AppointmentDay,
             Signals = example.Signals.ToArray(), Rationale = example.Rationale, HistoricalRationale = example.HistoricalRationale, Answers = example.Answers.ToArray(), Annotations = example.Annotations.ToList() };
-        var row = _selected with { Classification = Classification(ExamDecisionTree.Predict(Store.Active, example.Text, example.Signals), example, ExamLearningData.Digest(example.Text, example.Signals, example.AppointmentDay)) };
+        var row = _selected with { Classification = Classification(ExamReviewContext.ApplyMyopia(visits, _reader.Now, _selected.Appointment, ExamDecisionTree.Predict(Store.Active, example.Text, example.Signals)), example, ExamLearningData.Digest(example.Text, example.Signals, example.AppointmentDay)) };
         _selected = row;
         _rows = _rows.Select(r => r.Group == row.Group ? row : r).ToList(); ApplyFilter();
         Message("Réponses et passages enregistrés dans votre profil Windows chiffré. Entraînez un nouveau modèle pour intégrer ces corrections.", InfoBarSeverity.Success);
@@ -227,6 +228,7 @@ public sealed partial class ExamLearningPage : Page
     private async void Activate_Click(object sender, RoutedEventArgs e) => await RunAsync(async op =>
     {
         var model = Store.Candidate ?? throw new FoDataException("Entraînez ou importez d’abord un modèle.");
+        if (model.FeatureVersion != "exam-local-v2") throw new FoDataException("Ce modèle utilise l’ancien format. Relisez les dossiers puis réentraînez en v2.");
         if (model.Exams.All(t => t.Root == null)) throw new FoDataException("Aucun examen n’a assez d’exemples pour construire un arbre.");
         var store = CopyStore(); store.Active = model; await SaveStoreAsync(store, op);
         if (op.IsCurrent) { _rows.Clear(); _draft = null; _selected = null; ApplyFilter(); ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = RationaleText.Text = HistoryRationaleText.Text = HistoryText.Text = ClinicalSummary.Text = ""; Message("Modèle activé sur ce poste. Rechargez les patients pour actualiser le classement ; les cas insuffisamment étayés restent À confirmer.", InfoBarSeverity.Success); }

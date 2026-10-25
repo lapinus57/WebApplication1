@@ -22,5 +22,21 @@ internal static class ExamReviewChecks
         check(!extracted.Text.Contains("FO réalisé") && extracted.Text.IndexOf("REFRACTION") < extracted.Text.IndexOf("Observation"), "Latest-only text has requested field order");
         var legacy = new ExamTreeModel { FeatureVersion = "exam-local-v1", Exams = Enumerable.Range(0, 4).Select(_ => new ExamTreeResult()).ToArray() };
         check(ExamDecisionTree.Report(legacy).Contains("désactivé"), "Old model requires retraining after input format change");
+        var examples = Enumerable.Range(1, 40).Select(i => new ExamExample
+        {
+            SourceVersion = 2, Group = "01" + i.ToString("X62"), AppointmentDay = now,
+            Text = i % 2 == 0 ? "Contrôle rétinien demandé" : "Contrôle rétinien non nécessaire",
+            Rationale = i % 2 == 0 ? "Contrôle rétinien demandé : motif de mon Oui" : "Contrôle rétinien non nécessaire : motif de mon Non",
+            HistoricalRationale = "Commentaire historique privé absent du dossier courant",
+            Signals = new[] { true }.Concat(new bool[15]).ToArray(), Answers = new bool?[] { i % 2 == 0, i % 2 == 0, null, null }
+        }).ToArray();
+        var learned = ExamDecisionTree.Train(examples);
+        check(learned.Exams[0].Root?.Feature?.StartsWith('T') == true, "Grounded free explanations can supply learned text criteria without selected annotations");
+        var exported = ExamDecisionTree.Export(learned);
+        check(!exported.Contains("privé") && !exported.Contains("Rationale") && !exported.Contains("motif"), "Free and historical comments are not exported");
+        foreach (var e in examples) { e.Rationale = "Texte inventé absent de la consultation"; e.HistoricalRationale = "Motif historique absent"; }
+        check(ExamDecisionTree.Train(examples).Exams[0].Root?.Feature == null, "Ungrounded explanation never becomes an inference fact");
+        foreach (var e in examples) e.SourceVersion = 1;
+        check(ExamDecisionTree.Train(examples).Exams.All(t => t.Root == null), "Legacy examples are retained but excluded until reviewed in v2");
     }
 }
