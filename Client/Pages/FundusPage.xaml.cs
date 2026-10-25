@@ -35,10 +35,14 @@ public sealed partial class FundusPage : Page
         Unloaded += Page_Unloaded;
     }
 
-    private async void Page_Loaded(object sender, RoutedEventArgs e)
+    private void Page_Loaded(object sender, RoutedEventArgs e)
     {
         if (!_lifetime.Open()) return;
-        await SearchAsync();
+        // Loading/reopening the page must never activate ACE. A native Office dialog
+        // can block connection.Open(), preventing any in-page diagnostic or cancellation.
+        Busy(false);
+        ApplyFilter();
+        Message("Choisissez une période, puis cliquez sur Rechercher les patients.");
     }
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
@@ -92,7 +96,7 @@ public sealed partial class FundusPage : Page
         var message = ex is FoDataException ? ex.Message :
             "Impossible de lire les données FO. Vérifiez la connexion au serveur, le chemin Access des paramètres RDV et les droits du poste (fournisseur ACE et groupe de travail).";
         Message(message + " " + AccessRuntimeDiagnostics.ClientDescription + ". Le bouton Diagnostic Access permet de vérifier l’installation du moteur sans ouvrir la base." + (_hasResults ? " La liste précédente reste affichée ; elle n’a pas été actualisée." : ""), InfoBarSeverity.Error);
-        if (!_hasResults) EmptyText.Text = "Recherche non aboutie. Consultez le message ci-dessus puis réessayez.";
+        if (!_hasResults) EmptyText.Text = "Recherche non aboutie. Consultez Diagnostic Access avant de relancer la recherche.";
     }
 
     private async Task<FoContext> ReadContextAsync(FoPageLifetime.Operation operation)
@@ -178,7 +182,7 @@ public sealed partial class FundusPage : Page
         if (!_ready) return;
         var rows = FoPatientRow.Filter(_rows, StateFilter.SelectedIndex, PatientFilter.Text);
         PatientsList.ItemsSource = rows;
-        EmptyText.Text = !_hasResults ? "" : rows.Count == 0 ? "Aucun patient ne correspond à ces filtres dans la période analysée." : "";
+        EmptyText.Text = !_hasResults ? "Cliquez sur Rechercher les patients pour charger la liste." : rows.Count == 0 ? "Aucun patient ne correspond à ces filtres dans la période analysée." : "";
         SummaryText.Text = !_hasResults ? "" : $"{rows.Count} affiché(s) · {_rows.Count(r => r.Status == FoStatus.Planned)} FO à prévoir · {_rows.Count(r => r.Status == FoStatus.Verify)} à vérifier · {_rows.Count(r => r.Status == FoStatus.ProbablyPerformed)} probablement réalisé(s) — du {_searchedFrom:dd/MM} au {_searchedUntil.AddDays(-1):dd/MM}";
     }
 
