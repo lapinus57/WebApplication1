@@ -185,6 +185,21 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         return ReadClinicalTimeline(connection, schema, mapping, patientId, Now, token);
     }
 
+    public DateTime? ReadBirthDate(FoMapping mapping, string patientId)
+    {
+        using var connection = ReadOnlyAccess.Open(options);
+        var schema = Schema(connection);
+        mapping.ValidateClinical(schema);
+        var aliases = new[] { "Date de naissance", "DateNaissance", "Date naissance", "Naissance" };
+        var fields = schema.Where(f => f.Table == mapping.PatientsTable && aliases.Contains(f.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (fields.Length != 1) return null;
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT {Q(fields[0].Name)} FROM {Q(mapping.PatientsTable)} WHERE {Q(mapping.PatientId)} = ?";
+        AddKey(command, schema, mapping.PatientsTable, mapping.PatientId, patientId);
+        var value = command.ExecuteScalar();
+        return value is DateTime date && date.Date <= Now.Date ? date.Date : null;
+    }
+
     private static FoConsultation WithAct(FoConsultation row, OleDbDataReader reader, FoMapping mapping, bool available)
     {
         if (!available) return row;
@@ -247,3 +262,4 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
             _ => throw new FoDataException("Le champ d’annulation contient une valeur non reconnue. Valeurs admises : Oui/Non, True/False, 1/-1/0 ou vide.") };
     }
 }
+

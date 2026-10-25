@@ -228,6 +228,7 @@ AnnualFollowUpChecks.Run(Check, day);
 await PatientRegistryChecks.RunAsync(Check, day);
 TimelineCcamChecks.Run(Check);
 ExamLearningChecks.Run(Check);
+ExamReviewChecks.Run(Check);
 Console.WriteLine($"{count} FO checks passed.");
 
 sealed class FakeReader : IFoAccessReader

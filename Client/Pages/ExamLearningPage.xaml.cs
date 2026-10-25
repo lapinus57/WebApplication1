@@ -49,7 +49,7 @@ public sealed partial class ExamLearningPage : Page
         Unloaded += (_, _) =>
         {
             _lifetime.Close(); _rows.Clear(); _selected = null; _draft = null;
-            PatientsList.ItemsSource = null; ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = "";
+            PatientsList.ItemsSource = null; ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = RationaleText.Text = HistoryRationaleText.Text = HistoryText.Text = ClinicalSummary.Text = "";
         };
     }
 
@@ -114,14 +114,14 @@ public sealed partial class ExamLearningPage : Page
                 var input = ExamLearningData.Extract(patient.Consultations, reader.Now, patient.Appointment);
                 var group = store.Group(source, patient.Id);
                 var digest = ExamLearningData.Digest(input.Text, input.Signals, patient.Appointment);
-                var predictions = ExamDecisionTree.Predict(store.Active, input.Text, input.Signals);
+                var predictions = ExamReviewContext.ApplyMyopia(patient.Consultations, reader.Now, patient.Appointment, ExamDecisionTree.Predict(store.Active, input.Text, input.Signals));
                 rows.Add(new(patient.Id, patient.Name, patient.Appointment, group, digest, Classification(predictions, store.Examples.FirstOrDefault(e => e.Group == group), digest)));
             }
             return (Reader: reader, Map: map, Source: source, Rows: rows.OrderBy(r => r.Appointment).ThenBy(r => r.Name).ToList());
         }, op.Token);
         if (!op.IsCurrent) return;
         _reader = result.Reader; _mapping = result.Map; _source = result.Source; _rows = result.Rows;
-        _selected = null; _draft = null; ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = "";
+        _selected = null; _draft = null; ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = RationaleText.Text = HistoryRationaleText.Text = HistoryText.Text = ClinicalSummary.Text = "";
         ApplyFilter();
         Message($"{_rows.Count} patient(s) chargé(s), y compris ceux sans alerte FO. Sélectionnez un dossier pour répondre et annoter les passages.", InfoBarSeverity.Success);
     }
@@ -153,17 +153,30 @@ public sealed partial class ExamLearningPage : Page
             _selected = row;
             var old = Store.Examples.FirstOrDefault(s => s.Group == row.Group);
             bool unchanged = old != null && ExamLearningData.Digest(old.Text, old.Signals, old.AppointmentDay) == ExamLearningData.Digest(input.Text, input.Signals, row.Appointment);
-            _draft = new ExamExample { Group = row.Group, Text = input.Text, Signals = input.Signals, AppointmentDay = row.Appointment.Date,
-                Answers = unchanged ? old!.Answers.ToArray() : new bool?[4], Annotations = unchanged ? old!.Annotations.ToList() : new() };
+            _draft = new ExamExample { SourceVersion = 2, Group = row.Group, Text = input.Text, Signals = input.Signals, AppointmentDay = row.Appointment.Date,
+                Answers = unchanged ? old!.Answers.ToArray() : new bool?[4], Rationale = unchanged ? old!.Rationale : "", HistoricalRationale = old?.HistoricalRationale ?? "", Annotations = unchanged ? old!.Annotations.ToList() : new() };
             PatientTitle.Text = row.Name + " · " + row.AppointmentText;
             ConsultationText.Text = input.Text;
+            RationaleText.Text = _draft.Rationale; HistoryRationaleText.Text = _draft.HistoricalRationale;
+            var birth = await Task.Run(() => _reader.ReadBirthDate(_mapping, row.Id), op.Token);
+            if (!op.IsCurrent) return;
+            ClinicalSummary.Text = ExamReviewContext.Summary(visits, _reader.Now, row.Appointment, birth);
+            HistoryText.Text = ExamReviewContext.History(visits, _reader.Now);
             for (int i = 0; i < 4; i++) Answers[i].SelectedIndex = _draft.Answers[i] == true ? 1 : _draft.Answers[i] == false ? 2 : 0;
             RefreshEvidence();
-            var predictions = await Task.Run(() => ExamDecisionTree.Predict(Store.Active, input.Text, input.Signals), op.Token);
+            var predictions = await Task.Run(() => ExamReviewContext.ApplyMyopia(visits, _reader.Now, row.Appointment, ExamDecisionTree.Predict(Store.Active, input.Text, input.Signals)), op.Token);
             if (!op.IsCurrent) return;
             ExplanationText.Text = string.Join("\n\n", predictions.Select((p, i) => ExamLearningData.Exams[i] + " — " + (p.Decision.HasValue ? p.Decision.Value ? "Oui" : "Non" : "À confirmer") + "\n" + p.Explanation));
             Message(ExamLearningData.IsTest(row.Group) ? "Dossier réservé aux tests : ses réponses et extraits ne servent jamais à construire l’arbre." : "Dossier d’entraînement : répondez d’après votre relecture, puis sélectionnez les passages utiles.");
         });
+    }
+
+    private void AddHistory_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = HistoryText.SelectedText;
+        if (string.IsNullOrWhiteSpace(selected)) { Message("Sélectionnez un passage dans l’historique."); return; }
+        if (HistoryRationaleText.Text.Length + selected.Length + 8 > 12000) { Message("Limite de 12 000 caractères atteinte."); return; }
+        HistoryRationaleText.Text += "\n« " + selected + " »\n";
     }
 
     private bool? Answer(int exam) => Answers[exam == 1 ? 0 : exam].SelectedIndex switch { 1 => true, 2 => false, _ => null };
@@ -185,7 +198,7 @@ public sealed partial class ExamLearningPage : Page
         if (Store.Examples.Count > 0 && Store.SourceKey != _source) throw new FoDataException("Ce jeu d’apprentissage appartient à une autre base. Les modèles peuvent être utilisés ici, mais les dossiers de deux bases ne sont pas mélangés.");
         var answers = Enumerable.Range(0, 4).Select(Answer).ToArray();
         if (answers.All(a => !a.HasValue)) throw new FoDataException("Renseignez au moins une réponse Oui ou Non. Les autres examens peuvent rester non renseignés.");
-        var example = new ExamExample { Group = _draft.Group, Text = _draft.Text, Signals = _draft.Signals.ToArray(), AppointmentDay = _draft.AppointmentDay, Answers = answers, Annotations = _draft.Annotations.ToList() };
+        var example = new ExamExample { SourceVersion = 2, Group = _draft.Group, Text = _draft.Text, Signals = _draft.Signals.ToArray(), AppointmentDay = _draft.AppointmentDay, Answers = answers, Rationale = RationaleText.Text, HistoricalRationale = HistoryRationaleText.Text, Annotations = _draft.Annotations.ToList() };
         ExamLearningData.Validate(example);
         var visits = await Task.Run(() => _reader.ReadPatientTimeline(_mapping, _selected.Id, op.Token), op.Token);
         var fresh = await Task.Run(() => ExamLearningData.Extract(visits, _reader.Now, _selected.Appointment), op.Token);
@@ -194,8 +207,8 @@ public sealed partial class ExamLearningPage : Page
         var store = CopyStore(); store.SourceKey = _source; store.Examples.RemoveAll(s => s.Group == example.Group); store.Examples.Add(example); store.Candidate = null;
         await SaveStoreAsync(store, op); if (!op.IsCurrent) return;
         // The editable draft must not mutate the already saved training collection.
-        _draft = new ExamExample { Group = example.Group, Text = example.Text, AppointmentDay = example.AppointmentDay,
-            Signals = example.Signals.ToArray(), Answers = example.Answers.ToArray(), Annotations = example.Annotations.ToList() };
+        _draft = new ExamExample { SourceVersion = 2, Group = example.Group, Text = example.Text, AppointmentDay = example.AppointmentDay,
+            Signals = example.Signals.ToArray(), Rationale = example.Rationale, HistoricalRationale = example.HistoricalRationale, Answers = example.Answers.ToArray(), Annotations = example.Annotations.ToList() };
         var row = _selected with { Classification = Classification(ExamDecisionTree.Predict(Store.Active, example.Text, example.Signals), example, ExamLearningData.Digest(example.Text, example.Signals, example.AppointmentDay)) };
         _selected = row;
         _rows = _rows.Select(r => r.Group == row.Group ? row : r).ToList(); ApplyFilter();
@@ -216,12 +229,12 @@ public sealed partial class ExamLearningPage : Page
         var model = Store.Candidate ?? throw new FoDataException("Entraînez ou importez d’abord un modèle.");
         if (model.Exams.All(t => t.Root == null)) throw new FoDataException("Aucun examen n’a assez d’exemples pour construire un arbre.");
         var store = CopyStore(); store.Active = model; await SaveStoreAsync(store, op);
-        if (op.IsCurrent) { _rows.Clear(); _draft = null; _selected = null; ApplyFilter(); ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = ""; Message("Modèle activé sur ce poste. Rechargez les patients pour actualiser le classement ; les cas insuffisamment étayés restent À confirmer.", InfoBarSeverity.Success); }
+        if (op.IsCurrent) { _rows.Clear(); _draft = null; _selected = null; ApplyFilter(); ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = RationaleText.Text = HistoryRationaleText.Text = HistoryText.Text = ClinicalSummary.Text = ""; Message("Modèle activé sur ce poste. Rechargez les patients pour actualiser le classement ; les cas insuffisamment étayés restent À confirmer.", InfoBarSeverity.Success); }
     });
     private async void Disable_Click(object sender, RoutedEventArgs e) => await RunAsync(async op =>
     {
         var store = CopyStore(); store.Active = null; await SaveStoreAsync(store, op);
-        if (op.IsCurrent) { _rows.Clear(); _draft = null; _selected = null; ApplyFilter(); ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = ""; Message("Classement désactivé. Les exemples locaux sont conservés."); }
+        if (op.IsCurrent) { _rows.Clear(); _draft = null; _selected = null; ApplyFilter(); ConsultationText.Text = EvidenceText.Text = ExplanationText.Text = RationaleText.Text = HistoryRationaleText.Text = HistoryText.Text = ClinicalSummary.Text = ""; Message("Classement désactivé. Les exemples locaux sont conservés."); }
     });
     private async void Export_Click(object sender, RoutedEventArgs e) => await RunAsync(async op =>
     {
@@ -245,3 +258,4 @@ public sealed partial class ExamLearningPage : Page
         if (op.IsCurrent) Message("Modèle importé pour examen. Consultez ses résultats, puis activez le classement sur ce poste.", InfoBarSeverity.Success);
     });
 }
+

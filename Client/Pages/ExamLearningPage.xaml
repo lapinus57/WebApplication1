@@ -43,6 +43,7 @@
             </Grid>
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
                 <ContentControl x:Name="ReviewPanel" IsEnabled="False" HorizontalContentAlignment="Stretch"><StackPanel Spacing="10">
+                    <TextBlock x:Name="ClinicalSummary" TextWrapping="Wrap" FontWeight="SemiBold"/>
                     <TextBlock x:Name="PatientTitle" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
                     <TextBlock Text="Examens à préparer au prochain rendez-vous" FontWeight="SemiBold"/>
                     <Grid ColumnSpacing="12" RowSpacing="8" HorizontalAlignment="Left">
@@ -59,6 +60,15 @@
                         <Button Content="Ajouter la sélection comme explication" Click="AddEvidence_Click"/>
                     </StackPanel>
                     <TextBox x:Name="ConsultationText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="220" MaxHeight="420"/>
+                    <TextBox x:Name="RationaleText" Header="Mon explication pour le prochain rendez-vous" PlaceholderText="Expliquez votre choix. Les mots retrouvés dans la consultation complètent les extraits sélectionnés." AcceptsReturn="True" TextWrapping="Wrap" MaxLength="4000"/>
+                    <Expander Header="Anciens FO : pourquoi cet examen a-t-il été réalisé ?" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                        <StackPanel Spacing="8">
+                            <TextBox x:Name="HistoryText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="300"/>
+                            <Button Content="Ajouter le passage historique sélectionné" Click="AddHistory_Click"/>
+                            <TextBox x:Name="HistoryRationaleText" Header="Passages et explications des anciens FO" AcceptsReturn="True" TextWrapping="Wrap" MaxLength="12000"/>
+                            <TextBlock Text="Ces explications décrivent le passé. Elles ne prescrivent pas un nouveau FO et restent séparées des réponses du prochain rendez-vous." TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Expander>
                     <TextBlock x:Name="EvidenceText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                     <Button Content="Effacer les extraits" Click="ClearEvidence_Click"/>
                     <Button Content="Enregistrer mes réponses et extraits" Click="SaveAnswers_Click" Style="{StaticResource AccentButtonStyle}"/>
@@ -73,3 +83,4 @@
         </Expander>
     </Grid>
 </Page>
+
