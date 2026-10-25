@@ -166,7 +166,7 @@ public sealed partial class ExamLearningPage : Page
         });
     }
 
-    private bool? Answer(int exam) => Answers[exam].SelectedIndex switch { 1 => true, 2 => false, _ => null };
+    private bool? Answer(int exam) => Answers[exam == 1 ? 0 : exam].SelectedIndex switch { 1 => true, 2 => false, _ => null };
     private void AddEvidence_Click(object sender, RoutedEventArgs e)
     {
         if (_draft == null) return;

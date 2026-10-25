@@ -150,7 +150,7 @@ public static class ExamDecisionTree
     {
         if (signals.Length != ExamLearningData.SignalNames.Length || text.Length > ExamLearningData.MaxText)
             throw new FoDataException("Données incompatibles avec le modèle.");
-        if (model == null) return Enumerable.Range(0, 4).Select(_ => new ExamPrediction(null, null, 0, 0, "Aucun modèle actif : réponse à renseigner.", Array.Empty<string>())).ToArray();
+        if (model == null) return ApplyCabinetRules(Enumerable.Range(0, 4).Select(_ => new ExamPrediction(null, null, 0, 0, "Aucun modèle actif : réponse à renseigner.", Array.Empty<string>())).ToArray(), signals);
         Validate(model);
         var textual = new HashSet<string>(StringComparer.Ordinal);
         void Collect(ExamTreeNode? n) { if (n == null) return; if (n.SupportingFeature?.StartsWith('T') == true) textual.Add(n.SupportingFeature); if (n.Feature == null) return; if (n.Feature.StartsWith('T')) textual.Add(n.Feature); Collect(n.Present); Collect(n.Absent); }
@@ -158,7 +158,7 @@ public static class ExamDecisionTree
         var matches = ExamLearningData.TextFeatures(text, textual);
         var keys = new HashSet<string>(matches.Keys, StringComparer.Ordinal);
         for (int i = 0; i < signals.Length; i++) if (signals[i]) keys.Add("S" + i.ToString(CultureInfo.InvariantCulture));
-        return model.Exams.Select((tree, exam) =>
+        return ApplyCabinetRules(model.Exams.Select((tree, exam) =>
         {
             if (tree.Root == null) return new ExamPrediction(null, null, 0, 0, "Pas assez de réponses d’entraînement pour cet examen.", Array.Empty<string>());
             var node = tree.Root;
@@ -190,7 +190,19 @@ public static class ExamDecisionTree
             string why = ready ? "Classement local" : !tree.Tested ? "Résultats de test encore insuffisants pour classer directement" : "Doute : réponse à confirmer";
             why += $". Accord dans la feuille : {Math.Max(node.Yes, node.No)}/{total} exemples (ce n’est pas une probabilité clinique).";
             return new ExamPrediction(ready ? suggested : null, suggested, total, agreement, why + "\n" + string.Join("\n", reasons), excerpts.Distinct().Take(4).ToArray());
-        }).ToArray();
+        }).ToArray(), signals);
+    }
+
+    private static ExamPrediction[] ApplyCabinetRules(ExamPrediction[] predictions, bool[] signals)
+    {
+        // Cabinet convention: FO and OCT represent the same preparation.
+        bool annualDue = (signals[4] || signals[5]) && signals[13] && !signals[6];
+        if (signals[0] && !signals[15] && !signals[11] && (signals[1] || annualDue))
+            predictions[0] = new(true, true, 0, 0,
+                signals[1] ? "Règle du cabinet : consigne FO active pour ce rendez-vous."
+                    : "Règle du cabinet : suivi annuel diabète/HTO arrivé à échéance, sans acte OCT-FO récent retrouvé.", Array.Empty<string>());
+        predictions[1] = predictions[0];
+        return predictions;
     }
 
     public static string Export(ExamTreeModel model) { Validate(model); return JsonSerializer.Serialize(model, JsonOptions); }

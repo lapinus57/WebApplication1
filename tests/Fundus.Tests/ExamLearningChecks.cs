@@ -31,7 +31,7 @@ internal static class ExamLearningChecks
         {
             check(model.Exams[i].Root?.Yes + model.Exams[i].Root?.No == 40 && model.Exams[i].TestCount == 20, "Patients are separated between training and test");
             check(model.Exams[i].FalsePositive == 0 && model.Exams[i].FalseNegative == 0 && model.Exams[i].Tested, "Learned text distinctions generalize to held-out synthetic patients");
-            check(positive[i].Decision == (i != 1) && negative[i].Decision == (i == 1), "Each examination learns its own human labels, including No");
+            check(positive[i].Decision == true && negative[i].Decision == false, "Each examination learns its own human labels, including No");
             check(positive[i].Excerpts.Any() && negative[i].Excerpts.Any(), "Yes and No show a matched explanatory passage");
             check(model.Exams[i].Questions == 0, "Supported held-out cases are counted as direct classifications");
         }
@@ -44,6 +44,14 @@ internal static class ExamLearningChecks
         var conflicting = Signals(); conflicting[15] = true;
         check(ExamDecisionTree.Predict(model, examples[1].Text, conflicting)[0].Decision == null, "FO chronology contradiction requires confirmation despite a pure leaf");
 
+        var annualFlags = Signals(); annualFlags[4] = annualFlags[13] = true;
+        check(ExamDecisionTree.Predict(null, "", annualFlags)[0].Decision == true, "Annual diabetes rule needs no trained model");
+        annualFlags[4] = false; annualFlags[5] = true;
+        check(ExamDecisionTree.Predict(null, "", annualFlags)[1].Decision == true, "Annual HTO applies to unified FO/OCT");
+        annualFlags[6] = true;
+        check(ExamDecisionTree.Predict(null, "", annualFlags)[0].Decision == null, "Recent exam prevents automatic annual preparation");
+        annualFlags[6] = false; annualFlags[15] = true;
+        check(ExamDecisionTree.Predict(null, "", annualFlags)[0].Decision == null, "Contradictions override annual rule");
         var json = ExamDecisionTree.Export(model);
         var imported = ExamDecisionTree.Import(json);
         check(ExamDecisionTree.Export(imported) == json, "Validated model roundtrip retains only the trained DTO");
