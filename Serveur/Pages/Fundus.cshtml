@@ -175,6 +175,7 @@
     {
         <section class="fo-source" id="consultation-source" tabindex="-1">
             <h2>Consultation source du @Model.Consultation.Date.ToString("dd/MM/yyyy")</h2>
+            <p>@FoCcam.Describe(Model.Consultation)</p>
             <p>Texte relu directement dans Access. Il peut avoir changé depuis la dernière analyse.</p>
             <h3>Observation</h3><pre>@Model.Consultation.Text</pre>
             @if (!string.IsNullOrEmpty(Model.Consultation.RefractionText)) { <h3>REFRACTION</h3><pre>@Model.Consultation.RefractionText</pre> }

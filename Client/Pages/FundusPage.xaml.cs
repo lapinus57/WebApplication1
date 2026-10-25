@@ -74,6 +74,7 @@ public sealed partial class FundusPage : Page
     private void Filter_Changed(object sender, TextChangedEventArgs e) => ApplyFilter();
     private void State_Changed(object sender, SelectionChangedEventArgs e) => ApplyFilter();
     private async void Search_Click(object sender, RoutedEventArgs e) => await SearchAsync();
+    private void Learning_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(ExamLearningPage));
 
     private void Busy(bool busy)
     {
@@ -170,7 +171,10 @@ public sealed partial class FundusPage : Page
             _rows = result.Rows;
             _hasResults = true;
             ApplyFilter();
-            Message($"{result.Rows.Count} patient(s) avec une consigne FO parmi {result.Count} patient(s) ayant rendez-vous du {from:dd/MM/yyyy} au {until.AddDays(-1):dd/MM/yyyy}. Actualisé à {context.Reader.Now:HH:mm}.", InfoBarSeverity.Success);
+            var acts = FoConsultationQuery.Create(context.Mapping, context.Schema).HasActs
+                ? " Codes CCAM rapprochés depuis Tarif.ACTE."
+                : " Liaison CCAM indisponible : analyse des textes uniquement.";
+            Message($"{result.Rows.Count} patient(s) repéré(s) parmi {result.Count} patient(s) ayant rendez-vous du {from:dd/MM/yyyy} au {until.AddDays(-1):dd/MM/yyyy}. Actualisé à {context.Reader.Now:HH:mm}." + acts, InfoBarSeverity.Success);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (operation.IsCurrent) ShowFailure(ex); }
@@ -209,11 +213,33 @@ public sealed partial class FundusPage : Page
         Busy(true);
         try
         {
-            var source = await Task.Run(() => context.Reader.ReadConsultation(context.Mapping, row.PatientId, row.Analysis.SourceId), operation.Token);
+            var timeline = await Task.Run(() => context.Reader.ReadPatientTimeline(context.Mapping, row.PatientId, operation.Token), operation.Token);
             if (!operation.IsCurrent) return;
+            var current = await Task.Run(() => FundusAnalysis.Analyze(timeline, context.Reader.Now, row.Appointment), operation.Token);
+            if (!operation.IsCurrent) return;
+            if (current?.EvidenceHash != row.Analysis.EvidenceHash)
+                throw new FoDataException("Les consultations ou les actes ont changé depuis l’analyse. Relancez la recherche pour afficher le dossier actualisé.");
+            var source = timeline.SingleOrDefault(c => c.Id == row.Analysis.SourceId)
+                ?? throw new FoDataException("La consultation source n’est plus disponible. Relancez la recherche.");
             var panel = new StackPanel { Spacing = 12, MaxWidth = 620 };
-            panel.Children.Add(Text($"Rendez-vous : {row.Appointment:dd/MM/yyyy à HH:mm}\nConsultation du {source.Date:dd/MM/yyyy} — n° {source.Id}"));
+            panel.Children.Add(Text($"Rendez-vous : {row.Appointment:dd/MM/yyyy à HH:mm}"));
             panel.Children.Add(Text(row.Analysis.Reason));
+            panel.Children.Add(Text($"Dernières consultations ({timeline.Count} consultation(s) analysée(s))", true));
+            foreach (var visit in timeline.OrderByDescending(c => c.Date).ThenBy(c => c.Id, StringComparer.Ordinal).Take(3))
+            {
+                var details = new StackPanel { Spacing = 8 };
+                details.Children.Add(Text(FoCcam.Describe(visit)));
+                if (visit.LocalActCode.Length > 0) details.Children.Add(Text("Code acte local : " + visit.LocalActCode));
+                details.Children.Add(Text("Observation", true)); details.Children.Add(Text(string.IsNullOrWhiteSpace(visit.Text) ? "Champ vide." : visit.Text));
+                details.Children.Add(Text("REFRACTION", true)); details.Children.Add(Text(string.IsNullOrWhiteSpace(visit.RefractionText) ? "Champ vide." : visit.RefractionText));
+                panel.Children.Add(new Expander
+                {
+                    Header = $"{visit.Date:dd/MM/yyyy} — consultation {visit.Id}" + (visit.CcamCodes.Length == 0 ? "" : " · " + visit.CcamCodes),
+                    Content = details, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch
+                });
+            }
+            panel.Children.Add(Text($"Consultation source du repérage : {source.Date:dd/MM/yyyy} — n° {source.Id}", true));
+            panel.Children.Add(Text(FoCcam.Describe(source)));
             panel.Children.Add(Text("Élément retrouvé", true)); panel.Children.Add(Text(row.Excerpt));
             if (!string.IsNullOrWhiteSpace(row.Analysis.LaterExcerpt))
             {

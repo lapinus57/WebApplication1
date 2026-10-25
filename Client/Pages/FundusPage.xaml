@@ -14,6 +14,7 @@
                 <TextBlock Text="Les patients à préparer pour un fond d’œil, classés par prochain rendez-vous." TextWrapping="Wrap" Opacity="0.8"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Content="Apprentissage local" Click="Learning_Click"/>
                 <Button x:Name="AccessDiagnosticButton" Content="Diagnostic Access" Click="AccessDiagnostic_Click" ToolTipService.ToolTip="Vérifier les moteurs déclarés sur le poste sans ouvrir la base."/>
                 <Button x:Name="SettingsButton" Content="Champs Access" Click="Settings_Click" ToolTipService.ToolTip="Ouvrir la base en lecture seule pour vérifier les correspondances de champs."/>
             </StackPanel>
@@ -32,7 +33,7 @@
         <InfoBar x:Name="StatusBar" Grid.Row="2" IsOpen="True" IsClosable="False" Severity="Informational" Message="Choisissez une période, puis cliquez sur Rechercher les patients."/>
         <Grid Grid.Row="3" ColumnSpacing="12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions>
-            <TextBox x:Name="PatientFilter" Header="Rechercher dans la liste" PlaceholderText="Nom, prénom ou identifiant" TextChanged="Filter_Changed"/>
+            <TextBox x:Name="PatientFilter" Header="Rechercher dans la liste" PlaceholderText="Nom, identifiant, code CCAM ou motif" TextChanged="Filter_Changed"/>
             <ComboBox x:Name="StateFilter" Grid.Column="1" Header="État" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="State_Changed">
                 <ComboBoxItem Content="À préparer / à vérifier"/><ComboBoxItem Content="FO à prévoir"/>
                 <ComboBoxItem Content="À vérifier"/><ComboBoxItem Content="FO probablement réalisé"/><ComboBoxItem Content="Tous les états"/>
@@ -44,13 +45,13 @@
                 <Border Padding="12,10" Background="{ThemeResource ControlFillColorSecondaryBrush}" CornerRadius="6">
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="170"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Rendez-vous ↑" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="1" Text="Patient" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="2" Text="Élément retrouvé" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="3" Text="État FO" FontWeight="SemiBold"/>
-                        <TextBlock Grid.Column="4" Text="Consultation" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="4" Text="Dernière consultation" FontWeight="SemiBold" TextWrapping="Wrap"/>
                     </Grid>
                 </Border>
                 <ListView x:Name="PatientsList" Grid.Row="1" SelectionMode="None" Padding="0" HorizontalContentAlignment="Stretch">
@@ -62,7 +63,7 @@
                             <Border Padding="12,14" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
                                 <Grid ColumnSpacing="16">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="170"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding AppointmentText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                     <StackPanel Grid.Column="1" Spacing="4">
@@ -78,7 +79,11 @@
                                         <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding ReviewText}" Opacity="0.7" FontSize="12" TextWrapping="Wrap"/>
                                     </StackPanel>
-                                    <Button Grid.Column="4" Content="Consulter" Click="Details_Click" VerticalAlignment="Top" AutomationProperties.Name="Lire et vérifier la consultation source"/>
+                                    <StackPanel Grid.Column="4" Spacing="6">
+                                        <TextBlock Text="{Binding LatestConsultationText}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding LatestCcamText}" FontSize="12" TextWrapping="Wrap"/>
+                                        <Button Content="Consulter" Click="Details_Click" AutomationProperties.Name="Lire les dernières consultations et vérifier la source"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>

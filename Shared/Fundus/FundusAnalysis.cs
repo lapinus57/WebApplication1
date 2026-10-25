@@ -10,21 +10,22 @@ namespace EyeChat.Fundus;
 
 public enum FoStatus { Planned, Verify, ProbablyPerformed }
 public enum FoFindingKind { Request, Potential, Performed, Cancelled }
-public sealed record FoConsultation(string Id, DateTime Date, string Text, string RefractionText = "");
-public sealed record FoFinding(FoFindingKind Kind, string Excerpt, string Reason = "");
+public sealed record FoConsultation(string Id, DateTime Date, string Text, string RefractionText = "",
+    string CcamCodes = "", string LocalActCode = "", bool ActLinkAvailable = false);
+public sealed record FoFinding(FoFindingKind Kind, string Excerpt, string Reason = "", bool AmbiguousTiming = false, bool HasConflict = false);
 public sealed record FoAnalysis(string SourceId, DateTime SourceDate, string Excerpt, FoStatus Status,
-    string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate);
+    string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate, bool HasConflict = false);
 
 /// <summary>Local, deterministic preparation aid. No diagnosis and no inference from absence alone.</summary>
 public static class FundusAnalysis
 {
     // Keep expressions together: each extension needs a positive, negative and ambiguous regression case.
-    internal const string Exam = @"(?:\bf\s*\.?\s*o(?:dg|d|g)?\.?\b|\bfonds?\s+d['’ ]?\s*(?:oeil|yeux)\b|\bdilat(?:er|ation)\b)";
+    internal const string Exam = @"(?:\b(?:v3\s*)?f\s*\.?\s*o\s*(?:dg|d|g)?\.?\b|\bfonds?\s+d['’ ]?\s*(?:oeil|yeux)\b|\bdilat(?:er|ation)\b)";
     internal const string RepeatRequest = @"\b(?:refaire|recontroler|controler|renouveler)\s+(?:(?:un|une|le|la|les|des|du|de)\s+|l['’]\s*)*(?:(?:examen|controle)\s+(?:(?:du|des|de|le|les)\s+|d['’])?)?" + Exam;
     internal const string Delay = @"(?:dans|ds|d['’]ici|a)\s+(?:\d+|un|une|deux|trois|six|douze)\s*(?:mois|mos|m|ans?|annees?|semaines?|jours?)\b";
     private const string ScheduledExam = Exam + @"\s+" + Delay;
     private const string Future = @"\b(?:prochain\w*|proch\.?|prevoir|prevu\w*|a faire|a dilater|revoir pour|faire\b.{0,30}\bpassage)\b";
-    private const string Negative = @"\b(?:pas (?:de |d['’])?(?:fo|fond|dilat)|(?:fo|fond.{0,12}|dilatation)\s+(?:non necessaire|non indique|inutile)|sans (?:necessite de )?(?:fo|dilatation)|annul\w*\b.{0,25}(?:fo|fond|dilat))";
+    private const string Negative = @"\b(?:pas (?:de |d['’])?(?:v3\s*)?(?:fo|fond|dilat)|(?:(?:v3\s*)?fo|fond.{0,12}|dilatation)\s+(?:non necessaire|non indique|inutile)|sans (?:necessite de )?(?:v3\s*)?(?:fo|dilatation)|annul\w*\b.{0,25}(?:fo|fond|dilat))";
     private const string Done = @"\b(?:realis\w*|effectu\w*|fait\w*|dilate\w*)\b";
     private const string DirectFuture = Exam + @"\s*(?:(?:est|sera|a|au|la|le|pour|lors|du|de)\s+)*(?:prochain\w*|proch\.?|prevoir|prevu\w*|faire|dilater)\b|\b(?:prevoir|faire|revoir pour|a)\s+(?:(?:un|une|le|la|les|des)\s+)?" + Exam;
     private const string DirectDone = Exam + @"\s*(?:(?:a|ont|ete|est|sont|bien|deja|aussi)\s+)*" + Done + "|" + Done + @"\s+(?:(?:un|une|le|la|les|des)\s+)?" + Exam;
@@ -53,6 +54,9 @@ public static class FundusAnalysis
             var excerpt = part.Trim();
             var text = Normalize(excerpt);
             if (!Has(text, Exam)) continue;
+            // Describing a non-dilated OCT does not cancel a separate FO follow-up.
+            if (Has(text, @"\boct\b") && Has(text, @"\b(?:sans|non)\s+dilat\w*") &&
+                !Has(text, @"\b(?:v3\s*)?fo(?:dg|d|g)?\b|\bfond\w*\s+d")) continue;
             var negated = Has(text, Negative);
             var future = Has(text, Future);
             var uncertain = Has(text, Uncertain);
@@ -98,21 +102,48 @@ public static class FundusAnalysis
         var observations = Detect(consultation.Text);
         var refraction = Detect(consultation.RefractionText);
         var findings = observations.Concat(refraction).ToList();
-        if (observations.Count == 0 || refraction.Count == 0) return findings;
-        bool contradicts = findings.Any(f => f.Kind == FoFindingKind.Cancelled) &&
-            findings.Any(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential);
-        // Observation and REFRACTION describe the same visit, not successive visits.
-        // A new explicit future request remains open even when the current visit records a completed FO.
-        return findings.Select(f => contradicts && f.Kind == FoFindingKind.Request ? f with { Kind = FoFindingKind.Potential } : f)
-            .OrderBy(f => f.Kind switch { FoFindingKind.Performed => 0, FoFindingKind.Cancelled => 1, FoFindingKind.Potential => 2, _ => 3 });
+        if (observations.Count > 0 && refraction.Count > 0)
+        {
+            bool contradicts = findings.Any(f => f.Kind == FoFindingKind.Cancelled) &&
+                findings.Any(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential);
+            // The two fields describe the same visit. Keep future requests after current results.
+            findings = findings.Select(f => contradicts ? f with { Kind = f.Kind == FoFindingKind.Request ? FoFindingKind.Potential : f.Kind, HasConflict = true } : f)
+                .OrderBy(f => f.Kind switch { FoFindingKind.Performed => 0, FoFindingKind.Cancelled => 1, FoFindingKind.Potential => 2, _ => 3 }).ToList();
+        }
+        // Within one field, preserve explicit paragraph order (including a later cancellation).
+        if (FoClinicalContext.PeripheralRequest(consultation) is { } peripheral)
+            findings.Add(findings.Any(f => f.Kind == FoFindingKind.Cancelled) ? peripheral with { Kind = FoFindingKind.Potential, HasConflict = true } : peripheral);
+        var timings = findings.Where(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential)
+            .Select(f => FoTiming.Read(consultation, f.Excerpt)).ToList();
+        if (timings.Any(t => t.Ambiguous) || timings.Select(t => t.Due).Where(d => d.HasValue).Distinct().Count() > 1)
+            findings = findings.Select(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential
+                ? f with { Kind = FoFindingKind.Potential, AmbiguousTiming = true, HasConflict = true, Reason = "Délais FO contradictoires dans cette consultation : échéance à vérifier." } : f).ToList();
+        var codes = FoCcam.FundusEvidence(consultation);
+        if (codes.Length > 0)
+        {
+            bool contradictory = findings.Any(f => f.Kind == FoFindingKind.Cancelled) ||
+                FoClinicalContext.Clauses(consultation.Text).Concat(FoClinicalContext.Clauses(consultation.RefractionText))
+                    .Any(c => Has(Normalize(c), Exam) && Has(Normalize(c), NotDone));
+            if (contradictory)
+            {
+                findings.RemoveAll(f => f.Kind == FoFindingKind.Performed);
+                findings.Add(new(FoFindingKind.Potential, "Tarif.ACTE : " + codes,
+                    "Code CCAM de FO et texte contradictoires : réalisation à vérifier.", HasConflict: true));
+            }
+            else findings.Insert(0, new(FoFindingKind.Performed, "Tarif.ACTE : " + codes,
+                "Acte CCAM de FO / OCT-FO du cabinet enregistré ; réalisation à confirmer dans le dossier."));
+        }
+        return findings;
     }
 
-    public static FoAnalysis? Analyze(IEnumerable<FoConsultation> consultations, DateTime now)
+    public static FoAnalysis? Analyze(IEnumerable<FoConsultation> consultations, DateTime now, DateTime? appointment = null)
     {
         var rows = consultations.Where(c => c.Date <= now).OrderBy(c => c.Date).ThenBy(c => c.Id, StringComparer.Ordinal).ToList();
-        var hash = Hash(string.Join("\n", rows.Select(c => $"{c.Id.Length}:{c.Id}|{c.Date:O}|{Hash(c.Text)}|{Hash(c.RefractionText)}")));
+        var hash = Hash("fo-chronology-ccam-v1\n" + string.Join("\n", rows.Select(c => $"{c.Id.Length}:{c.Id}|{c.Date:O}|{Hash(c.Text)}|{Hash(c.RefractionText)}|{Hash(c.CcamCodes)}|{Hash(c.LocalActCode)}|{c.ActLinkAvailable}")));
+        var preparationDate = (appointment ?? now).Date;
         FoAnalysis? active = null;
         FoAnalysis? context = null;
+        DateTime? activeDue = null;
         var annual = new FoAnnualFollowUp();
         foreach (var group in rows.GroupBy(c => c.Date))
         {
@@ -126,9 +157,9 @@ public static class FundusAnalysis
             {
                 var candidate = group.Select(c => (Consultation: c, Finding: FoClinicalContext.Find(c)))
                     .FirstOrDefault(c => c.Finding != null);
-                if (candidate.Finding != null)
-                    context = new(candidate.Consultation.Id, candidate.Consultation.Date, Clip(candidate.Finding.Excerpt),
-                        FoStatus.Verify, candidate.Finding.Reason, hash, "", null);
+                // Weak contextual suggestions are assessed on the latest visit only.
+                context = candidate.Finding == null ? null : new(candidate.Consultation.Id, candidate.Consultation.Date, Clip(candidate.Finding.Excerpt),
+                    FoStatus.Verify, candidate.Finding.Reason, hash, "", null);
             }
             // Distinct consultations with identical timestamps cannot establish a reliable order.
             var sameTimeConflict = group.Count() > 1 && events.Any(e => e.Finding.Kind is FoFindingKind.Request or FoFindingKind.Potential)
@@ -139,33 +170,53 @@ public static class FundusAnalysis
                 {
                     // A fresh explicit instruction reopens a previously fulfilled episode.
                     if (active == null || active.Status == FoStatus.ProbablyPerformed || finding.Kind == FoFindingKind.Request)
+                    {
                         active = new(consultation.Id, consultation.Date, Clip(finding.Excerpt),
                             finding.Kind == FoFindingKind.Request ? FoStatus.Planned : FoStatus.Verify,
-                            finding.Kind == FoFindingKind.Request ? (finding.Reason.Length > 0 ? finding.Reason : "Consigne explicite retrouvée.") : "Formulation à vérifier dans le dossier.",
-                            hash, "", null);
-                    else active = active with { Status = FoStatus.Verify, Reason = "Mention ultérieure incertaine.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
+                            finding.Reason.Length > 0 ? finding.Reason : finding.Kind == FoFindingKind.Request ? "Consigne explicite retrouvée." : "Formulation à vérifier dans le dossier.",
+                            hash, "", null, finding.HasConflict);
+                        activeDue = finding.AmbiguousTiming ? null : FoTiming.Due(consultation, finding.Excerpt);
+                    }
+                    else active = active with { Status = FoStatus.Verify, HasConflict = active.HasConflict || finding.HasConflict, Reason = finding.Reason.Length > 0 ? finding.Reason : "Mention ultérieure incertaine.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
                 }
                 else if (active != null && !sameTimeConflict)
                 {
                     if (finding.Kind == FoFindingKind.Cancelled) active = null;
-                    else active = active with { Status = FoStatus.ProbablyPerformed, Reason = "Mention de réalisation retrouvée ; à confirmer.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
+                    else active = active with { Status = FoStatus.ProbablyPerformed, HasConflict = false, Reason = finding.Reason.Length > 0 ? finding.Reason : "Mention de réalisation retrouvée ; à confirmer.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
                 }
             }
             if (active != null)
             {
                 if (sameTimeConflict)
-                    active = active with { Status = FoStatus.Verify, Reason = "Consultations de même date : chronologie incertaine." };
+                    active = active with { Status = FoStatus.Verify, HasConflict = true, Reason = "Consultations de même date : chronologie incertaine." };
                 else if (group.Key > active.SourceDate && active.Status != FoStatus.ProbablyPerformed &&
-                         !events.Any(e => e.Finding.Kind == FoFindingKind.Request))
-                    active = active with { Status = FoStatus.Verify, Reason = "Consultation ultérieure sans réalisation clairement établie." };
+                         !events.Any(e => e.Finding.Kind is FoFindingKind.Request or FoFindingKind.Potential))
+                    active = active with { Status = FoStatus.Verify, Reason = "Consultation ultérieure sans réalisation clairement établie.",
+                        LaterDate = group.Key, LaterExcerpt = "Aucune réalisation de FO clairement retrouvée dans cette consultation." };
             }
         }
         // An explicit open instruction keeps priority. A completed episode can give way
         // to the annual review after one year, while chronic context survives silent visits.
-        var annualReview = annual.Analyze(now, hash);
-        if (annualReview != null && (active == null || active.Status == FoStatus.ProbablyPerformed)) return annualReview;
-        var result = active ?? context;
-        return result == null ? null : result with { EvidenceHash = hash };
+        var annualReview = annual.Analyze(preparationDate, hash);
+        var result = annualReview != null && (active == null || active.Status == FoStatus.ProbablyPerformed) ? annualReview : active ?? context;
+        if (result == null) return null;
+        if (ReferenceEquals(result, active) && result.Status != FoStatus.ProbablyPerformed && activeDue.HasValue)
+        {
+            // Cabinet rule explicitly requested: a six-year renewal enters preparation at five years.
+            // Other intervals are kept as written; uncertain chronology is never promoted to Planned.
+            bool sixYears = activeDue.Value.Year - result.SourceDate.Year == 6 && activeDue.Value == result.SourceDate.Date.AddYears(6);
+            var preparationFrom = sixYears ? result.SourceDate.Date.AddYears(5) : activeDue.Value;
+            var future = preparationDate < preparationFrom;
+            var reason = result.Reason + $" Échéance calculée depuis la consigne : {activeDue:dd/MM/yyyy}. " +
+                (sixYears ? $"Règle du cabinet : préparation dès 5 ans, à partir du {preparationFrom:dd/MM/yyyy}. " : "") +
+                (future ? "Rendez-vous avant la période de préparation : anticipation à vérifier." : "Période de préparation atteinte au rendez-vous.");
+            result = result with { Status = future ? FoStatus.Verify : result.Status, Reason = reason,
+                EvidenceHash = Hash(result.EvidenceHash + "|due:" + activeDue.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + future) };
+        }
+        var latest = rows[^1];
+        var latestCodes = FoCcam.Summarize(rows.Where(c => c.Date == latest.Date).Select(c => c.CcamCodes));
+        return result with { Reason = result.Reason + $" Dernière consultation analysée : {latest.Date:dd/MM/yyyy}." +
+            (latestCodes.Length == 0 ? "" : " CCAM : " + latestCodes + ".") };
     }
 
     public static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

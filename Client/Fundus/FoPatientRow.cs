@@ -18,6 +18,11 @@ public sealed record FoPatientRow(string PatientId, string PatientName, DateTime
     public string SourceText => Analysis.SourceDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR"));
     public string Excerpt => Analysis.Excerpt;
     public string ReasonText => Analysis.Reason;
+    public DateTime? LatestConsultationDate { get; init; }
+    public string LatestCcamCodes { get; init; } = "";
+    public bool LatestActLinkAvailable { get; init; }
+    public string LatestConsultationText => LatestConsultationDate?.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) ?? "";
+    public string LatestCcamText => !LatestActLinkAvailable ? "Liaison CCAM indisponible" : LatestCcamCodes.Length == 0 ? "CCAM non renseigné" : LatestCcamCodes;
     public string ReviewText => Review == null ? "Détection automatique" : $"Relu par {Review.Author}";
 
     // Source, patient and complete evidence must match; a new consultation invalidates a review.
@@ -33,8 +38,17 @@ public sealed record FoPatientRow(string PatientId, string PatientName, DateTime
         foreach (var patient in data.Patients)
         {
             token.ThrowIfCancellationRequested();
-            var analysis = FundusAnalysis.Analyze(patient.Consultations, now);
-            if (analysis != null) rows.Add(new(patient.Id, patient.Name, patient.Appointment, analysis));
+            var analysis = FundusAnalysis.Analyze(patient.Consultations, now, patient.Appointment);
+            if (analysis != null)
+            {
+                var latest = patient.Consultations.Where(c => c.Date <= now).Max(c => c.Date);
+                rows.Add(new(patient.Id, patient.Name, patient.Appointment, analysis)
+                {
+                    LatestConsultationDate = latest,
+                    LatestCcamCodes = FoCcam.Summarize(patient.Consultations.Where(c => c.Date == latest).Select(c => c.CcamCodes)),
+                    LatestActLinkAvailable = patient.Consultations.Where(c => c.Date == latest).Any(c => c.ActLinkAvailable)
+                });
+            }
         }
         return rows.OrderBy(r => r.Appointment).ThenBy(r => r.PatientName).ToList();
     }
@@ -49,7 +63,7 @@ public sealed record FoPatientRow(string PatientId, string PatientName, DateTime
             3 => r.Status == FoStatus.ProbablyPerformed,
             4 => true,
             _ => r.Status != FoStatus.ProbablyPerformed
-        }).Where(r => normalized.Length == 0 || FundusAnalysis.Normalize(r.PatientName + " " + r.PatientId).Contains(normalized))
+        }).Where(r => normalized.Length == 0 || FundusAnalysis.Normalize(r.PatientName + " " + r.PatientId + " " + r.LatestCcamCodes + " " + r.ReasonText).Contains(normalized))
             .OrderBy(r => r.Appointment).ThenBy(r => r.PatientName).ToList();
     }
 }

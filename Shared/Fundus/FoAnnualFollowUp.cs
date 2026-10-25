@@ -42,7 +42,8 @@ internal sealed class FoAnnualFollowUp
             m.Condition == Condition.Diabetes ? "contexte diabétique" : "HTO (tension oculaire)"));
         var reason = "Suivi annuel du FO — " + context + ". " + (lastCompletion == null
             ? "Date du dernier FO à vérifier."
-            : "Mention de réalisation dans la consultation du " + lastCompletion.Date.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) + "; vérifier l’échéance.");
+            : (FoCcam.FundusEvidence(lastCompletion).Length > 0 ? "Acte FO codé dans la consultation du " : "Mention de réalisation dans la consultation du ")
+                + lastCompletion.Date.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) + "; vérifier l’échéance.");
         var excerpt = string.Join("\n", sameSource.Select(m => m.Excerpt).Distinct());
         return new(latest.Source.Id, latest.Source.Date, excerpt.Length > 600 ? excerpt[..600] : excerpt,
             FoStatus.Verify, reason, FundusAnalysis.Hash(evidenceHash + "|annual-fo-v1"), "", null);
