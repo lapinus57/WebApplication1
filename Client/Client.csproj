@@ -7,11 +7,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-    <!-- x64 is the safe default for current Intel/AMD Windows PCs. The publish
-         profiles override both values when producing x86 or ARM64 packages. -->
+    <!-- Match the native runtime to the chosen CPU. Access/ACE must run in the
+         same architecture as the client, including an explicit x86 build. -->
+    <PlatformTarget Condition="'$(PlatformTarget)' == '' and '$(RuntimeIdentifier)' == 'win-x86'">x86</PlatformTarget>
+    <PlatformTarget Condition="'$(PlatformTarget)' == '' and '$(RuntimeIdentifier)' == 'win-arm64'">arm64</PlatformTarget>
     <PlatformTarget Condition="'$(PlatformTarget)' == ''">x64</PlatformTarget>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(PlatformTarget)' == 'x86'">win-x86</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(PlatformTarget)' == 'arm64'">win-arm64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <PublishProfile Condition="'$(PublishProfile)' == ''">win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
@@ -103,7 +107,7 @@
     <SignAssembly>False</SignAssembly>
     <DefaultLanguage>fr-FR</DefaultLanguage>
     <AppInstallerUri>https://github.com/lapinus57/WebApplication1/releases/latest/download/</AppInstallerUri>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+    <AppxBundlePlatforms Condition="'$(AppxBundlePlatforms)' == ''">$(PlatformTarget)</AppxBundlePlatforms>
   </PropertyGroup>
 </Project>
 
