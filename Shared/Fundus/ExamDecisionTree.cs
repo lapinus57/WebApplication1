@@ -61,15 +61,19 @@ public static class ExamDecisionTree
             token.ThrowIfCancellationRequested();
             var train = examples.Where(e => !ExamLearningData.IsTest(e.Group) && e.Answers[exam].HasValue).ToList();
             // Vocabulary discovery sees only training annotations, never test patients or test annotations.
-            var vocabulary = train.SelectMany(e =>
+            var rankedVocabulary = train.SelectMany(e =>
                 {
                     token.ThrowIfCancellationRequested();
                     return e.Annotations.Where(a => a.Exam == exam)
-                        .SelectMany(a => ExamLearningData.TextFeatures(a.Text).Keys).Distinct();
+                        .SelectMany(a => ExamLearningData.TextFeatures(a.Text)).DistinctBy(p => p.Key);
                 })
-                .GroupBy(k => k).Where(g => g.Count() >= MinLeaf).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
-                .Take(128).Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
-            var features = Enumerable.Range(0, ExamLearningData.SignalNames.Length).Select(i => "S" + i.ToString(CultureInfo.InvariantCulture)).Concat(vocabulary).OrderBy(k => k, StringComparer.Ordinal).ToArray();
+                .GroupBy(p => p.Key).Where(g => g.Count() >= MinLeaf).OrderByDescending(g => g.Count())
+                // Prefer contextual phrases over isolated words when they separate equally well.
+                .ThenByDescending(g => Regex.Split(g.First().Value, @"\s+", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250)).Length)
+                .ThenBy(g => g.Key, StringComparer.Ordinal).Take(128).Select(g => g.Key).ToArray();
+            var vocabulary = rankedVocabulary.ToHashSet(StringComparer.Ordinal);
+            var features = Enumerable.Range(0, ExamLearningData.SignalNames.Length).Select(i => "S" + i.ToString(CultureInfo.InvariantCulture)).Concat(rankedVocabulary).ToArray();
+            var priority = features.Select((key, index) => (key, index)).ToDictionary(p => p.key, p => p.index);
             var rows = new List<Case>();
             foreach (var e in train) { token.ThrowIfCancellationRequested(); rows.Add(new(ExamLearningData.Features(e, vocabulary), e.Answers[exam]!.Value)); }
             var result = new ExamTreeResult();
@@ -84,7 +88,7 @@ public static class ExamDecisionTree
                     node.SupportingFeature = features.Where(k => k != "S0" && k != "S14")
                         .Select(k => (Key: k, Local: local.Count(r => r.Features.Contains(k)), Global: rows.Where(r => r.Features.Contains(k)).ToList()))
                         .Where(x => x.Local >= MinLeaf && x.Global.Count > 0 && (double)x.Global.Count(r => r.Yes == outcome) / x.Global.Count >= .9)
-                        .OrderByDescending(x => x.Local).ThenBy(x => x.Key, StringComparer.Ordinal).Select(x => x.Key).FirstOrDefault();
+                        .OrderByDescending(x => x.Local).ThenBy(x => priority[x.Key]).Select(x => x.Key).FirstOrDefault();
                 }
                 Anchors(result.Root, rows);
             }

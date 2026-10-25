@@ -36,3 +36,11 @@ jobs:
         run: dotnet build Client/Client.csproj --configuration Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=false
       - name: Compile WinUI x86 client for 32-bit Access without package signing
         run: dotnet build Client/Client.csproj --configuration Release -p:Platform=x86 -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=false
+      - name: Show XAML compiler details on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem Client/obj -Filter output.json -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Output $_.FullName
+            Get-Content $_.FullName -Raw
+          }

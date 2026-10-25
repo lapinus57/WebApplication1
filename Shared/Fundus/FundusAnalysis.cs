@@ -12,9 +12,9 @@ public enum FoStatus { Planned, Verify, ProbablyPerformed }
 public enum FoFindingKind { Request, Potential, Performed, Cancelled }
 public sealed record FoConsultation(string Id, DateTime Date, string Text, string RefractionText = "",
     string CcamCodes = "", string LocalActCode = "", bool ActLinkAvailable = false);
-public sealed record FoFinding(FoFindingKind Kind, string Excerpt, string Reason = "", bool AmbiguousTiming = false);
+public sealed record FoFinding(FoFindingKind Kind, string Excerpt, string Reason = "", bool AmbiguousTiming = false, bool HasConflict = false);
 public sealed record FoAnalysis(string SourceId, DateTime SourceDate, string Excerpt, FoStatus Status,
-    string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate);
+    string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate, bool HasConflict = false);
 
 /// <summary>Local, deterministic preparation aid. No diagnosis and no inference from absence alone.</summary>
 public static class FundusAnalysis
@@ -107,17 +107,17 @@ public static class FundusAnalysis
             bool contradicts = findings.Any(f => f.Kind == FoFindingKind.Cancelled) &&
                 findings.Any(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential);
             // The two fields describe the same visit. Keep future requests after current results.
-            findings = findings.Select(f => contradicts && f.Kind == FoFindingKind.Request ? f with { Kind = FoFindingKind.Potential } : f)
+            findings = findings.Select(f => contradicts ? f with { Kind = f.Kind == FoFindingKind.Request ? FoFindingKind.Potential : f.Kind, HasConflict = true } : f)
                 .OrderBy(f => f.Kind switch { FoFindingKind.Performed => 0, FoFindingKind.Cancelled => 1, FoFindingKind.Potential => 2, _ => 3 }).ToList();
         }
         // Within one field, preserve explicit paragraph order (including a later cancellation).
         if (FoClinicalContext.PeripheralRequest(consultation) is { } peripheral)
-            findings.Add(findings.Any(f => f.Kind == FoFindingKind.Cancelled) ? peripheral with { Kind = FoFindingKind.Potential } : peripheral);
+            findings.Add(findings.Any(f => f.Kind == FoFindingKind.Cancelled) ? peripheral with { Kind = FoFindingKind.Potential, HasConflict = true } : peripheral);
         var timings = findings.Where(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential)
             .Select(f => FoTiming.Read(consultation, f.Excerpt)).ToList();
         if (timings.Any(t => t.Ambiguous) || timings.Select(t => t.Due).Where(d => d.HasValue).Distinct().Count() > 1)
             findings = findings.Select(f => f.Kind is FoFindingKind.Request or FoFindingKind.Potential
-                ? f with { Kind = FoFindingKind.Potential, AmbiguousTiming = true, Reason = "Délais FO contradictoires dans cette consultation : échéance à vérifier." } : f).ToList();
+                ? f with { Kind = FoFindingKind.Potential, AmbiguousTiming = true, HasConflict = true, Reason = "Délais FO contradictoires dans cette consultation : échéance à vérifier." } : f).ToList();
         var codes = FoCcam.FundusEvidence(consultation);
         if (codes.Length > 0)
         {
@@ -128,7 +128,7 @@ public static class FundusAnalysis
             {
                 findings.RemoveAll(f => f.Kind == FoFindingKind.Performed);
                 findings.Add(new(FoFindingKind.Potential, "Tarif.ACTE : " + codes,
-                    "Code CCAM de FO et texte contradictoires : réalisation à vérifier."));
+                    "Code CCAM de FO et texte contradictoires : réalisation à vérifier.", HasConflict: true));
             }
             else findings.Insert(0, new(FoFindingKind.Performed, "Tarif.ACTE : " + codes,
                 "Acte CCAM de FO / OCT-FO du cabinet enregistré ; réalisation à confirmer dans le dossier."));
@@ -174,21 +174,21 @@ public static class FundusAnalysis
                         active = new(consultation.Id, consultation.Date, Clip(finding.Excerpt),
                             finding.Kind == FoFindingKind.Request ? FoStatus.Planned : FoStatus.Verify,
                             finding.Reason.Length > 0 ? finding.Reason : finding.Kind == FoFindingKind.Request ? "Consigne explicite retrouvée." : "Formulation à vérifier dans le dossier.",
-                            hash, "", null);
+                            hash, "", null, finding.HasConflict);
                         activeDue = finding.AmbiguousTiming ? null : FoTiming.Due(consultation, finding.Excerpt);
                     }
-                    else active = active with { Status = FoStatus.Verify, Reason = finding.Reason.Length > 0 ? finding.Reason : "Mention ultérieure incertaine.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
+                    else active = active with { Status = FoStatus.Verify, HasConflict = active.HasConflict || finding.HasConflict, Reason = finding.Reason.Length > 0 ? finding.Reason : "Mention ultérieure incertaine.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
                 }
                 else if (active != null && !sameTimeConflict)
                 {
                     if (finding.Kind == FoFindingKind.Cancelled) active = null;
-                    else active = active with { Status = FoStatus.ProbablyPerformed, Reason = finding.Reason.Length > 0 ? finding.Reason : "Mention de réalisation retrouvée ; à confirmer.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
+                    else active = active with { Status = FoStatus.ProbablyPerformed, HasConflict = false, Reason = finding.Reason.Length > 0 ? finding.Reason : "Mention de réalisation retrouvée ; à confirmer.", LaterExcerpt = Clip(finding.Excerpt), LaterDate = consultation.Date };
                 }
             }
             if (active != null)
             {
                 if (sameTimeConflict)
-                    active = active with { Status = FoStatus.Verify, Reason = "Consultations de même date : chronologie incertaine." };
+                    active = active with { Status = FoStatus.Verify, HasConflict = true, Reason = "Consultations de même date : chronologie incertaine." };
                 else if (group.Key > active.SourceDate && active.Status != FoStatus.ProbablyPerformed &&
                          !events.Any(e => e.Finding.Kind is FoFindingKind.Request or FoFindingKind.Potential))
                     active = active with { Status = FoStatus.Verify, Reason = "Consultation ultérieure sans réalisation clairement établie.",

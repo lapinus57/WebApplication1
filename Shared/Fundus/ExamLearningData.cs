@@ -58,7 +58,7 @@ public static class ExamLearningData
             FundusAnalysis.Detect(latestText).Any(f => f.Kind == FoFindingKind.Cancelled),
             analysis != null && latest != null && latest.Date > analysis.SourceDate,
             latest != null && latest.Date.Date.AddYears(1) <= appointment.Date,
-            latest?.ActLinkAvailable == true, analysis?.Reason.Contains("contradictoire", StringComparison.OrdinalIgnoreCase) == true
+            latest?.ActLinkAvailable == true, analysis?.HasConflict == true
         });
     }
 

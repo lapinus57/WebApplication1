@@ -36,6 +36,7 @@ internal static class ExamLearningChecks
             check(model.Exams[i].Questions == 0, "Supported held-out cases are counted as direct classifications");
         }
         check(model.Exams[3].Root == null && positive[3].Decision == null && positive[3].Suggested == null, "Unreviewed target stays unknown rather than being learned as No");
+        check(negative[0].Excerpts.Any(s => s.Contains("non nécessaire", StringComparison.Ordinal)), "Negative explanation prefers the annotated phrase including its negation");
         check(ExamDecisionTree.Predict(null, "RAS", Signals()).All(p => !p.Decision.HasValue), "No supplied model means no automatic classification");
         check(ExamDecisionTree.Predict(model, "Texte entièrement inconnu", Signals()).All(p => !p.Decision.HasValue), "Absence of learned evidence alone never authorizes a direct answer");
         var absent = new bool[Signals().Length];
@@ -124,6 +125,23 @@ internal static class ExamLearningChecks
         check(extracted.Signals[6] && extracted.Signals[7] && extracted.Signals[8] && extracted.Signals[9] && extracted.Signals[10], "Structured features use the confirmed local act and latest exam requests");
         var negated = ExamLearningData.Extract(new[] { new FoConsultation("negated", day.AddDays(-1), "Ne pas prévoir OCT. Skiacol non nécessaire.", "Pas de V3FO à faire") }, day, day);
         check(!negated.Signals[8] && !negated.Signals[9] && !negated.Signals[10], "Negation does not become a positive request feature");
+        var contradictoryVisits = new[]
+        {
+            new[] { new FoConsultation("fields", day.AddDays(-1), "Pas de FO", "Prévoir FO") },
+            new[] { new FoConsultation("dates", day.AddDays(-1), "Refaire FO dans 6 mois", "Refaire FO dans 1 an") },
+            new[] { new FoConsultation("code", day.AddDays(-1), "FO non réalisé", "", "BZQK001", "act", true) },
+            new[] { new FoConsultation("tie-one", day.AddDays(-1), "Prévoir FO"), new FoConsultation("tie-two", day.AddDays(-1), "FO réalisé") }
+        };
+        foreach (var conflictVisits in contradictoryVisits)
+        {
+            var conflictInput = ExamLearningData.Extract(conflictVisits, day, day);
+            check(FundusAnalysis.Analyze(conflictVisits, day)?.HasConflict == true && conflictInput.Signals[15], "Structured contradiction propagates regardless of display wording");
+            check(ExamDecisionTree.Predict(model, examples[1].Text, conflictInput.Signals)[0].Decision == null, "Recognized clinical conflict vetoes an otherwise supported FO decision");
+        }
+        var resolved = contradictoryVisits[0].Append(new FoConsultation("new-plan", day, "Prévoir FO"));
+        check(!ExamLearningData.Extract(resolved, day, day).Signals[15], "A later unambiguous explicit plan can resolve an old conflict");
+        var completed = contradictoryVisits[0].Append(new FoConsultation("done", day, "FO réalisé"));
+        check(!ExamLearningData.Extract(completed, day, day).Signals[15], "A later unambiguous completion can resolve an old conflict");
         Reject(() => ExamLearningData.Extract(new[] { new FoConsultation("huge", day.AddDays(-1), new string('a', ExamLearningData.MaxText)) }, day, day), "Oversized notes are rejected rather than silently truncated");
     }
 }

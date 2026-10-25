@@ -13,8 +13,8 @@
         </StackPanel>
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
             <StackPanel x:Name="Actions" Orientation="Horizontal" Spacing="8" Padding="0,0,0,5">
-                <CalendarDatePicker x:Name="FromDate" Header="Du" Width="150"/>
-                <CalendarDatePicker x:Name="ToDate" Header="Au" Width="150"/>
+                <StackPanel Spacing="4"><TextBlock Text="Du"/><CalendarDatePicker x:Name="FromDate" Width="150"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Au"/><CalendarDatePicker x:Name="ToDate" Width="150"/></StackPanel>
                 <Button Content="Charger les patients" Click="Load_Click" VerticalAlignment="Bottom"/>
                 <Button Content="Entraîner et tester" Click="Train_Click" VerticalAlignment="Bottom"/>
                 <Button Content="Exporter le modèle" Click="Export_Click" VerticalAlignment="Bottom"/>
