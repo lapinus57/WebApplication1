@@ -74,6 +74,7 @@ public sealed partial class FundusPage : Page
     private void Filter_Changed(object sender, TextChangedEventArgs e) => ApplyFilter();
     private void State_Changed(object sender, SelectionChangedEventArgs e) => ApplyFilter();
     private async void Search_Click(object sender, RoutedEventArgs e) => await SearchAsync();
+    private void Learning_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(ExamLearningPage));
 
     private void Busy(bool busy)
     {
