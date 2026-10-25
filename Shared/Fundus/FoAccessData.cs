@@ -45,6 +45,67 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
 
     public string SourceKey(FoMapping mapping) => FundusAnalysis.Hash(Path.GetFullPath(options.DatabasePath).ToUpperInvariant() + "\n" + JsonSerializer.Serialize(mapping));
 
+    public string RegistrySourceKey(FoMapping mapping) => FundusAnalysis.Hash(Path.GetFullPath(options.DatabasePath).ToUpperInvariant()
+        + "\n" + JsonSerializer.Serialize(new { mapping.PatientsTable, mapping.PatientId }));
+
+    // Read every patient, including those without any appointment or consultation.
+    // Only one patient's clinical timeline is retained at a time by the registry import.
+    public IEnumerable<RegistryPatient> ReadRegistryPatients(FoMapping mapping, CancellationToken cancellationToken)
+    {
+        using var connection = ReadOnlyAccess.Open(options);
+        var schema = Schema(connection);
+        mapping.SelectClinicalFields(schema);
+        mapping.ValidateClinical(schema);
+        var index = new List<(string Id, string LastName, string FirstName)>();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = $"SELECT {Q(mapping.PatientId)}, {Q(mapping.LastName)}, {Q(mapping.FirstName)} FROM {Q(mapping.PatientsTable)}";
+            using var reader = command.ExecuteReader()!;
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var id = Key(reader.GetValue(0));
+                if (!ids.Add(id)) throw new FoDataException("L’identifiant patient choisi n’est pas unique dans Patients.");
+                if (index.Count >= 100_000) throw new FoDataException("Plus de 100 000 patients dans cette source. Vérifiez la table choisie avant l’import du registre.");
+                index.Add((id, Convert.ToString(reader.GetValue(1)) ?? "", Convert.ToString(reader.GetValue(2)) ?? ""));
+            }
+        }
+        var now = Now;
+        foreach (var patient in index)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return new(patient.Id, patient.LastName, patient.FirstName,
+                ReadClinicalTimeline(connection, schema, mapping, patient.Id, now, cancellationToken));
+        }
+    }
+
+    private static IReadOnlyList<FoConsultation> ReadClinicalTimeline(OleDbConnection connection, IReadOnlyList<FoField> schema,
+        FoMapping mapping, string id, DateTime now, CancellationToken cancellationToken)
+    {
+        using var consultations = connection.CreateCommand();
+        consultations.CommandText = $"SELECT {Q(mapping.ConsultationId)}, {Q(mapping.ConsultationDate)}, {string.Join(", ", mapping.ObservationFields.Select(Q))} FROM {Q(mapping.ConsultationsTable)} WHERE {Q(mapping.ConsultationPatientId)} = ?";
+        AddKey(consultations, schema, mapping.ConsultationsTable, mapping.ConsultationPatientId, id);
+        var rows = new List<FoConsultation>();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        int totalCharacters = 0;
+        using var reader = consultations.ExecuteReader()!;
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var consultationId = Key(reader.GetValue(0));
+            if (!ids.Add(consultationId)) throw new FoDataException("L’identifiant consultation choisi n’est pas unique pour un patient.");
+            var date = Date(reader.GetValue(1));
+            if (date > now) continue;
+            var (text, refraction) = ClinicalText(reader, mapping, 2);
+            totalCharacters += text.Length + refraction.Length;
+            if (text.Length + refraction.Length > 100_000 || rows.Count >= 10_000 || totalCharacters > 5_000_000)
+                throw new FoDataException("Volume d’observations inhabituel. Vérifiez les champs choisis ; l’analyse a été interrompue sans résultat partiel.");
+            rows.Add(new(consultationId, date, text, refraction));
+        }
+        return rows;
+    }
+
     public FoDataSet Load(FoMapping mapping, DateTime from, DateTime until, CancellationToken cancellationToken)
     {
         using var connection = ReadOnlyAccess.Open(options);
@@ -89,25 +150,7 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
                 name = $"{Convert.ToString(reader.GetValue(0))} {Convert.ToString(reader.GetValue(1))}".Trim();
                 if (reader.Read()) throw new FoDataException("L’identifiant patient choisi n’est pas unique dans Patients.");
             }
-            using var consultations = connection.CreateCommand();
-            consultations.CommandText = $"SELECT {Q(mapping.ConsultationId)}, {Q(mapping.ConsultationDate)}, {string.Join(", ", mapping.ObservationFields.Select(Q))} FROM {Q(mapping.ConsultationsTable)} WHERE {Q(mapping.ConsultationPatientId)} = ?";
-            AddKey(consultations, schema, mapping.ConsultationsTable, mapping.ConsultationPatientId, id);
-            var rows = new List<FoConsultation>();
-            var ids = new HashSet<string>(StringComparer.Ordinal);
-            using (var reader = consultations.ExecuteReader()!)
-            {
-                while (reader.Read())
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var consultationId = Key(reader.GetValue(0));
-                    if (!ids.Add(consultationId)) throw new FoDataException("L’identifiant consultation choisi n’est pas unique pour un patient.");
-                    var date = Date(reader.GetValue(1));
-                    if (date > now) continue;
-                    var (text, refraction) = ClinicalText(reader, mapping, 2);
-                    if (text.Length + refraction.Length > 100_000 || rows.Count >= 10_000) throw new FoDataException("Volume d’observations inhabituel. Vérifiez les champs choisis ; l’analyse a été interrompue sans résultat partiel.");
-                    rows.Add(new(consultationId, date, text, refraction));
-                }
-            }
+            var rows = ReadClinicalTimeline(connection, schema, mapping, id, now, cancellationToken);
             result.Add(new(id, name, appointment, rows));
         }
         return new(SourceKey(mapping), result);

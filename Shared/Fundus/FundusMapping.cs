@@ -50,7 +50,7 @@ public sealed class FoMapping
             .ToArray();
     }
 
-    public void Validate(IReadOnlyList<FoField> fields)
+    public void ValidateClinical(IReadOnlyList<FoField> fields)
     {
         void Require(string table, string column, string label)
         {
@@ -69,6 +69,17 @@ public sealed class FoMapping
             !ObservationFields.Contains("REFRACTION", StringComparer.OrdinalIgnoreCase))
             throw new FoDataException("L’analyse FO doit utiliser les champs Observation et REFRACTION.");
         foreach (var field in ObservationFields) Require(ConsultationsTable, field, "texte médical");
+    }
+
+    public void Validate(IReadOnlyList<FoField> fields)
+    {
+        ValidateClinical(fields);
+        void Require(string table, string column, string label)
+        {
+            if (string.IsNullOrWhiteSpace(table) || string.IsNullOrWhiteSpace(column) ||
+                !fields.Any(f => f.Table == table && f.Name == column))
+                throw new FoDataException($"Champ manquant ou absent du schéma : {label}.");
+        }
         Require(AppointmentsTable, AppointmentPatientId, "patient du rendez-vous");
         Require(AppointmentsTable, AppointmentDate, "date du rendez-vous");
         Require(AppointmentsTable, AppointmentTime, "heure du rendez-vous");

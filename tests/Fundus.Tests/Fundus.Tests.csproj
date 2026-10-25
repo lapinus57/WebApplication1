@@ -12,6 +12,9 @@
     <Compile Include="../../Serveur/Pages/Fundus.cshtml.cs" Link="Pages/Fundus.cshtml.cs" />
     <Content Include="../../Serveur/Pages/Fundus.cshtml" Link="Pages/Fundus.cshtml" />
     <Content Include="../../Serveur/Pages/_ViewImports.cshtml" Link="Pages/_ViewImports.cshtml" />
+    <Compile Include="../../Serveur/Registry/*.cs" LinkBase="Registry" />
+    <Compile Include="../../Serveur/Pages/PatientRegistry.cshtml.cs" Link="Pages/PatientRegistry.cshtml.cs" />
+    <Content Include="../../Serveur/Pages/PatientRegistry.cshtml" Link="Pages/PatientRegistry.cshtml" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.0" />
     <PackageReference Include="System.Data.OleDb" Version="8.0.0" />

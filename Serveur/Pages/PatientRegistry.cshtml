@@ -1,0 +1,124 @@
+@page
+@model Serveur.Pages.PatientRegistryModel
+@using EyeChat.Fundus
+@using System.Globalization
+@{
+    ViewData["Title"] = "Patients · Diabète et HTO";
+    var fr = CultureInfo.GetCultureInfo("fr-FR");
+    var states = Enum.GetValues<PatientConditionState>();
+}
+<link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
+<section class="registry">
+    <header class="registry-heading">
+        <div><p class="registry-eyebrow">REGISTRE PATIENTS</p><h1>Diabète et tension oculaire</h1>
+            <p>Tous les patients de la base Access, avec ou sans rendez-vous.</p></div>
+        <a asp-page="/PatientRegistry" asp-route-configure="true">Réglages Access</a>
+    </header>
+    <p class="registry-help">« Oui » ou « Non » repéré dans un compte rendu reste à valider. Sans mention, le statut est « Non renseigné ». L’HTO désigne la tension oculaire.</p>
+    @if (Model.Error.Length > 0) { <div class="registry-error" role="alert">@Model.Error</div> }
+    @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+
+    @if (Model.ShowMapping)
+    {
+        <section class="registry-card">
+            <h2>Correspondance avec Access</h2>
+            <p>Le chemin de la base est celui des paramètres RDV du serveur ou de FoAccess:DatabasePath. Seules les tables Patients et Consultation sont nécessaires ici.</p>
+            <form method="post" asp-page-handler="Mapping" id="registry-mapping">
+                @foreach (var group in new[] { "Patients", "Consultations" })
+                {
+                    var tableProperty = group + "Table";
+                    var tableName = (string)typeof(FoMapping).GetProperty(tableProperty)!.GetValue(Model.Mapping)!;
+                    var columns = group == "Patients" ? new[] { ("PatientId", "Identifiant patient"), ("LastName", "Nom"), ("FirstName", "Prénom") }
+                        : new[] { ("ConsultationId", "Identifiant consultation"), ("ConsultationPatientId", "Identifiant patient lié"), ("ConsultationDate", "Date de consultation") };
+                    <fieldset><legend>@(group == "Patients" ? "Patients" : "Consultations")</legend>
+                        <label>Table<select name="Mapping.@tableProperty" class="registry-table" required><option value="">Choisir</option>
+                            @foreach (var table in Model.Fields.Select(f => f.Table).Distinct()) { <option value="@table" selected="@(table == tableName)">@table</option> }
+                        </select></label>
+                        @foreach (var (property, label) in columns)
+                        {
+                            var value = (string)typeof(FoMapping).GetProperty(property)!.GetValue(Model.Mapping)!;
+                            <label>@label<select name="Mapping.@property" class="registry-column" required><option value="">Choisir</option>
+                                @foreach (var field in Model.Fields) { <option value="@field.Name" data-table="@field.Table" selected="@(field.Table == tableName && field.Name == value)">@field.Name</option> }
+                            </select></label>
+                        }
+                    </fieldset>
+                }
+                <p>Observation et REFRACTION sont convertis en texte puis analysés. ProchainRDV n’est pas utilisé. Access reste en lecture seule.</p>
+                <button type="submit">Enregistrer les correspondances</button>
+            </form>
+        </section>
+    }
+
+    @if (Model.Settings != null)
+    {
+        <section class="registry-card registry-import">
+            <div><strong>@Model.Total patient(s) dans la source active</strong>
+                <p>Dernier import complet : @Model.FormatUtc(Model.Settings.LastImportUtc). Les patients sans consultation sont aussi conservés.</p></div>
+            <form method="post" asp-page-handler="Import"><button type="submit" disabled="@Model.ImportStatus.Running">Importer / actualiser tous les patients</button></form>
+            @if (Model.ImportStatus.Running) { <form method="post" asp-page-handler="Cancel"><button class="secondary" type="submit">Interrompre l’import</button></form> }
+            <p id="registry-progress" class="@(Model.ImportStatus.Failed ? "registry-error" : "")" data-running="@((Model.WatchImport || Model.ImportStatus.Running) ? "true" : "false")" role="status">@Model.ImportStatus.Message</p>
+            <p class="registry-help">L’import s’exécute sur le serveur. La liste précédente reste disponible jusqu’à la fin ; les corrections manuelles sont conservées.</p>
+        </section>
+
+        <form method="post" asp-page-handler="Search" class="registry-filters">
+            <label>Rechercher un patient<input asp-for="Query" maxlength="100" placeholder="Nom, prénom ou identifiant Access" /></label>
+            <label>Diabète<select asp-for="DiabetesFilter"><option value="">Tous</option>@foreach (var s in states) { <option value="@s">@PatientConditions.Label(s)</option> }</select></label>
+            <label>HTO<select asp-for="HtoFilter"><option value="">Tous</option>@foreach (var s in states) { <option value="@s">@PatientConditions.Label(s)</option> }</select></label>
+            <label class="registry-check"><input asp-for="ReviewOnly" />À relire</label>
+            <label class="registry-check"><input asp-for="Inactive" />Absents du dernier import</label>
+            <button type="submit">Rechercher</button>
+        </form>
+        <p>@Model.MatchCount résultat(s) · page @Model.PageNumber sur @Model.Pages</p>
+        <div class="registry-table-wrap"><table class="registry-list">
+            <thead><tr><th>Patient</th><th>Diabète</th><th>HTO</th><th>Dernière consultation</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var patient in Model.Patients)
+            {
+                <tr>
+                    <td><strong>@patient.LastName @patient.FirstName</strong><small>Identifiant Access : @patient.AccessPatientId</small></td>
+                    <td><span class="registry-state state-@patient.Diabetes">@PatientConditions.Label(patient.Diabetes)</span><small>@(patient.DiabetesManual.HasValue ? "Validation manuelle" : "Analyse du dossier")</small>@if (patient.DiabetesNeedsReview) { <small class="registry-changed">Nouveaux éléments à relire</small> }</td>
+                    <td><span class="registry-state state-@patient.Hto">@PatientConditions.Label(patient.Hto)</span><small>@(patient.HtoManual.HasValue ? "Validation manuelle" : "Analyse du dossier")</small>@if (patient.HtoNeedsReview) { <small class="registry-changed">Nouveaux éléments à relire</small> }</td>
+                    <td>@(patient.LastConsultationDate?.ToString("dd/MM/yyyy", fr) ?? "Aucune")</td>
+                    <td><form method="post" asp-page-handler="Details"><input type="hidden" name="id" value="@patient.Id" /><input type="hidden" name="Query" value="@Model.Query" /><input type="hidden" name="DiabetesFilter" value="@Model.DiabetesFilter" /><input type="hidden" name="HtoFilter" value="@Model.HtoFilter" /><input type="hidden" name="Inactive" value="@Model.Inactive" /><input type="hidden" name="ReviewOnly" value="@Model.ReviewOnly" /><input type="hidden" name="PageNumber" value="@Model.PageNumber" /><button class="secondary" type="submit">Voir / vérifier</button></form></td>
+                </tr>
+            }
+            </tbody>
+        </table></div>
+        @if (Model.MatchCount == 0 && Model.Error.Length == 0) { <p class="registry-card">Aucun patient ne correspond aux filtres. Si le registre est vide, lancez un import complet.</p> }
+        @if (Model.Pages > 1)
+        {
+            <form method="post" asp-page-handler="Search" class="registry-pagination"><input type="hidden" name="Query" value="@Model.Query" /><input type="hidden" name="DiabetesFilter" value="@Model.DiabetesFilter" /><input type="hidden" name="HtoFilter" value="@Model.HtoFilter" /><input type="hidden" name="Inactive" value="@Model.Inactive" /><input type="hidden" name="ReviewOnly" value="@Model.ReviewOnly" />
+                <button type="submit" name="PageNumber" value="@(Model.PageNumber - 1)" disabled="@(Model.PageNumber == 1)">Précédente</button>
+                <button type="submit" name="PageNumber" value="@(Model.PageNumber + 1)" disabled="@(Model.PageNumber == Model.Pages)">Suivante</button>
+            </form>
+        }
+    }
+
+    @if (Model.Selected is { } entry)
+    {
+        <section class="registry-card" id="registry-details">
+            <h2>@entry.LastName @entry.FirstName</h2><p>Identifiant Access : @entry.AccessPatientId</p>
+            <div class="registry-evidence">
+                <div><h3>Diabète · @PatientConditions.Label(entry.DiabetesDetected) dans le dossier</h3>
+                    <p>@(entry.DiabetesSourceDate?.ToString("dd/MM/yyyy", fr) ?? "Aucune mention retenue")</p><pre>@entry.DiabetesEvidence</pre>
+                    @if (entry.DiabetesManual.HasValue) { <p>Vérifié par @entry.DiabetesReviewedBy le @Model.FormatUtc(entry.DiabetesReviewedUtc).</p> }
+                </div>
+                <div><h3>HTO · @PatientConditions.Label(entry.HtoDetected) dans le dossier</h3>
+                    <p>@(entry.HtoSourceDate?.ToString("dd/MM/yyyy", fr) ?? "Aucune mention retenue")</p><pre>@entry.HtoEvidence</pre>
+                    @if (entry.HtoManual.HasValue) { <p>Vérifié par @entry.HtoReviewedBy le @Model.FormatUtc(entry.HtoReviewedUtc).</p> }
+                </div>
+            </div>
+            @if (entry.IsActive)
+            {
+                <form method="post" asp-page-handler="Review" class="registry-filters">
+                    <input type="hidden" name="id" value="@entry.Id" /><input type="hidden" name="revision" value="@entry.Revision" />
+                    <label>Diabète<select name="diabetesManual"><option value="">Analyse automatique</option>@foreach (var s in states.Where(s => s != PatientConditionState.Unknown)) { <option value="@s" selected="@(entry.DiabetesManual == s)">@PatientConditions.Label(s)</option> }</select></label>
+                    <label>HTO<select name="htoManual"><option value="">Analyse automatique</option>@foreach (var s in states.Where(s => s != PatientConditionState.Unknown)) { <option value="@s" selected="@(entry.HtoManual == s)">@PatientConditions.Label(s)</option> }</select></label>
+                    <button type="submit">Enregistrer la vérification</button>
+                </form>
+                <p class="registry-help">La correction est enregistrée uniquement dans le registre serveur, avec votre compte et la date. Elle ne modifie pas Access et ne prescrit aucun examen.</p>
+            }
+        </section>
+    }
+</section>
+<script src="~/js/patient-registry.js" asp-append-version="true"></script>
