@@ -113,9 +113,12 @@ public static class FundusAnalysis
         var hash = Hash(string.Join("\n", rows.Select(c => $"{c.Id.Length}:{c.Id}|{c.Date:O}|{Hash(c.Text)}|{Hash(c.RefractionText)}")));
         FoAnalysis? active = null;
         FoAnalysis? context = null;
+        var annual = new FoAnnualFollowUp();
         foreach (var group in rows.GroupBy(c => c.Date))
         {
             var events = group.SelectMany(c => ClinicalFindings(c).Select(f => (Consultation: c, Finding: f))).ToList();
+            annual.Observe(group, events.Any(e => e.Finding.Kind == FoFindingKind.Cancelled),
+                events.FirstOrDefault(e => e.Finding.Kind == FoFindingKind.Performed).Consultation);
             // Contextual mentions can suggest a manual check, but cannot override an explicit
             // cancellation/completion or establish that a new FO has been prescribed/performed.
             if (events.Any(e => e.Finding.Kind is FoFindingKind.Cancelled or FoFindingKind.Performed)) context = null;
@@ -157,6 +160,10 @@ public static class FundusAnalysis
                     active = active with { Status = FoStatus.Verify, Reason = "Consultation ultérieure sans réalisation clairement établie." };
             }
         }
+        // An explicit open instruction keeps priority. A completed episode can give way
+        // to the annual review after one year, while chronic context survives silent visits.
+        var annualReview = annual.Analyze(now, hash);
+        if (annualReview != null && (active == null || active.Status == FoStatus.ProbablyPerformed)) return annualReview;
         var result = active ?? context;
         return result == null ? null : result with { EvidenceHash = hash };
     }

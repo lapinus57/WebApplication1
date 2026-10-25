@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ChatServeur;
 using ChatServeur.Fundus;
+using ChatServeur.Registry;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging;
@@ -87,7 +88,11 @@ builder.Services.AddSignalR(o =>
     o.MaximumReceiveMessageSize = 2 * 1024 * 1024;
 });
 builder.Services.AddHostedService<ReminderService>();
-builder.Services.AddScoped<IFoAccessReader, FoAccessReader>();
+builder.Services.AddScoped<FoAccessReader>();
+builder.Services.AddScoped<IFoAccessReader>(p => p.GetRequiredService<FoAccessReader>());
+builder.Services.AddScoped<IRegistryAccessReader>(p => p.GetRequiredService<FoAccessReader>());
+builder.Services.AddScoped<PatientRegistryStore>();
+builder.Services.AddSingleton<PatientRegistryImport>();
 builder.Services.AddScoped<FoStore>();
 
 var app = builder.Build();
@@ -108,6 +113,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/Index") ||
         context.Request.Path.StartsWithSegments("/Mobile") ||
         context.Request.Path.StartsWithSegments("/Fundus") ||
+        context.Request.Path.StartsWithSegments("/PatientRegistry") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)
@@ -138,6 +144,7 @@ using (var scope = app.Services.CreateScope())
     }
 
     FoSchema.Ensure(db);
+    PatientRegistrySchema.Ensure(db);
     EnsurePatientsTable(db, logger);
     EnsureArchivedColumn(db, logger);
     EnsureIsDeletedColumn(db, logger);
