@@ -19,7 +19,7 @@ Le moteur reste un arbre local, pas un modèle génératif qui comprend toute ph
 
 ## Expliquer les anciens FO
 
-Déplier **Anciens FO : pourquoi cet examen a-t-il été réalisé ?**. L’écran recherche au maximum cinq FO documentés et présente pour chacun la consultation concernée et la consultation précédente. Sélectionner un passage, cliquer sur **Ajouter le passage historique sélectionné**, puis écrire son explication dans le champ historique. Enregistrer avec les réponses du dossier.
+Déplier **Anciens FO : pourquoi cet examen a-t-il été réalisé ?**. L’écran recherche au maximum cinq FO documentés et présente pour chacun la consultation concernée et la consultation précédente. Sélectionner un passage, cliquer sur **Ajouter le passage historique sélectionné**, puis écrire son explication dans le champ historique. Enregistrer avec les réponses du dossier, ou uniquement les explications si les examens du prochain rendez-vous restent non renseignés. Une absence de réponse ne devient pas un Non.
 
 Ces explications restent distinctes des réponses du prochain rendez-vous. Leurs expressions peuvent enrichir les critères appris seulement si elles sont encore présentes dans la consultation actuelle et associées à une réponse humaine actuelle. Un ancien FO ne devient jamais automatiquement un Oui pour un futur rendez-vous. L’outil ne prétend pas reconstituer seul la motivation du médecin.
 

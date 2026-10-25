@@ -198,7 +198,8 @@ public sealed partial class ExamLearningPage : Page
         if (_draft == null || _selected == null || _reader == null || _mapping == null) return;
         if (Store.Examples.Count > 0 && Store.SourceKey != _source) throw new FoDataException("Ce jeu d’apprentissage appartient à une autre base. Les modèles peuvent être utilisés ici, mais les dossiers de deux bases ne sont pas mélangés.");
         var answers = Enumerable.Range(0, 4).Select(Answer).ToArray();
-        if (answers.All(a => !a.HasValue)) throw new FoDataException("Renseignez au moins une réponse Oui ou Non. Les autres examens peuvent rester non renseignés.");
+        if (answers.All(a => !a.HasValue) && string.IsNullOrWhiteSpace(RationaleText.Text) && string.IsNullOrWhiteSpace(HistoryRationaleText.Text))
+            throw new FoDataException("Renseignez une réponse ou une explication. Les examens non renseignés ne sont pas appris comme des Non.");
         var example = new ExamExample { SourceVersion = 2, Group = _draft.Group, Text = _draft.Text, Signals = _draft.Signals.ToArray(), AppointmentDay = _draft.AppointmentDay, Answers = answers, Rationale = RationaleText.Text, HistoricalRationale = HistoryRationaleText.Text, Annotations = _draft.Annotations.ToList() };
         ExamLearningData.Validate(example);
         var visits = await Task.Run(() => _reader.ReadPatientTimeline(_mapping, _selected.Id, op.Token), op.Token);

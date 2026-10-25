@@ -12,7 +12,7 @@ internal static class ExamReviewChecks
         check(ExamReviewContext.ApplyMyopia(new[] { old, recent }, now, now, Unknown())[0].Decision == true, "Explicit strong myopia becomes due at five years");
         check(ExamReviewContext.ApplyMyopia(new[] { old, recent }, now, now.AddDays(-1), Unknown())[0].Decision == null, "Five-year boundary is not anticipated");
         check(ExamReviewContext.ApplyMyopia(new[] { recent }, now, now, Unknown())[0].Explanation.Contains("non retrouvé"), "Missing prior FO needs confirmation");
-        foreach (var text in new[] { "Myopie -5,00", "Cylindre -6,00", "Pas de myopie -6,00", "Antécédent familial myopie -6,00", "Myopie +6,00" })
+        foreach (var text in new[] { "Myopie -5,00", "Cylindre -6,00", "Pas de myopie -6,00", "Antécédent familial myopie -6,00", "Myopie +6,00", "Myopie -6,00 ?", "Possible myopie -6,00", "Fausse myopie -6,00" })
             check(ExamReviewContext.ApplyMyopia(new[] { old, recent with { RefractionText = text } }, now, now, Unknown())[0].Decision == null, "No unsafe threshold inference: " + text);
         check(ExamReviewContext.Summary(new[] { old, recent }, now, now, now.AddYears(-40).AddDays(1)).Contains("39 ans"), "Age respects birthday");
         check(ExamReviewContext.Summary(new[] { recent }, now, now, null).Contains("non renseigné"), "Unknown age is not invented");

@@ -48,7 +48,7 @@ public static class ExamReviewContext
         var latest = rows[0];
         // Deliberately require an explicit myopia-labelled value; never interpret a cylinder as a sphere.
         bool high = FoClinicalContext.Clauses(latest.RefractionText + "\n" + latest.Text).Any(c =>
-            !Regex.IsMatch(FundusAnalysis.Normalize(c), @"\b(pas|sans|non|ancien\w*|antecedent\w*|familial\w*)\b") &&
+            !Regex.IsMatch(FundusAnalysis.Normalize(c), @"\b(pas|sans|non|ancien\w*|antecedent\w*|familial\w*|possible|suspect\w*|suspicion|doute|hypothese|fausse)\b|\?") &&
             Regex.Matches(c, @"\bmyopie\s*(?:(?:OD|OG|ODG)\s*)?(?:de|:|=)?\s*[−-](\d{1,2}(?:[.,]\d{1,2})?)\b", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250))
                 .Cast<Match>().Any(m => decimal.TryParse(m.Groups[1].Value.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out var value) && value > 5 && value <= 30));
         if (!high) return predictions;
