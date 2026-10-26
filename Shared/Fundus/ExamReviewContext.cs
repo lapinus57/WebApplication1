@@ -16,6 +16,12 @@ public static class ExamReviewContext
         !rows.Where(c => c.Date == candidate.Date).Any(c => FundusAnalysis.Detect(c.Text + "\n" + c.RefractionText)
             .Any(f => f.Kind is FoFindingKind.Cancelled or FoFindingKind.Potential));
 
+    public static FoConsultation? LastPerformed(IEnumerable<FoConsultation> visits, DateTime now)
+    {
+        var rows = visits.Where(c => c.Date <= now).OrderByDescending(c => c.Date).ToArray();
+        return rows.FirstOrDefault(c => Documented(rows, c));
+    }
+
     public static string Summary(IEnumerable<FoConsultation> visits, DateTime now, DateTime appointment, DateTime? birth)
     {
         var rows = visits.Where(c => c.Date <= now).OrderByDescending(c => c.Date).ToArray();

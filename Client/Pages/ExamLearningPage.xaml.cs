@@ -20,6 +20,7 @@ public sealed partial class ExamLearningPage : Page
 {
     private readonly FoPageLifetime _lifetime = new();
     private ExamLearningStore? _store;
+    private LocalRulePackage _rules = new();
     private FoAccessData? _reader;
     private FoMapping? _mapping;
     private string _source = "";
@@ -90,6 +91,10 @@ public sealed partial class ExamLearningPage : Page
         ModelReport.Text = ExamDecisionTree.Report(Store.Candidate);
     }
 
+    private void LocalRules_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(LocalRulesPage));
+    private static ExamPrediction[] PredictExams(LocalRulePackage rules, IReadOnlyList<FoConsultation> visits, DateTime now, DateTime appointment, ExamTreeModel? model, string text, bool[] signals) =>
+        LocalExamRules.Apply(rules, visits, now, appointment, ExamReviewContext.ApplyMyopia(visits, now, appointment, ExamDecisionTree.Predict(model, text, signals)));
+
     private void Back_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(FundusPage));
     private async void Load_Click(object sender, RoutedEventArgs e) => await RunAsync(LoadPatientsAsync);
     private async Task LoadPatientsAsync(FoPageLifetime.Operation op)
@@ -98,6 +103,9 @@ public sealed partial class ExamLearningPage : Page
         if (from < Today || until <= from || (until - from).TotalDays > 93) throw new FoDataException("Choisissez une période de 1 à 93 jours à partir d’aujourd’hui.");
         var config = await App.ChatService.GetAppointmentSearchConfigAsync().WaitAsync(op.Token);
         if (config == null || string.IsNullOrWhiteSpace(config.DatabasePath)) throw new FoDataException("Configurez le chemin Access dans les paramètres Recherche RDV.");
+        var rules = await Task.Run(LocalRuleStore.Load, op.Token);
+        if (!op.IsCurrent) return;
+        _rules = rules;
         var machine = MachineConfig.Load(); var store = Store;
         var result = await Task.Run(() =>
         {
@@ -115,7 +123,7 @@ public sealed partial class ExamLearningPage : Page
                 var input = ExamLearningData.Extract(patient.Consultations, reader.Now, patient.Appointment);
                 var group = store.Group(source, patient.Id);
                 var digest = ExamLearningData.Digest(input.Text, input.Signals, patient.Appointment);
-                var predictions = ExamReviewContext.ApplyMyopia(patient.Consultations, reader.Now, patient.Appointment, ExamDecisionTree.Predict(store.Active, input.Text, input.Signals));
+                var predictions = PredictExams(rules, patient.Consultations, reader.Now, patient.Appointment, store.Active, input.Text, input.Signals);
                 rows.Add(new(patient.Id, patient.Name, patient.Appointment, group, digest, Classification(predictions, store.Examples.FirstOrDefault(e => e.Group == group), digest)));
             }
             return (Reader: reader, Map: map, Source: source, Rows: rows.OrderBy(r => r.Appointment).ThenBy(r => r.Name).ToList());
@@ -165,7 +173,7 @@ public sealed partial class ExamLearningPage : Page
             HistoryText.Text = ExamReviewContext.History(visits, _reader.Now);
             for (int i = 0; i < 4; i++) Answers[i].SelectedIndex = _draft.Answers[i] == true ? 1 : _draft.Answers[i] == false ? 2 : 0;
             RefreshEvidence();
-            var predictions = await Task.Run(() => ExamReviewContext.ApplyMyopia(visits, _reader.Now, row.Appointment, ExamDecisionTree.Predict(Store.Active, input.Text, input.Signals)), op.Token);
+            var predictions = await Task.Run(() => PredictExams(_rules, visits, _reader.Now, row.Appointment, Store.Active, input.Text, input.Signals), op.Token);
             if (!op.IsCurrent) return;
             ExplanationText.Text = string.Join("\n\n", predictions.Select((p, i) => ExamLearningData.Exams[i] + " — " + (p.Decision.HasValue ? p.Decision.Value ? "Oui" : "Non" : "À confirmer") + "\n" + p.Explanation));
             Message(ExamLearningData.IsTest(row.Group) ? "Dossier réservé aux tests : ses réponses et extraits ne servent jamais à construire l’arbre." : "Dossier d’entraînement : répondez d’après votre relecture, puis sélectionnez les passages utiles.");
@@ -211,7 +219,7 @@ public sealed partial class ExamLearningPage : Page
         // The editable draft must not mutate the already saved training collection.
         _draft = new ExamExample { SourceVersion = 2, Group = example.Group, Text = example.Text, AppointmentDay = example.AppointmentDay,
             Signals = example.Signals.ToArray(), Rationale = example.Rationale, HistoricalRationale = example.HistoricalRationale, Answers = example.Answers.ToArray(), Annotations = example.Annotations.ToList() };
-        var row = _selected with { Classification = Classification(ExamReviewContext.ApplyMyopia(visits, _reader.Now, _selected.Appointment, ExamDecisionTree.Predict(Store.Active, example.Text, example.Signals)), example, ExamLearningData.Digest(example.Text, example.Signals, example.AppointmentDay)) };
+        var row = _selected with { Classification = Classification(PredictExams(_rules, visits, _reader.Now, _selected.Appointment, Store.Active, example.Text, example.Signals), example, ExamLearningData.Digest(example.Text, example.Signals, example.AppointmentDay)) };
         _selected = row;
         _rows = _rows.Select(r => r.Group == row.Group ? row : r).ToList(); ApplyFilter();
         Message("Réponses et passages enregistrés dans votre profil Windows chiffré. Entraînez un nouveau modèle pour intégrer ces corrections.", InfoBarSeverity.Success);

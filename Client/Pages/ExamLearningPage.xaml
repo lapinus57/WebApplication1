@@ -15,6 +15,7 @@
             <ContentControl x:Name="Actions"><StackPanel Orientation="Horizontal" Spacing="8" Padding="0,0,0,5">
                 <StackPanel Spacing="4"><TextBlock Text="Du"/><CalendarDatePicker x:Name="FromDate" Width="150"/></StackPanel>
                 <StackPanel Spacing="4"><TextBlock Text="Au"/><CalendarDatePicker x:Name="ToDate" Width="150"/></StackPanel>
+                <Button Content="IA locale et règles" Click="LocalRules_Click" VerticalAlignment="Bottom"/>
                 <Button Content="Charger les patients" Click="Load_Click" VerticalAlignment="Bottom"/>
                 <Button Content="Entraîner et tester" Click="Train_Click" VerticalAlignment="Bottom"/>
                 <Button Content="Exporter le modèle" Click="Export_Click" VerticalAlignment="Bottom"/>
