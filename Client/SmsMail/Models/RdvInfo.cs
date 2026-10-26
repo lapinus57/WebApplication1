@@ -30,6 +30,9 @@ namespace Client.SmsMail.Models
         public List<string> AdditionalEmails { get; set; } = new();
         public bool EmailSend { get; set; }
         public DateTime? EmailSendDate { get; set; }
+        // Reasons recorded during grouping, before reminder-time copies are made.
+        public List<string> GroupingReasons { get; set; } = new();
+        public List<string> EyeEmailEmails { get; set; } = new();
         public bool Istried { get; set; }
         public string TriedMethodRound1 { get; set; } = string.Empty;
         public int? FamilyMethodRound1 { get; set; }

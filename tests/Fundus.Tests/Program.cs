@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 int count = 0;
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); count++; }
 var day = new DateTime(2026, 10, 22, 9, 0, 0);
+await SharedHistoryHubChecks.RunAsync(Check);
 FoAnalysis? Analyze(params (int Days, string Text)[] rows) => FundusAnalysis.Analyze(rows.Select((r, i) => new FoConsultation(i.ToString(), day.AddDays(r.Days), r.Text)), day);
 foreach (var text in new[] { "FO prochaine fois", "FO au prochain contrôle", "Contrôler les FO la prochaine fois", "Fond d'œil à prévoir", "FO à faire", "Revoir pour FO", "Dilatation au prochain RDV", "À dilater", "Prévoir FO", "Faire FO au prochain passage", "prévoir fond d’oeil", "F.O. au prochain contrôle", "fond d'OEIL À PRÉVOIR", "FO proch. contrôle" })
     Check(Analyze((-5, text))?.Status == FoStatus.Planned, "Request: " + text);

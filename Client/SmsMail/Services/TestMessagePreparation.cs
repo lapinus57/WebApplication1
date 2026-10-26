@@ -41,6 +41,13 @@ namespace Client.SmsMail.Services
             {
                 message.Key = "test-" + Guid.NewGuid().ToString("N");
                 message.ReservationKeys.Clear();
+                if (message.Channel == "Mail")
+                {
+                    var trace = EyeChat.Messaging.MailTrace.Parse(message.TraceJson);
+                    trace.IsTest = true;
+                    foreach (var person in trace.People) person.DestinationReason = "Adresse saisie explicitement dans le formulaire de test ; patient fictif.";
+                    message.TraceJson = JsonSerializer.Serialize(trace);
+                }
                 message.Subject = "[TEST] " + settings.Subject;
                 message.CalendarSubject = "[TEST] " + settings.CalendarSubject;
                 message.Body = message.Channel == "Mail"

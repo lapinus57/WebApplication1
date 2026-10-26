@@ -69,13 +69,48 @@ la pièce jointe rendez-vous.ics reste importable.
 
 Les paramètres sont chiffrés par DPAPI pour l'utilisateur Windows dans
 `%LOCALAPPDATA%/EyeChat/SmsMail/settings.dat`. Les comptes privés du dépôt de
-référence ne sont pas importés. `history.db` contient localement les destinataires
-et messages, exportables en CSV. Les postes ne partagent pas ce journal.
+référence ne sont pas importés. L’historique des destinataires, messages et statuts
+est centralisé dans `data/chat.db` sur le serveur. Tous les postes enregistrés
+auprès de ce même serveur peuvent le consulter, lire les messages et l’exporter
+en CSV, sans configurer leurs propres comptes SMTP/OVH pour cette consultation.
+Les mots de passe SMTP/IMAP et clés API OVH restent dans les paramètres locaux et
+ne sont pas transmis avec l’historique.
+
+**Mettre à jour le serveur et tous les clients avant de reprendre les envois.**
+Une ancienne version du client utilise encore son journal local et ne bénéficie
+pas des réservations partagées. Ouvrir SMS et Mail sur chaque poste mis à jour
+reprend automatiquement son ancien `history.db`, avec les statuts, dates, contenus
+et clés de réservation disponibles. Le fichier local est conservé. L’import est
+idempotent et reprend après une interruption ; il n’écrase jamais un statut déjà
+présent sur le serveur. Les envois des autres postes deviennent alors visibles.
+
+La carte indique le poste d’origine. Actualiser l’historique lit uniquement le
+serveur, sans interroger OVH/IMAP ni envoyer de message. Une notification légère
+actualise les pages ouvertes après un changement, avec une vérification toutes
+les trente secondes pour reprendre après une reconnexion. La date d’actualisation
+est affichée ; une erreur conserve la liste précédente en la signalant comme non
+actualisée. Les résumés sont lus par pages de cinquante, les corps à la demande.
 
 Une réservation durable par jour/contact/canal précède chaque appel fournisseur.
-Elle protège des renvois après rechargement ou changement de modèle. Une issue
+Cette réservation est atomique sur le serveur, y compris pour deux postes qui
+essaient d’envoyer simultanément. Sans connexion au serveur, aucun nouvel envoi
+n’est autorisé. Elle protège des renvois après rechargement ou changement de modèle. Une issue
 réseau incertaine demande une vérification chez le fournisseur ; aucun nouvel
 essai automatique n'est effectué. Une acceptation SMTP/OVH ne prouve pas la réception.
+
+Si la connexion coupe après l’appel fournisseur, le résultat est conservé dans
+une file locale durable. À la prochaine actualisation de l’onglet, il est transmis
+au même serveur sans renvoyer le SMS/mail. Chaque mise à jour possède un identifiant
+idempotent et vérifie la version du statut : un poste en retard ne remplace pas
+un statut déjà modifié. Le conflit est signalé dans l’historique. Les transactions
+et réservations subsistent après redémarrage du serveur. Sauvegarder `data/chat.db`
+inclut l’historique partagé, ses réservations et les reçus de synchronisation.
+
+L’accès utilise la connexion enregistrée du chat, sans restriction à un seul
+utilisateur ou poste. Les appels d’historique d’une connexion non enregistrée sont
+refusés ; le signal de changement ne contient aucun message ni destinataire. Ce
+contrôle reprend le modèle d’accès du chat sur le réseau du cabinet, sans ajouter
+une authentification individuelle. Les données Access ne sont jamais modifiées.
 
 Actualiser les statuts SMS interroge OVH. Retours mail (IMAP) lit les notifications
 avec le serveur, port et filtre expéditeur configurés et les identifiants SMTP.
@@ -86,6 +121,7 @@ avec ces identifiants et fournir des notifications exploitables.
 
 Importer historique EyeEmail lit les tables SQLite `MailLog` et `SmsOutgoing`
 en lecture seule. L'import est idempotent, étiqueté EyeEmail et conserve la source.
+Les archives importées sont également synchronisées vers l’historique partagé.
 Ces archives restent consultables mais ne bloquent pas les nouveaux rappels :
 leur date d'envoi ne permet pas de déduire sûrement le jour du rendez-vous.
 
@@ -109,7 +145,12 @@ dotnet run --project tests/SmsMail.Tests
 ```
 
 Les vérifications couvrent mappage, familles, annulations, modèles, calendrier,
-réservations, import SQLite, analyse DSN et API OVH simulée. Aucun message réel
+réservations, import SQLite, analyse DSN et API OVH simulée, ainsi que deux postes
+avec des bases locales distinctes : reprise des archives, concurrence familiale,
+coupures, résultat en attente après redémarrage, accusé de synchronisation perdu,
+statut obsolète, pagination et redémarrage du serveur. Les tests serveur de
+`tests/Fundus.Tests` vérifient aussi les véritables méthodes du hub, l’enregistrement
+et la déconnexion des postes, ainsi que les notifications sans contenu médical. Aucun message réel
 n'est envoyé par les tests. Le workflow Windows compile le client WinUI sur les
 pull requests vers master2. Les bases Access réelles, comptes et rendu visuel
 restent à vérifier sur le poste Windows de déploiement.
@@ -130,10 +171,10 @@ Le filtre d'envoi ne change pas la règle de préparation « SMS seulement sans 
 pour préparer aussi des SMS aux familles avec mail, désactiver cette option puis
 préparer à nouveau.
 
-L'historique dispose d'un filtre par canal et d'une recherche par destinataire,
-date affichée ou statut. Chaque carte présente le contact, le canal, la date et
-le résultat. Lire le message envoyé ouvre son contenu complet, avec rendu HTML
-pour les mails et texte pour les SMS. Les aperçus ne chargent aucun contenu distant.
+L’historique partagé dispose d’un filtre par canal et d’une recherche par destinataire,
+poste, date affichée ou statut. Chaque carte présente le contact, le canal, la date,
+le poste d’origine et le résultat. Lire le message envoyé charge son contenu depuis
+le serveur et l’affiche en texte lisible. Les aperçus ne chargent aucun contenu distant.
 
 ## Tableau des envois et SMS par famille
 
@@ -157,8 +198,9 @@ est une réservation distincte ; les tests restent indépendants.
 Les anciens envois sont reconnus par leurs clés de contact lorsque le numéro
 figure encore parmi les coordonnées connues. Les anciens journaux ne contiennent
 pas les identifiants familiaux : un lien avec une famille dont toutes les
-coordonnées ont changé ne peut pas être reconstitué. La protection reste locale
-au journal du poste, et dépend des familles/identifiants disponibles.
+coordonnées ont changé ne peut pas être reconstitué. Après reprise des anciens
+journaux, la protection est commune aux postes mis à jour connectés au même serveur,
+et dépend toujours des familles/identifiants disponibles.
 
 ## Aperçu des mails et horaires de rappel
 

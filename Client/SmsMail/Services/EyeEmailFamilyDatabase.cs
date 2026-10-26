@@ -78,7 +78,12 @@ namespace Client.SmsMail.Services
                 {
                     row.ReferenceFamilyNumber = membership.TryGetValue(row.Id, out int number) ? number : 0;
                     if (row.ReferenceFamilyNumber > 0) matched++;
-                    if (details.TryGetValue(row.Id, out var person)) MergeAppointmentDetails(row, person);
+                    if (details.TryGetValue(row.Id, out var person))
+                    {
+                        row.EyeEmailEmails = MessagePreparation.Emails(person.Email)
+                            .Concat(person.AdditionalEmails.SelectMany(MessagePreparation.Emails)).Distinct().ToList();
+                        MergeAppointmentDetails(row, person);
+                    }
                 }
                 return matched;
 

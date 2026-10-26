@@ -26,7 +26,7 @@ using System.Runtime.InteropServices;
 
 namespace Client.Services
 {
-    public class SignalRService
+    public partial class SignalRService
     {
         public HubConnection? Connection { get; private set; }
         private DispatcherQueue? _dispatcher;
@@ -403,6 +403,7 @@ namespace Client.Services
                 .Build();
 
             Connection = connection;
+            connection.On("MessageHistoryChanged", () => MessageHistoryChanged?.Invoke());
 
             connection.Closed += async (error) =>
             {
