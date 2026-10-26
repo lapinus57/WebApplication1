@@ -33,7 +33,7 @@ public sealed class ExamTreeResult
 public sealed class ExamTreeModel
 {
     [JsonRequired] public int Version { get; set; } = 1;
-    [JsonRequired] public string FeatureVersion { get; set; } = "exam-local-v1";
+    [JsonRequired] public string FeatureVersion { get; set; } = "exam-local-v2";
     [JsonRequired] public Guid Id { get; set; } = Guid.NewGuid();
     [JsonRequired] public DateTime TrainedUtc { get; set; } = DateTime.UtcNow;
     [JsonRequired] public ExamTreeResult[] Exams { get; set; } = Array.Empty<ExamTreeResult>();
@@ -55,6 +55,7 @@ public static class ExamDecisionTree
         foreach (var e in examples) ExamLearningData.Validate(e);
         if (examples.Select(e => e.Group).Distinct().Count() != examples.Count)
             throw new FoDataException("Un patient ne peut figurer qu’une fois dans le jeu d’apprentissage/test.");
+        examples = examples.Where(e => e.SourceVersion == 2).ToArray();
         var model = new ExamTreeModel { Exams = new ExamTreeResult[4] };
         for (int exam = 0; exam < 4; exam++)
         {
@@ -64,8 +65,12 @@ public static class ExamDecisionTree
             var rankedVocabulary = train.SelectMany(e =>
                 {
                     token.ThrowIfCancellationRequested();
+                    var grounded = ExamLearningData.TextFeatures(e.Text);
                     return e.Annotations.Where(a => a.Exam == exam)
-                        .SelectMany(a => ExamLearningData.TextFeatures(a.Text)).DistinctBy(p => p.Key);
+                        .SelectMany(a => ExamLearningData.TextFeatures(a.Text))
+                        .Concat(ExamLearningData.TextFeatures(e.Rationale).Where(p => grounded.ContainsKey(p.Key)))
+                        .Concat(ExamLearningData.TextFeatures(e.HistoricalRationale).Where(p => grounded.ContainsKey(p.Key)))
+                        .DistinctBy(p => p.Key);
                 })
                 .GroupBy(p => p.Key).Where(g => g.Count() >= MinLeaf).OrderByDescending(g => g.Count())
                 // Prefer contextual phrases over isolated words when they separate equally well.
@@ -150,6 +155,7 @@ public static class ExamDecisionTree
     {
         if (signals.Length != ExamLearningData.SignalNames.Length || text.Length > ExamLearningData.MaxText)
             throw new FoDataException("Données incompatibles avec le modèle.");
+        if (model?.FeatureVersion == "exam-local-v1") model = null;
         if (model == null) return ApplyCabinetRules(Enumerable.Range(0, 4).Select(_ => new ExamPrediction(null, null, 0, 0, "Aucun modèle actif : réponse à renseigner.", Array.Empty<string>())).ToArray(), signals);
         Validate(model);
         var textual = new HashSet<string>(StringComparer.Ordinal);
@@ -215,7 +221,7 @@ public static class ExamDecisionTree
     }
     public static void Validate(ExamTreeModel model)
     {
-        if (model.Version != 1 || model.FeatureVersion != "exam-local-v1" || model.Exams == null || model.Exams.Length != 4 || model.Id == Guid.Empty)
+        if (model.Version != 1 || model.FeatureVersion is not ("exam-local-v1" or "exam-local-v2") || model.Exams == null || model.Exams.Length != 4 || model.Id == Guid.Empty)
             throw new FoDataException("Version de modèle incompatible.");
         foreach (var tree in model.Exams)
         {
@@ -246,6 +252,7 @@ public static class ExamDecisionTree
     {
         if (model == null) return "Aucun modèle entraîné ou importé.";
         Validate(model);
+        if (model.FeatureVersion == "exam-local-v1") return "Ancien modèle conservé. Relisez les dossiers dans le nouvel écran puis entraînez un modèle v2 ; le classement appris v1 est désactivé.";
         var lines = new List<string> { $"Modèle {model.Id:N} · entraîné le {model.TrainedUtc:u}", "Tests réservés par patient : jamais utilisés pour apprendre les critères ou l’arbre." };
         for (int i = 0; i < 4; i++)
         {
@@ -257,3 +264,4 @@ public static class ExamDecisionTree
         return string.Join("\n\n", lines);
     }
 }
+

@@ -16,7 +16,7 @@ internal static class ExamLearningChecks
         bool[] Signals() { var flags = new bool[ExamLearningData.SignalNames.Length]; flags[0] = true; return flags; }
         ExamExample Example(int id, bool test, bool yes) => new()
         {
-            Group = (test ? "00" : "01") + id.ToString("X62"), AppointmentDay = day, Signals = Signals(),
+            SourceVersion = 2, Group = (test ? "00" : "01") + id.ToString("X62"), AppointmentDay = day, Signals = Signals(),
             Text = yes ? "Contrôle rétinien demandé." : "Contrôle rétinien non nécessaire.",
             Answers = new bool?[] { yes, !yes, yes, null },
             Annotations = Enumerable.Range(0, 3).Select(i => new ExamAnnotation(i, i == 1 ? !yes : yes,
@@ -128,8 +128,8 @@ internal static class ExamLearningChecks
             new FoConsultation("future", day.AddDays(1), "Note du futur", "")
         };
         var extracted = ExamLearningData.Extract(visits, day, day.AddDays(10));
-        check(!extracted.Text.Contains("Note ancienne") && !extracted.Text.Contains("Note du futur") && extracted.Text.Contains("Observation numéro trois"), "Text training uses the latest three available visits only");
-        check(extracted.Text.IndexOf("Prévoir OCT", StringComparison.Ordinal) < extracted.Text.IndexOf("Observation numéro deux", StringComparison.Ordinal), "Latest source is displayed first");
+        check(!extracted.Text.Contains("Note ancienne") && !extracted.Text.Contains("Note du futur") && !extracted.Text.Contains("Observation numéro trois"), "Text training uses only the latest visit");
+        check(extracted.Text.IndexOf("REFRACTION", StringComparison.Ordinal) < extracted.Text.IndexOf("Observation", StringComparison.Ordinal), "Latest source is displayed first");
         check(extracted.Signals[6] && extracted.Signals[7] && extracted.Signals[8] && extracted.Signals[9] && extracted.Signals[10], "Structured features use the confirmed local act and latest exam requests");
         var negated = ExamLearningData.Extract(new[] { new FoConsultation("negated", day.AddDays(-1), "Ne pas prévoir OCT. Skiacol non nécessaire.", "Pas de V3FO à faire") }, day, day);
         check(!negated.Signals[8] && !negated.Signals[9] && !negated.Signals[10], "Negation does not become a positive request feature");
@@ -153,3 +153,4 @@ internal static class ExamLearningChecks
         Reject(() => ExamLearningData.Extract(new[] { new FoConsultation("huge", day.AddDays(-1), new string('a', ExamLearningData.MaxText)) }, day, day), "Oversized notes are rejected rather than silently truncated");
     }
 }
+

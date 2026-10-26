@@ -1,0 +1,58 @@
+<Page x:Class="Client.Pages.LocalRulesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Padding="20" RowSpacing="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Spacing="16">
+            <Button Content="Retour à l’apprentissage" Click="Back_Click"/>
+            <TextBlock Text="IA locale et règles" FontSize="26" FontWeight="SemiBold"/>
+            <Button Content="Annuler l’analyse" Click="Cancel_Click"/>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Spacing="6">
+            <InfoBar x:Name="StatusBar" IsOpen="True" IsClosable="False" Message="Ollama interprète votre consigne sur ce poste. La proposition doit être relue et validée avant activation."/>
+            <ProgressBar x:Name="Progress" IsIndeterminate="True" Visibility="Collapsed"/>
+        </StackPanel>
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ContentControl x:Name="Form" HorizontalContentAlignment="Stretch">
+                <StackPanel Spacing="14" MaxWidth="1000" HorizontalAlignment="Stretch">
+                    <Expander Header="Première utilisation : installer le modèle local" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Installez Ollama pour Windows depuis ollama.com, puis exécutez cette commande dans un terminal :" TextWrapping="Wrap"/>
+                            <TextBlock Text="ollama pull qwen2.5:7b" FontFamily="Consolas" IsTextSelectionEnabled="True"/>
+                            <TextBlock Text="Laissez Ollama ouvert. Le téléchargement initial nécessite Internet ; l’interprétation utilise uniquement 127.0.0.1:11434. EyeChat peut rester en x86 pour Access." TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Expander>
+                    <TextBox x:Name="InstructionText" Header="Ma consigne en français" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxLength="4000" TextChanged="Instruction_Changed" PlaceholderText="Exemple : pour une myopie plus forte que −5, préparer un FO tous les cinq ans."/>
+                    <TextBlock Text="Saisissez une règle générale, sans dossier patient. Cette version gère diabète, HTO et seuil de myopie ; un autre critère ou un délai manquant entraîne une demande de précision." TextWrapping="Wrap"/>
+                    <Button Content="Comprendre ma consigne avec l’IA locale" Click="Interpret_Click" Style="{StaticResource AccentButtonStyle}"/>
+                    <TextBlock x:Name="QuestionText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    <ContentControl x:Name="ProposalForm" IsEnabled="False" HorizontalContentAlignment="Stretch">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Proposition à relire et corriger" FontSize="20" FontWeight="SemiBold"/>
+                            <ComboBox x:Name="ConditionBox" Header="Critère" Width="280"/>
+                            <ComboBox x:Name="ExamBox" Header="Examen à préparer" Width="280"/>
+                            <NumberBox x:Name="SphereBox" Header="Myopie seulement : sphère strictement inférieure à" Minimum="-30" Maximum="-0.25" SmallChange="0.25" Width="360"/>
+                            <NumberBox x:Name="MonthsBox" Header="Délai depuis le dernier examen documenté (mois)" Minimum="1" Maximum="120" SmallChange="1" Width="360"/>
+                            <TextBlock Text="Les règles ajoutent des indications de préparation. Elles n’annulent pas les consignes existantes ni un suivi plus rapproché. Sans date fiable ou en cas de contradiction : confirmation requise. Pour V3F et Skiacol, la date reste à vérifier manuellement ; aucune administration ni posologie n’est déclenchée." TextWrapping="Wrap"/>
+                            <Button Content="Valider ces valeurs et activer la règle" Click="Validate_Click"/>
+                        </StackPanel>
+                    </ContentControl>
+                    <TextBlock Text="Règles enregistrées sur ce poste" FontSize="20" FontWeight="SemiBold"/>
+                    <ListView x:Name="RulesList" SelectionChanged="Rule_Changed" MaxHeight="300" HorizontalContentAlignment="Stretch">
+                        <ListView.ItemTemplate><DataTemplate><StackPanel Padding="6" Spacing="4">
+                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding State}" FontWeight="SemiBold"/>
+                        </StackPanel></DataTemplate></ListView.ItemTemplate>
+                    </ListView>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Désactiver la sélection" Click="Disable_Click"/>
+                        <Button Content="Supprimer la sélection" Click="Delete_Click"/>
+                        <Button Content="Exporter les règles actives" Click="Export_Click"/>
+                        <Button Content="Importer pour relecture" Click="Import_Click"/>
+                    </StackPanel>
+                    <TextBlock Text="Après activation, retournez à l’apprentissage et rechargez les patients. Le fichier de règles est distinct du modèle d’apprentissage ; il fonctionne sans Ollama après validation." TextWrapping="Wrap"/>
+                </StackPanel>
+            </ContentControl>
+        </ScrollViewer>
+    </Grid>
+</Page>

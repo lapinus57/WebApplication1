@@ -107,8 +107,9 @@
     <SignAssembly>False</SignAssembly>
     <DefaultLanguage>fr-FR</DefaultLanguage>
     <AppInstallerUri>https://github.com/lapinus57/WebApplication1/releases/latest/download/</AppInstallerUri>
-    <AppxBundlePlatforms>x86</AppxBundlePlatforms>
+    <AppxBundlePlatforms Condition="'$(AppxBundlePlatforms)' == ''">$(PlatformTarget)</AppxBundlePlatforms>
   </PropertyGroup>
 </Project>
+
 
 

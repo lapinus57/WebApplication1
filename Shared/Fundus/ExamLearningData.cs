@@ -9,8 +9,11 @@ namespace EyeChat.Fundus;
 public sealed record ExamAnnotation(int Exam, bool Yes, string Text);
 public sealed class ExamExample
 {
+    public int SourceVersion { get; set; } = 1;
     public string Group { get; set; } = "";
     public string Text { get; set; } = "";
+    public string Rationale { get; set; } = "";
+    public string HistoricalRationale { get; set; } = "";
     public DateTime AppointmentDay { get; set; }
     public bool[] Signals { get; set; } = Array.Empty<bool>();
     public bool?[] Answers { get; set; } = new bool?[4];
@@ -35,8 +38,8 @@ public static class ExamLearningData
     {
         var rows = visits.Where(c => c.Date <= now).OrderByDescending(c => c.Date).ThenBy(c => c.Id, StringComparer.Ordinal).ToList();
         // No patient name, identifier or appointment header is added to the learning text.
-        var text = string.Join("\n\n", rows.Take(3).Select(c => "Consultation du " + c.Date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) + "\nObservation\n" + c.Text + "\nREFRACTION\n" + c.RefractionText));
-        if (text.Length > MaxText) throw new FoDataException("Les trois dernières consultations sont trop longues pour cet apprentissage local. Aucun texte n’a été tronqué ni enregistré.");
+        var text = string.Join("\n\n", rows.Take(1).Select(c => "Consultation du " + c.Date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) + "\nREFRACTION\n" + c.RefractionText + "\nObservation\n" + c.Text));
+        if (text.Length > MaxText) throw new FoDataException("La dernière consultation est trop longue pour cet apprentissage local. Aucun texte n’a été tronqué ni enregistré.");
         var latest = rows.FirstOrDefault();
         var analysis = FundusAnalysis.Analyze(rows, now, appointment);
         var conditions = PatientConditions.Analyze(rows, now);
@@ -64,7 +67,8 @@ public static class ExamLearningData
 
     public static void Validate(ExamExample example)
     {
-        if (!Regex.IsMatch(example.Group ?? "", @"\A[A-F0-9]{64}\z", RegexOptions.CultureInvariant, Limit)
+        if (example.SourceVersion is not (1 or 2) || !Regex.IsMatch(example.Group ?? "", @"\A[A-F0-9]{64}\z", RegexOptions.CultureInvariant, Limit)
+            || example.Rationale == null || example.Rationale.Length > 4000 || example.HistoricalRationale == null || example.HistoricalRationale.Length > 12000
             || example.Text == null || example.Text.Length > MaxText || example.Signals == null || example.Signals.Length != SignalNames.Length
             || example.AppointmentDay == default || example.AppointmentDay.TimeOfDay != TimeSpan.Zero
             || example.Answers == null || example.Answers.Length != 4 || example.Annotations == null || example.Annotations.Count > 24)
@@ -107,3 +111,4 @@ public static class ExamLearningData
         return keys;
     }
 }
+
