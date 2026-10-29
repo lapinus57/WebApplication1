@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.OleDb;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,10 +16,10 @@ namespace Client.SmsMail.Services
         {
             using var connection = Open(config, machine);
             using var command = connection.CreateCommand();
-            command.CommandText = $@"SELECT r.*, r.[Code Patient] AS Code, r.{Quote(config.DateColumn)} AS EyeChatDate,
-                r.{Quote(config.TimeColumn)} AS EyeChatTime, p.Email AS PatientEmail
-                FROM {Quote(config.TableName)} r INNER JOIN patients p ON r.[Code Patient] = p.[Code Patient]
-                WHERE r.{Quote(config.DateColumn)} >= ? AND r.{Quote(config.DateColumn)} < ? ORDER BY r.{Quote(config.TimeColumn)}";
+            // Field names are checked against the real schema: a wrong name would otherwise surface as
+            // Access' "Aucune valeur donnée pour un ou plusieurs des paramètres requis".
+            command.CommandText = AppointmentQuery.BuildDay(config.TableName, config.DateColumn, config.TimeColumn,
+                Tables(connection), table => Columns(connection, table));
             command.Parameters.Add("?", OleDbType.Date).Value = day.Date;
             command.Parameters.Add("?", OleDbType.Date).Value = day.Date.AddDays(1);
             using var reader = command.ExecuteReader();
@@ -41,7 +42,8 @@ namespace Client.SmsMail.Services
         {
             using var connection = Open(config, machine);
             using var command = connection.CreateCommand();
-            command.CommandText = $"SELECT r.* FROM {Quote(config.TableName)} r WHERE r.{Quote(config.DateColumn)} >= ? AND r.{Quote(config.DateColumn)} < ?";
+            command.CommandText = AppointmentQuery.BuildHistory(config.TableName, config.DateColumn,
+                Tables(connection), table => Columns(connection, table));
             command.Parameters.Add("?", OleDbType.Date).Value = today.Date.AddYears(-8);
             command.Parameters.Add("?", OleDbType.Date).Value = new DateTime(today.Year, 1, 1);
             using var reader = command.ExecuteReader();
@@ -60,7 +62,13 @@ namespace Client.SmsMail.Services
             return result;
         });
 
-        private static string Quote(string value) => "[" + value.Replace("]", "]]") + "]";
+        private static IReadOnlyCollection<string> Tables(OleDbConnection connection) =>
+            connection.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object?[] { null, null, null, "TABLE" })!
+                .Rows.Cast<DataRow>().Select(r => (string)r["TABLE_NAME"]).ToList();
+
+        private static IReadOnlyCollection<string> Columns(OleDbConnection connection, string table) =>
+            connection.GetOleDbSchemaTable(OleDbSchemaGuid.Columns, new object?[] { null, null, table, null })!
+                .Rows.Cast<DataRow>().Select(r => (string)r["COLUMN_NAME"]).ToList();
         private static OleDbConnection Open(AppointmentSearchConfig config, MachineConfig machine) =>
             EyeChat.Data.ReadOnlyAccess.Open(new(config.DatabasePath, machine.AccessOleDbProvider,
                 machine.AccessWorkgroupPath, machine.AccessUserName, machine.AccessPassword));
