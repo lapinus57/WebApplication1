@@ -30,28 +30,35 @@
                 <Button Content="Rechercher les patients" Click="Search_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom"/>
             </StackPanel>
         </ScrollViewer>
-        <InfoBar x:Name="StatusBar" Grid.Row="2" IsOpen="True" IsClosable="False" Severity="Informational" Message="Choisissez une période, puis cliquez sur Rechercher les patients."/>
+        <StackPanel Grid.Row="2" Spacing="6">
+            <InfoBar x:Name="StatusBar" IsOpen="True" IsClosable="False" Severity="Informational" Message="Choisissez une période, puis cliquez sur Rechercher les patients."/>
+            <InfoBar x:Name="SkippedBar" IsOpen="False" IsClosable="True" Severity="Warning" Title="Fiches Access ignorées"/>
+        </StackPanel>
         <Grid Grid.Row="3" ColumnSpacing="12">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/><ColumnDefinition Width="200"/></Grid.ColumnDefinitions>
             <TextBox x:Name="PatientFilter" Header="Rechercher dans la liste" PlaceholderText="Nom, identifiant, code CCAM ou motif" TextChanged="Filter_Changed"/>
             <ComboBox x:Name="StateFilter" Grid.Column="1" Header="État" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="State_Changed">
                 <ComboBoxItem Content="À préparer / à vérifier"/><ComboBoxItem Content="FO à prévoir"/>
                 <ComboBoxItem Content="À vérifier"/><ComboBoxItem Content="FO probablement réalisé"/><ComboBoxItem Content="Tous les états"/>
             </ComboBox>
+            <ComboBox x:Name="SortBox" Grid.Column="2" Header="Trier par" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="State_Changed">
+                <ComboBoxItem Content="Rendez-vous"/><ComboBoxItem Content="Échéance FO"/>
+            </ComboBox>
         </Grid>
         <ScrollViewer x:Name="TableScroller" Grid.Row="4" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
-            <Grid MinWidth="980" Width="{Binding ActualWidth, ElementName=TableScroller}" RowSpacing="2">
+            <Grid MinWidth="1120" Width="{Binding ActualWidth, ElementName=TableScroller}" RowSpacing="2">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <Border Padding="12,10" Background="{ThemeResource ControlFillColorSecondaryBrush}" CornerRadius="6">
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="170"/>
+                            <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="130"/><ColumnDefinition Width="170"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Rendez-vous ↑" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="AppointmentHeader" Text="Rendez-vous ↑" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="1" Text="Patient" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="2" Text="Élément retrouvé" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="3" Text="État FO" FontWeight="SemiBold"/>
-                        <TextBlock Grid.Column="4" Text="Dernière consultation" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="DueHeader" Grid.Column="4" Text="Échéance FO" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Grid.Column="5" Text="Dernière consultation" FontWeight="SemiBold" TextWrapping="Wrap"/>
                     </Grid>
                 </Border>
                 <ListView x:Name="PatientsList" Grid.Row="1" SelectionMode="None" Padding="0" HorizontalContentAlignment="Stretch">
@@ -63,7 +70,7 @@
                             <Border Padding="12,14" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
                                 <Grid ColumnSpacing="16">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="170"/>
+                                        <ColumnDefinition Width="160"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="175"/><ColumnDefinition Width="130"/><ColumnDefinition Width="170"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding AppointmentText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                     <StackPanel Grid.Column="1" Spacing="4">
@@ -79,7 +86,11 @@
                                         <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding ReviewText}" Opacity="0.7" FontSize="12" TextWrapping="Wrap"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="4" Spacing="6">
+                                    <StackPanel Grid.Column="4" Spacing="4">
+                                        <TextBlock Text="{Binding DueText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding PreparationText}" Opacity="0.7" FontSize="12" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="5" Spacing="6">
                                         <TextBlock Text="{Binding LatestConsultationText}" FontWeight="SemiBold"/>
                                         <TextBlock Text="{Binding LatestCcamText}" FontSize="12" TextWrapping="Wrap"/>
                                         <Button Content="Consulter" Click="Details_Click" AutomationProperties.Name="Lire les dernières consultations et vérifier la source"/>

@@ -18,6 +18,10 @@ public sealed record FoPatientRow(string PatientId, string PatientName, DateTime
     public string SourceText => Analysis.SourceDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR"));
     public string Excerpt => Analysis.Excerpt;
     public string ReasonText => Analysis.Reason;
+    // Deadline written in the record (or one year after the last FO for the annual follow-up).
+    public string DueText => Analysis.Due?.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) ?? "Non précisée";
+    public string PreparationText => Analysis.PreparationFrom is { } from && from != Analysis.Due
+        ? "Préparation dès le " + from.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) : "";
     public DateTime? LatestConsultationDate { get; init; }
     public string LatestCcamCodes { get; init; } = "";
     public bool LatestActLinkAvailable { get; init; }
@@ -53,7 +57,7 @@ public sealed record FoPatientRow(string PatientId, string PatientName, DateTime
         return rows.OrderBy(r => r.Appointment).ThenBy(r => r.PatientName).ToList();
     }
 
-    public static IReadOnlyList<FoPatientRow> Filter(IEnumerable<FoPatientRow> rows, int state, string query)
+    public static IReadOnlyList<FoPatientRow> Filter(IEnumerable<FoPatientRow> rows, int state, string query, bool byDue = false)
     {
         var normalized = FundusAnalysis.Normalize(query.Trim());
         return rows.Where(r => state switch
@@ -64,6 +68,8 @@ public sealed record FoPatientRow(string PatientId, string PatientName, DateTime
             4 => true,
             _ => r.Status != FoStatus.ProbablyPerformed
         }).Where(r => normalized.Length == 0 || FundusAnalysis.Normalize(r.PatientName + " " + r.PatientId + " " + r.LatestCcamCodes + " " + r.ReasonText).Contains(normalized))
-            .OrderBy(r => r.Appointment).ThenBy(r => r.PatientName).ToList();
+            // Sorting by deadline puts the earliest written deadlines first and rows without one last.
+            .OrderBy(r => byDue ? r.Analysis.Due ?? DateTime.MaxValue : r.Appointment)
+            .ThenBy(r => r.Appointment).ThenBy(r => r.PatientName).ToList();
     }
 }

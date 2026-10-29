@@ -13,7 +13,8 @@ using EyeChat.Data;
 namespace EyeChat.Fundus;
 
 public sealed record FoPatientData(string Id, string Name, DateTime Appointment, IReadOnlyList<FoConsultation> Consultations);
-public sealed record FoDataSet(string SourceKey, IReadOnlyList<FoPatientData> Patients);
+// Skipped lists the agenda entries left out by a tolerant search (identifier and reason only, never clinical text).
+public sealed record FoDataSet(string SourceKey, IReadOnlyList<FoPatientData> Patients, IReadOnlyList<string>? Skipped = null);
 
 /// <summary>Shared read-only Access reader for the Windows client and server.</summary>
 [SupportedOSPlatform("windows")]
@@ -107,8 +108,13 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         return rows;
     }
 
-    public FoDataSet Load(FoMapping mapping, DateTime from, DateTime until, CancellationToken cancellationToken)
+    /// <param name="skipInvalid">
+    /// When true, a badly filled agenda entry or patient record is left out and reported in <see cref="FoDataSet.Skipped"/>
+    /// instead of stopping the whole search. Schema and volume errors still stop it.
+    /// </param>
+    public FoDataSet Load(FoMapping mapping, DateTime from, DateTime until, CancellationToken cancellationToken, bool skipInvalid = false)
     {
+        var skipped = new List<string>();
         using var connection = ReadOnlyAccess.Open(options);
         var schema = Schema(connection);
         mapping.SelectClinicalFields(schema);
@@ -124,14 +130,21 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
             while (reader.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!mapping.NoCancellationColumn && IsCancelled(reader.GetValue(3))) continue;
                 // Empty slots have no patient; they are not appointments for a patient.
                 if (reader.IsDBNull(0) || string.IsNullOrWhiteSpace(Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture))) continue;
                 var id = Key(reader.GetValue(0));
                 if (id == "0") continue;
-                var date = Date(reader.GetValue(1));
-                var time = Time(reader.GetValue(2));
-                var appointment = date.Date + time;
+                DateTime appointment;
+                try
+                {
+                    if (!mapping.NoCancellationColumn && IsCancelled(reader.GetValue(3))) continue;
+                    appointment = Date(reader.GetValue(1)).Date + Time(reader.GetValue(2));
+                }
+                catch (FoDataException ex) when (skipInvalid)
+                {
+                    skipped.Add($"Rendez-vous du patient {id} ignoré : {ex.Message}");
+                    continue;
+                }
                 if (appointment < now || appointment < from || appointment >= until) continue;
                 if (!appointments.TryGetValue(id, out var previous) || appointment < previous) appointments[id] = appointment;
                 if (appointments.Count > 1000) throw new FoDataException("Plus de 1 000 patients dans cette période. Réduisez la période ; aucun résultat partiel n’a été enregistré.");
@@ -141,20 +154,27 @@ public sealed class FoAccessData(AccessReadOptions options, Func<DateTime>? cloc
         foreach (var (id, appointment) in appointments)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var patient = connection.CreateCommand();
-            patient.CommandText = $"SELECT {Q(mapping.LastName)}, {Q(mapping.FirstName)} FROM {Q(mapping.PatientsTable)} WHERE {Q(mapping.PatientId)} = ?";
-            AddKey(patient, schema, mapping.PatientsTable, mapping.PatientId, id);
-            string name;
-            using (var reader = patient.ExecuteReader()!)
+            string name = "";
+            try
             {
-                if (!reader.Read()) throw new FoDataException("Un patient de l’agenda n’a pas de correspondance dans Patients. Vérifiez les champs de liaison.");
-                name = $"{Convert.ToString(reader.GetValue(0))} {Convert.ToString(reader.GetValue(1))}".Trim();
-                if (reader.Read()) throw new FoDataException("L’identifiant patient choisi n’est pas unique dans Patients.");
+                using var patient = connection.CreateCommand();
+                patient.CommandText = $"SELECT {Q(mapping.LastName)}, {Q(mapping.FirstName)} FROM {Q(mapping.PatientsTable)} WHERE {Q(mapping.PatientId)} = ?";
+                AddKey(patient, schema, mapping.PatientsTable, mapping.PatientId, id);
+                using (var reader = patient.ExecuteReader()!)
+                {
+                    if (!reader.Read()) throw new FoDataException("Un patient de l’agenda n’a pas de correspondance dans Patients. Vérifiez les champs de liaison.");
+                    name = $"{Convert.ToString(reader.GetValue(0))} {Convert.ToString(reader.GetValue(1))}".Trim();
+                    if (reader.Read()) throw new FoDataException("L’identifiant patient choisi n’est pas unique dans Patients.");
+                }
+                var rows = ReadClinicalTimeline(connection, schema, mapping, id, now, cancellationToken);
+                result.Add(new(id, name, appointment, rows));
             }
-            var rows = ReadClinicalTimeline(connection, schema, mapping, id, now, cancellationToken);
-            result.Add(new(id, name, appointment, rows));
+            catch (FoDataException ex) when (skipInvalid)
+            {
+                skipped.Add($"Patient {id}{(name.Length > 0 ? " (" + name + ")" : "")}, rendez-vous du {appointment:dd/MM/yyyy HH:mm} ignoré : {ex.Message}");
+            }
         }
-        return new(SourceKey(mapping), result);
+        return new(SourceKey(mapping), result, skipped);
     }
 
     public FoConsultation ReadConsultation(FoMapping mapping, string patientId, string consultationId)

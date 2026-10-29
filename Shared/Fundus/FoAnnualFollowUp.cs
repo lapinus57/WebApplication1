@@ -46,6 +46,7 @@ internal sealed class FoAnnualFollowUp
                 + lastCompletion.Date.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("fr-FR")) + "; vérifier l’échéance.");
         var excerpt = string.Join("\n", sameSource.Select(m => m.Excerpt).Distinct());
         return new(latest.Source.Id, latest.Source.Date, excerpt.Length > 600 ? excerpt[..600] : excerpt,
-            FoStatus.Verify, reason, FundusAnalysis.Hash(evidenceHash + "|annual-fo-v1"), "", null);
+            FoStatus.Verify, reason, FundusAnalysis.Hash(evidenceHash + "|annual-fo-v1"), "", null,
+            Due: lastCompletion?.Date.Date.AddYears(1));
     }
 }

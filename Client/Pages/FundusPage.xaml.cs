@@ -54,6 +54,7 @@ public sealed partial class FundusPage : Page
         _rows = Array.Empty<FoPatientRow>();
         PatientsList.ItemsSource = null;
         _hasResults = false;
+        SkippedBar.IsOpen = false;
     }
 
     private static DateTime Today => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
@@ -156,11 +157,12 @@ public sealed partial class FundusPage : Page
             catch (FoDataException ex) { throw new FoDataException(ex.Message + " Vérifiez le bouton Champs Access."); }
             var result = await Task.Run(() =>
             {
-                var data = context.Reader.Load(context.Mapping, from, until, operation.Token);
+                // A badly filled record is left out and reported, so it cannot block the whole list.
+                var data = context.Reader.Load(context.Mapping, from, until, operation.Token, skipInvalid: true);
                 var rows = FoPatientRow.Analyze(data, context.Reader.Now, operation.Token)
                     .Select(r => r.WithReview(context.Settings.Reviews.GetValueOrDefault(r.ReviewKey(data.SourceKey)))).ToList();
                 operation.Token.ThrowIfCancellationRequested();
-                return (data.SourceKey, Count: data.Patients.Count, Rows: rows);
+                return (data.SourceKey, Count: data.Patients.Count, Rows: rows, Skipped: data.Skipped ?? Array.Empty<string>());
             }, operation.Token);
             if (!operation.IsCurrent) return;
             context.Settings.Mapping = context.Mapping;
@@ -174,17 +176,31 @@ public sealed partial class FundusPage : Page
             var acts = FoConsultationQuery.Create(context.Mapping, context.Schema).HasActs
                 ? " Codes CCAM rapprochés depuis Tarif.ACTE."
                 : " Liaison CCAM indisponible : analyse des textes uniquement.";
-            Message($"{result.Rows.Count} patient(s) repéré(s) parmi {result.Count} patient(s) ayant rendez-vous du {from:dd/MM/yyyy} au {until.AddDays(-1):dd/MM/yyyy}. Actualisé à {context.Reader.Now:HH:mm}." + acts, InfoBarSeverity.Success);
+            Message($"{result.Rows.Count} patient(s) repéré(s) parmi {result.Count} patient(s) ayant rendez-vous du {from:dd/MM/yyyy} au {until.AddDays(-1):dd/MM/yyyy}. Actualisé à {context.Reader.Now:HH:mm}." + acts,
+                result.Skipped.Count > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Success);
+            ShowSkipped(result.Skipped);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (operation.IsCurrent) ShowFailure(ex); }
         finally { if (operation.IsCurrent) Busy(false); }
     }
 
+    private void ShowSkipped(IReadOnlyList<string> skipped)
+    {
+        SkippedBar.IsOpen = skipped.Count > 0;
+        if (skipped.Count == 0) return;
+        const int shown = 8;
+        SkippedBar.Message = $"{skipped.Count} rendez-vous n’ont pas pu être analysés et ne figurent pas dans la liste. Vérifiez ces fiches dans Access :\n"
+            + string.Join("\n", skipped.Take(shown)) + (skipped.Count > shown ? $"\n… et {skipped.Count - shown} autre(s)." : "");
+    }
+
     private void ApplyFilter()
     {
         if (!_ready) return;
-        var rows = FoPatientRow.Filter(_rows, StateFilter.SelectedIndex, PatientFilter.Text);
+        bool byDue = SortBox.SelectedIndex == 1;
+        AppointmentHeader.Text = byDue ? "Rendez-vous" : "Rendez-vous ↑";
+        DueHeader.Text = byDue ? "Échéance FO ↑" : "Échéance FO";
+        var rows = FoPatientRow.Filter(_rows, StateFilter.SelectedIndex, PatientFilter.Text, byDue);
         PatientsList.ItemsSource = rows;
         EmptyText.Text = !_hasResults ? "Cliquez sur Rechercher les patients pour charger la liste." : rows.Count == 0 ? "Aucun patient ne correspond à ces filtres dans la période analysée." : "";
         SummaryText.Text = !_hasResults ? "" : $"{rows.Count} affiché(s) · {_rows.Count(r => r.Status == FoStatus.Planned)} FO à prévoir · {_rows.Count(r => r.Status == FoStatus.Verify)} à vérifier · {_rows.Count(r => r.Status == FoStatus.ProbablyPerformed)} probablement réalisé(s) — du {_searchedFrom:dd/MM} au {_searchedUntil.AddDays(-1):dd/MM}";
@@ -260,15 +276,13 @@ public sealed partial class FundusPage : Page
                 Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 580 }
             };
             if (await ShowDialogAsync(dialog) != ContentDialogResult.Primary || !operation.IsCurrent) return;
-            // Re-read the full timeline so a newly added consultation cannot receive an obsolete approval.
-            var fresh = await Task.Run(() =>
-            {
-                var data = context.Reader.Load(context.Mapping, _searchedFrom, _searchedUntil, operation.Token);
-                return FoPatientRow.Analyze(data, context.Reader.Now, operation.Token).FirstOrDefault(r => r.PatientId == row.PatientId);
-            }, operation.Token);
+            // Re-read this patient's timeline only, so a newly added consultation cannot receive an obsolete
+            // approval. The appointment of the search is kept: once its time has passed it is still the one reviewed.
+            var fresh = await Task.Run(() => FundusAnalysis.Analyze(
+                context.Reader.ReadPatientTimeline(context.Mapping, row.PatientId, operation.Token), context.Reader.Now, row.Appointment), operation.Token);
             if (!operation.IsCurrent) return;
-            if (fresh == null || fresh.Analysis.EvidenceHash != row.Analysis.EvidenceHash)
-                throw new FoDataException("Le dossier ou le rendez-vous a changé. Relancez la recherche avant d’enregistrer cette relecture.");
+            if (fresh == null || fresh.EvidenceHash != row.Analysis.EvidenceHash)
+                throw new FoDataException("Le dossier a changé depuis la recherche. Relancez la recherche avant d’enregistrer cette relecture.");
             var key = row.ReviewKey(_sourceKey);
             var reviews = new Dictionary<string, FoReview>(context.Settings.Reviews);
             FoReview? saved = null;

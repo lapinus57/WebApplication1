@@ -14,17 +14,19 @@ public sealed record FoConsultation(string Id, DateTime Date, string Text, strin
     string CcamCodes = "", string LocalActCode = "", bool ActLinkAvailable = false);
 public sealed record FoFinding(FoFindingKind Kind, string Excerpt, string Reason = "", bool AmbiguousTiming = false, bool HasConflict = false);
 public sealed record FoAnalysis(string SourceId, DateTime SourceDate, string Excerpt, FoStatus Status,
-    string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate, bool HasConflict = false);
+    string Reason, string EvidenceHash, string LaterExcerpt, DateTime? LaterDate, bool HasConflict = false,
+    DateTime? Due = null, DateTime? PreparationFrom = null);
 
 /// <summary>Local, deterministic preparation aid. No diagnosis and no inference from absence alone.</summary>
 public static class FundusAnalysis
 {
     // Keep expressions together: each extension needs a positive, negative and ambiguous regression case.
     internal const string Exam = @"(?:\b(?:v3\s*)?f\s*\.?\s*o\s*(?:dg|d|g)?\.?\b|\bfonds?\s+d['’ ]?\s*(?:oeil|yeux)\b|\bdilat(?:er|ation)\b)";
-    internal const string RepeatRequest = @"\b(?:refaire|recontroler|controler|renouveler)\s+(?:(?:un|une|le|la|les|des|du|de)\s+|l['’]\s*)*(?:(?:examen|controle)\s+(?:(?:du|des|de|le|les)\s+|d['’])?)?" + Exam;
-    internal const string Delay = @"(?:dans|ds|d['’]ici|a)\s+(?:\d+|un|une|deux|trois|six|douze)\s*(?:mois|mos|m|ans?|annees?|semaines?|jours?)\b";
+    internal const string RepeatRequest = @"\b(?:refaire|recontroler|controler|ctrl|renouveler)\s+(?:(?:un|une|le|la|les|des|du|de)\s+|l['’]\s*)*(?:(?:examen|controle)\s+(?:(?:du|des|de|le|les)\s+|d['’])?)?" + Exam;
+    internal const string Delay = FoTiming.Interval;
     private const string ScheduledExam = Exam + @"\s+" + Delay;
-    private const string Future = @"\b(?:prochain\w*|proch\.?|prevoir|prevu\w*|a faire|a dilater|revoir pour|faire\b.{0,30}\bpassage)\b";
+    // "FAIRE FO DE CTRL" is an instruction; "FO fait" (completion) is handled separately.
+    private const string Future = @"\b(?:prochain\w*|proch\.?|prevoir|prevu\w*|a faire|a dilater|revoir pour|faire\b.{0,30}\bpassage|faire\s+(?:(?:un|une|le|la|les|des)\s+)?(?:v3\s*)?(?:fo|fond))\b";
     private const string Negative = @"\b(?:pas (?:de |d['’])?(?:v3\s*)?(?:fo|fond|dilat)|(?:(?:v3\s*)?fo|fond.{0,12}|dilatation)\s+(?:non necessaire|non indique|inutile)|sans (?:necessite de )?(?:v3\s*)?(?:fo|dilatation)|annul\w*\b.{0,25}(?:fo|fond|dilat))";
     private const string Done = @"\b(?:realis\w*|effectu\w*|fait\w*|dilate\w*)\b";
     private const string DirectFuture = Exam + @"\s*(?:(?:est|sera|a|au|la|le|pour|lors|du|de)\s+)*(?:prochain\w*|proch\.?|prevoir|prevu\w*|faire|dilater)\b|\b(?:prevoir|faire|revoir pour|a)\s+(?:(?:un|une|le|la|les|des)\s+)?" + Exam;
@@ -145,9 +147,11 @@ public static class FundusAnalysis
         FoAnalysis? context = null;
         DateTime? activeDue = null;
         var annual = new FoAnnualFollowUp();
+        bool latestPerformed = false;
         foreach (var group in rows.GroupBy(c => c.Date))
         {
             var events = group.SelectMany(c => ClinicalFindings(c).Select(f => (Consultation: c, Finding: f))).ToList();
+            latestPerformed = events.Any(e => e.Finding.Kind == FoFindingKind.Performed);
             annual.Observe(group, events.Any(e => e.Finding.Kind == FoFindingKind.Cancelled),
                 events.FirstOrDefault(e => e.Finding.Kind == FoFindingKind.Performed).Consultation);
             // Contextual mentions can suggest a manual check, but cannot override an explicit
@@ -199,8 +203,7 @@ public static class FundusAnalysis
         // to the annual review after one year, while chronic context survives silent visits.
         var annualReview = annual.Analyze(preparationDate, hash);
         var result = annualReview != null && (active == null || active.Status == FoStatus.ProbablyPerformed) ? annualReview : active ?? context;
-        if (result == null) return null;
-        if (ReferenceEquals(result, active) && result.Status != FoStatus.ProbablyPerformed && activeDue.HasValue)
+        if (result != null && ReferenceEquals(result, active) && result.Status != FoStatus.ProbablyPerformed && activeDue.HasValue)
         {
             // Cabinet rule explicitly requested: a six-year renewal enters preparation at five years.
             // Other intervals are kept as written; uncertain chronology is never promoted to Planned.
@@ -210,9 +213,24 @@ public static class FundusAnalysis
             var reason = result.Reason + $" Échéance calculée depuis la consigne : {activeDue:dd/MM/yyyy}. " +
                 (sixYears ? $"Règle du cabinet : préparation dès 5 ans, à partir du {preparationFrom:dd/MM/yyyy}. " : "") +
                 (future ? "Rendez-vous avant la période de préparation : anticipation à vérifier." : "Période de préparation atteinte au rendez-vous.");
-            result = result with { Status = future ? FoStatus.Verify : result.Status, Reason = reason,
+            result = result with { Status = future ? FoStatus.Verify : result.Status, Reason = reason, Due = activeDue.Value, PreparationFrom = preparationFrom,
                 EvidenceHash = Hash(result.EvidenceHash + "|due:" + activeDue.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + future) };
         }
+        // A marked acuity drop at the latest visit, without a FO done at that visit, asks for a review.
+        var drops = latestPerformed ? Array.Empty<FoAcuity.Drop>() : FoAcuity.LatestDrops(rows);
+        if (drops.Count > 0)
+        {
+            var note = "Baisse d’acuité : " + string.Join(" ; ", drops.Select(FoAcuity.Describe)) + ". FO à discuter.";
+            var acuityHash = "|acuity-v1|" + string.Join("|", drops.Select(FoAcuity.Describe));
+            if (result == null || result.Status == FoStatus.ProbablyPerformed)
+            {
+                var after = drops[0].After;
+                result = new(after.ConsultationId, after.Date, Clip(string.Join("\n", drops.Select(d => d.After.Line).Distinct())),
+                    FoStatus.Verify, note, Hash(hash + acuityHash), "", null);
+            }
+            else result = result with { Reason = result.Reason + " " + note, EvidenceHash = Hash(result.EvidenceHash + acuityHash) };
+        }
+        if (result == null) return null;
         var latest = rows[^1];
         var latestCodes = FoCcam.Summarize(rows.Where(c => c.Date == latest.Date).Select(c => c.CcamCodes));
         return result with { Reason = result.Reason + $" Dernière consultation analysée : {latest.Date:dd/MM/yyyy}." +

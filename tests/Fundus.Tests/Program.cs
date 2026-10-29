@@ -227,6 +227,7 @@ ClinicalWordingChecks.Run(Check, day);
 AnnualFollowUpChecks.Run(Check, day);
 await PatientRegistryChecks.RunAsync(Check, day);
 TimelineCcamChecks.Run(Check);
+AcuityTimingChecks.Run(Check);
 ExamLearningChecks.Run(Check);
 ExamReviewChecks.Run(Check);
 await LocalRulesChecks.RunAsync(Check);

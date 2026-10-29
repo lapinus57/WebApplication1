@@ -21,6 +21,28 @@ Les correspondances de champs et relectures sont propres au **profil Windows de 
 
 La pile fournie pointait vers `App_UnhandledException`, lors de l’accès natif à `window.Content`. Le gestionnaire d’erreur ne consulte plus Window.Content/XamlRoot et ne crée plus de ContentDialog. Il journalise l’exception initiale (CLI01), protège toute la notification contre la réentrance et programme une boîte Windows indépendante de XAML après le retour du gestionnaire. Les échecs de journalisation, de dispatcher ou de notification ne relancent pas de dialogue. Cela supprime le chemin de récursion identifié ; une éventuelle erreur initiale distincte reste à diagnostiquer dans CLI01.
 
+### Fiches Access ignorées, échéance et relecture
+
+- **Fiche mal remplie** : dans le client, un rendez-vous dont le patient est introuvable dans Patients, dont la date, l’heure ou l’annulation est illisible, ou dont les consultations sont incohérentes n’empêche plus la recherche. Il est écarté et listé dans le bandeau **Fiches Access ignorées** (identifiant, nom si connu, rendez-vous et raison, jamais de texte médical). Les erreurs de champs ou de volume arrêtent toujours la recherche. La page serveur garde son comportement « tout ou rien », car son actualisation retire les alertes absentes.
+- **Colonne Échéance FO** : date calculée depuis la consigne (« dans 6 mois », « dans cinq ans », « 1 an 1/2 »…) ou, pour le suivi annuel diabète/HTO, un an après le dernier FO retrouvé. Pour la règle des 6 ans, la date de début de préparation (5 ans) est affichée dessous. **Trier par → Échéance FO** classe les échéances les plus proches en premier ; les lignes sans échéance écrite viennent en dernier.
+- **Relecture** : l’enregistrement relit uniquement la chronologie du patient concerné, avec le rendez-vous de la recherche. Il reste possible après l’heure du rendez-vous.
+
+### Délais reconnus
+
+Chiffres (jusqu’à 3 : « dans 120 jours ») et nombres en lettres : un/une, deux, trois, quatre, cinq, six, sept, huit, neuf, dix, onze, douze, quinze, dix-huit, vingt-quatre, trente-six. Les demis sont acceptés : « 1 an 1/2 », « 1an1/2 », « un an et demi » (18 mois), « 6 mois et demi » (6 mois + 15 jours). « FAIRE FO DE CTRL » et « Ctrl FO dans 6 mois » sont des consignes ; un « => REVOIR DANS 1 AN » isolé de la même consultation leur donne leur échéance.
+
+### Baisse d’acuité
+
+`Shared/Fundus/FoAcuity.cs` lit l’acuité de loin en dixièmes dans Observation et REFRACTION : « OD 8/10 OG 10/10 », « 8/10 OD », et le format de réfraction du cabinet (« OD= -1,50 (-0,25 à 100°)= 10 /10 », ou « OD: » suivi de lignes de lentilles). L’œil indiqué en début de bloc s’applique aux lignes suivantes. « AB = 12 /10 » (acuité binoculaire), ODG et AO ne sont attribués à aucun œil. La vision de près (« P 2 »), les dates (« 10/10/2030 ») et les mentions anciennes, familiales ou interrogatives sont ignorées. « 3-4 /10f » vaut 4/10 ; « noir », CLD, VBLM et PL valent « < 1/10 ».
+
+Pour chaque œil, la meilleure valeur d’une consultation est comparée à la meilleure valeur de la consultation précédente qui mesurait cet œil. Une perte d’au moins **3/10** à la dernière consultation donne le motif « Baisse d’acuité : OD 10/10 le … → 6/10 le … FO à discuter. » :
+
+- sans autre motif, ou si le FO était seulement « probablement réalisé », le patient passe en **À vérifier** ;
+- une consigne FO existante garde son état ; la baisse est ajoutée au motif ;
+- un FO réalisé ou codé lors de cette même dernière consultation répond à la baisse : rien n’est ajouté.
+
+Une acuité mesurée uniquement sans correction peut paraître basse : c’est une piste de relecture, pas un diagnostic.
+
 ## Page d’administration serveur (optionnelle)
 
 La page `https://serveur:5443/Fundus` reste disponible séparément pour les utilisateurs de l’administration. Elle conserve son authentification HTTPS et ses résultats/validations partagés en SQLite. Elle n’est plus embarquée dans l’onglet Windows.
