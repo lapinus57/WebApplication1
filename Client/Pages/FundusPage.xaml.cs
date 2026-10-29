@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Client.Fundus;
 using Client.Helpers;
@@ -206,6 +207,62 @@ public sealed partial class FundusPage : Page
         SummaryText.Text = !_hasResults ? "" : $"{rows.Count} affiché(s) · {_rows.Count(r => r.Status == FoStatus.Planned)} FO à prévoir · {_rows.Count(r => r.Status == FoStatus.Verify)} à vérifier · {_rows.Count(r => r.Status == FoStatus.ProbablyPerformed)} probablement réalisé(s) — du {_searchedFrom:dd/MM} au {_searchedUntil.AddDays(-1):dd/MM}";
     }
 
+    // Opinion of the local model next to the automatic detection. Nothing is saved and no status changes.
+    private static UIElement AdvisorSection(IReadOnlyList<FoConsultation> timeline, FoPatientRow row, CancellationToken token)
+    {
+        var section = new StackPanel { Spacing = 8 };
+        section.Children.Add(Text($"IA locale ({OllamaFundusAdvisor.Model})", true));
+        section.Children.Add(Text("L’IA relit sur ce poste les dernières consultations (sans nom ni identifiant) et donne un avis, avec les passages du dossier. Elle peut poser des questions. Elle ne modifie pas l’état : c’est votre relecture qui compte."));
+        var ask = new Button { Content = "Demander à l’IA si un FO est à faire" };
+        var progress = new ProgressBar { IsIndeterminate = true, Visibility = Visibility.Collapsed };
+        var output = new StackPanel { Spacing = 6 };
+        var answers = new List<FoAdviceAnswer>();
+        var questions = new List<(string Question, ComboBox Box)>();
+
+        async Task RunAsync()
+        {
+            foreach (var (question, box) in questions)
+                if (box.SelectedIndex >= 0) answers.Add(new(question, box.SelectedIndex switch { 0 => "Oui", 1 => "Non", _ => "Ne sait pas" }));
+            questions.Clear();
+            output.Children.Clear();
+            ask.IsEnabled = false;
+            progress.Visibility = Visibility.Visible;
+            try
+            {
+                using var advisor = new OllamaFundusAdvisor();
+                var advice = await advisor.AskAsync(timeline, row.Appointment, row.Analysis, answers.ToList(), token);
+                if (token.IsCancellationRequested) return;
+                output.Children.Add(Text($"Avis de l’IA — FO au rendez-vous du {row.Appointment:dd/MM/yyyy} : {advice.DecisionText}", true));
+                if (advice.Explanation.Length > 0) output.Children.Add(Text(advice.Explanation));
+                if (advice.Reasons.Count > 0) output.Children.Add(Text("Motifs : " + string.Join(", ", advice.Reasons)));
+                if (advice.PreviousFoReason.Length > 0) output.Children.Add(Text("Pourquoi un FO a déjà été fait : " + advice.PreviousFoReason));
+                foreach (var evidence in advice.Evidence)
+                    output.Children.Add(Text($"• {evidence.Date} : « {evidence.Quote} »" + (evidence.Found ? "" : " ⚠ passage non retrouvé tel quel dans le dossier : à vérifier.")));
+                foreach (var question in advice.Questions)
+                {
+                    var box = new ComboBox { Header = question, HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Votre réponse" };
+                    box.ItemsSource = new[] { "Oui", "Non", "Je ne sais pas" };
+                    questions.Add((question, box));
+                    output.Children.Add(box);
+                }
+                ask.Content = advice.Questions.Count > 0 ? "Relancer l’IA avec mes réponses" : "Redemander à l’IA";
+            }
+            catch (OperationCanceledException) { }
+            catch (FoDataException ex) { if (!token.IsCancellationRequested) output.Children.Add(Text(ex.Message)); }
+            catch (Exception) { if (!token.IsCancellationRequested) output.Children.Add(Text("L’IA locale n’a pas pu répondre. Réessayez.")); }
+            finally
+            {
+                if (!token.IsCancellationRequested) { progress.Visibility = Visibility.Collapsed; ask.IsEnabled = true; }
+            }
+        }
+
+        ask.Click += async (_, _) => await RunAsync();
+        section.Children.Add(ask);
+        section.Children.Add(progress);
+        section.Children.Add(output);
+        return section;
+    }
+
     private async Task<ContentDialogResult> ShowDialogAsync(ContentDialog dialog)
     {
         _dialog = dialog;
@@ -264,6 +321,9 @@ public sealed partial class FundusPage : Page
             }
             panel.Children.Add(Text("Observation", true)); panel.Children.Add(Text(string.IsNullOrWhiteSpace(source.Text) ? "Champ vide." : source.Text));
             panel.Children.Add(Text("REFRACTION", true)); panel.Children.Add(Text(string.IsNullOrWhiteSpace(source.RefractionText) ? "Champ vide." : source.RefractionText));
+            // The local AI is offered only for patients already found by the search, one at a time.
+            using var advisorCancel = CancellationTokenSource.CreateLinkedTokenSource(operation.Token);
+            panel.Children.Add(AdvisorSection(timeline, row, advisorCancel.Token));
             var review = new ComboBox { Header = "État après relecture", HorizontalAlignment = HorizontalAlignment.Stretch };
             review.ItemsSource = new[] { "Conserver la détection automatique", "FO à prévoir", "À vérifier", "FO probablement réalisé" };
             review.SelectedIndex = row.Review == null ? 0 : (int)row.Review.Status + 1;
@@ -275,6 +335,7 @@ public sealed partial class FundusPage : Page
                 Title = row.PatientName, XamlRoot = XamlRoot, PrimaryButtonText = "Enregistrer la relecture", CloseButtonText = "Fermer",
                 Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 580 }
             };
+            dialog.Closed += (_, _) => advisorCancel.Cancel();
             if (await ShowDialogAsync(dialog) != ContentDialogResult.Primary || !operation.IsCurrent) return;
             // Re-read this patient's timeline only, so a newly added consultation cannot receive an obsolete
             // approval. The appointment of the search is kept: once its time has passed it is still the one reviewed.

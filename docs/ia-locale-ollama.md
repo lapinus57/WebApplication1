@@ -41,7 +41,7 @@ L’IA doit demander le délai au lieu de le fabriquer. Compléter la consigne p
 
 Une règle contient un critère, un examen (FO/OCT, V3F ou Skiacol) et un délai entier de 1 à 120 mois depuis le dernier examen documenté. Le modèle doit demander une précision pour un critère non pris en charge, une consigne négative, plusieurs règles dans une phrase, un délai absent ou une demande de prescription/posologie. Ce périmètre limité évite de transformer arbitrairement un texte médical en code exécutable.
 
-Le modèle ne consulte pas automatiquement Access et aucun dossier patient n’est joint à la demande. **Seul le texte saisi dans « Ma consigne en français » est envoyé à Ollama.** Les explications d’un dossier peuvent être reformulées ici comme une règle générale. L’analyse générative des consultations avec citations de preuves n’est pas encore intégrée à cet écran.
+Sur cet écran, le modèle ne consulte pas Access et aucun dossier patient n’est joint à la demande. **Seul le texte saisi dans « Ma consigne en français » est envoyé à Ollama.** Les explications d’un dossier peuvent être reformulées ici comme une règle générale. Pour l’avis de l’IA sur un patient précis, voir ci-dessous **Avis de l’IA dans la fiche patient**.
 
 ## Application aux patients
 
@@ -66,3 +66,19 @@ Les règles du poste sont enregistrées dans `%LOCALAPPDATA%/EyeChat/Fundus/rule
 ## Vérifications
 
 Les tests automatiques utilisent des dossiers synthétiques et un service HTTP simulé : propositions valides et incomplètes, seuils signés, négations, dates manquantes, absence d’activation à l’import, refus de propriétés inconnues, endpoint local, erreurs HTTP, réponses tronquées/trop volumineuses et annulation. Ils vérifient l’intégration et les garde-fous, **pas la qualité clinique ni la qualité linguistique du modèle réel**. Les premiers essais Qwen doivent être effectués sur le poste de test avec des consignes synthétiques avant de valider des règles de production.
+
+## Avis de l’IA dans la fiche patient
+
+Dans **Préparation FO**, la recherche filtre d’abord les patients avec les règles du logiciel : seuls les patients repérés (FO à prévoir, à vérifier ou probablement réalisé) apparaissent. L’IA n’est proposée que pour eux, **un patient à la fois**, depuis **Consulter → Demander à l’IA si un FO est à faire**. Rien n’est lancé automatiquement.
+
+Ce qui est envoyé à Ollama (`127.0.0.1:11434`, modèle `qwen2.5:7b`) : la date du rendez-vous, la détection automatique (état et motif), et les 6 dernières consultations du patient, plus la consultation source si elle est plus ancienne : date, codes CCAM, Observation et REFRACTION (2 000 caractères maximum par champ). **Ni le nom ni l’identifiant du patient ne sont envoyés.**
+
+L’IA répond :
+
+- **FO au rendez-vous : Oui / Non / Incertain**, avec une courte explication ;
+- les **motifs** (consigne, diabète, HTO, baisse d’acuité, forte myopie, symptômes, surveillance d’une lésion, autre) ;
+- **pourquoi un FO a déjà été fait**, d’après le dossier ;
+- les **passages du dossier** qui justifient l’avis. Chaque citation est vérifiée dans la consultation de la date indiquée ; une citation introuvable est marquée « ⚠ passage non retrouvé tel quel : à vérifier » ;
+- jusqu’à **3 questions fermées** quand une information manque (par exemple « Le FO a-t-il été fait ailleurs ? »). Répondre Oui / Non / Je ne sais pas puis **Relancer l’IA avec mes réponses** : les réponses sont renvoyées au modèle.
+
+L’avis n’est ni enregistré ni utilisé pour changer l’état : la secrétaire ou le médecin choisit l’état dans **État après relecture**. Fermer la fiche annule une demande en cours. Le délai maximal est de 3 minutes. Selon le poste, compter de quelques secondes (GPU) à une minute (processeur seul).

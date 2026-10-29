@@ -228,6 +228,7 @@ AnnualFollowUpChecks.Run(Check, day);
 await PatientRegistryChecks.RunAsync(Check, day);
 TimelineCcamChecks.Run(Check);
 AcuityTimingChecks.Run(Check);
+await AdvisorChecks.RunAsync(Check);
 ExamLearningChecks.Run(Check);
 ExamReviewChecks.Run(Check);
 await LocalRulesChecks.RunAsync(Check);

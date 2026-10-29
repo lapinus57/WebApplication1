@@ -27,6 +27,10 @@ La pile fournie pointait vers `App_UnhandledException`, lors de l’accès natif
 - **Colonne Échéance FO** : date calculée depuis la consigne (« dans 6 mois », « dans cinq ans », « 1 an 1/2 »…) ou, pour le suivi annuel diabète/HTO, un an après le dernier FO retrouvé. Pour la règle des 6 ans, la date de début de préparation (5 ans) est affichée dessous. **Trier par → Échéance FO** classe les échéances les plus proches en premier ; les lignes sans échéance écrite viennent en dernier.
 - **Relecture** : l’enregistrement relit uniquement la chronologie du patient concerné, avec le rendez-vous de la recherche. Il reste possible après l’heure du rendez-vous.
 
+### Avis de l’IA locale
+
+**Consulter** propose aussi **Demander à l’IA si un FO est à faire** : un avis Oui / Non / Incertain du modèle local `qwen2.5:7b`, avec citations du dossier, raison d’un FO antérieur et questions fermées. Seuls les patients déjà repérés par la recherche y ont accès, un à la fois, et l’avis ne change jamais l’état. Détails : [IA locale](ia-locale-ollama.md#avis-de-lia-dans-la-fiche-patient).
+
 ### Délais reconnus
 
 Chiffres (jusqu’à 3 : « dans 120 jours ») et nombres en lettres : un/une, deux, trois, quatre, cinq, six, sept, huit, neuf, dix, onze, douze, quinze, dix-huit, vingt-quatre, trente-six. Les demis sont acceptés : « 1 an 1/2 », « 1an1/2 », « un an et demi » (18 mois), « 6 mois et demi » (6 mois + 15 jours). « FAIRE FO DE CTRL » et « Ctrl FO dans 6 mois » sont des consignes ; un « => REVOIR DANS 1 AN » isolé de la même consultation leur donne leur échéance.
