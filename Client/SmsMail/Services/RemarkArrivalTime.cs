@@ -35,7 +35,9 @@ public static class RemarkArrivalTime
             if (!Has(text, @"\d\s*(?:h|:)|\b(?:heure|horaire)\b")) return normal;
             // Negation, alternatives and other dates must be resolved by a person.
             if (Has(text, @"\b(?:pas|ne|non|plus|jamais|annule\w*|peut[ -]etre|si|ou|demain|hier|lendemain|avant|apres|vers|entre)\b|\?|\b\d{1,2}[/.-]\d{1,2}\b|\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b|\ble\s+\d{1,2}\b|\b(?:souhait\w*|voudr\w*|pourr\w*|prefer\w*|possible|eventuel\w*|prochain\w*|suivant\w*|semaine|mois)\b")) return Review();
-            var matches = Regex.Matches(text, Cue + @"\s*(?:(?:a|pour)\s*)?(?<h>\d{1,2})\s*(?:h(?:eures?)?\s*(?<m>\d{1,2})?|:\s*(?<m>\d{2}))(?!\d)", RegexOptions.CultureInvariant, Timeout);
+            // Do not accept a partial clock expression ("16 heures et demie", "16h moins le quart", seconds, AM/PM…).
+            if (Has(text, @"\b(?:demi\w*|quart\w*|moins|minutes?|secondes?|am|pm|matin|soir|midi|minuit)\b|\bet\s+(?:\d|un\b|une\b|vingt|trente|quarante|cinquante)|[+]|(?:h|:)\s*\d{1,2}\s*:\s*\d")) return Review();
+            var matches = Regex.Matches(text, Cue + @"\s*(?:(?:a|pour)\s*)?(?<h>\d{1,2})\s*(?:h(?:eures?)?\s*(?<m>\d{1,2})?|:\s*(?<m>\d{2}))(?![\p{L}\p{N}:])", RegexOptions.CultureInvariant, Timeout);
             if (matches.Count == 0) return Review();
             var times = new List<TimeSpan>();
             foreach (Match match in matches)
@@ -47,9 +49,9 @@ public static class RemarkArrivalTime
             }
             if (times.Distinct().Count() != 1) return Review();
             // A second time not attached to the same clear instruction is ambiguous.
-            var remainder = Regex.Replace(text, Cue + @"\s*(?:(?:a|pour)\s*)?\d{1,2}\s*(?:h(?:eures?)?\s*\d{0,2}|:\s*\d{2})(?!\d)", "", RegexOptions.CultureInvariant, Timeout);
+            var remainder = Regex.Replace(text, Cue + @"\s*(?:(?:a|pour)\s*)?\d{1,2}\s*(?:h(?:eures?)?\s*\d{0,2}|:\s*\d{2})(?![\p{L}\p{N}:])", "", RegexOptions.CultureInvariant, Timeout);
             // An explicit "au lieu de" is allowed only when it names the real appointment.
-            remainder = Regex.Replace(remainder, @"\bau lieu de\s*(?<h>\d{1,2})\s*(?:h\s*(?<m>\d{1,2})?|:\s*(?<m>\d{2}))(?!\d)", m =>
+            remainder = Regex.Replace(remainder, @"\bau lieu de\s*(?<h>\d{1,2})\s*(?:h\s*(?<m>\d{1,2})?|:\s*(?<m>\d{2}))(?![\p{L}\p{N}:])", m =>
                 int.TryParse(m.Groups["h"].Value, out var h) && h == original.Hour
                 && (m.Groups["m"].Success ? int.Parse(m.Groups["m"].Value, CultureInfo.InvariantCulture) : 0) == original.Minute
                     ? "" : m.Value, RegexOptions.CultureInvariant, Timeout);

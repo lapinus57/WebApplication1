@@ -24,7 +24,7 @@ static class RemarkAndPrintChecks
             var decision = RemarkArrivalTime.Resolve(person, rules);
             Check(!decision.NeedsReview && decision.Time == day.AddHours(16).AddMinutes(35), "Unrelated remark retains general rule: " + remark);
         }
-        foreach (var remark in new[] { "ne pas venir à 16h00", "venir à 16h00 ou 16h30", "venir vers 16h00", "venir à 25h00", "venir à 16h65", "venir à 16h00 ?", "venir demain à 16h00", "venir le 31/10 à 16h00", "venir à 16h00. arrivée à 15h00", "venir à 16h00, appel à 15h00", "venir à 16h001", "venir à 16h00 au lieu de 17h00", "venir à 16h00 le 31", "souhaite venir à 16h00" })
+        foreach (var remark in new[] { "ne pas venir à 16h00", "venir à 16h00 ou 16h30", "venir vers 16h00", "venir à 25h00", "venir à 16h65", "venir à 16h00 ?", "venir demain à 16h00", "venir le 31/10 à 16h00", "venir à 16h00. arrivée à 15h00", "venir à 16h00, appel à 15h00", "venir à 16h001", "venir à 16h00 au lieu de 17h00", "venir à 16h00 le 31", "souhaite venir à 16h00", "venir à 16 heures et demie", "venir à 16h moins le quart", "venir à 16h et 30", "venir à 16htrente", "venir à 16h00:30", "venir à 4h PM", "venir à 16h + 30 minutes", "venir à 16h et vingt" })
         {
             person.Remarque = remark;
             var decision = RemarkArrivalTime.Resolve(person, rules);
