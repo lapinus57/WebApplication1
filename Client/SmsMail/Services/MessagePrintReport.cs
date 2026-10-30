@@ -43,7 +43,7 @@ public static class MessagePrintReport
         foreach (var row in selected)
             body.Append("<tr>").Append(Cell(row.CreatedAtLocal?.ToString("HH:mm", CultureInfo.InvariantCulture)))
                 .Append(Cell(row.Channel)).Append(Cell(row.Contact)).Append(Cell(row.Status))
-                .Append(Cell(row.Channel == "Mail" ? MailTextPreview.Convert(row.Body) : row.Body)).Append("</tr>");
+                .Append(Cell(row.Channel == "Mail" ? string.Join("\n", MailTextPreview.Convert(row.Body).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) : row.Body)).Append("</tr>");
         return Document("Historique — envois du " + day.ToString("dd/MM/yyyy"),
             $"{selected.Count} envoi(s) · {selected.Count(r => r.Channel == "Mail")} mail(s) · {selected.Count(r => r.Channel == "SMS")} SMS. Jour d’envoi en heure locale du poste, et non jour du rendez-vous. Filtres de l’écran appliqués. Statuts tels qu’enregistrés.",
             new[] { "Envoi", "Canal", "Destinataire", "Statut", "Message envoyé" }, body.ToString());
@@ -53,13 +53,13 @@ public static class MessagePrintReport
         "<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
         + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">"
         + "<title>" + WebUtility.HtmlEncode(title) + "</title><style>"
-        + "@page{size:A4 landscape;margin:12mm}body{font:11px Arial,sans-serif;color:#172b3a;margin:16px}"
+        + "@page{size:A4 landscape;margin:12mm}body{font:12px Arial,sans-serif;color:#172b3a;margin:16px}"
         + "h1{font-size:20px;margin:0 0 8px}p{line-height:1.4}table{width:100%;border-collapse:collapse;table-layout:fixed}"
         + "thead{display:table-header-group}th{text-align:left;background:#e9eff4}th,td{border:1px solid #aebac4;padding:7px;vertical-align:top;overflow-wrap:anywhere;white-space:pre-wrap}"
-        + "th:first-child{width:8%}th:nth-child(2){width:6%}tr{break-inside:avoid}footer{margin-top:12px;font-size:10px;color:#455666}"
+        + "tr{break-inside:avoid}footer{margin-top:12px;font-size:10px;color:#455666}"
         + "@media print{body{margin:0}th{print-color-adjust:exact}}"
         + "</style></head><body><h1>" + WebUtility.HtmlEncode(title) + "</h1><p>" + WebUtility.HtmlEncode(summary)
-        + "</p><table><thead><tr>" + string.Concat(headers.Select(h => "<th>" + WebUtility.HtmlEncode(h) + "</th>"))
+        + "</p><table><thead><tr>" + string.Concat(headers.Select((h, i) => "<th style=\"width:" + (headers.Length == 6 ? new[] { 9, 6, 18, 21, 32, 14 } : new[] { 8, 6, 21, 17, 48 })[i] + "%\">" + WebUtility.HtmlEncode(h) + "</th>"))
         + "</tr></thead><tbody>" + rows + "</tbody></table><footer>Document confidentiel — usage du cabinet. Impression préparée le "
         + DateTime.Now.ToString("dd/MM/yyyy à HH:mm", CultureInfo.GetCultureInfo("fr-FR")) + "</footer></body></html>";
 }
