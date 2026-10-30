@@ -263,8 +263,11 @@ namespace Client.Pages
             AppointmentsList.ItemsSource = working;
             _messages = MessagePreparation.Prepare(working, day, _settings, _families);
             var rules = _settings.AdjustReminderTimes ? ReminderTimes.Validate(_settings.ReminderTimeRules) : new();
-            var changes = working.Where(r => r.DateRDV.Date == day && !r.IsCancelled && ReminderTimes.Apply(r.HeureRDV, rules) != r.HeureRDV)
-                .Select(r => $"{r.Prenom} {r.Nom} : {r.HeureRDV:HH:mm} → {ReminderTimes.Apply(r.HeureRDV, rules):HH:mm}").ToList();
+            var changes = working.Where(r => r.DateRDV.Date == day && !r.IsCancelled)
+                .Select(r => (Row: r, Decision: RemarkArrivalTime.Resolve(r, rules)))
+                .Where(x => x.Decision.NeedsReview || x.Decision.Time != x.Row.HeureRDV)
+                .Select(x => $"{x.Row.Prenom} {x.Row.Nom} : RDV {x.Row.HeureRDV:HH:mm} → "
+                    + (x.Decision.NeedsReview ? "à vérifier" : $"venue {x.Decision.Time:HH:mm}") + $" ({x.Decision.Reason})").ToList();
             TimeChangesText.Text = changes.Count == 0 ? "Aucun horaire ajusté." : string.Join(Environment.NewLine, changes);
             _preparedSignature = MessagePreparation.PreparationSignature(_settings);
             await ReloadHistoryAsync();
@@ -580,17 +583,90 @@ namespace Client.Pages
         private void FilterHistory()
         {
             if (HistoryList == null || HistoryFilter == null) return;
-            var filter = HistoryFilter.Text.Trim();
-            var channel = FilterChannel(HistoryChannelFilter);
-            var visible = _entries.Where(h => (channel.Length == 0 || h.Channel == channel)
-                && (h.Contact.Contains(filter, StringComparison.OrdinalIgnoreCase)
-                || h.Status.Contains(filter, StringComparison.OrdinalIgnoreCase)
-                || h.CreatedAt.Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
+            var visible = VisibleHistory();
             HistoryList.ItemsSource = visible;
             if (HistorySummary != null) HistorySummary.Text = _entries.Count == 0 ? "Aucun envoi enregistré sur ce poste."
                 : visible.Count == 0 ? "Aucun envoi ne correspond aux filtres."
                 : $"{visible.Count} envoi(s) affiché(s) sur {_entries.Count} · {visible.Count(h => h.Channel == "Mail")} mail(s) · {visible.Count(h => h.Channel == "SMS")} SMS";
         }
+        private List<MessageHistoryEntry> VisibleHistory() => MessagePrintReport.FilterHistory(_entries,
+            HistoryDayPicker?.Date?.Date, FilterChannel(HistoryChannelFilter), HistoryFilter?.Text ?? string.Empty);
+        private void HistoryDay_Changed(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) => FilterHistory();
+        private void ClearHistoryDay_Click(object sender, RoutedEventArgs e) { HistoryDayPicker.Date = null; FilterHistory(); }
+
+        private async void PrintMessages_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            var day = DayPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez un jour de rendez-vous.");
+            if (_preparedSignature != MessagePreparation.PreparationSignature(ReadSettings()))
+                throw new InvalidOperationException("Les options ont changé. Préparez à nouveau les messages avant d’imprimer.");
+            var rows = VisibleMessages();
+            if (rows.Count == 0) throw new InvalidOperationException("Aucun message affiché à imprimer.");
+            await ShowPrintPreviewAsync(MessagePrintReport.Prepared(rows, day));
+        });
+
+        private async void PrintHistory_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            var day = HistoryDayPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez le jour d’envoi à imprimer dans l’historique.");
+            await ReloadHistoryAsync();
+            var rows = VisibleHistory();
+            if (rows.Count == 0) throw new InvalidOperationException("Aucun envoi pour ce jour et ces filtres.");
+            await ShowPrintPreviewAsync(MessagePrintReport.History(rows, day));
+        });
+
+        private async Task ShowPrintPreviewAsync(string html)
+        {
+            if (Encoding.UTF8.GetByteCount(html) > 1_900_000)
+                throw new InvalidOperationException("La liste est trop volumineuse. Réduisez les résultats avec les filtres avant d’imprimer.");
+            var browser = new WebView2
+            {
+                Width = Math.Max(280, Math.Min(950, XamlRoot.Size.Width - 120)),
+                Height = Math.Max(200, Math.Min(600, XamlRoot.Size.Height - 220))
+            };
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot, Title = "Liste imprimable — A4 paysage",
+                Content = browser, PrimaryButtonText = "Imprimer / PDF", CloseButtonText = "Fermer",
+                IsPrimaryButtonEnabled = false, DefaultButton = ContentDialogButton.Close
+            };
+            dialog.Resources["ContentDialogMaxWidth"] = 1100d;
+            bool initialized = false;
+            bool closed = false;
+            dialog.Closed += (_, _) => closed = true;
+            browser.Loaded += async (_, _) =>
+            {
+                if (initialized) return;
+                initialized = true;
+                try
+                {
+                    await browser.EnsureCoreWebView2Async();
+                    if (closed || _unloaded) return;
+                    browser.CoreWebView2.Settings.IsScriptEnabled = false;
+                    browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                    browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                    browser.CoreWebView2.NavigationStarting += (_, args) =>
+                    {
+                        if (args.Uri != "about:blank") args.Cancel = true;
+                    };
+                    browser.CoreWebView2.NavigationCompleted += (_, args) =>
+                    {
+                        if (closed || _unloaded) return;
+                        dialog.IsPrimaryButtonEnabled = args.IsSuccess;
+                        if (!args.IsSuccess) dialog.Title = "Impossible de préparer l’impression";
+                    };
+                    browser.NavigateToString(html);
+                }
+                catch (Exception) { if (!closed && !_unloaded) dialog.Title = "Aperçu indisponible — vérifiez WebView2"; }
+            };
+            dialog.PrimaryButtonClick += (_, args) =>
+            {
+                args.Cancel = true;
+                try { browser.CoreWebView2.ShowPrintUI(CoreWebView2PrintDialogKind.Browser); }
+                catch (Exception) { dialog.Title = "Impression indisponible — réessayez ou vérifiez WebView2"; }
+            };
+            try { await dialog.ShowAsync(); }
+            finally { closed = true; browser.Close(); }
+        }
+
         private void HistoryFilter_TextChanged(object sender, TextChangedEventArgs e) => FilterHistory();
         private void HistoryChannel_Changed(object sender, SelectionChangedEventArgs e) => FilterHistory();
         private async void HistoryMessage_Click(object sender, RoutedEventArgs e)
@@ -710,4 +786,5 @@ namespace Client.Pages
         });
     }
 }
+
 
