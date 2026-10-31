@@ -1,3 +1,4 @@
+using ChatServeur.Startup;
 using Microsoft.EntityFrameworkCore;
 using ChatServeur;
 using ChatServeur.Fundus;
@@ -8,7 +9,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Extensions;
 
-var builder = WebApplication.CreateBuilder(args);
+try
+{
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 
 var administrationUsername = builder.Configuration["Administration:Username"];
 var administrationPassword = builder.Configuration["Administration:Password"];
@@ -21,11 +28,11 @@ if (string.IsNullOrWhiteSpace(administrationUsername) ||
     administrationPassword.Length < 12 ||
     string.Equals(administrationPassword, "change-me", StringComparison.OrdinalIgnoreCase))
 {
-    throw new InvalidOperationException(
+    throw new StartupConfigurationException(
         "Configurez Administration:Username et un mot de passe Administration:Password d’au moins 12 caractères avant de démarrer le serveur.");
 }
 if (string.IsNullOrWhiteSpace(certificatePath) && !useDevelopmentHttp)
-    throw new InvalidOperationException("Configurez Administration:HttpsCertificatePath avec un certificat HTTPS PFX valide.");
+    throw new StartupConfigurationException("Configurez Administration:HttpsCertificatePath avec un certificat HTTPS PFX valide.");
 
 if (!useDevelopmentHttp)
 {
@@ -33,17 +40,20 @@ if (!useDevelopmentHttp)
         ? certificatePath
         : Path.Combine(AppContext.BaseDirectory, certificatePath!);
     if (!File.Exists(certificatePath))
-        throw new InvalidOperationException($"Le certificat HTTPS d’administration est introuvable : {certificatePath}");
+        throw new StartupConfigurationException($"Le certificat HTTPS d’administration est introuvable : {certificatePath}");
 }
+
+using var administrationCertificate = useDevelopmentHttp ? null
+    : AdministrationCertificate.Load(certificatePath!, certificatePassword);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(5000);
     if (!useDevelopmentHttp)
-        options.ListenAnyIP(5443, listenOptions => listenOptions.UseHttps(certificatePath!, certificatePassword));
+        options.ListenAnyIP(5443, listenOptions => listenOptions.UseHttps(administrationCertificate!));
 });
 
-if (OperatingSystem.IsWindows())
+if (OperatingSystem.IsWindows() && Environment.UserInteractive && !WindowsServiceHelpers.IsWindowsService())
 {
     builder.Services.AddHostedService<TrayIconHostedService>();
 }
@@ -600,3 +610,11 @@ app.MapGet("/api/configuration", async (ChatDbContext db) =>
 app.MapHub<ChatHub>("/chatHub");
 
 app.Run();
+
+
+}
+catch (Exception exception)
+{
+    StartupFailure.Report(exception);
+    Environment.ExitCode = 1;
+}
