@@ -1,9 +1,15 @@
 # Démarrage du serveur et certificat HTTPS
 
-Le PFX est maintenant chargé avec `EphemeralKeySet` : la clé privée reste en
-mémoire pendant l’exécution de Kestrel, sans import dans un conteneur de clés
-Windows. Cela évite les refus liés à l’écriture de ce conteneur. Le compte
-du serveur doit toujours pouvoir lire le PFX et écrire dans le dossier `data`.
+Sous Windows, le PFX est maintenant chargé avec `UserKeySet` : la clé privée est
+importée dans le profil du compte qui lance le serveur, et non dans le stockage
+de clés de la machine. Le certificat reste ouvert pendant toute l’exécution de
+Kestrel ; sa libération nettoie la clé importée (sans `PersistKeySet`). Le
+chargement entièrement en mémoire n’est pas retenu sur Windows car la connexion
+HTTPS avec Schannel échouait dans le test d’intégration.
+
+Le compte du serveur doit pouvoir lire le PFX, écrire dans son propre profil
+et dans le dossier `data`. Aucun droit administrateur n’est demandé par ce
+chargement, mais les droits du compte réel restent à vérifier sur le poste.
 La protection HTTPS et le compte administrateur restent obligatoires en production.
 
 ## Installer la correction

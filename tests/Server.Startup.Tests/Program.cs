@@ -60,7 +60,7 @@ try
             ServerCertificateCustomValidationCallback = (_, presented, _, _) => presented?.Thumbprint == certificate.Thumbprint
         };
         using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
-        Check(await client.GetStringAsync(address + "/probe") == "certificate-ok", "Kestrel completes HTTPS using the in-memory key");
+        Check(await client.GetStringAsync(address + "/probe") == "certificate-ok", "Kestrel completes HTTPS using the account-scoped key");
         GC.Collect(); GC.WaitForPendingFinalizers();
         Check(await client.GetStringAsync(address + "/probe") == "certificate-ok", "Certificate survives for the host lifetime");
     }
