@@ -175,6 +175,7 @@ checks += await FamilySmsChecks.RunAsync();
 checks += ReminderTimeChecks.Run();
 checks += MailTextPreviewChecks.Run();
 checks += AppointmentQueryChecks.Run();
+checks += await RemarkAndPrintChecks.RunAsync();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
@@ -204,4 +205,5 @@ sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
     }
     static HttpResponseMessage Reply(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
 }
+
 

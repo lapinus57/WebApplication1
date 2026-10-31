@@ -18,6 +18,7 @@ namespace Client.SmsMail.Services
         public string Body { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
+        public DateTime? CreatedAtLocal { get; set; }
         public long? ProviderId { get; set; }
         public string ProviderService { get; set; } = string.Empty;
     }
@@ -167,11 +168,13 @@ namespace Client.SmsMail.Services
             while (await reader.ReadAsync()) entries.Add(new MessageHistoryEntry
             {
                 Key = reader.GetString(0), Channel = reader.GetString(1), Contact = reader.GetString(2), Body = reader.GetString(3),
-                Status = reader.GetString(4), CreatedAt = DateTimeOffset.Parse(reader.GetString(5)).ToLocalTime().ToString("g"),
+                Status = reader.GetString(4), CreatedAtLocal = DateTimeOffset.Parse(reader.GetString(5), CultureInfo.InvariantCulture).LocalDateTime,
+                CreatedAt = DateTimeOffset.Parse(reader.GetString(5)).ToLocalTime().ToString("g"),
                 ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6), ProviderService = reader.GetString(7)
             });
             return entries;
         }
     }
 }
+
 

@@ -24,6 +24,7 @@ namespace Client.SmsMail.Services
         public string PeopleDisplay { get; set; } = string.Empty;
         public DateTime AppointmentStart { get; set; }
         public string AppointmentTimeDisplay => AppointmentStart.ToString("HH:mm", CultureInfo.InvariantCulture);
+        public string TimeExplanation { get; set; } = string.Empty;
         public string ArrivalHint => CalendarStart == AppointmentStart ? string.Empty : "Arrivée " + CalendarStart.ToString("HH:mm", CultureInfo.InvariantCulture);
         public string BodyDisplay => Channel == "Mail" ? MailTextPreview.ForTable(Body, PeopleDisplay) : Body;
         public string CabinetDisplay { get; set; } = string.Empty;
@@ -87,25 +88,25 @@ namespace Client.SmsMail.Services
             var families = settings.UseEyeEmailFamilies ? (preparedFamilies?.ToList() ?? EyeEmailFamilyGrouping.Build(rdvs))
                 : rdvs.Select(r => { var family = new RdvFamille(); family.RDVs.Add(r); return family; }).ToList();
             var originalTimes = families.SelectMany(f => f.RDVs).Distinct().ToDictionary(r => r, r => r.HeureRDV);
-            // Group on original appointment data; only reminder copies change time.
-            // Rules are applied once, so 11:30 -> 11:20 -> 11:10 never chains.
-            if (settings.AdjustReminderTimes)
+            // Family grouping and reservation keys retain the original data.
+            // A clear remark takes priority, even when general time rules are disabled.
+            var rules = settings.AdjustReminderTimes ? ReminderTimes.Validate(settings.ReminderTimeRules) : new();
+            var decisions = new Dictionary<RdvInfo, ArrivalTimeDecision>();
+            var copies = families.SelectMany(f => f.RDVs).Distinct().ToDictionary(r => r,
+                r => JsonSerializer.Deserialize<RdvInfo>(JsonSerializer.Serialize(r))!);
+            foreach (var pair in copies)
             {
-                var rules = ReminderTimes.Validate(settings.ReminderTimeRules);
-                var copies = families.SelectMany(f => f.RDVs).Distinct().ToDictionary(r => r,
-                    r => JsonSerializer.Deserialize<RdvInfo>(JsonSerializer.Serialize(r))!);
-                foreach (var pair in copies)
-                {
-                    originalTimes[pair.Value] = originalTimes[pair.Key];
-                    pair.Value.HeureRDV = ReminderTimes.Apply(pair.Value.HeureRDV, rules);
-                }
-                families = families.Select(f =>
-                {
-                    var copy = new RdvFamille { Numero = f.Numero };
-                    foreach (var row in f.RDVs) copy.RDVs.Add(copies[row]);
-                    return copy;
-                }).ToList();
+                originalTimes[pair.Value] = originalTimes[pair.Key];
+                var decision = RemarkArrivalTime.Resolve(pair.Key, rules);
+                decisions[pair.Value] = decision;
+                pair.Value.HeureRDV = decision.Time;
             }
+            families = families.Select(f =>
+            {
+                var copy = new RdvFamille { Numero = f.Numero };
+                foreach (var row in f.RDVs) copy.RDVs.Add(copies[row]);
+                return copy;
+            }).ToList();
             var familyKeys = new Dictionary<RdvInfo, List<string>>();
             var mailRows = new List<(RdvInfo Rdv, string Contact)>();
             var smsRows = new List<(RdvInfo Rdv, string Contact)>();
@@ -146,6 +147,12 @@ namespace Client.SmsMail.Services
                     // for this day/contact must not be submitted twice by accident.
                     var key = ContactKey(date, channel, group.Key);
                     result.Add(new PreparedMessage { Channel = channel, Contact = group.Key,
+                        CanSend = people.All(r => !decisions[r].NeedsReview),
+                        Selected = people.All(r => !decisions[r].NeedsReview),
+                        Status = people.Any(r => decisions[r].NeedsReview) ? "À vérifier — remarque horaire ambiguë" : "À envoyer",
+                        TimeExplanation = string.Join(Environment.NewLine, people.Where(r => decisions[r].NeedsReview || decisions[r].Time != originalTimes[r])
+                            .Select(r => $"{r.Prenom} {r.Nom} : RDV {originalTimes[r]:HH:mm} → "
+                                + (decisions[r].NeedsReview ? "à vérifier" : $"venue {decisions[r].Time:HH:mm}") + $" ({decisions[r].Reason})")),
                         Family = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")),
                         PeopleDisplay = string.Join(Environment.NewLine, people.OrderBy(r => originalTimes[r]).Select(r => $"{r.Prenom} {r.Nom}".Trim()).Distinct()),
                         AppointmentStart = date.Date + people.Min(r => originalTimes[r].TimeOfDay),
@@ -204,4 +211,5 @@ namespace Client.SmsMail.Services
         }
     }
 }
+
 
