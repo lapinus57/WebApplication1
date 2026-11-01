@@ -20,6 +20,7 @@ namespace Client.SmsMail.Configuration
         public bool AdjustReminderTimes { get; set; }
         public List<AppointmentTimeRule> ReminderTimeRules { get; set; } = new() { new(), new() { From = new TimeSpan(18, 0, 0), To = new TimeSpan(17, 50, 0) } };
         public bool UseEyeEmailFamilies { get; set; } = true;
+        public bool ShowPostItTab { get; set; } = true;
         public string FamilyDatabasePath { get; set; } = string.Empty;
         public bool SendCalendarInvites { get; set; } = true;
         public bool SendCalendarAlarms { get; set; } = true;

@@ -115,7 +115,9 @@ public static class DiagnosticPackage
         return JsonSerializer.Serialize(snapshot, JsonOptions);
     }
 
-    public static byte[] Encrypt(string json, string password)
+    public static byte[] Encrypt(string json, string password) => Encrypt(json, password, Format);
+
+    public static byte[] Encrypt(string json, string password, string format)
     {
         if (string.IsNullOrEmpty(password) || password.Length < MinimumPasswordLength)
             throw new InvalidOperationException($"Le mot de passe doit contenir au moins {MinimumPasswordLength} caractères.");
@@ -135,7 +137,7 @@ public static class DiagnosticPackage
         CryptographicOperations.ZeroMemory(key);
         var envelope = new
         {
-            format = Format, version = 1, cipher = "AES-256-GCM", kdf = "PBKDF2-SHA256", iterations = Iterations,
+            format, version = 1, cipher = "AES-256-GCM", kdf = "PBKDF2-SHA256", iterations = Iterations,
             aad = Encoding.ASCII.GetString(AssociatedData), compression = "gzip",
             salt = Convert.ToBase64String(salt), nonce = Convert.ToBase64String(nonce),
             tag = Convert.ToBase64String(tag), data = Convert.ToBase64String(cipher)
@@ -147,7 +149,8 @@ public static class DiagnosticPackage
     {
         using var document = JsonDocument.Parse(file);
         var root = document.RootElement;
-        if (root.GetProperty("format").GetString() != Format) throw new InvalidDataException("Ce fichier n'est pas un diagnostic SMS/mail.");
+        var format = root.GetProperty("format").GetString();
+        if (format != Format && format != PostItAnalysis.Format) throw new InvalidDataException("Ce fichier n'est pas un export EyeChat chiffré.");
         byte[] Get(string name) => Convert.FromBase64String(root.GetProperty(name).GetString()!);
         var key = Rfc2898DeriveBytes.Pbkdf2(Encoding.UTF8.GetBytes(password), Get("salt"), root.GetProperty("iterations").GetInt32(), HashAlgorithmName.SHA256, 32);
         var cipher = Get("data");
@@ -165,154 +168,161 @@ public static class DiagnosticPackage
     }
 
     private static string Stamp(DateTime value) => value == default ? string.Empty : value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+}
 
-    // Replaces identities with stable fake values: the same real value always gives the
-    // same fake value inside one export, so equalities used by the grouping are kept.
-    // The key is random and discarded, so the real values cannot be recovered from the file.
-    private sealed class Pseudonymizer
+// Replaces identities with stable fake values: the same real value always gives the
+// same fake value inside one export, so equalities used by the grouping are kept.
+// The key is random and discarded, so the real values cannot be recovered from the file.
+internal sealed class Pseudonymizer
+{
+    private static readonly string[] CommonDomains =
     {
-        private static readonly string[] CommonDomains =
-        {
-            "gmail.com", "hotmail.fr", "hotmail.com", "outlook.fr", "outlook.com", "live.fr", "yahoo.fr", "yahoo.com",
-            "orange.fr", "wanadoo.fr", "free.fr", "sfr.fr", "neuf.fr", "laposte.net", "icloud.com", "bbox.fr", "aol.com"
-        };
-        private static readonly Regex EmailPattern = new(@"[^\s<>;,()""']+@[^\s<>;,()""']+\.[^\s<>;,()""']+", RegexOptions.Compiled);
-        private static readonly Regex PhonePattern = new(@"(?<!\d)(?:\+|00)?\d(?:[\s.\-]?\d){7,13}(?!\d)", RegexOptions.Compiled);
-        private static readonly Regex WordPattern = new(@"[\p{L}]+", RegexOptions.Compiled);
-        private readonly byte[] _key = RandomNumberGenerator.GetBytes(32);
-        private readonly HashSet<string> _nameWords = new(StringComparer.Ordinal);
-        private readonly Dictionary<int, int> _ids = new();
-        private List<(string Real, string Fake)> _places = new();
-        // Name particles and short words also used in ordinary sentences ("dit de venir").
-        private static readonly HashSet<string> Particles = new(StringComparer.Ordinal)
-        {
-            "DE", "DU", "DES", "LA", "LE", "LES", "DI", "DA", "DO", "DOS", "DAS", "DEL", "VAN", "VON", "DER", "DEN", "EL", "AL", "ET", "Y"
-        };
+        "gmail.com", "hotmail.fr", "hotmail.com", "outlook.fr", "outlook.com", "live.fr", "yahoo.fr", "yahoo.com",
+        "orange.fr", "wanadoo.fr", "free.fr", "sfr.fr", "neuf.fr", "laposte.net", "icloud.com", "bbox.fr", "aol.com"
+    };
+    private static readonly Regex EmailPattern = new(@"[^\s<>;,()""']+@[^\s<>;,()""']+\.[^\s<>;,()""']+", RegexOptions.Compiled);
+    private static readonly Regex PhonePattern = new(@"(?<!\d)(?:\+|00)?\d(?:[\s.\-]?\d){7,13}(?!\d)", RegexOptions.Compiled);
+    private static readonly Regex WordPattern = new(@"[\p{L}]+", RegexOptions.Compiled);
+    private readonly byte[] _key = RandomNumberGenerator.GetBytes(32);
+    private readonly HashSet<string> _nameWords = new(StringComparer.Ordinal);
+    private readonly Dictionary<int, int> _ids = new();
+    private readonly Dictionary<string, string> _places = new(StringComparer.OrdinalIgnoreCase);
+    private Regex? _placePattern;
+    // Never treated as names: particles used in sentences ("dit de venir") and the
+    // abbreviations written in remarks and post-it (CS, OR, LUN, GOU, DL, 1 ok...).
+    private static readonly HashSet<string> Particles = new(StringComparer.Ordinal)
+    {
+        "DE", "DU", "DES", "LA", "LE", "LES", "DI", "DA", "DO", "DOS", "DAS", "DEL", "VAN", "VON", "DER", "DEN", "EL", "AL", "ET", "Y",
+        "CS", "OR", "LUN", "GOU", "LEN", "DL", "TOPO", "OK", "RV", "RDV", "AN", "ANS", "MOIS", "MME", "MR", "BO", "OD", "OG", "ODG",
+        "FO", "OCT", "CV", "AV", "LETTRE", "AVEC", "DANS",
+        "MARI", "FEMME", "EPOUSE", "EPOUX", "FILLE", "FILS", "MERE", "PERE", "FRERE", "SOEUR", "ENFANT", "ENFANTS", "BEBE", "MAMAN", "PAPA",
+        "LUNETTES", "LENTILLES", "GOUTTES", "REEDUCATION", "DIABETE", "GARDE",
+        "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE"
+    };
 
-        public Pseudonymizer(IEnumerable<RdvInfo> rows)
+    public Pseudonymizer(IEnumerable<RdvInfo> rows)
+    {
+        foreach (var row in rows)
         {
-            foreach (var row in rows)
-            {
-                foreach (var value in new[] { row.Nom, row.Prenom, row.NomJeuneFille })
-                    foreach (Match word in WordPattern.Matches(value ?? string.Empty))
-                        if (word.Value.Length >= 2 && !Particles.Contains(Fold(word.Value))) _nameWords.Add(Fold(word.Value));
-                if (row.Id > 0 && !_ids.ContainsKey(row.Id)) _ids[row.Id] = _ids.Count + 1;
-            }
-            // Addresses and cities quoted in free text (remarks, "Même adresse : …") are replaced too, longest first.
-            foreach (var row in rows)
-            {
-                if (!string.IsNullOrWhiteSpace(row.Adresse)) _places.Add((row.Adresse.Trim(), Address(row.Adresse)));
-                if (!string.IsNullOrWhiteSpace(row.Ville)) _places.Add((row.Ville.Trim(), City(row.Ville)));
-            }
-            _places = _places.Where(p => p.Real.Length >= 3).DistinctBy(p => p.Real.ToUpperInvariant()).OrderByDescending(p => p.Real.Length).ToList();
+            foreach (var value in new[] { row.Nom, row.Prenom, row.NomJeuneFille })
+                foreach (Match word in WordPattern.Matches(value ?? string.Empty))
+                    if (word.Value.Length >= 2 && !Particles.Contains(Fold(word.Value))) _nameWords.Add(Fold(word.Value));
+            if (row.Id > 0 && !_ids.ContainsKey(row.Id)) _ids[row.Id] = _ids.Count + 1;
         }
-
-        public int Id(int id)
+        // Addresses and cities quoted in free text (remarks, "Même adresse : …") are replaced too, longest first.
+        foreach (var row in rows)
         {
-            if (id <= 0) return id;
-            if (!_ids.TryGetValue(id, out var mapped)) _ids[id] = mapped = _ids.Count + 1;
-            return mapped;
+            if (row.Adresse?.Trim() is { Length: >= 3 } address) _places.TryAdd(address, Address(address));
+            if (row.Ville?.Trim() is { Length: >= 3 } city) _places.TryAdd(city, City(city));
         }
+        if (_places.Count > 0)
+            _placePattern = new Regex(@"(?<![\p{L}\d])(?:" + string.Join("|", _places.Keys.OrderByDescending(k => k.Length).Select(Regex.Escape)) + @")(?![\p{L}\d])",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
 
-        public string Name(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty
-            : WordPattern.Replace(value, m => m.Value.Length >= 2 && !Particles.Contains(Fold(m.Value)) ? Word(m.Value) : m.Value);
+    public int Id(int id)
+    {
+        if (id <= 0) return id;
+        if (!_ids.TryGetValue(id, out var mapped)) _ids[id] = mapped = _ids.Count + 1;
+        return mapped;
+    }
 
-        public string City(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : "Ville-" + Word(AddressNormalizer.NormalizeAddress(value), "city");
+    public string Name(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty
+        : WordPattern.Replace(value, m => m.Value.Length >= 2 && !Particles.Contains(Fold(m.Value)) ? Word(m.Value) : m.Value);
 
-        // Keeps the house number (12 / 2 / 12 bis...) because the grouping compares it.
-        public string Address(string? value)
+    public string City(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : "Ville-" + Word(AddressNormalizer.NormalizeAddress(value), "city");
+
+    // Keeps the house number (12 / 2 / 12 bis...) because the grouping compares it.
+    public string Address(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var match = Regex.Match(value.Trim(), @"^(\d+\s*(?:bis|ter|b|t)?\b)?[\s,]*(.*)$", RegexOptions.IgnoreCase);
+        var number = match.Groups[1].Value.Trim();
+        var street = AddressNormalizer.NormalizeAddress(match.Groups[2].Value);
+        var fake = street.Length == 0 ? string.Empty : "voie " + Word(street, "street");
+        return (number + " " + fake).Trim();
+    }
+
+    public string Phone(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return value ?? string.Empty;
+        var digits = FamilyUtilities.NormalizePhoneNumber(value);
+        if (digits.Length == 0) return Text(value);
+        // Placeholder numbers stay visible: they are part of what the grouping checks.
+        if (!FamilyUtilities.IsUsableGroupingPhone(digits)) return digits.Length >= 9 ? digits : $"[numéro incomplet : {digits.Length} chiffre(s)]";
+        return FakePhone(digits, value);
+    }
+
+    public string Contact(string value)
+    {
+        if (value.Contains('@')) return EmailField(value);
+        var digits = FamilyUtilities.NormalizePhoneNumber(value);
+        if (!FamilyUtilities.IsUsableGroupingPhone(digits)) return value;
+        var fake = FakePhone(digits, value);
+        return value.StartsWith("+33", StringComparison.Ordinal) && fake.StartsWith('0') ? "+33" + fake.Substring(1) : fake;
+    }
+
+    public string EmailField(string? value) => string.IsNullOrEmpty(value) ? string.Empty : Text(value);
+
+    public string Text(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        var result = _placePattern == null ? value : _placePattern.Replace(value, m => _places.TryGetValue(m.Value, out var fake) ? fake : m.Value);
+        result = EmailPattern.Replace(result, m => FakeEmail(m.Value));
+        result = PhonePattern.Replace(result, m =>
         {
-            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-            var match = Regex.Match(value.Trim(), @"^(\d+\s*(?:bis|ter|b|t)?\b)?[\s,]*(.*)$", RegexOptions.IgnoreCase);
-            var number = match.Groups[1].Value.Trim();
-            var street = AddressNormalizer.NormalizeAddress(match.Groups[2].Value);
-            var fake = street.Length == 0 ? string.Empty : "voie " + Word(street, "street");
-            return (number + " " + fake).Trim();
-        }
+            var digits = FamilyUtilities.NormalizePhoneNumber(m.Value);
+            return FamilyUtilities.IsUsableGroupingPhone(digits) ? FakePhone(digits, m.Value) : m.Value;
+        });
+        return WordPattern.Replace(result, m => m.Value.Length >= 2 && _nameWords.Contains(Fold(m.Value)) ? Word(m.Value) : m.Value);
+    }
 
-        public string Phone(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return value ?? string.Empty;
-            var digits = FamilyUtilities.NormalizePhoneNumber(value);
-            if (digits.Length == 0) return Text(value);
-            // Placeholder numbers stay visible: they are part of what the grouping checks.
-            if (!FamilyUtilities.IsUsableGroupingPhone(digits)) return digits.Length >= 9 ? digits : $"[numéro incomplet : {digits.Length} chiffre(s)]";
-            return FakePhone(digits, value);
-        }
+    private string FakeEmail(string email)
+    {
+        var at = email.LastIndexOf('@');
+        var local = email.Substring(0, at).ToLowerInvariant();
+        var domain = email.Substring(at + 1).ToLowerInvariant().TrimEnd('.');
+        var fakeDomain = CommonDomains.Contains(domain) ? domain : "domaine-" + Word(domain, "domain").ToLowerInvariant() + ".fr";
+        return Word(local, "mail").ToLowerInvariant() + "@" + fakeDomain;
+    }
 
-        public string Contact(string value)
-        {
-            if (value.Contains('@')) return EmailField(value);
-            var digits = FamilyUtilities.NormalizePhoneNumber(value);
-            if (!FamilyUtilities.IsUsableGroupingPhone(digits)) return value;
-            var fake = FakePhone(digits, value);
-            return value.StartsWith("+33", StringComparison.Ordinal) && fake.StartsWith('0') ? "+33" + fake.Substring(1) : fake;
-        }
+    // French numbers keep 0 + their first digit (06, 07, 03…). Foreign numbers keep the
+    // country code and their written form (+352… or 00352…), so the SMS rules still apply.
+    private string FakePhone(string digits, string original)
+    {
+        var written = original.TrimStart();
+        bool international = digits.StartsWith("00", StringComparison.Ordinal) || (digits[0] != '0' && written.StartsWith('+'));
+        var canonical = digits.StartsWith("00", StringComparison.Ordinal) ? digits.Substring(2) : digits;
+        int keep = international ? Math.Min(3, canonical.Length) : Math.Min(2, canonical.Length);
+        var fake = new StringBuilder(canonical.Substring(0, keep));
+        var hash = Hash("phone", canonical);
+        for (int i = keep; i < canonical.Length; i++) fake.Append((char)('0' + hash[i % hash.Length] % 10));
+        if (!international) return fake.ToString();
+        return (written.StartsWith('+') ? "+" : "00") + fake;
+    }
 
-        public string EmailField(string? value) => string.IsNullOrEmpty(value) ? string.Empty : Text(value);
+    // Same folded word -> same fake word. Letters only, so name normalisation keeps it whole.
+    private string Word(string value, string kind = "name")
+    {
+        var hash = Hash(kind, Fold(value));
+        const string consonants = "bcdfgjklmnprstvz", vowels = "aeiou";
+        var builder = new StringBuilder();
+        for (int i = 0; i < 6; i++) builder.Append(i % 2 == 0 ? consonants[hash[i] % consonants.Length] : vowels[hash[i] % vowels.Length]);
+        builder[0] = char.ToUpperInvariant(builder[0]);
+        return builder.ToString();
+    }
 
-        public string Text(string? value)
-        {
-            if (string.IsNullOrEmpty(value)) return string.Empty;
-            var result = value;
-            foreach (var (real, fake) in _places)
-                result = Regex.Replace(result, @"(?<![\p{L}\d])" + Regex.Escape(real) + @"(?![\p{L}\d])", fake.Replace("$", "$$"), RegexOptions.IgnoreCase);
-            result = EmailPattern.Replace(result, m => FakeEmail(m.Value));
-            result = PhonePattern.Replace(result, m =>
-            {
-                var digits = FamilyUtilities.NormalizePhoneNumber(m.Value);
-                return FamilyUtilities.IsUsableGroupingPhone(digits) ? FakePhone(digits, m.Value) : m.Value;
-            });
-            return WordPattern.Replace(result, m => m.Value.Length >= 2 && _nameWords.Contains(Fold(m.Value)) ? Word(m.Value) : m.Value);
-        }
+    private byte[] Hash(string kind, string value)
+    {
+        using var hmac = new HMACSHA256(_key);
+        return hmac.ComputeHash(Encoding.UTF8.GetBytes(kind + "\n" + value));
+    }
 
-        private string FakeEmail(string email)
-        {
-            var at = email.LastIndexOf('@');
-            var local = email.Substring(0, at).ToLowerInvariant();
-            var domain = email.Substring(at + 1).ToLowerInvariant().TrimEnd('.');
-            var fakeDomain = CommonDomains.Contains(domain) ? domain : "domaine-" + Word(domain, "domain").ToLowerInvariant() + ".fr";
-            return Word(local, "mail").ToLowerInvariant() + "@" + fakeDomain;
-        }
-
-        // French numbers keep 0 + their first digit (06, 07, 03…). Foreign numbers keep the
-        // country code and their written form (+352… or 00352…), so the SMS rules still apply.
-        private string FakePhone(string digits, string original)
-        {
-            var written = original.TrimStart();
-            bool international = digits.StartsWith("00", StringComparison.Ordinal) || (digits[0] != '0' && written.StartsWith('+'));
-            var canonical = digits.StartsWith("00", StringComparison.Ordinal) ? digits.Substring(2) : digits;
-            int keep = international ? Math.Min(3, canonical.Length) : Math.Min(2, canonical.Length);
-            var fake = new StringBuilder(canonical.Substring(0, keep));
-            var hash = Hash("phone", canonical);
-            for (int i = keep; i < canonical.Length; i++) fake.Append((char)('0' + hash[i % hash.Length] % 10));
-            if (!international) return fake.ToString();
-            return (written.StartsWith('+') ? "+" : "00") + fake;
-        }
-
-        // Same folded word -> same fake word. Letters only, so name normalisation keeps it whole.
-        private string Word(string value, string kind = "name")
-        {
-            var hash = Hash(kind, Fold(value));
-            const string consonants = "bcdfgjklmnprstvz", vowels = "aeiou";
-            var builder = new StringBuilder();
-            for (int i = 0; i < 6; i++) builder.Append(i % 2 == 0 ? consonants[hash[i] % consonants.Length] : vowels[hash[i] % vowels.Length]);
-            builder[0] = char.ToUpperInvariant(builder[0]);
-            return builder.ToString();
-        }
-
-        private byte[] Hash(string kind, string value)
-        {
-            using var hmac = new HMACSHA256(_key);
-            return hmac.ComputeHash(Encoding.UTF8.GetBytes(kind + "\n" + value));
-        }
-
-        private static string Fold(string value)
-        {
-            var builder = new StringBuilder();
-            foreach (var ch in value.ToUpperInvariant().Normalize(NormalizationForm.FormD))
-                if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark) builder.Append(ch);
-            return builder.ToString();
-        }
+    private static string Fold(string value)
+    {
+        var builder = new StringBuilder();
+        foreach (var ch in value.ToUpperInvariant().Normalize(NormalizationForm.FormD))
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark) builder.Append(ch);
+        return builder.ToString();
     }
 }

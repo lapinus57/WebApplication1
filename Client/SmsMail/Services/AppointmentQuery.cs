@@ -52,12 +52,12 @@ namespace Client.SmsMail.Services
             Pick(columns, name) ?? throw new InvalidOperationException(
                 $"Champ {role} « {name} » introuvable dans la table « {table} ». Champs disponibles : {string.Join(", ", columns.OrderBy(c => c, StringComparer.OrdinalIgnoreCase))}. Vérifiez Paramètres → Recherche RDV.");
 
-        private static string? Find(IReadOnlyCollection<string> names, string wanted) =>
+        internal static string? Find(IReadOnlyCollection<string> names, string wanted) =>
             names.FirstOrDefault(n => string.Equals(n, wanted?.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        private static string? Pick(IReadOnlyCollection<string> columns, params string[] wanted) =>
+        internal static string? Pick(IReadOnlyCollection<string> columns, params string[] wanted) =>
             wanted.Select(w => Find(columns, w)).FirstOrDefault(c => c != null);
 
-        private static string Q(string value) => "[" + value.Replace("]", "]]") + "]";
+        internal static string Q(string value) => "[" + value.Replace("]", "]]") + "]";
     }
 }

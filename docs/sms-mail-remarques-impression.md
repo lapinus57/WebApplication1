@@ -101,6 +101,34 @@ Chiffrement : AES-256-GCM, clé dérivée du mot de passe (PBKDF2-SHA256,
 modification du fichier est détectée. Le script `tools/lire_diagnostic.py`
 permet de le déchiffrer.
 
+## Extraire les post-it de consultation (onglet Post-it)
+
+Onglet temporaire, servant à étudier la façon dont les post-it de fin de
+consultation sont écrits. Il ne modifie ni la base Access, ni le regroupement
+des familles.
+
+1. Ouvrir **SMS et mail → Post-it**.
+2. Choisir la période (par défaut les 6 derniers mois).
+3. Choisir un mot de passe (10 caractères minimum), puis
+   **Extraire et enregistrer le fichier chiffré…**.
+4. Transmettre le fichier `.eyediag`, et le mot de passe par un autre moyen.
+
+Source : table `tPostIT` (champs `CodePat`, `DatePI`, `MessageText`), reliée à
+la table `Patients` pour le nom et le prénom du patient. Seuls les post-it de
+consultation sont gardés : ceux qui contiennent une cotation (`CS`, `OR`,
+`V3F`) ou un suivi du type `1 ok`, `4-8-12 ok`. Les autres sont comptés mais
+pas exportés.
+
+Avec les pseudonymes (option cochée par défaut), les noms et prénoms sont
+remplacés partout, y compris dans le texte des post-it, grâce à la liste des
+patients (cette liste n’est pas exportée). Les codes (`CS`, `OR`, `LUN`, `GOU`,
+`LEN`, `DL`, `TOPO`, `1 ok`…) et les mots comme « mari », « fille » restent
+lisibles. Un prénom absent de la table Patients ou mal orthographié reste
+visible.
+
+Pour masquer l’onglet : **Paramètres → Préparation des rappels et familles →
+Afficher l’onglet Post-it**, puis **Enregistrer**.
+
 ## Vérification sur le poste
 
 Avec des données de test, vérifier le cas RDV 16h45 / venue 16h00 dans le SMS,

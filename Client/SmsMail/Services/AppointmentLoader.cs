@@ -62,6 +62,53 @@ namespace Client.SmsMail.Services
             return result;
         });
 
+        public static Task<(List<PostItAnalysis.PostIt> PostIts, List<(string Nom, string Prenom)> Names)> LoadPostItsAsync(
+            AppointmentSearchConfig config, MachineConfig machine, DateTime from, DateTime to) => Task.Run(() =>
+        {
+            using var connection = Open(config, machine);
+            var tables = Tables(connection);
+            var postIts = new List<PostItAnalysis.PostIt>();
+            void Read(bool withPatients)
+            {
+                postIts.Clear();
+                using var command = connection.CreateCommand();
+                command.CommandText = PostItAnalysis.BuildQuery(tables, table => Columns(connection, table), withPatients);
+                command.Parameters.Add("?", OleDbType.Date).Value = from.Date;
+                command.Parameters.Add("?", OleDbType.Date).Value = to.Date.AddDays(1);
+                using var reader = command.ExecuteReader();
+                if (reader == null) return;
+                var fields = EyeEmailRecordMapper.BuildOrdinalLookup(reader);
+                while (reader.Read())
+                {
+                    var date = EyeEmailRecordMapper.GetDateTime(reader, fields, "PostItDate");
+                    if (!date.HasValue) continue;
+                    postIts.Add(new PostItAnalysis.PostIt
+                    {
+                        PatientCode = EyeEmailRecordMapper.GetInt(reader, fields, "PostItPatient"), Date = date.Value,
+                        Text = PostItAnalysis.PlainText(EyeEmailRecordMapper.GetString(reader, fields, "PostItText")),
+                        Nom = EyeEmailRecordMapper.GetString(reader, fields, "PatientNom"),
+                        Prenom = EyeEmailRecordMapper.GetString(reader, fields, "PatientPrenom")
+                    });
+                }
+            }
+            // A text/number mismatch between CodePat and Code Patient makes the join fail: read without names then.
+            try { Read(true); } catch (OleDbException) { Read(false); }
+
+            var names = new List<(string Nom, string Prenom)>();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = PostItAnalysis.BuildNamesQuery(tables, table => Columns(connection, table));
+                using var reader = command.ExecuteReader();
+                if (reader != null)
+                {
+                    var fields = EyeEmailRecordMapper.BuildOrdinalLookup(reader);
+                    while (reader.Read())
+                        names.Add((EyeEmailRecordMapper.GetString(reader, fields, "PatientNom"), EyeEmailRecordMapper.GetString(reader, fields, "PatientPrenom")));
+                }
+            }
+            return (postIts, names);
+        });
+
         private static IReadOnlyCollection<string> Tables(OleDbConnection connection) =>
             connection.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object?[] { null, null, null, "TABLE" })!
                 .Rows.Cast<DataRow>().Select(r => (string)r["TABLE_NAME"]).ToList();

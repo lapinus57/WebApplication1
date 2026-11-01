@@ -246,6 +246,25 @@
                     </StackPanel>
                 </ScrollViewer>
             </PivotItem>
+            <PivotItem x:Name="PostItTab" Header="Post-it">
+                <ScrollViewer>
+                    <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,16,24">
+                        <TextBlock Text="Extraction des post-it de consultation" FontSize="20" FontWeight="SemiBold" />
+                        <TextBlock TextWrapping="Wrap" Text="Lit la table tPostIT de la base Access et garde seulement les post-it de fin de consultation : ceux qui contiennent une cotation (CS, OR, V3F) ou un suivi du type « 1 ok », « 4-8-12 ok ». Les autres post-it ne sont pas exportés. Cette extraction ne modifie ni la base Access ni le regroupement des familles." />
+                        <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <CalendarDatePicker x:Name="PostItFromPicker" Header="Du" HorizontalAlignment="Stretch" />
+                            <CalendarDatePicker x:Name="PostItToPicker" Grid.Column="1" Header="Au (inclus)" HorizontalAlignment="Stretch" />
+                        </Grid>
+                        <CheckBox x:Name="PostItPseudonymizeCheck" IsChecked="True" Content="Remplacer noms et prénoms par des pseudonymes (recommandé)" />
+                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Les prénoms écrits dans les post-it sont reconnus grâce à la liste des patients et remplacés. Un prénom absent de la table Patients ou mal orthographié reste visible. Les codes (CS, OR, LUN, GOU, DL, 1 ok…) restent lisibles." />
+                        <PasswordBox x:Name="PostItPasswordBox" Header="Mot de passe (au moins 10 caractères)" />
+                        <PasswordBox x:Name="PostItConfirmBox" Header="Confirmer le mot de passe" />
+                        <Button Content="Extraire et enregistrer le fichier chiffré…" Click="ExportPostIts_Click" Style="{StaticResource AccentButtonStyle}" />
+                        <TextBlock x:Name="PostItStatusText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Cet onglet peut être masqué dans Paramètres → Préparation des rappels et familles." />
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
             <PivotItem x:Name="SettingsTab" Header="Paramètres">
                 <ScrollViewer>
                     <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Stretch" Padding="0,0,16,16">
@@ -273,6 +292,7 @@
                     </Expander>
                     <Expander x:Name="PreparationExpander" Header="Préparation des rappels et familles" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par famille" Checked="Options_Changed" Unchecked="Options_Changed" />
+                        <CheckBox x:Name="ShowPostItTabCheck" Content="Afficher l’onglet Post-it (extraction pour analyse)" Checked="ShowPostItTab_Changed" Unchecked="ShowPostItTab_Changed" />
                         <TextBlock Text="Le seuil de personnes et l’option SMS sans mail se règlent directement dans Envois." TextWrapping="Wrap" />
                         <TextBlock Text="Un seul SMS par famille et par jour de rendez-vous. Le numéro retenu est visible dans le tableau." TextWrapping="Wrap" />
                         <TextBlock Text="Familles EyeEmail" FontSize="18" FontWeight="SemiBold" />

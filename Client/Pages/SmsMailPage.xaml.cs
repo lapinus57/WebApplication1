@@ -63,6 +63,10 @@ namespace Client.Pages
                 SmsOnlyNoEmail.IsChecked = _settings.SmsOnlyWhenNoEmail;
                 SmsFamilySizeFilter.SelectedIndex = Math.Clamp(_settings.SmsMinimumFamilySize, 1, 3) - 1;
                 UseFamiliesCheck.IsChecked = _settings.UseEyeEmailFamilies;
+                ShowPostItTabCheck.IsChecked = _settings.ShowPostItTab;
+                SetPostItTabVisible(_settings.ShowPostItTab);
+                PostItFromPicker.Date = DateTimeOffset.Now.Date.AddMonths(-6);
+                PostItToPicker.Date = DateTimeOffset.Now.Date;
                 FamilyDatabaseText.Text = _settings.FamilyDatabasePath;
                 CalendarInviteCheck.IsChecked = _settings.SendCalendarInvites;
                 CalendarAlarmsCheck.IsChecked = _settings.SendCalendarAlarms;
@@ -106,6 +110,7 @@ namespace Client.Pages
                 AdjustReminderTimes = AdjustTimesCheck.IsChecked == true,
                 ReminderTimeRules = _timeRules.Select(r => new AppointmentTimeRule { From = r.From, To = r.To }).ToList(),
                 UseEyeEmailFamilies = UseFamiliesCheck.IsChecked == true, FamilyDatabasePath = FamilyDatabaseText.Text.Trim(),
+                ShowPostItTab = ShowPostItTabCheck.IsChecked == true,
                 SendCalendarInvites = CalendarInviteCheck.IsChecked == true,
                 SendCalendarAlarms = CalendarAlarmsCheck.IsChecked == true, CalendarIsBusy = CalendarBusyCheck.IsChecked == true,
                 CalendarSubject = CalendarSubjectText.Text,
@@ -331,6 +336,52 @@ namespace Client.Pages
         }
 
         private async void Prepare_Click(object sender, RoutedEventArgs e) => await RunAsync(PrepareAsync);
+
+        private void ShowPostItTab_Changed(object sender, RoutedEventArgs e)
+        {
+            if (PostItTab == null || Workspace == null) return;
+            SetPostItTabVisible(ShowPostItTabCheck.IsChecked == true);
+            if (_loaded) StatusText.Text = "Enregistrez les paramètres pour conserver l’affichage de l’onglet Post-it.";
+        }
+
+        // A collapsed PivotItem can keep its header: remove and re-insert the tab instead.
+        private void SetPostItTabVisible(bool visible)
+        {
+            var present = Workspace.Items.Contains(PostItTab);
+            if (visible && !present) Workspace.Items.Insert(Math.Max(0, Workspace.Items.IndexOf(SettingsTab)), PostItTab);
+            else if (!visible && present)
+            {
+                if (Workspace.SelectedItem == PostItTab) Workspace.SelectedIndex = 0;
+                Workspace.Items.Remove(PostItTab);
+            }
+        }
+
+        private async void ExportPostIts_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            var from = PostItFromPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de début.");
+            var to = PostItToPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de fin.");
+            if (to < from) throw new InvalidOperationException("La date de fin doit être après la date de début.");
+            if (PostItPasswordBox.Password.Length < DiagnosticPackage.MinimumPasswordLength)
+                throw new InvalidOperationException($"Le mot de passe doit contenir au moins {DiagnosticPackage.MinimumPasswordLength} caractères.");
+            if (PostItPasswordBox.Password != PostItConfirmBox.Password) throw new InvalidOperationException("Les deux mots de passe sont différents.");
+            var config = await App.ChatService.GetAppointmentSearchConfigAsync()
+                ?? throw new InvalidOperationException("Configurez la base Access dans les paramètres RDV.");
+            PostItStatusText.Text = "Lecture des post-it…";
+            List<PostItAnalysis.PostIt> postIts; List<(string Nom, string Prenom)> names;
+            try { (postIts, names) = await AppointmentLoader.LoadPostItsAsync(config, MachineConfig.Load(), from, to); }
+            catch (Exception ex) { PostItStatusText.Text = "Échec de la lecture : " + ex.Message; throw; }
+            var kept = postIts.Count(p => PostItAnalysis.IsConsultationPostIt(p.Text));
+            if (kept == 0) { PostItStatusText.Text = $"{postIts.Count} post-it lus, aucun ne ressemble à un post-it de consultation. Rien n’a été enregistré."; return; }
+            var pseudonymize = PostItPseudonymizeCheck.IsChecked == true;
+            var secret = PostItPasswordBox.Password;
+            PostItStatusText.Text = $"{kept} post-it de consultation sur {postIts.Count}. Chiffrement…";
+            var bytes = await Task.Run(() => DiagnosticPackage.Encrypt(PostItAnalysis.BuildJson(postIts, names, from, to, pseudonymize), secret, PostItAnalysis.Format));
+            if (await SaveFileAsync($"PostIt_{from:yyyy-MM-dd}_{to:yyyy-MM-dd}", "Export chiffré", DiagnosticPackage.Extension, bytes))
+                PostItStatusText.Text = $"Enregistré : {kept} post-it de consultation sur {postIts.Count} lus du {from:dd/MM/yyyy} au {to:dd/MM/yyyy}"
+                    + (pseudonymize ? ", pseudonymisés." : ", noms en clair.") + " Envoyez le mot de passe séparément.";
+            else PostItStatusText.Text = "Enregistrement annulé.";
+            PostItPasswordBox.Password = PostItConfirmBox.Password = string.Empty;
+        });
 
         private async void Save_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
