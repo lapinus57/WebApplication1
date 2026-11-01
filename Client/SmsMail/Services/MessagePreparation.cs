@@ -22,6 +22,7 @@ namespace Client.SmsMail.Services
         public string Contact { get; set; } = string.Empty;
         public string Family { get; set; } = string.Empty;
         public string PeopleDisplay { get; set; } = string.Empty;
+        public string GroupingReason { get; set; } = string.Empty;
         public DateTime AppointmentStart { get; set; }
         public string AppointmentTimeDisplay => AppointmentStart.ToString("HH:mm", CultureInfo.InvariantCulture);
         public string TimeExplanation { get; set; } = string.Empty;
@@ -121,6 +122,8 @@ namespace Client.SmsMail.Services
                 foreach (var row in f.RDVs) copy.RDVs.Add(copies[row]);
                 return copy;
             }).ToList();
+            var familyNumber = new Dictionary<RdvInfo, int>();
+            for (int i = 0; i < families.Count; i++) foreach (var row in families[i].RDVs) familyNumber[row] = i;
             var familyKeys = new Dictionary<RdvInfo, List<string>>();
             var mailRows = new List<(RdvInfo Rdv, string Contact)>();
             var smsRows = new List<(RdvInfo Rdv, string Contact)>();
@@ -168,6 +171,7 @@ namespace Client.SmsMail.Services
                             .Select(r => $"{r.Prenom} {r.Nom} : RDV {originalTimes[r]:HH:mm} → "
                                 + (decisions[r].NeedsReview ? "à vérifier" : $"venue {decisions[r].Time:HH:mm}") + $" ({decisions[r].Reason})")),
                         Family = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}")),
+                        GroupingReason = GroupingExplanation.Explain(people, r => familyNumber.TryGetValue(r, out var n) ? n : -1),
                         PeopleDisplay = string.Join(Environment.NewLine, people.OrderBy(r => originalTimes[r]).Select(r => $"{r.Prenom} {r.Nom}".Trim()).Distinct()),
                         AppointmentStart = date.Date + people.Min(r => originalTimes[r].TimeOfDay),
                         Subject = settings.Subject, Body = body, Key = key,

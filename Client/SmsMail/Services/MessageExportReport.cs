@@ -15,15 +15,15 @@ public static class MessageExportReport
         var sheet = new XlsxSheet
         {
             Name = "Messages",
-            Headers = new[] { "RDV", "Venue annoncée", "Canal", "Personnes", "Destinataire", "Statut", "Sélection", "Message / résumé", "Horaires ajustés" },
-            Widths = new double[] { 8, 10, 7, 28, 30, 26, 11, 60, 40 }
+            Headers = new[] { "RDV", "Venue annoncée", "Canal", "Personnes", "Destinataire", "Regroupés par", "Statut", "Sélection", "Message / résumé", "Horaires ajustés" },
+            Widths = new double[] { 8, 10, 7, 28, 30, 36, 26, 11, 60, 40 }
         };
         foreach (var row in rows.OrderBy(r => r.AppointmentStart).ThenBy(r => r.Family).ThenBy(r => r.Channel))
             sheet.Rows.Add(new[]
             {
                 row.AppointmentTimeDisplay,
                 row.CalendarStart == default || row.CalendarStart == row.AppointmentStart ? string.Empty : row.CalendarStart.ToString("HH:mm", CultureInfo.InvariantCulture),
-                row.Channel, row.PeopleDisplay, row.Contact, row.Status,
+                row.Channel, row.PeopleDisplay, row.Contact, row.GroupingReason, row.Status,
                 row.CanSend ? (row.Selected ? "Coché" : "Non coché") : "Bloqué",
                 row.Channel == "Mail" ? MailText(row.Body) : row.Body,
                 row.TimeExplanation

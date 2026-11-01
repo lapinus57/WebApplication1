@@ -98,6 +98,29 @@ static class GroupingChecks
             "The new member joins one of them, never both");
         other.Remarque = "avec Mère Lambert";
         Check(EyeEmailFamilyGrouping.Build(new[] { mother, child1, other }).Count == 2, "A remark cannot merge two EyeEmail families");
+
+        // "Regroupés par" column
+        var settingsAll = new SmsMailSettings { SmsOnlyWhenNoEmail = false };
+        string Reason(IEnumerable<RdvInfo> rows, string channel, string contact) =>
+            MessagePreparation.Prepare(rows, day, settingsAll).Single(m => m.Channel == channel && m.Contact == contact).GroupingReason;
+        var r1 = P(70, "Rose", "Lune", "4 rue R", "0611112222", 0, 0);
+        var r2 = P(71, "Rémi", "Lune", "9 rue S", "06 11 11 22 22", 15, 100);
+        Check(Reason(new[] { r1, r2 }, "SMS", "+33611112222") == "Même téléphone : 06 11 11 22 22", "Shared phone is named, whatever its format");
+        r2.Tel1 = "0633334444"; r2.Adresse = "4 rue R"; r1.Email = r2.Email = "lune@example.com";
+        var reason = Reason(new[] { r1, r2 }, "Mail", "lune@example.com");
+        Check(reason.Contains("Même e-mail : lune@example.com") && reason.Contains("Même adresse : 4 rue R, Ville fictive"), "Email and address reasons are listed together");
+        r1.Email = r2.Email = ""; r2.Adresse = "9 rue S"; r2.Remarque = "avec Rose Lune"; r2.Tel1 = "0633334444";
+        reason = Reason(new[] { r1, r2 }, "SMS", "+33611112222");
+        Check(reason == "Remarque de Rémi Lune : « avec Rose Lune »", "A remark link quotes the remark and its author");
+        r2.Remarque = "";
+        Check(Reason(new[] { r1, r2 }, "SMS", "+33611112222") == GroupingExplanation.Alone, "A person alone is shown as such");
+        r1.ReferenceFamilyNumber = r2.ReferenceFamilyNumber = 30;
+        Check(Reason(new[] { r1, r2 }, "SMS", "+33611112222") == "Famille EyeEmail", "EyeEmail families are named");
+        r1.ReferenceFamilyNumber = r2.ReferenceFamilyNumber = 0; r2.Tel1 = r1.Tel1;
+        settingsAll.UseEyeEmailFamilies = false;
+        Check(Reason(new[] { r1, r2 }, "SMS", "+33611112222") == "Même téléphone : 06 11 11 22 22", "Without family grouping, a shared number still explains the shared SMS");
+        var sheetRow = MessageExportReport.PreparedSheet(MessagePreparation.Prepare(new[] { r1, r2 }, day, settingsAll)).Rows.Single(r => r[2] == "SMS");
+        Check(sheetRow[5] == "Même téléphone : 06 11 11 22 22", "The spreadsheet has the reason column");
         return count;
     }
 }

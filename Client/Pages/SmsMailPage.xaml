@@ -63,20 +63,21 @@
                     <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                            <Grid Padding="12,12,28,12" Background="{ThemeResource ControlFillColorSecondaryBrush}"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="86" /><ColumnDefinition Width="60" /><ColumnDefinition Width="1.3*" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="3*" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
+                            <Grid Padding="12,12,28,12" Background="{ThemeResource ControlFillColorSecondaryBrush}"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="86" /><ColumnDefinition Width="60" /><ColumnDefinition Width="1.3*" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="1.4*" /><ColumnDefinition Width="3*" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
                                 <TextBlock Text="✓" AutomationProperties.Name="Sélection" />
                                 <TextBlock Grid.Column="1" Text="Heure RDV ↑" FontWeight="SemiBold" TextWrapping="Wrap" ToolTipService.ToolTip="Tri croissant sur le premier horaire réel du rendez-vous de la famille" />
                                 <TextBlock Grid.Column="2" Text="Canal" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="3" Text="Personnes" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="4" Text="Destinataire" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="5" Text="Résumé / message" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="6" Text="Statut" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="5" Text="Regroupés par" FontWeight="SemiBold" ToolTipService.ToolTip="Ce qui relie les personnes réunies dans ce message" />
+                                <TextBlock Grid.Column="6" Text="Résumé / message" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="7" Text="Statut" FontWeight="SemiBold" />
                             </Grid>
                             <ListView x:Name="MessagesList" Grid.Row="1" AutomationProperties.Name="Tableau des messages à envoyer" SelectionMode="None" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible">
                                 <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="0" /></Style></ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate><DataTemplate>
                                     <Border Padding="12,6" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                        <Grid MinHeight="44"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="86" /><ColumnDefinition Width="60" /><ColumnDefinition Width="1.3*" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="3*" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
+                                        <Grid MinHeight="44"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="86" /><ColumnDefinition Width="60" /><ColumnDefinition Width="1.3*" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="1.4*" /><ColumnDefinition Width="3*" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
                                             <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" IsEnabled="{Binding CanSend}" AutomationProperties.Name="{Binding Contact}" Checked="MessageSelection_Changed" Unchecked="MessageSelection_Changed" VerticalAlignment="Top" />
                                             <StackPanel Grid.Column="1" Spacing="4" Margin="0,4,8,0">
                                                 <TextBlock Text="{Binding AppointmentTimeDisplay}" FontSize="16" FontWeight="SemiBold" />
@@ -85,7 +86,8 @@
                                             <TextBlock Grid.Column="2" Text="{Binding Channel}" FontWeight="SemiBold" Margin="0,4,8,0" />
                                             <TextBlock Grid.Column="3" Text="{Binding PeopleDisplay}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,12,0" />
                                             <TextBlock Grid.Column="4" Text="{Binding Contact}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,4,12,0" />
-                                            <StackPanel Grid.Column="5" Spacing="6" Margin="0,4,16,0">
+                                            <TextBlock Grid.Column="5" Text="{Binding GroupingReason}" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,4,12,0" />
+                                            <StackPanel Grid.Column="6" Spacing="6" Margin="0,4,16,0">
                                                 <TextBlock Text="{Binding TimeExplanation}" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                                                 <TextBlock Text="{Binding TableSummary}" TextWrapping="Wrap" IsTextSelectionEnabled="True" LineHeight="21" />
                                                 <Button Background="Transparent" BorderThickness="0" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Content="Détails du mail" FontSize="12" Padding="0" MinHeight="0" HorizontalAlignment="Left" Visibility="{Binding Channel, Converter={StaticResource MailChannelVisibility}}">
@@ -99,7 +101,7 @@
                                                     </Flyout></Button.Flyout>
                                                 </Button>
                                             </StackPanel>
-                                            <TextBlock Grid.Column="6" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                            <TextBlock Grid.Column="7" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate></ListView.ItemTemplate>

@@ -30,6 +30,14 @@ envoyé, y compris s’il contient plusieurs membres d’une famille. Vérifier 
 consigne dans l’agenda, la préciser si nécessaire puis **Charger et préparer**
 à nouveau. La fonction ne corrige jamais Access elle-même.
 
+## Colonne « Regroupés par »
+
+Dans le tableau des envois, cette colonne dit ce qui relie les personnes
+réunies dans un même mail ou SMS : **Même téléphone**, **Même e-mail**,
+**Même adresse**, **Adresse proche** (faute de frappe probable),
+**Remarque de … : « avec … »**, **Famille EyeEmail**, ou un regroupement
+confirmé à la main. Une personne seule affiche **Personne seule**.
+
 ## Exporter la liste des envois (Excel)
 
 1. Préparer les messages et appliquer les filtres canal/recherche souhaités.
@@ -39,7 +47,7 @@ Le classeur contient deux feuilles :
 
 - **Messages** : une ligne par mail ou SMS visible à l’écran, triée par heure de
   rendez-vous. Colonnes : RDV, venue annoncée, canal, personnes, destinataire,
-  statut, sélection (coché, non coché, bloqué), texte du SMS ou du mail
+  regroupés par, statut, sélection (coché, non coché, bloqué), texte du SMS ou du mail
   (converti en texte lisible) et horaires ajustés. **Toutes les lignes visibles
   sont exportées**, même décochées ou bloquées.
 - **Familles** : chaque famille, ses membres, téléphones, e-mails et la façon

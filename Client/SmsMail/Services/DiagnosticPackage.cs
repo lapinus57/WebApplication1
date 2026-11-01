@@ -97,7 +97,7 @@ public static class DiagnosticPackage
             ["messages"] = input.Messages.Select(m => new
             {
                 m.Channel, Contact = p?.Contact(m.Contact) ?? m.Contact,
-                Personnes = T(m.PeopleDisplay), m.Status, m.CanSend, m.Selected,
+                Personnes = T(m.PeopleDisplay), RegroupesPar = T(m.GroupingReason), m.Status, m.CanSend, m.Selected,
                 Rdv = Stamp(m.AppointmentStart), VenueAnnoncee = m.CalendarStart == default ? null : Stamp(m.CalendarStart),
                 HorairesAjustes = T(m.TimeExplanation),
                 Message = T(m.Channel == "Mail" ? MailTextPreview.Convert(m.Body) : m.Body),
@@ -182,6 +182,7 @@ public static class DiagnosticPackage
         private readonly byte[] _key = RandomNumberGenerator.GetBytes(32);
         private readonly HashSet<string> _nameWords = new(StringComparer.Ordinal);
         private readonly Dictionary<int, int> _ids = new();
+        private List<(string Real, string Fake)> _places = new();
         // Name particles and short words also used in ordinary sentences ("dit de venir").
         private static readonly HashSet<string> Particles = new(StringComparer.Ordinal)
         {
@@ -197,6 +198,13 @@ public static class DiagnosticPackage
                         if (word.Value.Length >= 2 && !Particles.Contains(Fold(word.Value))) _nameWords.Add(Fold(word.Value));
                 if (row.Id > 0 && !_ids.ContainsKey(row.Id)) _ids[row.Id] = _ids.Count + 1;
             }
+            // Addresses and cities quoted in free text (remarks, "Même adresse : …") are replaced too, longest first.
+            foreach (var row in rows)
+            {
+                if (!string.IsNullOrWhiteSpace(row.Adresse)) _places.Add((row.Adresse.Trim(), Address(row.Adresse)));
+                if (!string.IsNullOrWhiteSpace(row.Ville)) _places.Add((row.Ville.Trim(), City(row.Ville)));
+            }
+            _places = _places.Where(p => p.Real.Length >= 3).DistinctBy(p => p.Real.ToUpperInvariant()).OrderByDescending(p => p.Real.Length).ToList();
         }
 
         public int Id(int id)
@@ -246,7 +254,10 @@ public static class DiagnosticPackage
         public string Text(string? value)
         {
             if (string.IsNullOrEmpty(value)) return string.Empty;
-            var result = EmailPattern.Replace(value, m => FakeEmail(m.Value));
+            var result = value;
+            foreach (var (real, fake) in _places)
+                result = Regex.Replace(result, @"(?<![\p{L}\d])" + Regex.Escape(real) + @"(?![\p{L}\d])", fake.Replace("$", "$$"), RegexOptions.IgnoreCase);
+            result = EmailPattern.Replace(result, m => FakeEmail(m.Value));
             result = PhonePattern.Replace(result, m =>
             {
                 var digits = FamilyUtilities.NormalizePhoneNumber(m.Value);
