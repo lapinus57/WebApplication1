@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Data;
-using System.Globalization;
 using System.Linq;
-using System.Text;
 using Client.SmsMail.Models;
 using Client.SmsMail.Utilities;
 
@@ -12,8 +9,6 @@ namespace Client.SmsMail.Services.Grouping
 {
     public static class GroupingByPhoneAndEmail
     {
-        private const int CreationMinutesThreshold = 10;
-        private const int AppointmentMinutesThreshold = 30;
 
         public static void Regrouper(
             ObservableCollection<RdvInfo> rdvs,
@@ -77,10 +72,7 @@ namespace Client.SmsMail.Services.Grouping
                 {
                     // Family found via Email
                 }
-                else
-                {
-                    famille = TryFindFamilyByNameAndTemporalProximity(familles, rdv);
-                }
+                // A shared name or nearby booking time is not evidence of a family.
 
                 if (famille is null)
                 {
@@ -148,122 +140,6 @@ namespace Client.SmsMail.Services.Grouping
             return digits;
         }
 
-        private static RdvFamille? TryFindFamilyByNameAndTemporalProximity(IEnumerable<RdvFamille> familles, RdvInfo rdv)
-        {
-            if (string.IsNullOrWhiteSpace(rdv.Nom))
-            {
-                return null;
-            }
-
-            var normalizedName = NormalizeName(rdv.Nom);
-            if (string.IsNullOrEmpty(normalizedName))
-            {
-                return null;
-            }
-
-            var creationDate = rdv.DatePriseRDV;
-            var appointmentDate = GetEffectiveAppointmentDateTime(rdv);
-
-            foreach (var famille in familles)
-            {
-                if (!famille.Nom.Any(n => NormalizeName(n) == normalizedName))
-                {
-                    continue;
-                }
-
-                if (creationDate != DateTime.MinValue &&
-                    famille.DatePriseRDV.Any(d => AreWithinCreationWindow(creationDate, d)))
-                {
-                    return famille;
-                }
-
-                if (appointmentDate is null)
-                {
-                    continue;
-                }
-
-                if (famille.HeureRDV.Any(h => AreWithinAppointmentWindow(appointmentDate.Value, h)))
-                {
-                    return famille;
-                }
-
-                if (famille.DateRDV != default &&
-                    AreWithinAppointmentWindow(appointmentDate.Value, famille.DateRDV))
-                {
-                    return famille;
-                }
-
-                foreach (var existingRdv in famille.RDVs)
-                {
-                    var existingAppointment = GetEffectiveAppointmentDateTime(existingRdv);
-                    if (existingAppointment is not null &&
-                        AreWithinAppointmentWindow(appointmentDate.Value, existingAppointment.Value))
-                    {
-                        return famille;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private static bool AreWithinCreationWindow(DateTime first, DateTime second)
-        {
-            if (first == DateTime.MinValue || second == DateTime.MinValue)
-            {
-                return false;
-            }
-
-            return Math.Abs((first - second).TotalMinutes) <= CreationMinutesThreshold;
-        }
-
-        private static bool AreWithinAppointmentWindow(DateTime first, DateTime second)
-        {
-            return Math.Abs((first - second).TotalMinutes) <= AppointmentMinutesThreshold;
-        }
-
-        private static DateTime? GetEffectiveAppointmentDateTime(RdvInfo rdv)
-        {
-            if (rdv.HeureRDV != default)
-            {
-                return rdv.HeureRDV;
-            }
-
-            if (rdv.DateRDV != default)
-            {
-                return rdv.DateRDV;
-            }
-
-            return null;
-        }
-
-        private static string NormalizeName(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                return string.Empty;
-            }
-
-            var normalized = name.Trim().ToUpperInvariant().Normalize(NormalizationForm.FormD);
-            var builder = new StringBuilder(normalized.Length);
-
-            foreach (var ch in normalized)
-            {
-                var category = CharUnicodeInfo.GetUnicodeCategory(ch);
-                if (category == UnicodeCategory.NonSpacingMark)
-                {
-                    continue;
-                }
-
-                if (char.IsLetter(ch))
-                {
-                    builder.Append(ch);
-                }
-            }
-
-            return builder.ToString();
-        }
-
         private sealed class RdvPreparation
         {
             public required RdvInfo Rdv { get; init; }
@@ -273,4 +149,5 @@ namespace Client.SmsMail.Services.Grouping
         }
     }
 }
+
 
