@@ -74,6 +74,10 @@ namespace Client.SmsMail.Utilities
             }
         }
 
+        // Family number from the EyeEmail database, or 0 for a family built from today's data.
+        public static int KnownFamilyNumber(RdvFamille? family) =>
+            family?.RDVs.Select(r => r.ReferenceFamilyNumber).FirstOrDefault(n => n > 0) ?? 0;
+
         public static string NormalizePhoneNumber(string? value)
         {
             value = (value ?? string.Empty).Split('(')[0];

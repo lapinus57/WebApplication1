@@ -83,6 +83,14 @@ namespace Client.SmsMail.Services.Grouping
                     RdvFamille? familleCible = null;
                     var familleExistantePourRdv = TrouverFamille(familles, rdv.NumeroFamille);
 
+                    // Two families known in EyeEmail are never merged by a remark.
+                    var connueRdv = FamilyUtilities.KnownFamilyNumber(familleExistantePourRdv);
+                    candidatsPotentiels = candidatsPotentiels.Where(c =>
+                    {
+                        var connueCandidat = FamilyUtilities.KnownFamilyNumber(TrouverFamille(familles, c.NumeroFamille));
+                        return connueRdv == 0 || connueCandidat == 0 || connueRdv == connueCandidat;
+                    }).ToList();
+
                     foreach (var candidatPotentiel in candidatsPotentiels)
                     {
                         familleCible = AssurerFamillePourCandidat(

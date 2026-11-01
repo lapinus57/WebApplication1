@@ -68,6 +68,36 @@ static class GroupingChecks
         asked = false;
         EyeEmailFamilyGrouping.Build(new[] { h1, h2 }, history, (_, _) => { asked = true; return true; });
         Check(!asked, "Two missing creation dates are not a shared booking time");
+
+        RdvInfo K(int id, string first, string phone, int minutes, int known) => new()
+        {
+            Id = id, Prenom = first, Nom = "Lambert", Adresse = "1 rue K", Ville = "Ville fictive", Tel1 = phone, DateRDV = day,
+            HeureRDV = day.AddHours(9).AddMinutes(minutes), DatePriseRDV = day.AddDays(-20).AddMinutes(minutes), ReferenceFamilyNumber = known
+        };
+        var mother = K(60, "Mère", "0611223344", 0, 17);
+        var child1 = K(61, "Enfant1", "", 10, 17);
+        var child2 = K(62, "Enfant2", "0611223344", 20, 0);
+        families = EyeEmailFamilyGrouping.Build(new[] { mother, child1, child2 });
+        Check(families.Count == 1 && families[0].RDVs.Count == 3, "A new member sharing a phone joins the EyeEmail family");
+        foreach (var size in new[] { 1, 2, 3 })
+        {
+            var sms = MessagePreparation.Prepare(new[] { mother, child1, child2 }, day,
+                new SmsMailSettings { SmsOnlyWhenNoEmail = false, SmsMinimumFamilySize = size }, families);
+            Check(sms.Count == 1 && sms[0].PeopleDisplay.Contains("Enfant2"), $"Threshold {size}: the new member is in the family SMS");
+        }
+        child2.Tel1 = ""; child2.Adresse = "9 rue Ailleurs"; child2.Remarque = "avec Mère Lambert";
+        Check(EyeEmailFamilyGrouping.Build(new[] { mother, child1, child2 }).Count == 1, "A remark can name a member of an EyeEmail family");
+        var solo = K(63, "Seul", "", 0, 18);
+        families = EyeEmailFamilyGrouping.Build(new[] { solo });
+        Check(families.Count == 1 && families[0].GroupingDisplay == "Famille EyeEmail", "A known family with one person today is kept");
+        var other = K(64, "Cousin", "0611223344", 30, 19); other.Adresse = "5 rue Autre";
+        child2.Tel1 = "0611223344"; child2.Remarque = "";
+        families = EyeEmailFamilyGrouping.Build(new[] { mother, child1, other, child2 });
+        Check(families.Count == 2 && FamilyOf(families, other) != FamilyOf(families, mother), "Two EyeEmail families sharing a phone stay separate");
+        Check(FamilyOf(families, child2) == FamilyOf(families, mother) || FamilyOf(families, child2) == FamilyOf(families, other),
+            "The new member joins one of them, never both");
+        other.Remarque = "avec Mère Lambert";
+        Check(EyeEmailFamilyGrouping.Build(new[] { mother, child1, other }).Count == 2, "A remark cannot merge two EyeEmail families");
         return count;
     }
 }

@@ -68,7 +68,7 @@ namespace Client.SmsMail.Services.Grouping
 
         private static void SupprimerFamillesAvecUneSeulePersonne(ICollection<RdvFamille> familles)
         {
-            var toRemove = familles.Where(f => f.RDVs.Count == 1).ToList();
+            var toRemove = familles.Where(f => f.RDVs.Count == 1 && FamilyUtilities.KnownFamilyNumber(f) == 0).ToList();
             foreach (var famille in toRemove)
             {
                 foreach (var rdv in famille.RDVs)

@@ -21,19 +21,19 @@ namespace Client.SmsMail.Services
                 row.TriedMethodRound1 = row.TriedMethodRound2 = row.TriedMethodRound3 = row.TriedMethodRound4 = row.TriedMethodRound5 = row.TriedMethodRound6 = string.Empty;
                 row.FamilyMethodRound1 = row.FamilyMethodRound2 = row.FamilyMethodRound3 = row.FamilyMethodRound4 = row.FamilyMethodRound5 = row.FamilyMethodRound6 = null;
             }
-            var knownFamilies = new List<RdvFamille>();
             var families = new List<RdvFamille>();
             int number = 1;
             foreach (var known in rows.Where(r => r.ReferenceFamilyNumber > 0).GroupBy(r => r.ReferenceFamilyNumber))
             {
-                var family = FamilyUtilities.CreateNewFamily(knownFamilies, ref number);
+                var family = FamilyUtilities.CreateNewFamily(families, ref number);
                 foreach (var row in known)
                 {
                     FamilyUtilities.AddAppointmentToFamily(family, row);
                     row.TriedMethodRound1 = "Famille EyeEmail";
                 }
             }
-            rows = new ObservableCollection<RdvInfo>(rows.Where(r => r.ReferenceFamilyNumber == 0));
+            // Known families stay in the pool: a new member sharing their phone, address or
+            // a remark joins them. Known members themselves are never moved (they are marked tried).
             GroupingByPhoneAndEmail.Regrouper(rows, families, ref number);
             GroupingByAddressAndCity.Regrouper(rows, families, ref number);
             GroupingByAddress.Regrouper(rows, families, ref number);
@@ -48,7 +48,6 @@ namespace Client.SmsMail.Services
             foreach (var row in rows.Where(r => r.NumeroFamille == 0))
                 FamilyUtilities.AddAppointmentToFamily(FamilyUtilities.CreateNewFamily(families, ref number), row);
 
-            families.AddRange(knownFamilies);
             var result = families.Where(f => f.RDVs.Count > 0).OrderBy(f => f.RDVs.Min(r => r.HeureRDV)).ToList();
             for (int i = 0; i < result.Count; i++)
             {

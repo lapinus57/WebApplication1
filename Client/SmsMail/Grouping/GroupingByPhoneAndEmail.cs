@@ -48,8 +48,10 @@ namespace Client.SmsMail.Services.Grouping
                 }
                 else
                 {
-                    famille = trouvees[0];
-                    foreach (var autre in trouvees.Skip(1))
+                    // Prefer a family known in EyeEmail, and never merge two of them:
+                    // the database says they are separate.
+                    famille = trouvees.FirstOrDefault(f => FamilyUtilities.KnownFamilyNumber(f) > 0) ?? trouvees[0];
+                    foreach (var autre in trouvees.Where(f => !ReferenceEquals(f, famille) && FamilyUtilities.KnownFamilyNumber(f) == 0))
                     {
                         foreach (var membre in autre.RDVs.ToList())
                         {
@@ -102,7 +104,7 @@ namespace Client.SmsMail.Services.Grouping
 
         private static void SupprimerFamillesAvecUneSeulePersonne(ICollection<RdvFamille> familles)
         {
-            var famillesAvecUnePersonne = familles.Where(f => f.RDVs.Count == 1).ToList();
+            var famillesAvecUnePersonne = familles.Where(f => f.RDVs.Count == 1 && FamilyUtilities.KnownFamilyNumber(f) == 0).ToList();
             foreach (var famille in famillesAvecUnePersonne)
             {
                 foreach (var rdv in famille.RDVs)
