@@ -24,6 +24,7 @@ namespace Client.Pages
         private SmsMailSettings _settings = new();
         private readonly MessageHistory _history;
         private List<RdvInfo> _appointments = new();
+        private List<RdvInfo> _working = new();
         private List<PreparedMessage> _messages = new();
         private List<MessageHistoryEntry> _entries = new();
         private readonly ObservableCollection<AlertConfiguration> _alerts = new();
@@ -238,6 +239,7 @@ namespace Client.Pages
         {
             ClearMessages();
             _appointments.Clear();
+            _working.Clear();
             _appointmentHistory.Clear(); _familyDecisions.Clear();
             AppointmentsList.ItemsSource = null;
             var day = DayPicker.Date?.Date ?? throw new InvalidOperationException("Sélectionnez une date.");
@@ -254,6 +256,7 @@ namespace Client.Pages
             var day = DayPicker.Date?.Date ?? throw new InvalidOperationException("Sélectionnez une date.");
             _settings = ReadSettings();
             var working = JsonSerializer.Deserialize<List<RdvInfo>>(JsonSerializer.Serialize(_appointments)) ?? new();
+            _working = working;
             if (_settings.UseEyeEmailFamilies && !string.IsNullOrWhiteSpace(_settings.FamilyDatabasePath))
                 await EyeEmailFamilyDatabase.ApplyAsync(_settings.FamilyDatabasePath, MachineConfig.Load(), working, day);
             _families = _settings.UseEyeEmailFamilies
@@ -589,82 +592,100 @@ namespace Client.Pages
                 : visible.Count == 0 ? "Aucun envoi ne correspond aux filtres."
                 : $"{visible.Count} envoi(s) affiché(s) sur {_entries.Count} · {visible.Count(h => h.Channel == "Mail")} mail(s) · {visible.Count(h => h.Channel == "SMS")} SMS";
         }
-        private List<MessageHistoryEntry> VisibleHistory() => MessagePrintReport.FilterHistory(_entries,
+        private List<MessageHistoryEntry> VisibleHistory() => MessageExportReport.FilterHistory(_entries,
             HistoryDayPicker?.Date?.Date, FilterChannel(HistoryChannelFilter), HistoryFilter?.Text ?? string.Empty);
         private void HistoryDay_Changed(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) => FilterHistory();
         private void ClearHistoryDay_Click(object sender, RoutedEventArgs e) { HistoryDayPicker.Date = null; FilterHistory(); }
 
-        private async void PrintMessages_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        private async void ExportMessages_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             var day = DayPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez un jour de rendez-vous.");
             if (_preparedSignature != MessagePreparation.PreparationSignature(ReadSettings()))
-                throw new InvalidOperationException("Les options ont changé. Préparez à nouveau les messages avant d’imprimer.");
+                throw new InvalidOperationException("Les options ont changé. Préparez à nouveau les messages avant d’exporter.");
             var rows = VisibleMessages();
-            if (rows.Count == 0) throw new InvalidOperationException("Aucun message affiché à imprimer.");
-            await ShowPrintPreviewAsync(MessagePrintReport.Prepared(rows, day));
+            if (rows.Count == 0) throw new InvalidOperationException("Aucun message affiché à exporter.");
+            var sheets = new List<XlsxSheet> { MessageExportReport.PreparedSheet(rows) };
+            if (_families.Count > 0) sheets.Add(MessageExportReport.FamiliesSheet(_families));
+            if (await SaveFileAsync($"Rappels_{day:yyyy-MM-dd}", "Classeur Excel", ".xlsx", XlsxWriter.Create(sheets)))
+                StatusText.Text = $"{rows.Count} message(s) exportés dans le classeur (lignes visibles, filtres appliqués).";
         });
 
-        private async void PrintHistory_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        private async void ExportHistoryDay_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
-            var day = HistoryDayPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez le jour d’envoi à imprimer dans l’historique.");
+            var day = HistoryDayPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez le jour d’envoi à exporter dans l’historique.");
             await ReloadHistoryAsync();
             var rows = VisibleHistory();
             if (rows.Count == 0) throw new InvalidOperationException("Aucun envoi pour ce jour et ces filtres.");
-            await ShowPrintPreviewAsync(MessagePrintReport.History(rows, day));
+            var sheet = MessageExportReport.HistorySheet(rows, day);
+            if (await SaveFileAsync($"Envois_{day:yyyy-MM-dd}", "Classeur Excel", ".xlsx", XlsxWriter.Create(new[] { sheet })))
+                StatusText.Text = $"{sheet.Rows.Count} envoi(s) du {day:dd/MM/yyyy} exportés.";
         });
 
-        private async Task ShowPrintPreviewAsync(string html)
+        private async void ExportDiagnostic_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
-            if (Encoding.UTF8.GetByteCount(html) > 1_900_000)
-                throw new InvalidOperationException("La liste est trop volumineuse. Réduisez les résultats avec les filtres avant d’imprimer.");
-            var browser = new WebView2
-            {
-                Width = Math.Max(280, Math.Min(950, XamlRoot.Size.Width - 120)),
-                Height = Math.Max(200, Math.Min(600, XamlRoot.Size.Height - 220))
-            };
+            var day = DayPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez un jour de rendez-vous.");
+            if (_working.Count == 0) throw new InvalidOperationException("Chargez et préparez les rendez-vous avant d’exporter un diagnostic.");
+            if (_preparedSignature != MessagePreparation.PreparationSignature(ReadSettings()))
+                throw new InvalidOperationException("Les options ont changé. Préparez à nouveau les messages avant d’exporter.");
+
+            var password = new PasswordBox { Header = $"Mot de passe (au moins {DiagnosticPackage.MinimumPasswordLength} caractères)" };
+            var confirm = new PasswordBox { Header = "Confirmer le mot de passe" };
+            var pseudonymize = new CheckBox { Content = "Remplacer noms, téléphones, e-mails et adresses par des pseudonymes (recommandé)", IsChecked = true };
+            var note = new TextBox { Header = "Problème constaté (facultatif)", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 70 };
+            var error = new TextBlock { Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Firebrick), TextWrapping = TextWrapping.Wrap };
             var dialog = new ContentDialog
             {
-                XamlRoot = XamlRoot, Title = "Liste imprimable — A4 paysage",
-                Content = browser, PrimaryButtonText = "Imprimer / PDF", CloseButtonText = "Fermer",
-                IsPrimaryButtonEnabled = false, DefaultButton = ContentDialogButton.Close
-            };
-            dialog.Resources["ContentDialogMaxWidth"] = 1100d;
-            bool initialized = false;
-            bool closed = false;
-            dialog.Closed += (_, _) => closed = true;
-            browser.Loaded += async (_, _) =>
-            {
-                if (initialized) return;
-                initialized = true;
-                try
+                XamlRoot = XamlRoot, Title = "Diagnostic chiffré",
+                PrimaryButtonText = "Choisir l’emplacement…", CloseButtonText = "Annuler", DefaultButton = ContentDialogButton.Primary,
+                Content = new ScrollViewer
                 {
-                    await browser.EnsureCoreWebView2Async();
-                    if (closed || _unloaded) return;
-                    browser.CoreWebView2.Settings.IsScriptEnabled = false;
-                    browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
-                    browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-                    browser.CoreWebView2.NavigationStarting += (_, args) =>
+                    MaxHeight = 520,
+                    Content = new StackPanel
                     {
-                        if (args.Uri != "about:blank") args.Cancel = true;
-                    };
-                    browser.CoreWebView2.NavigationCompleted += (_, args) =>
-                    {
-                        if (closed || _unloaded) return;
-                        dialog.IsPrimaryButtonEnabled = args.IsSuccess;
-                        if (!args.IsSuccess) dialog.Title = "Impossible de préparer l’impression";
-                    };
-                    browser.NavigateToString(html);
+                        Spacing = 10, MaxWidth = 520,
+                        Children =
+                        {
+                            new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "Le fichier contient les rendez-vous du jour, les familles formées et la liste des mails et SMS préparés. "
+                                + "Les clés OVH et le mot de passe de messagerie ne sont jamais inclus. Transmettez le mot de passe séparément du fichier." },
+                            password, confirm, pseudonymize,
+                            new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.75,
+                                Text = "Avec les pseudonymes, une même valeur donne toujours le même pseudonyme : les doublons restent visibles, mais une faute de frappe dans une adresse ou un nom n’est plus reconnaissable. "
+                                    + "Décochez seulement si le problème vient de l’orthographe exacte." },
+                            note, error
+                        }
+                    }
                 }
-                catch (Exception) { if (!closed && !_unloaded) dialog.Title = "Aperçu indisponible — vérifiez WebView2"; }
             };
             dialog.PrimaryButtonClick += (_, args) =>
             {
-                args.Cancel = true;
-                try { browser.CoreWebView2.ShowPrintUI(CoreWebView2PrintDialogKind.Browser); }
-                catch (Exception) { dialog.Title = "Impression indisponible — réessayez ou vérifiez WebView2"; }
+                if (password.Password.Length < DiagnosticPackage.MinimumPasswordLength) { error.Text = $"Le mot de passe doit contenir au moins {DiagnosticPackage.MinimumPasswordLength} caractères."; args.Cancel = true; }
+                else if (password.Password != confirm.Password) { error.Text = "Les deux mots de passe sont différents."; args.Cancel = true; }
             };
-            try { await dialog.ShowAsync(); }
-            finally { closed = true; browser.Close(); }
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            var input = new DiagnosticPackage.Input
+            {
+                Day = day, Appointments = _working.ToList(), Families = _families.ToList(), Messages = _messages.ToList(),
+                History = _appointmentHistory, Settings = ReadSettings(), Pseudonymize = pseudonymize.IsChecked == true, Note = note.Text
+            };
+            var secret = password.Password;
+            StatusText.Text = "Chiffrement du diagnostic…";
+            var bytes = await Task.Run(() => DiagnosticPackage.Encrypt(DiagnosticPackage.BuildJson(input), secret));
+            if (await SaveFileAsync($"Diagnostic_SMS_Mail_{day:yyyy-MM-dd}", "Diagnostic chiffré", DiagnosticPackage.Extension, bytes))
+                StatusText.Text = $"Diagnostic chiffré enregistré ({_working.Count} RDV, {_families.Count} famille(s), {_messages.Count} message(s)"
+                    + (input.Pseudonymize ? ", pseudonymisé)." : ", données réelles).") + " Envoyez le mot de passe séparément.";
+        });
+
+        private async Task<bool> SaveFileAsync(string suggestedName, string description, string extension, byte[] content)
+        {
+            if (App.MainWindow == null) return false;
+            var picker = new FileSavePicker { SuggestedFileName = suggestedName };
+            picker.FileTypeChoices.Add(description, new List<string> { extension });
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+            var file = await picker.PickSaveFileAsync();
+            if (file == null) return false;
+            await FileIO.WriteBytesAsync(file, content);
+            return true;
         }
 
         private void HistoryFilter_TextChanged(object sender, TextChangedEventArgs e) => FilterHistory();
@@ -725,6 +746,7 @@ namespace Client.Pages
         {
             ClearMessages();
             _appointments.Clear();
+            _working.Clear();
             _families.Clear(); _appointmentHistory.Clear(); _familyDecisions.Clear();
             FilterFamilies();
             if (AppointmentsList != null) AppointmentsList.ItemsSource = null;

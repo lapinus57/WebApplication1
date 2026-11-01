@@ -51,10 +51,10 @@ static class RemarkAndPrintChecks
         Check(MessagePreparation.Prepare(new[] { second, person }, day, settings).All(m => !m.CanSend), "An ambiguous family member blocks the entire grouped message");
 
         messages[0].Contact = "<img src='https://example.com/track'>";
-        var prepared = MessagePrintReport.Prepared(messages, day);
-        Check(prepared.Contains("16:45") && prepared.Contains("16:00") && prepared.Contains("RDV / venue"), "Print separates scheduled and announced times");
-        Check(prepared.Contains("&lt;img") && !prepared.Contains("<img"), "Print encodes imported HTML");
-        Check(prepared.Contains("A4 landscape") && prepared.Contains("table-header-group"), "Print uses landscape and repeated headers");
+        var prepared = MessageExportReport.PreparedSheet(messages);
+        Check(prepared.Rows.All(r => r[0] == "16:45" && r[1] == "16:00"), "Export separates scheduled and announced times");
+        Check(prepared.Rows.Any(r => r[4] == "<img src='https://example.com/track'>"), "Export keeps imported text as plain text");
+        Check(prepared.Headers.Count == prepared.Rows[0].Count, "Every export row fills every column");
         var entries = new List<MessageHistoryEntry>
         {
             new() { Channel = "Mail", Contact = "a@example.com", CreatedAtLocal = day, CreatedAt = "30/10/2026 00:00", Body = "<p>Bonjour</p><img src='https://example.com/track'><script>alert(1)</script>", Status = "Accepté" },
@@ -62,14 +62,14 @@ static class RemarkAndPrintChecks
             new() { Channel = "Mail", Contact = "previous@example.com", CreatedAtLocal = day.AddTicks(-1), Body = "HIER" },
             new() { Channel = "SMS", Contact = "next", CreatedAtLocal = day.AddDays(1), Body = "DEMAIN" }
         };
-        Check(MessagePrintReport.FilterHistory(entries, day, "", "").Count == 2, "Day filter includes local midnight to 23:59 only");
-        Check(MessagePrintReport.FilterHistory(entries, day, "Mail", " A@EXAMPLE ").Count == 1, "History combines day, channel and search");
-        Check(MessagePrintReport.FilterHistory(entries, null, "", "").Count == 4, "Clearing day restores all entries");
-        var report = MessagePrintReport.History(entries, day);
-        Check(!report.Contains("HIER") && !report.Contains("DEMAIN"), "History print enforces selected day independently");
-        Check(report.Contains("Bonjour") && !report.Contains("<script") && !report.Contains("<img") && !report.Contains("https://example.com"), "Mail print contains readable text and no active resources");
-        Check(report.Contains("Rappel &lt;test&gt;") && report.Contains("Livr"), "SMS body is encoded and status preserved");
-        Check(report.Contains("default-src 'none'") && report.Contains("Jour d’envoi"), "Report blocks resources and identifies day semantics");
+        Check(MessageExportReport.FilterHistory(entries, day, "", "").Count == 2, "Day filter includes local midnight to 23:59 only");
+        Check(MessageExportReport.FilterHistory(entries, day, "Mail", " A@EXAMPLE ").Count == 1, "History combines day, channel and search");
+        Check(MessageExportReport.FilterHistory(entries, null, "", "").Count == 4, "Clearing day restores all entries");
+        var report = MessageExportReport.HistorySheet(entries, day);
+        var reportText = string.Join("\n", report.Rows.SelectMany(r => r));
+        Check(report.Rows.Count == 2 && !reportText.Contains("HIER") && !reportText.Contains("DEMAIN"), "History export enforces selected day independently");
+        Check(reportText.Contains("Bonjour") && !reportText.Contains("<script") && !reportText.Contains("<img") && !reportText.Contains("https://example.com"), "Mail export contains readable text and no active resources");
+        Check(reportText.Contains("Rappel <test>") && reportText.Contains("Livr"), "SMS body and status preserved");
 
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".db");
         try
@@ -78,7 +78,7 @@ static class RemarkAndPrintChecks
             await history.ReserveAsync(messages[0]);
             var entry = (await history.LoadAsync()).Single();
             Check(entry.CreatedAtLocal.HasValue && Math.Abs((entry.CreatedAtLocal.Value - DateTime.Now).TotalSeconds) < 30, "Existing UTC history timestamps load as typed local dates");
-            Check(MessagePrintReport.FilterHistory(new[] { entry }, entry.CreatedAtLocal!.Value.Date, "", "").Count == 1, "Persisted entry is printable without parsing localized display text");
+            Check(MessageExportReport.FilterHistory(new[] { entry }, entry.CreatedAtLocal!.Value.Date, "", "").Count == 1, "Persisted entry is printable without parsing localized display text");
         }
         finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); File.Delete(path); }
         return count;

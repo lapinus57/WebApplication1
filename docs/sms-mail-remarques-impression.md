@@ -1,4 +1,4 @@
-# Heure de venue et impression des rappels
+# Heure de venue et exports des rappels
 
 ## Une heure annoncée dans la remarque
 
@@ -30,44 +30,73 @@ envoyé, y compris s’il contient plusieurs membres d’une famille. Vérifier 
 consigne dans l’agenda, la préciser si nécessaire puis **Charger et préparer**
 à nouveau. La fonction ne corrige jamais Access elle-même.
 
-## Imprimer la liste des envois
+## Exporter la liste des envois (Excel)
 
 1. Préparer les messages et appliquer les filtres canal/recherche souhaités.
-2. Cliquer **Imprimer la liste**.
-3. Dans l’aperçu, choisir **Imprimer / PDF**, puis l’imprimante ou l’enregistrement PDF.
+2. Cliquer **Exporter la liste (Excel)** et choisir où enregistrer le fichier `.xlsx`.
 
-La liste A4 paysage est triée par heure réelle de rendez-vous. Elle affiche les
-personnes, le destinataire, le canal, l’heure annoncée, le résumé du mail ou le
-SMS, le statut et la sélection. **Toutes les lignes visibles sont imprimées**,
-même les lignes décochées ou bloquées ; leur état est indiqué. Pour consulter
-le texte complet d’un mail avant envoi, utiliser **Détails du mail**.
+Le classeur contient deux feuilles :
 
-L’impression n’envoie aucun message et ne réserve aucun destinataire.
+- **Messages** : une ligne par mail ou SMS visible à l’écran, triée par heure de
+  rendez-vous. Colonnes : RDV, venue annoncée, canal, personnes, destinataire,
+  statut, sélection (coché, non coché, bloqué), texte du SMS ou du mail
+  (converti en texte lisible) et horaires ajustés. **Toutes les lignes visibles
+  sont exportées**, même décochées ou bloquées.
+- **Familles** : chaque famille, ses membres, téléphones, e-mails et la façon
+  dont elle a été regroupée.
 
-## Imprimer l’historique d’un jour
+L’en-tête reste visible en défilant et chaque colonne a un filtre. Toutes les
+cellules sont du texte : un nom ou une remarque ne peut pas devenir une formule.
+Pour imprimer, ouvrir le fichier dans Excel ou LibreOffice.
+
+L’export n’envoie aucun message et ne réserve aucun destinataire.
+
+## Exporter l’historique d’un jour (Excel)
 
 1. Ouvrir **Historique**.
 2. Choisir **Jour d’envoi (heure locale)**. Il s’agit du jour où l’envoi a été
    enregistré, pas du jour du rendez-vous. Le fuseau utilisé est celui du poste.
 3. Filtrer éventuellement par canal ou destinataire.
-4. Cliquer **Imprimer ce jour**, puis **Imprimer / PDF**.
+4. Cliquer **Exporter ce jour (Excel)**.
 
-L’historique est rechargé avant l’impression. Le document reprend le jour choisi,
-les filtres, les heures d’envoi, les destinataires, les statuts enregistrés et le
-texte des messages. Les mails sont convertis en texte lisible, sans balises HTML.
-Le bouton **Tous les jours** retire le filtre de date de l’écran ; l’impression
-de l’historique demande toujours de choisir un jour.
+L’historique est rechargé avant l’export. Le fichier reprend les heures d’envoi,
+les destinataires, les statuts enregistrés et le texte des messages (mails
+convertis en texte, sans balises HTML).
 
-L’aperçu utilise WebView2, déjà utilisé par l’éditeur de mails. Le document est
-créé en mémoire, sans fichier temporaire HTML, sans script ni image externe.
-Un PDF n’est créé que si vous choisissez de l’enregistrer dans la fenêtre
-d’impression. Pour une liste très volumineuse, réduire les résultats avec les filtres.
+## Exporter un diagnostic chiffré
+
+Pour faire analyser un problème de regroupement ou d’envoi :
+
+1. Charger et préparer les rendez-vous du jour concerné.
+2. Menu **…** des envois → **Exporter un diagnostic chiffré**.
+3. Choisir un mot de passe (10 caractères minimum), décrire le problème si
+   besoin, puis enregistrer le fichier `.eyediag`.
+4. Transmettre le fichier, et **le mot de passe par un autre moyen**.
+
+Le fichier contient les rendez-vous du jour (y compris annulés), les familles
+formées, la liste des mails et SMS préparés avec leur statut, l’historique des
+venues s’il a été chargé, et les options de préparation. Les clés OVH et le mot
+de passe de messagerie ne sont **jamais** inclus.
+
+L’option **pseudonymes** (cochée par défaut) remplace les noms, prénoms,
+téléphones, e-mails, adresses et villes par des valeurs inventées, y compris
+dans les remarques et les textes des messages. Une même valeur donne toujours
+le même pseudonyme dans un fichier : les doublons et les liens entre patients
+restent visibles. Restent en clair : les heures, les numéros de rue, les
+numéros bidons (`0000000000`) et le fournisseur d’e-mail courant
+(`orange.fr`, `gmail.com`…). Une faute de frappe n’est en revanche plus
+reconnaissable : décocher l’option seulement si le problème vient de
+l’orthographe exacte d’un nom ou d’une adresse.
+
+Chiffrement : AES-256-GCM, clé dérivée du mot de passe (PBKDF2-SHA256,
+600 000 itérations). Sans le mot de passe, le fichier est illisible ; toute
+modification du fichier est détectée. Le script `tools/lire_diagnostic.py`
+permet de le déchiffrer.
 
 ## Vérification sur le poste
 
 Avec des données de test, vérifier le cas RDV 16h45 / venue 16h00 dans le SMS,
 le mail et le calendrier ; vérifier également qu’une consigne ambiguë bloque
-l’envoi. Imprimer une liste sur plusieurs pages et un historique d’une date
-connue, notamment les envois proches de minuit. Les tests automatisés ne
-remplacent pas la vérification du dialogue d’impression Windows et du pilote
-de votre imprimante.
+l’envoi. Exporter une liste et un historique d’une date connue (notamment les
+envois proches de minuit) et ouvrir les fichiers dans Excel. Exporter un
+diagnostic, puis vérifier qu’un mauvais mot de passe est refusé.

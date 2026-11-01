@@ -32,13 +32,14 @@
                     <CommandBar Background="Transparent" DefaultLabelPosition="Right" HorizontalContentAlignment="Left">
                         <CommandBar.Content><CalendarDatePicker x:Name="DayPicker" AutomationProperties.Name="Jour des rendez-vous" DateChanged="DayPicker_DateChanged" Margin="0,0,12,0" /></CommandBar.Content>
                         <AppBarButton Label="Charger et préparer" Icon="Download" Click="Load_Click" />
-                        <AppBarButton Label="Imprimer la liste" Icon="Print" Click="PrintMessages_Click" />
+                        <AppBarButton Label="Exporter la liste (Excel)" Icon="Save" Click="ExportMessages_Click" />
                         <CommandBar.SecondaryCommands>
                             <AppBarButton Label="Préparer à nouveau" Icon="Refresh" Click="Prepare_Click" />
                             <AppBarButton Label="Tester mail / SMS" Click="TestSend_Click" />
                             <AppBarButton Label="Options de préparation" Click="PreparationOptions_Click" />
                             <AppBarButton Label="Heures d’arrivée annoncées" Click="ReminderTimes_Click" />
                             <AppBarButton Label="Voir les horaires ajustés" Click="ReviewTimes_Click" />
+                            <AppBarButton Label="Exporter un diagnostic chiffré" Click="ExportDiagnostic_Click" />
                             <AppBarButton Label="Importer des rendez-vous JSON" Click="Import_Click" />
                             <AppBarButton Label="Consulter le solde SMS" Click="Balance_Click" />
                         </CommandBar.SecondaryCommands>
@@ -197,7 +198,7 @@
                         <CalendarDatePicker x:Name="HistoryDayPicker" Header="Jour d’envoi (heure locale)" PlaceholderText="Tous les jours" DateChanged="HistoryDay_Changed" />
                         <TextBlock x:Name="HistorySummary" Text="Aucun envoi enregistré." TextWrapping="Wrap" FontWeight="SemiBold" />
                         <CommandBar Background="Transparent" DefaultLabelPosition="Right">
-                            <AppBarButton Label="Imprimer ce jour" Icon="Print" Click="PrintHistory_Click" />
+                            <AppBarButton Label="Exporter ce jour (Excel)" Icon="Save" Click="ExportHistoryDay_Click" />
                             <AppBarButton Label="Tous les jours" Click="ClearHistoryDay_Click" />
                             <AppBarButton Label="Statuts SMS" Icon="Refresh" Click="History_Click" />
                             <AppBarButton Label="Retours mail" Icon="Mail" Click="MailReports_Click" />
