@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 def lire(chemin, mot_de_passe):
     with open(chemin, "rb") as f:
         enveloppe = json.load(f)
-    if enveloppe.get("format") not in ("eyechat-sms-diagnostic", "eyechat-postit-analysis"):
+    if enveloppe.get("format") not in ("eyechat-sms-diagnostic", "eyechat-postit-analysis", "eyechat-postit-links"):
         raise SystemExit("Ce fichier n'est pas un export EyeChat chiffré.")
     b = lambda nom: base64.b64decode(enveloppe[nom])
     cle = hashlib.pbkdf2_hmac("sha256", mot_de_passe.encode("utf-8"), b("salt"), enveloppe["iterations"], 32)
@@ -33,7 +33,11 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         with open(sys.argv[2], "w", encoding="utf-8") as f:
             f.write(texte)
-        if donnees.get("format") == "eyechat-postit-analysis":
+        if donnees.get("format") == "eyechat-postit-links":
+            r = donnees["summary"]
+            print(f"{r['links']} lien(s) ({r['sameSurname']} même nom, {r['differentSurname']} nom différent), "
+                  f"non résolus {r['unresolved']} -> {sys.argv[2]}")
+        elif donnees.get("format") == "eyechat-postit-analysis":
             print(f"{donnees['keptPostIts']} post-it de consultation sur {donnees['totalPostIts']} -> {sys.argv[2]}")
         else:
             print(f"{len(donnees['appointments'])} RDV, {len(donnees['families'])} famille(s), "

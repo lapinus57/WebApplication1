@@ -15,6 +15,7 @@ namespace Client.SmsMail.Services;
 public static class PostItAnalysis
 {
     public const string Format = "eyechat-postit-analysis";
+    public const string LinksFormat = "eyechat-postit-links";
     public const string Table = "tPostIT";
 
     public sealed class PostIt
@@ -98,6 +99,57 @@ public static class PostItAnalysis
             })
         };
         return JsonSerializer.Serialize(snapshot, new JsonSerializerOptions
+        {
+            WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+    }
+
+    // Report of the family links found in the post-it, for the cabinet to check before
+    // the links are ever used for reminders.
+    public static string BuildLinksReportJson(IReadOnlyList<PostIt> all, IReadOnlyList<RdvInfo> appointments,
+        IEnumerable<(string Nom, string Prenom)> knownNames, DateTime from, DateTime to, bool pseudonymize)
+    {
+        var kept = all.Where(p => IsConsultationPostIt(p.Text)).OrderBy(p => p.Date).ToList();
+        var (links, unresolved) = PostItFamilyLinks.Build(kept, appointments);
+        var families = PostItFamilyLinks.Families(links);
+        var nameRows = knownNames.Select(n => new RdvInfo { Nom = n.Nom ?? string.Empty, Prenom = n.Prenom ?? string.Empty })
+            .Concat(appointments).Concat(kept.Select(p => new RdvInfo { Id = p.PatientCode, Nom = p.Nom, Prenom = p.Prenom }));
+        var ps = pseudonymize ? new Pseudonymizer(nameRows) : null;
+        object Person(RdvInfo r) => new
+        {
+            Patient = ps?.Id(r.Id) ?? r.Id, Nom = ps?.Name(r.Nom) ?? r.Nom, Prenom = ps?.Name(r.Prenom) ?? r.Prenom,
+            Heure = r.HeureRDV == default ? string.Empty : r.HeureRDV.ToString("HH:mm", CultureInfo.InvariantCulture)
+        };
+        string Line(string text) => ps?.Text(text) ?? text;
+        var report = new
+        {
+            format = LinksFormat,
+            version = 1,
+            createdAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            from = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            to = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            pseudonymized = pseudonymize,
+            summary = new
+            {
+                postIts = all.Count, consultationPostIts = kept.Count, appointments = appointments.Count,
+                citedNames = kept.Sum(p => PostItFamilyLinks.CitedNames(p.Text).Count),
+                links = links.Count, sameSurname = links.Count(l => l.SameSurname), differentSurname = links.Count(l => !l.SameSurname),
+                unresolved = unresolved.GroupBy(u => u.Reason).ToDictionary(g => g.Key, g => g.Count()),
+                families = families.GroupBy(f => f.Count).OrderBy(g => g.Key).ToDictionary(g => g.Key + " personnes", g => g.Count())
+            },
+            links = links.Select(l => new
+            {
+                Jour = l.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PostItDe = Person(l.Owner), Cite = Person(l.Cited),
+                MemeNom = l.SameSurname, EcartMinutes = l.MinutesApart, Ligne = Line(l.Line)
+            }),
+            unresolved = unresolved.Select(u => new
+            {
+                Jour = u.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PostItDe = Person(u.Owner),
+                Cite = Line(u.CitedName), Ligne = Line(u.Line), Motif = u.Reason
+            }),
+            familles = families.Select(f => f.Select(id => ps?.Id(id) ?? id).OrderBy(id => id))
+        };
+        return JsonSerializer.Serialize(report, new JsonSerializerOptions
         {
             WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         });

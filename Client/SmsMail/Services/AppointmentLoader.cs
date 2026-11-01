@@ -37,6 +37,30 @@ namespace Client.SmsMail.Services
             return EyeEmailRecordMapper.ConsolidateDuplicateAppointments(result);
         });
 
+        // Appointments of a whole period (from and to included), read in one query.
+        public static Task<List<RdvInfo>> LoadRangeAsync(AppointmentSearchConfig config, MachineConfig machine, DateTime from, DateTime to) => Task.Run(() =>
+        {
+            using var connection = Open(config, machine);
+            using var command = connection.CreateCommand();
+            command.CommandText = AppointmentQuery.BuildDay(config.TableName, config.DateColumn, config.TimeColumn,
+                Tables(connection), table => Columns(connection, table));
+            command.Parameters.Add("?", OleDbType.Date).Value = from.Date;
+            command.Parameters.Add("?", OleDbType.Date).Value = to.Date.AddDays(1);
+            using var reader = command.ExecuteReader();
+            var result = new List<RdvInfo>();
+            if (reader != null)
+            {
+                var fields = EyeEmailRecordMapper.BuildOrdinalLookup(reader);
+                while (reader.Read())
+                {
+                    var row = EyeEmailRecordMapper.MapAppointment(reader, fields, from.Date);
+                    if (row != null && !row.IsCancelled && !string.Equals(row.Nom, "ABSENCE", StringComparison.OrdinalIgnoreCase)
+                        && row.Nom != "//////////////////////") result.Add(row);
+                }
+            }
+            return EyeEmailRecordMapper.ConsolidateDuplicateAppointments(result);
+        });
+
         public static Task<Dictionary<int, List<(DateTime Date, DateTime? RdvTime, DateTime? ArrivalTime)>>> LoadHistoryAsync(
             AppointmentSearchConfig config, MachineConfig machine, DateTime today) => Task.Run(() =>
         {

@@ -126,6 +126,25 @@ patients (cette liste n’est pas exportée). Les codes (`CS`, `OR`, `LUN`, `GOU
 lisibles. Un prénom absent de la table Patients ou mal orthographié reste
 visible.
 
+### Vérifier les liens familiaux trouvés dans les post-it
+
+Le bouton **Analyser les liens et enregistrer le rapport chiffré…** applique la
+règle prévue, **sans modifier les rappels** :
+
+1. Dans chaque post-it de consultation, une personne est citée par une ligne
+   `+Prénom`, une ligne `Prénom CS…` / `Prénom OR 1ok`, ou une ligne ne
+   contenant qu’un prénom. Les codes, suivis, montants (`de 20`), dates,
+   `cf` et phrases libres sont ignorés, ainsi que la ligne du patient lui-même.
+2. La personne citée doit avoir un rendez-vous **le même jour**, avec ce prénom.
+3. Même nom de famille : lien. Nom différent : lien seulement si les deux
+   rendez-vous sont à **moins d’1 heure** d’écart.
+4. Plusieurs personnes possibles : la plus proche ; en cas d’égalité, pas de lien.
+   Aucune personne : pas de lien.
+
+Choisir une période de **3 ans** (durée d’historique retenue). Le rapport
+chiffré liste les liens, les familles formées et les cas non résolus avec leur
+motif, pour vérification avant toute utilisation dans les rappels.
+
 Pour masquer l’onglet : **Paramètres → Préparation des rappels et familles →
 Afficher l’onglet Post-it**, puis **Enregistrer**.
 

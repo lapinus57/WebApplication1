@@ -356,6 +356,39 @@ namespace Client.Pages
             }
         }
 
+        private async void ExportPostItLinks_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            var from = PostItFromPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de début.");
+            var to = PostItToPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de fin.");
+            if (to < from) throw new InvalidOperationException("La date de fin doit être après la date de début.");
+            if (PostItPasswordBox.Password.Length < DiagnosticPackage.MinimumPasswordLength)
+                throw new InvalidOperationException($"Le mot de passe doit contenir au moins {DiagnosticPackage.MinimumPasswordLength} caractères.");
+            if (PostItPasswordBox.Password != PostItConfirmBox.Password) throw new InvalidOperationException("Les deux mots de passe sont différents.");
+            var config = await App.ChatService.GetAppointmentSearchConfigAsync()
+                ?? throw new InvalidOperationException("Configurez la base Access dans les paramètres RDV.");
+            List<PostItAnalysis.PostIt> postIts; List<(string Nom, string Prenom)> names; List<RdvInfo> appointments;
+            try
+            {
+                PostItStatusText.Text = "Lecture des post-it…";
+                (postIts, names) = await AppointmentLoader.LoadPostItsAsync(config, MachineConfig.Load(), from, to);
+                PostItStatusText.Text = $"{postIts.Count} post-it lus. Lecture des rendez-vous de la période…";
+                appointments = await AppointmentLoader.LoadRangeAsync(config, MachineConfig.Load(), from, to);
+            }
+            catch (Exception ex) { PostItStatusText.Text = "Échec de la lecture : " + ex.Message; throw; }
+            var pseudonymize = PostItPseudonymizeCheck.IsChecked == true;
+            var secret = PostItPasswordBox.Password;
+            PostItStatusText.Text = $"{postIts.Count} post-it, {appointments.Count} rendez-vous. Recherche des liens…";
+            var json = await Task.Run(() => PostItAnalysis.BuildLinksReportJson(postIts, appointments, names, from, to, pseudonymize));
+            var (links, unresolved) = await Task.Run(() => PostItFamilyLinks.Build(postIts.Where(p => PostItAnalysis.IsConsultationPostIt(p.Text)).ToList(), appointments));
+            var bytes = await Task.Run(() => DiagnosticPackage.Encrypt(json, secret, PostItAnalysis.LinksFormat));
+            var summary = $"{links.Count} lien(s) trouvé(s) : {links.Count(l => l.SameSurname)} même nom, {links.Count(l => !l.SameSurname)} nom différent (moins d’1 h). "
+                + $"{unresolved.Count} cas non résolu(s). Familles : {PostItFamilyLinks.Families(links).Count}.";
+            if (await SaveFileAsync($"LiensPostIt_{from:yyyy-MM-dd}_{to:yyyy-MM-dd}", "Rapport chiffré", DiagnosticPackage.Extension, bytes))
+                PostItStatusText.Text = "Rapport enregistré. " + summary + " Envoyez le mot de passe séparément.";
+            else PostItStatusText.Text = "Enregistrement annulé. " + summary;
+            PostItPasswordBox.Password = PostItConfirmBox.Password = string.Empty;
+        });
+
         private async void ExportPostIts_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             var from = PostItFromPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de début.");

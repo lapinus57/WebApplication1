@@ -150,7 +150,7 @@ public static class DiagnosticPackage
         using var document = JsonDocument.Parse(file);
         var root = document.RootElement;
         var format = root.GetProperty("format").GetString();
-        if (format != Format && format != PostItAnalysis.Format) throw new InvalidDataException("Ce fichier n'est pas un export EyeChat chiffré.");
+        if (format != Format && format != PostItAnalysis.Format && format != PostItAnalysis.LinksFormat) throw new InvalidDataException("Ce fichier n'est pas un export EyeChat chiffré.");
         byte[] Get(string name) => Convert.FromBase64String(root.GetProperty(name).GetString()!);
         var key = Rfc2898DeriveBytes.Pbkdf2(Encoding.UTF8.GetBytes(password), Get("salt"), root.GetProperty("iterations").GetInt32(), HashAlgorithmName.SHA256, 32);
         var cipher = Get("data");

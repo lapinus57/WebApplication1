@@ -185,6 +185,7 @@ checks += await RemarkAndPrintChecks.RunAsync();
 checks += GroupingChecks.Run();
 checks += ExportChecks.Run();
 checks += PostItChecks.Run();
+checks += PostItLinkChecks.Run();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
