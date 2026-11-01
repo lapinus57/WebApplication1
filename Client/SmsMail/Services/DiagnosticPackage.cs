@@ -182,6 +182,11 @@ public static class DiagnosticPackage
         private readonly byte[] _key = RandomNumberGenerator.GetBytes(32);
         private readonly HashSet<string> _nameWords = new(StringComparer.Ordinal);
         private readonly Dictionary<int, int> _ids = new();
+        // Name particles and short words also used in ordinary sentences ("dit de venir").
+        private static readonly HashSet<string> Particles = new(StringComparer.Ordinal)
+        {
+            "DE", "DU", "DES", "LA", "LE", "LES", "DI", "DA", "DO", "DOS", "DAS", "DEL", "VAN", "VON", "DER", "DEN", "EL", "AL", "ET", "Y"
+        };
 
         public Pseudonymizer(IEnumerable<RdvInfo> rows)
         {
@@ -189,7 +194,7 @@ public static class DiagnosticPackage
             {
                 foreach (var value in new[] { row.Nom, row.Prenom, row.NomJeuneFille })
                     foreach (Match word in WordPattern.Matches(value ?? string.Empty))
-                        if (word.Value.Length >= 2) _nameWords.Add(Fold(word.Value));
+                        if (word.Value.Length >= 2 && !Particles.Contains(Fold(word.Value))) _nameWords.Add(Fold(word.Value));
                 if (row.Id > 0 && !_ids.ContainsKey(row.Id)) _ids[row.Id] = _ids.Count + 1;
             }
         }
@@ -202,7 +207,7 @@ public static class DiagnosticPackage
         }
 
         public string Name(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty
-            : WordPattern.Replace(value, m => m.Value.Length >= 2 ? Word(m.Value) : m.Value);
+            : WordPattern.Replace(value, m => m.Value.Length >= 2 && !Particles.Contains(Fold(m.Value)) ? Word(m.Value) : m.Value);
 
         public string City(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : "Ville-" + Word(AddressNormalizer.NormalizeAddress(value), "city");
 
@@ -224,7 +229,7 @@ public static class DiagnosticPackage
             if (digits.Length == 0) return Text(value);
             // Placeholder numbers stay visible: they are part of what the grouping checks.
             if (!FamilyUtilities.IsUsableGroupingPhone(digits)) return digits.Length >= 9 ? digits : $"[numéro incomplet : {digits.Length} chiffre(s)]";
-            return FakePhone(digits);
+            return FakePhone(digits, value);
         }
 
         public string Contact(string value)
@@ -232,7 +237,7 @@ public static class DiagnosticPackage
             if (value.Contains('@')) return EmailField(value);
             var digits = FamilyUtilities.NormalizePhoneNumber(value);
             if (!FamilyUtilities.IsUsableGroupingPhone(digits)) return value;
-            var fake = FakePhone(digits);
+            var fake = FakePhone(digits, value);
             return value.StartsWith("+33", StringComparison.Ordinal) && fake.StartsWith('0') ? "+33" + fake.Substring(1) : fake;
         }
 
@@ -245,7 +250,7 @@ public static class DiagnosticPackage
             result = PhonePattern.Replace(result, m =>
             {
                 var digits = FamilyUtilities.NormalizePhoneNumber(m.Value);
-                return FamilyUtilities.IsUsableGroupingPhone(digits) ? FakePhone(digits) : m.Value;
+                return FamilyUtilities.IsUsableGroupingPhone(digits) ? FakePhone(digits, m.Value) : m.Value;
             });
             return WordPattern.Replace(result, m => m.Value.Length >= 2 && _nameWords.Contains(Fold(m.Value)) ? Word(m.Value) : m.Value);
         }
@@ -259,12 +264,19 @@ public static class DiagnosticPackage
             return Word(local, "mail").ToLowerInvariant() + "@" + fakeDomain;
         }
 
-        private string FakePhone(string digits)
+        // French numbers keep 0 + their first digit (06, 07, 03…). Foreign numbers keep the
+        // country code and their written form (+352… or 00352…), so the SMS rules still apply.
+        private string FakePhone(string digits, string original)
         {
-            var number = Number("phone", digits).ToString("D8", CultureInfo.InvariantCulture);
-            number = number.Substring(number.Length - 8);
-            var prefix = digits.Length >= 2 && digits[0] == '0' ? digits.Substring(0, 2) : "0" + digits[0];
-            return prefix + number;
+            var written = original.TrimStart();
+            bool international = digits.StartsWith("00", StringComparison.Ordinal) || (digits[0] != '0' && written.StartsWith('+'));
+            var canonical = digits.StartsWith("00", StringComparison.Ordinal) ? digits.Substring(2) : digits;
+            int keep = international ? Math.Min(3, canonical.Length) : Math.Min(2, canonical.Length);
+            var fake = new StringBuilder(canonical.Substring(0, keep));
+            var hash = Hash("phone", canonical);
+            for (int i = keep; i < canonical.Length; i++) fake.Append((char)('0' + hash[i % hash.Length] % 10));
+            if (!international) return fake.ToString();
+            return (written.StartsWith('+') ? "+" : "00") + fake;
         }
 
         // Same folded word -> same fake word. Letters only, so name normalisation keeps it whole.
@@ -277,8 +289,6 @@ public static class DiagnosticPackage
             builder[0] = char.ToUpperInvariant(builder[0]);
             return builder.ToString();
         }
-
-        private ulong Number(string kind, string value) => BitConverter.ToUInt64(Hash(kind, value), 0) % 100_000_000UL;
 
         private byte[] Hash(string kind, string value)
         {

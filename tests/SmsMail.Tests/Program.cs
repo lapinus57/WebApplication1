@@ -37,6 +37,11 @@ settings.SmsOnlyWhenNoEmail = true;
 Check(MessagePreparation.Prepare(new[] { invalidMail }, day, settings).Single().Channel == "SMS", "Invalid email permits SMS fallback");
 Check(MessagePreparation.NormalizePhone("0033612345678 (parent)") == "+33612345678", "International phone and notes");
 Check(MessagePreparation.NormalizePhone("0123456789") == "", "French landlines cannot receive mobile SMS");
+foreach (var landline in new[] { "+33 3 87 12 34 56", "0033387123456", "+33 1 23 45 67 89", "+352 26 12 34 56", "00352 49 12 34", "+49 681 123456", "+32 2 123 45 67" })
+    Check(MessagePreparation.NormalizePhone(landline) == "", "Landline in international form cannot receive SMS: " + landline);
+foreach (var (mobile, expected) in new[] { ("+352 621 123 456", "+352621123456"), ("00352 691 123 456", "+352691123456"), ("+49 151 23456789", "+4915123456789"),
+    ("+32 470 12 34 56", "+32470123456"), ("+41 79 123 45 67", "+41791234567"), ("+33 7 12 34 56 78", "+33712345678"), ("+262 692 12 34 56", "+262692123456") })
+    Check(MessagePreparation.NormalizePhone(mobile) == expected, "Mobile in international form is accepted: " + mobile);
 Check(MessagePreparation.SmsMetrics(new string('a', 160)).Contains("1 SMS"), "GSM single segment");
 Check(MessagePreparation.SmsMetrics(new string('a', 161)).Contains("2 SMS"), "GSM multipart");
 Check(MessagePreparation.SmsMetrics(new string('^', 81)).Contains("2 SMS"), "Extended GSM consumes two septets");

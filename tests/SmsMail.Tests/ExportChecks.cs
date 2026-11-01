@@ -44,14 +44,16 @@ static class ExportChecks
         var a = P(4242, "Léa", "Martinez", "12 bis rue de la Gare", "06 12 34 56 78", "lea.martinez@orange.fr", 0);
         var b = P(4243, "Hugo", "Martinez", "12 bis rue de la Gare", "0612345678", "", 15); b.Remarque = "avec Léa Martinez, tél 06.12.34.56.78";
         var c = P(4244, "Zoé", "Inconnue", "3 impasse Verte", "0000000000", "pas de mail", 30);
+        var lux = P(4245, "Jean", "De Almeida", "8 route de Luxembourg", "00352 621 123 456", "", 45); lux.Remarque = "j'ai dit de venir à 9h30";
+        var luxPlus = P(4246, "Ana", "De Almeida", "8 route de Luxembourg", "+352 621 123 456", "", 50);
         var settings = new SmsMailSettings { SmsOnlyWhenNoEmail = false };
         settings.Sms.ApplicationSecret = "SECRET-OVH-123"; settings.Email.Password = "MOTDEPASSE-SMTP";
-        var families = EyeEmailFamilyGrouping.Build(new[] { a, b, c });
-        var messages = MessagePreparation.Prepare(new[] { a, b, c }, day, settings, families);
+        var families = EyeEmailFamilyGrouping.Build(new[] { a, b, c, lux, luxPlus });
+        var messages = MessagePreparation.Prepare(new[] { a, b, c, lux, luxPlus }, day, settings, families);
         var history = new Dictionary<int, List<(DateTime, DateTime?, DateTime?)>> { [4242] = new() { (day.AddDays(-30), day.AddDays(-30).AddHours(9), null) } };
         DiagnosticPackage.Input Input(bool pseudo) => new()
         {
-            Day = day, Appointments = new[] { a, b, c }, Families = families, Messages = messages, History = history,
+            Day = day, Appointments = new[] { a, b, c, lux, luxPlus }, Families = families, Messages = messages, History = history,
             Settings = settings, Pseudonymize = pseudo, Note = "Hugo Martinez reçoit deux SMS"
         };
 
@@ -60,7 +62,7 @@ static class ExportChecks
         Check(!real.Contains("SECRET-OVH-123") && !real.Contains("MOTDEPASSE-SMTP"), "Secrets are never exported");
 
         var json = DiagnosticPackage.BuildJson(Input(true));
-        foreach (var leak in new[] { "Martinez", "Léa", "Hugo", "Zoé", "Inconnue", "Gare", "Hautecroix", "lea.martinez", "12 34 56 78", "0612345678", "612345678", "4242" })
+        foreach (var leak in new[] { "Martinez", "Léa", "Hugo", "Zoé", "Inconnue", "Gare", "Hautecroix", "lea.martinez", "12 34 56 78", "0612345678", "612345678", "4242", "Almeida", "621123456" })
             Check(!json.Contains(leak, StringComparison.OrdinalIgnoreCase), "Pseudonymized export hides " + leak);
         using var doc = JsonDocument.Parse(json);
         var rows = doc.RootElement.GetProperty("appointments").EnumerateArray().ToList();
@@ -78,6 +80,11 @@ static class ExportChecks
         var smsContact = doc.RootElement.GetProperty("messages").EnumerateArray().First(m => m.GetProperty("Channel").GetString() == "SMS").GetProperty("Contact").GetString()!;
         Check(smsContact == "+33" + Field(0, "Tel1").Substring(1), "SMS contact uses the same fake number");
         Check(!doc.RootElement.GetProperty("note").GetString()!.Contains("Hugo"), "The note is pseudonymized too");
+        Check(Field(3, "Tel1").StartsWith("00352") && Field(3, "Tel1").Length == 14 && Field(4, "Tel1") == "+" + Field(3, "Tel1").Substring(2),
+            "Foreign numbers keep their country code and written form, consistently");
+        var luxSms = doc.RootElement.GetProperty("messages").EnumerateArray().Single(m => m.GetProperty("Channel").GetString() == "SMS" && m.GetProperty("Contact").GetString()!.StartsWith("+352"));
+        Check(luxSms.GetProperty("Contact").GetString() == Field(4, "Tel1"), "The SMS contact of a foreign mobile matches its fake number");
+        Check(Field(3, "Remarque") == "j'ai dit de venir à 9h30" && Field(3, "Nom").StartsWith("De "), "Name particles such as 'de' are kept in names and sentences");
 
         var file = DiagnosticPackage.Encrypt(json, "correct horse battery");
         var envelope = Encoding.UTF8.GetString(file);

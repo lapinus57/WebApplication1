@@ -71,8 +71,22 @@ namespace Client.SmsMail.Services
             value = Regex.Replace((value ?? string.Empty).Split('(')[0], @"[\s.\-()]", "");
             if (value.StartsWith("00", StringComparison.Ordinal)) value = "+" + value.Substring(2);
             if (Regex.IsMatch(value, @"^0[67]\d{8}$")) value = "+33" + value.Substring(1);
-            return Regex.IsMatch(value, @"^\+[1-9]\d{7,14}$") ? value : string.Empty;
+            if (!Regex.IsMatch(value, @"^\+[1-9]\d{7,14}$")) return string.Empty;
+            // A landline written in international form (+33 3…, 00352 2…) cannot receive SMS either.
+            // Neighbouring countries: only their mobile ranges are accepted.
+            foreach (var (country, mobile) in MobileRanges)
+                if (value.StartsWith(country, StringComparison.Ordinal)) return Regex.IsMatch(value, mobile) ? value : string.Empty;
+            return value;
         }
+
+        private static readonly (string Country, string Mobile)[] MobileRanges =
+        {
+            ("+33", @"^\+33[67]\d{8}$"),          // France
+            ("+352", @"^\+3526\d{8}$"),           // Luxembourg
+            ("+49", @"^\+491[5-7]\d{8,9}$"),      // Allemagne
+            ("+32", @"^\+324\d{8}$"),             // Belgique
+            ("+41", @"^\+417[5-9]\d{7}$")         // Suisse
+        };
 
         public static IEnumerable<string> Emails(string value)
         {
