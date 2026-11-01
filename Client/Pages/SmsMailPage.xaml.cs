@@ -318,9 +318,13 @@ namespace Client.Pages
 
         private async Task ShowTextPreviewAsync(string channel, string caption, string body)
         {
+            var content = channel == "Mail" ? MailTextPreview.Convert(body) : body;
+            // Imported archives can hold images or attachments as long encoded blocks.
+            content = System.Text.RegularExpressions.Regex.Replace(content, @"[A-Za-z0-9+/=\r\n]{2000,}", "[contenu encodé non affiché]");
+            if (content.Length > 60000) content = content.Substring(0, 60000) + "\n\n[… message tronqué pour l’affichage]";
             var text = new TextBox
             {
-                Text = channel == "Mail" ? MailTextPreview.Convert(body) : body,
+                Text = content,
                 IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
                 FontSize = 16, Padding = new Thickness(16),
                 Height = Math.Clamp(XamlRoot.Size.Height - 250, 160, 650),
@@ -774,10 +778,25 @@ namespace Client.Pages
 
         private void HistoryFilter_TextChanged(object sender, TextChangedEventArgs e) => FilterHistory();
         private void HistoryChannel_Changed(object sender, SelectionChangedEventArgs e) => FilterHistory();
+        // Reading a message is independent of the other actions: it opens even while
+        // something else is running, and any problem is shown in the history tab itself.
+        private bool _previewOpen;
         private async void HistoryMessage_Click(object sender, RoutedEventArgs e)
         {
-            if ((sender as FrameworkElement)?.DataContext is not MessageHistoryEntry entry) return;
-            await RunAsync(() => ShowTextPreviewAsync(entry.Channel, entry.Contact + " · " + entry.CreatedAt + " · " + entry.Status, entry.Body));
+            if (_previewOpen || (sender as FrameworkElement)?.DataContext is not MessageHistoryEntry entry) return;
+            _previewOpen = true;
+            try
+            {
+                var body = string.IsNullOrWhiteSpace(entry.Body) ? "Le texte de ce message n’a pas été enregistré dans l’historique." : entry.Body;
+                await ShowTextPreviewAsync(entry.Channel, entry.Contact + " · " + entry.CreatedAt + " · " + entry.Status, body);
+            }
+            catch (Exception ex)
+            {
+                var message = "Impossible d’afficher ce message : " + ex.Message;
+                HistorySummary.Text = message;
+                StatusText.Text = message;
+            }
+            finally { _previewOpen = false; }
         }
 
         private async void History_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
