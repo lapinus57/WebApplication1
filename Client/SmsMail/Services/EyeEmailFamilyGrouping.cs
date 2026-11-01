@@ -37,10 +37,10 @@ namespace Client.SmsMail.Services
             GroupingByPhoneAndEmail.Regrouper(rows, families, ref number);
             GroupingByAddressAndCity.Regrouper(rows, families, ref number);
             GroupingByAddress.Regrouper(rows, families, ref number);
-            // A singleton is still eligible for the subsequent remark/name/date passes.
+            // A singleton is still eligible for the subsequent remark and confirmed-history passes.
             ReleaseSingletons();
             GroupingByRemark.Regrouper(rows, families, ref number);
-            GroupingByNameAndCreationDate.Regrouper(rows, families, ref number);
+            // Do not infer a family from a surname and creation/appointment times alone.
             GroupingByDate.Regrouper(rows, families, ref number,
                 history ?? new Dictionary<int, List<(DateTime, DateTime?, DateTime?)>>(), confirmation);
             foreach (var row in rows.Where(r => r.NumeroFamille == 0))
@@ -67,3 +67,4 @@ namespace Client.SmsMail.Services
         }
     }
 }
+

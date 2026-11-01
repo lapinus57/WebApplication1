@@ -52,7 +52,7 @@ static class EyeEmailChecks
         var d = Person(4, "Jean", "Martin");
         Check(EyeEmailFamilyGrouping.Build(new[] { c, d }).Count == 1, "avec remark grouping");
         var e = Person(5, "Camille", "Müller"); var f = Person(6, "Jules", "Muller"); f.DatePriseRDV = e.DatePriseRDV.AddMinutes(8);
-        Check(EyeEmailFamilyGrouping.Build(new[] { e, f }).Count == 1, "name and creation proximity with accents");
+        Check(EyeEmailFamilyGrouping.Build(new[] { e, f }).Count == 2, "name and creation proximity with accents is not enough to infer a family");
         Check(EyeEmailFamilyGrouping.Build(new[] { Person(11, "A", "A"), Person(12, "B", "B") }).Count == 2, "empty addresses do not merge unrelated people");
         a.ReferenceFamilyNumber = 10; b.ReferenceFamilyNumber = 20;
         Check(EyeEmailFamilyGrouping.Build(new[] { a, b }).Count == 2, "explicit distinct EyeEmail memberships take precedence over heuristics");
@@ -126,3 +126,4 @@ static class EyeEmailChecks
         return checks;
     }
 }
+
