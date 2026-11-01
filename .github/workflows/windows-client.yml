@@ -8,6 +8,7 @@ on:
       - 'Serveur/**'
       - 'Shared/**'
       - 'tests/Fundus.Tests/**'
+      - 'tests/Server.Startup.Tests/**'
       - 'tests/SmsMail.Tests/**'
       - 'tests/Client.Configuration/**'
       - '.github/workflows/windows-client.yml'
@@ -30,8 +31,12 @@ jobs:
         run: dotnet run --project tests/SmsMail.Tests --configuration Release
       - name: Verify fundus detection, chronology and SQLite reconciliation
         run: dotnet run --project tests/Fundus.Tests --configuration Release
+      - name: Verify server certificate loading and HTTPS handshake
+        run: dotnet run --project tests/Server.Startup.Tests --configuration Release
       - name: Compile server and Razor pages
         run: dotnet build Serveur/Serveur.csproj --configuration Release
+      - name: Verify Windows x86 server publication
+        run: dotnet publish Serveur/Serveur.csproj --configuration Release -p:PublishProfile=FolderProfile -p:PublishDir=../artifacts/server-x86/
       - name: Compile WinUI x64 client without package signing
         run: dotnet build Client/Client.csproj --configuration Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=false
       - name: Compile WinUI x86 client for 32-bit Access without package signing
@@ -44,3 +49,4 @@ jobs:
             Write-Output $_.FullName
             Get-Content $_.FullName -Raw
           }
+
