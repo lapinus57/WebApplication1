@@ -141,7 +141,8 @@ règle prévue, **sans modifier les rappels** :
 4. Plusieurs personnes possibles : la plus proche ; en cas d’égalité, pas de lien.
    Aucune personne : pas de lien.
 
-Choisir une période de **3 ans** (durée d’historique retenue). Le rapport
+Choisir une période de **1 an** (durée d’historique retenue : chaque patient
+n’a qu’un post-it de cotation, remplacé à chaque visite). Le rapport
 chiffré liste les liens, les familles formées et les cas non résolus avec leur
 motif, pour vérification avant toute utilisation dans les rappels.
 

@@ -261,7 +261,7 @@
                         <PasswordBox x:Name="PostItConfirmBox" Header="Confirmer le mot de passe" />
                         <Button Content="Extraire et enregistrer le fichier chiffré…" Click="ExportPostIts_Click" Style="{StaticResource AccentButtonStyle}" />
                         <TextBlock Text="Vérifier les liens familiaux trouvés dans les post-it" FontSize="16" FontWeight="SemiBold" Margin="0,12,0,0" />
-                        <TextBlock TextWrapping="Wrap" Text="Lit les post-it et les rendez-vous de la période (choisir 3 ans pour la règle prévue), puis cherche les personnes citées (+Prénom, Prénom CS…) parmi les rendez-vous du même jour. Même nom de famille : lien. Nom différent : lien seulement à moins d’1 h d’écart. Le rapport chiffré liste les liens et les cas non résolus. Les rappels ne sont pas modifiés." />
+                        <TextBlock TextWrapping="Wrap" Text="Lit les post-it et les rendez-vous de la période (choisir 1 an : chaque patient n’a qu’un post-it de cotation, remplacé à chaque visite), puis cherche les personnes citées (+Prénom, Prénom CS…) parmi les rendez-vous du même jour. Même nom de famille : lien. Nom différent : lien seulement à moins d’1 h d’écart. Le rapport chiffré liste les liens et les cas non résolus. Les rappels ne sont pas modifiés." />
                         <Button Content="Analyser les liens et enregistrer le rapport chiffré…" Click="ExportPostItLinks_Click" />
                         <TextBlock x:Name="PostItStatusText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                         <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Cet onglet peut être masqué dans Paramètres → Préparation des rappels et familles." />

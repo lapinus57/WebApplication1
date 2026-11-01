@@ -21,7 +21,8 @@ namespace Client.SmsMail.Services;
 public static class PostItFamilyLinks
 {
     public static readonly TimeSpan DifferentSurnameWindow = TimeSpan.FromHours(1);
-    public static readonly TimeSpan HistoryDepth = TimeSpan.FromDays(3 * 365);
+    // One year: each patient keeps a single cotation post-it, replaced at every visit.
+    public static readonly TimeSpan HistoryDepth = TimeSpan.FromDays(365);
 
     public sealed class Link
     {
