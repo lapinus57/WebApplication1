@@ -9,103 +9,95 @@ namespace Client.SmsMail.Services.Grouping
 {
     public static class GroupingByPhoneAndEmail
     {
-
         public static void Regrouper(
             ObservableCollection<RdvInfo> rdvs,
             List<RdvFamille> familles,
             ref int numeroFamille)
         {
-            var telMap = new Dictionary<string, RdvFamille>(StringComparer.Ordinal);
-            var mailMap = new Dictionary<string, RdvFamille>(StringComparer.Ordinal);
+            var contactMap = new Dictionary<string, RdvFamille>(StringComparer.Ordinal);
 
             foreach (var famille in familles)
             {
-                foreach (var t in famille.TelList.Distinct(StringComparer.Ordinal))
+                foreach (var contact in famille.RDVs.SelectMany(Contacts))
                 {
-                    var normalized = NormalizePhoneNumber(t);
-                    if (!string.IsNullOrEmpty(normalized))
-                    {
-                        telMap[normalized] = famille;
-                    }
-                }
-
-                foreach (var mail in famille.Email.Distinct(StringComparer.OrdinalIgnoreCase))
-                {
-                    if (!string.IsNullOrWhiteSpace(mail))
-                    {
-                        mailMap[mail.Trim().ToLowerInvariant()] = famille;
-                    }
+                    contactMap[contact] = famille;
                 }
             }
 
-            var rdvsATraiter = rdvs.Where(r => !r.Istried).ToList();
-            var rdvPreparations = rdvsATraiter
-                .AsParallel().AsOrdered()
-                .Select(r => new RdvPreparation
-                {
-                    Rdv = r,
-                    NormalizedTel1 = NormalizePhoneNumber(r.Tel1),
-                    NormalizedTel2 = NormalizePhoneNumber(r.Tel2),
-                    NormalizedEmail = r.Email?.Trim().ToLowerInvariant() ?? string.Empty
-                })
-                .ToList();
-
             var prochainNumeroFamille = familles.Count > 0 ? familles.Max(f => f.Numero) : 0;
 
-            foreach (var preparation in rdvPreparations)
+            foreach (var rdv in rdvs.Where(r => !r.Istried).ToList())
             {
-                var rdv = preparation.Rdv;
-                RdvFamille? famille = null;
+                var contacts = Contacts(rdv).ToList();
 
-                if (!string.IsNullOrEmpty(preparation.NormalizedTel1) &&
-                    telMap.TryGetValue(preparation.NormalizedTel1, out famille))
-                {
-                    // Family found via Tel1
-                }
-                else if (!string.IsNullOrEmpty(preparation.NormalizedTel2) &&
-                         telMap.TryGetValue(preparation.NormalizedTel2, out famille))
-                {
-                    // Family found via Tel2
-                }
-                else if (!string.IsNullOrEmpty(preparation.NormalizedEmail) &&
-                         mailMap.TryGetValue(preparation.NormalizedEmail, out famille))
-                {
-                    // Family found via Email
-                }
                 // A shared name or nearby booking time is not evidence of a family.
+                // Every family reached through one of the contacts is merged, so the
+                // result does not depend on the order of the appointments.
+                var trouvees = contacts
+                    .Select(c => contactMap.TryGetValue(c, out var f) ? f : null)
+                    .OfType<RdvFamille>()
+                    .Distinct()
+                    .ToList();
 
-                if (famille is null)
+                RdvFamille famille;
+                if (trouvees.Count == 0)
                 {
                     prochainNumeroFamille += 1;
                     famille = new RdvFamille { Numero = prochainNumeroFamille };
                     familles.Add(famille);
                 }
-
-                FamilyUtilities.AddAppointmentToFamily(famille, rdv, preparation.NormalizedTel1, preparation.NormalizedTel2, preparation.NormalizedEmail);
-
-                if (!string.IsNullOrEmpty(preparation.NormalizedTel1))
+                else
                 {
-                    telMap[preparation.NormalizedTel1] = famille;
+                    famille = trouvees[0];
+                    foreach (var autre in trouvees.Skip(1))
+                    {
+                        foreach (var membre in autre.RDVs.ToList())
+                        {
+                            FamilyUtilities.AddAppointmentToFamily(famille, membre);
+                        }
+
+                        familles.Remove(autre);
+                        foreach (var key in contactMap.Where(p => ReferenceEquals(p.Value, autre)).Select(p => p.Key).ToList())
+                        {
+                            contactMap[key] = famille;
+                        }
+                    }
                 }
 
-                if (!string.IsNullOrEmpty(preparation.NormalizedTel2))
+                FamilyUtilities.AddAppointmentToFamily(famille, rdv);
+                foreach (var contact in contacts)
                 {
-                    telMap[preparation.NormalizedTel2] = famille;
+                    contactMap[contact] = famille;
                 }
-
-                if (!string.IsNullOrEmpty(preparation.NormalizedEmail))
-                {
-                    mailMap[preparation.NormalizedEmail] = famille;
-                }
-
-                rdv.Istried = true;
-                rdv.NumeroFamille = famille.Numero;
             }
 
             SupprimerFamillesAvecUneSeulePersonne(familles);
+            foreach (var membre in familles.SelectMany(f => f.RDVs).Where(r => r.ReferenceFamilyNumber == 0))
+            {
+                membre.TriedMethodRound1 = "Téléphone ou e-mail";
+                membre.FamilyMethodRound1 = membre.NumeroFamille;
+            }
+
             UpdateDatePriseRDVStats(familles);
 
             numeroFamille = Math.Max(numeroFamille, prochainNumeroFamille + 1);
+        }
+
+        private static IEnumerable<string> Contacts(RdvInfo rdv)
+        {
+            foreach (var tel in new[] { rdv.Tel1, rdv.Tel2 })
+            {
+                var normalized = FamilyUtilities.GroupingPhone(tel);
+                if (normalized.Length > 0)
+                {
+                    yield return "tel:" + normalized;
+                }
+            }
+
+            foreach (var mail in FamilyUtilities.GroupingEmails(rdv.Email))
+            {
+                yield return "mail:" + mail;
+            }
         }
 
         private static void SupprimerFamillesAvecUneSeulePersonne(ICollection<RdvFamille> familles)
@@ -130,24 +122,5 @@ namespace Client.SmsMail.Services.Grouping
                 famille.UpdateStatistics();
             }
         }
-
-        private static string NormalizePhoneNumber(string? value)
-        {
-            value = (value ?? string.Empty).Split('(')[0];
-            var digits = new string(value.TakeWhile(c => !char.IsLetter(c)).Where(char.IsDigit).ToArray());
-            if (digits.StartsWith("0033", StringComparison.Ordinal)) digits = "0" + digits.Substring(4);
-            else if (digits.StartsWith("33", StringComparison.Ordinal) && digits.Length == 11) digits = "0" + digits.Substring(2);
-            return digits;
-        }
-
-        private sealed class RdvPreparation
-        {
-            public required RdvInfo Rdv { get; init; }
-            public string? NormalizedTel1 { get; init; }
-            public string? NormalizedTel2 { get; init; }
-            public string NormalizedEmail { get; init; } = string.Empty;
-        }
     }
 }
-
-

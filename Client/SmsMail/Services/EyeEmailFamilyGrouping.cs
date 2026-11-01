@@ -40,6 +40,8 @@ namespace Client.SmsMail.Services
             // A singleton is still eligible for the subsequent remark and confirmed-history passes.
             ReleaseSingletons();
             GroupingByRemark.Regrouper(rows, families, ref number);
+            // Remark merges change membership: refresh the averages the date step relies on.
+            foreach (var family in families) family.UpdateStatistics();
             // Do not infer a family from a surname and creation/appointment times alone.
             GroupingByDate.Regrouper(rows, families, ref number,
                 history ?? new Dictionary<int, List<(DateTime, DateTime?, DateTime?)>>(), confirmation);

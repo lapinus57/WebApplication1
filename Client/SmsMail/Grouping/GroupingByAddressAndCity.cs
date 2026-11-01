@@ -42,31 +42,14 @@ namespace Client.SmsMail.Services.Grouping
 
                 if (familleCorrespondante is null)
                 {
+                    // Alone for now: a later appointment may still match this address.
                     familleCorrespondante = FamilyUtilities.CreateNewFamily(familles, ref numeroFamille);
+                    FamilyUtilities.AddAppointmentToFamily(familleCorrespondante, rdv);
+                    continue;
                 }
 
                 FamilyUtilities.AddAppointmentToFamily(familleCorrespondante, rdv);
                 MarquerFamilleAvecCorrespondanceAdresse(familleCorrespondante, "Adresse et Ville");
-            }
-
-            var restants = rdvs.Where(r => !r.Istried).ToList();
-            for (var i = 0; i <= restants.Count - 2; i++)
-            {
-                for (var j = i + 1; j <= restants.Count - 1; j++)
-                {
-                    var r1 = restants[i];
-                    var r2 = restants[j];
-
-                    if (string.Equals(r1.Ville?.Trim(), r2.Ville?.Trim(), StringComparison.OrdinalIgnoreCase) &&
-                        AddressNormalizer.AreAddressesSimilar(r1.Adresse, r2.Adresse, r1, r2))
-                    {
-                        var nouvelleFamille = FamilyUtilities.CreateNewFamily(familles, ref numeroFamille);
-                        FamilyUtilities.AddAppointmentToFamily(nouvelleFamille, r1);
-                        FamilyUtilities.AddAppointmentToFamily(nouvelleFamille, r2);
-                        MarquerFamilleAvecCorrespondanceAdresse(nouvelleFamille, "Adresse et Ville");
-                        break;
-                    }
-                }
             }
 
             SupprimerFamillesAvecUneSeulePersonne(familles);

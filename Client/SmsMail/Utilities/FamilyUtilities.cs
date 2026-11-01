@@ -74,7 +74,7 @@ namespace Client.SmsMail.Utilities
             }
         }
 
-        private static string NormalizePhoneNumber(string? value)
+        public static string NormalizePhoneNumber(string? value)
         {
             value = (value ?? string.Empty).Split('(')[0];
             var digits = new string(value.TakeWhile(c => !char.IsLetter(c)).Where(char.IsDigit).ToArray());
@@ -82,6 +82,23 @@ namespace Client.SmsMail.Utilities
             else if (digits.StartsWith("33", StringComparison.Ordinal) && digits.Length == 11) digits = "0" + digits.Substring(2);
             return digits;
         }
+
+        // Placeholder numbers such as 0000000000 or 0600000000 must not link patients.
+        public static bool IsUsableGroupingPhone(string? normalized)
+        {
+            if (string.IsNullOrEmpty(normalized) || normalized.Length < 9) return false;
+            if (normalized.All(c => c == normalized[0])) return false;
+            return normalized.Length <= 2 || normalized.Substring(2).Any(c => c != '0');
+        }
+
+        public static string GroupingPhone(string? value)
+        {
+            var normalized = NormalizePhoneNumber(value);
+            return IsUsableGroupingPhone(normalized) ? normalized : string.Empty;
+        }
+
+        public static IEnumerable<string> GroupingEmails(string? value) =>
+            Client.SmsMail.Services.MessagePreparation.Emails(value ?? string.Empty);
     }
 }
 

@@ -75,10 +75,10 @@ namespace Client.SmsMail.Utilities
             var timeDiff = Math.Abs((rdv1.HeureRDV - rdv2.HeureRDV).TotalMinutes);
             var priseDiff = Math.Abs((rdv1.DatePriseRDV - rdv2.DatePriseRDV).TotalMinutes);
 
-            var hasCommonContact =
-                (!string.IsNullOrEmpty(rdv1.Tel1) && (rdv1.Tel1 == rdv2.Tel1 || rdv1.Tel1 == rdv2.Tel2)) ||
-                (!string.IsNullOrEmpty(rdv1.Tel2) && (rdv1.Tel2 == rdv2.Tel1 || rdv1.Tel2 == rdv2.Tel2)) ||
-                (!string.IsNullOrEmpty(rdv1.Email) && rdv1.Email == rdv2.Email);
+            var phones1 = new[] { FamilyUtilities.GroupingPhone(rdv1.Tel1), FamilyUtilities.GroupingPhone(rdv1.Tel2) }.Where(p => p.Length > 0);
+            var phones2 = new[] { FamilyUtilities.GroupingPhone(rdv2.Tel1), FamilyUtilities.GroupingPhone(rdv2.Tel2) }.Where(p => p.Length > 0);
+            var hasCommonContact = phones1.Intersect(phones2).Any() ||
+                FamilyUtilities.GroupingEmails(rdv1.Email).Intersect(FamilyUtilities.GroupingEmails(rdv2.Email)).Any();
 
             return similarity > 0.8 && timeDiff <= 90 && timeDiff > 10 && priseDiff < 15 && hasCommonContact;
         }

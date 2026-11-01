@@ -26,7 +26,7 @@ namespace Client.SmsMail.Services.Grouping
             IEnumerable<RdvFamille> familles,
             Func<string, string, bool>? confirmation)
         {
-            foreach (var rdvNonGroupe in rdvs.Where(r => r.NumeroFamille == 0 && !r.Istried))
+            foreach (var rdvNonGroupe in rdvs.Where(r => r.NumeroFamille == 0 && !r.Istried && r.DatePriseRDV != default))
             {
                 foreach (var famille in familles)
                 {
@@ -65,7 +65,9 @@ namespace Client.SmsMail.Services.Grouping
                     if (confirmation?.Invoke(messageBuilder.ToString(), "Confirmation d'ajout à la famille") == true)
                     {
                         FamilyUtilities.AddAppointmentToFamily(famille, rdvNonGroupe);
-                        rdvNonGroupe.FamilyMethodRound2 = famille.Numero;
+                        famille.UpdateStatistics();
+                        rdvNonGroupe.TriedMethodRound6 = "Heure de prise de RDV (confirmé)";
+                        rdvNonGroupe.FamilyMethodRound6 = famille.Numero;
                         break;
                     }
                 }
@@ -80,7 +82,8 @@ namespace Client.SmsMail.Services.Grouping
             Func<string, string, bool>? confirmation)
         {
             var datesRendezVous = history;
-            var rdvsNonGroupes = rdvs.Where(r => r.NumeroFamille == 0 && !r.Istried).ToList();
+            // Two missing creation dates are not "created at the same time".
+            var rdvsNonGroupes = rdvs.Where(r => r.NumeroFamille == 0 && !r.Istried && r.DatePriseRDV != default).ToList();
 
             for (var i = 0; i < rdvsNonGroupes.Count - 1; i++)
             {
@@ -174,6 +177,9 @@ namespace Client.SmsMail.Services.Grouping
                         var nouvelleFamille = FamilyUtilities.CreateNewFamily(familles, ref numeroFamille);
                         FamilyUtilities.AddAppointmentToFamily(nouvelleFamille, rdv1);
                         FamilyUtilities.AddAppointmentToFamily(nouvelleFamille, rdv2);
+                        nouvelleFamille.UpdateStatistics();
+                        rdv1.TriedMethodRound6 = rdv2.TriedMethodRound6 = "Historique de venue (confirmé)";
+                        rdv1.FamilyMethodRound6 = rdv2.FamilyMethodRound6 = nouvelleFamille.Numero;
                         rdvsNonGroupes.Remove(rdv1);
                         rdvsNonGroupes.Remove(rdv2);
                         i--;

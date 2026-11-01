@@ -13,6 +13,12 @@ namespace Client.SmsMail.Services.Grouping
     public static class GroupingByRemark
     {
         private static readonly Regex AvecPattern = new(@"(?i)\bavec\s+([A-Za-zÀ-ÖØ-öø-ÿ'\-+&/, ]+)", RegexOptions.Compiled);
+        private static readonly HashSet<string> MotsCourants = new(StringComparer.Ordinal)
+        {
+            "SA", "SON", "SES", "MA", "MON", "MES", "LE", "LA", "LES", "UN", "UNE", "DE", "DU", "DES", "LEUR", "LEURS",
+            "MARI", "FEMME", "EPOUSE", "EPOUX", "FILLE", "FILS", "MERE", "PERE", "FRERE", "SOEUR", "ENFANT", "ENFANTS",
+            "BEBE", "MAMAN", "PAPA", "ACCOMPAGNANT", "ACCOMPAGNANTE", "CONJOINT", "CONJOINTE"
+        };
         private static readonly Regex TitlesPattern = new(@"(?i)\b(monsieur|madame|mademoiselle|mlle|mme|mr)\b", RegexOptions.Compiled);
 
         public static void Regrouper(ObservableCollection<RdvInfo> rdvs, List<RdvFamille> familles, ref int numeroFamille)
@@ -57,9 +63,16 @@ namespace Client.SmsMail.Services.Grouping
                     }
 
                     var candidats = TrouverCandidats(nomNettoye, rdvByFullName, rdvByLastName);
-                    var candidatsPotentiels = candidats
-                        .Where(c => c.Id != rdv.Id && c.DateRDV.Date == rdv.DateRDV.Date)
+                    var candidatsTries = candidats
+                        .Where(c => !ReferenceEquals(c, rdv) && (c.Id == 0 || c.Id != rdv.Id) && c.DateRDV.Date == rdv.DateRDV.Date)
                         .OrderBy(c => CalculerScore(rdv, c))
+                        .ToList();
+
+                    // "avec Martin" names one person: keep the closest match only, so
+                    // unrelated homonyms seen the same day are not pulled in.
+                    var meilleur = candidatsTries.FirstOrDefault();
+                    var candidatsPotentiels = meilleur is null ? new List<RdvInfo>() : candidatsTries
+                        .Where(c => ReferenceEquals(c, meilleur) || (meilleur.Id > 0 && c.Id == meilleur.Id))
                         .ToList();
 
                     if (candidatsPotentiels.Count == 0)
@@ -229,8 +242,9 @@ namespace Client.SmsMail.Services.Grouping
             var mots = nomNettoye.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var clesNoms = mots
                 .Select(NormalizeName)
-                .Where(cle => !string.IsNullOrEmpty(cle))
-                .Distinct(StringComparer.Ordinal);
+                .Where(cle => !string.IsNullOrEmpty(cle) && !MotsCourants.Contains(cle))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
 
             foreach (var cleNom in clesNoms)
             {
@@ -242,7 +256,8 @@ namespace Client.SmsMail.Services.Grouping
 
             if (result.Count == 0)
             {
-                foreach (var cleNom in clesNoms)
+                // Short words ("sa", "son"...) are one typo away from short surnames.
+                foreach (var cleNom in clesNoms.Where(cle => cle.Length >= 4))
                 {
                     var correspondancesFuzzy = rdvByLastName
                         .Where(pair => LevenshteinDistance.Compute(pair.Key, cleNom) <= 1)

@@ -177,6 +177,7 @@ checks += MailTextPreviewChecks.Run();
 checks += AppointmentQueryChecks.Run();
 checks += HomonymChecks.Run();
 checks += await RemarkAndPrintChecks.RunAsync();
+checks += GroupingChecks.Run();
 Console.WriteLine($"{checks} checks passed; no real SMS or mail sent.");
 
 sealed class FakeOvhHandler(SmsSettings settings) : HttpMessageHandler
