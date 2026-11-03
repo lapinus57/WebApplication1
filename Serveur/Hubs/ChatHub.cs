@@ -724,7 +724,10 @@ namespace ChatServeur
 
         public async Task JoinRoom(string roomName)
         {
-            var username = ConnectedUsers[Context.ConnectionId].Username;
+            if (string.IsNullOrWhiteSpace(roomName) ||
+                !ConnectedUsers.TryGetValue(Context.ConnectionId, out var caller))
+                return;
+            var username = caller.Username;
 
             if (!GroupMembers.ContainsKey(roomName))
                 GroupMembers[roomName] = new HashSet<string>();
@@ -745,7 +748,9 @@ namespace ChatServeur
 
         public async Task<string> JoinProtectedGroup(string groupName, string password)
         {
-            var username = ConnectedUsers[Context.ConnectionId].Username;
+            if (!ConnectedUsers.TryGetValue(Context.ConnectionId, out var caller))
+                return "not-registered";
+            var username = caller.Username;
 
             var group = await _db.SecureGroups.FirstOrDefaultAsync(g => g.Name == groupName);
 
@@ -929,11 +934,11 @@ namespace ChatServeur
 
         public async Task<string> UploadAvatar(string fileName, string base64)
         {
-            var commaIndex = base64.IndexOf(',');
-            if (commaIndex >= 0)
-                base64 = base64.Substring(commaIndex + 1);
-
-            var bytes = Convert.FromBase64String(base64);
+            if (!AvatarUpload.TryDecode(base64, out var bytes, out var extension, out var error))
+            {
+                _logger.LogWarning("Avatar refusé pour {User} ({FileName}) : {Reason}", GetUsername(), fileName, error);
+                throw new HubException(error);
+            }
 
             var webRoot = _env.WebRootPath;
             if (string.IsNullOrEmpty(webRoot))
@@ -941,11 +946,9 @@ namespace ChatServeur
 
             var avatarsPath = Path.Combine(webRoot, "avatars");
             Directory.CreateDirectory(avatarsPath);
-            var extension = Path.GetExtension(fileName);
             var safeName = Path.ChangeExtension(Path.GetRandomFileName(), extension);
             var filePath = Path.Combine(avatarsPath, safeName);
             await File.WriteAllBytesAsync(filePath, bytes);
-            //return $"/avatars/{fileName}";
             return $"/avatars/{safeName}";
         }
 

@@ -156,16 +156,16 @@ using (var scope = app.Services.CreateScope())
     FoSchema.Ensure(db);
     PatientRegistrySchema.Ensure(db);
     EnsurePatientsTable(db, logger);
-    EnsureArchivedColumn(db, logger);
-    EnsureIsDeletedColumn(db, logger);
+    EnsureColumn(db, logger, "Patients", "IsArchived", "INTEGER NOT NULL DEFAULT 0", "SER02");
+    EnsureColumn(db, logger, "Messages", "IsDeleted", "INTEGER NOT NULL DEFAULT 0", "SER04");
     EnsurePatientLogsTable(db, logger);
     EnsureUserSettingsTable(db, logger);
-    EnsureReminderColumn(db, logger);
-    EnsureAppointmentSearchColumn(db, logger);
-    EnsureDeploymentConfigurationColumn(db, logger);
-    EnsureIdleRoomTimeoutColumn(db, logger);
+    EnsureColumn(db, logger, "ServerConfigs", "ReminderJson", "TEXT NOT NULL DEFAULT ''", "SER07");
+    EnsureColumn(db, logger, "ServerConfigs", "AppointmentSearchJson", "TEXT NOT NULL DEFAULT ''", "SER15");
+    EnsureColumn(db, logger, "ServerConfigs", "DeploymentConfigurationJson", "TEXT NOT NULL DEFAULT ''", "SER17");
+    EnsureColumn(db, logger, "ServerConfigs", "IdleRoomTimeoutSeconds", "INTEGER NOT NULL DEFAULT 180", "SER18");
     EnsureKnownUsersTable(db, logger);
-    EnsureSecureGroupTypeColumn(db, logger);
+    EnsureColumn(db, logger, "SecureGroups", "IsPublic", "INTEGER NOT NULL DEFAULT 0", "SER15");
     CleanupKnownUsers(db, logger);
     if (!db.ServerConfigs.Any())
     {
@@ -174,137 +174,34 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-void EnsureIdleRoomTimeoutColumn(ChatDbContext db, ILogger logger)
+// Ajoute une colonne manquante à une table existante (mise à niveau des anciennes bases).
+// Les noms viennent uniquement des appels ci-dessus, jamais d’une saisie utilisateur.
+void EnsureColumn(ChatDbContext db, ILogger logger, string table, string column, string definition, string errorCode)
 {
     var connection = db.Database.GetDbConnection();
     connection.Open();
     try
     {
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
-        using var reader = cmd.ExecuteReader();
-        var exists = false;
-        while (reader.Read())
-            exists |= string.Equals(reader.GetString(1), "IdleRoomTimeoutSeconds", StringComparison.OrdinalIgnoreCase);
-        reader.Close();
-        if (!exists)
-        {
-            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN IdleRoomTimeoutSeconds INTEGER NOT NULL DEFAULT 180";
-            cmd.ExecuteNonQuery();
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "SER18: Failed to ensure idle room timeout column exists.");
-        throw;
-    }
-    finally
-    {
-        connection.Close();
-    }
-}
-
-void EnsureDeploymentConfigurationColumn(ChatDbContext db, ILogger logger)
-{
-    var connection = db.Database.GetDbConnection();
-    connection.Open();
-    try
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
-        using var reader = cmd.ExecuteReader();
-        var exists = false;
-        while (reader.Read())
-            exists |= string.Equals(reader.GetString(1), "DeploymentConfigurationJson", StringComparison.OrdinalIgnoreCase);
-        reader.Close();
-        if (!exists)
-        {
-            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN DeploymentConfigurationJson TEXT NOT NULL DEFAULT ''";
-            cmd.ExecuteNonQuery();
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "SER17: Failed to ensure deployment configuration column exists.");
-        throw;
-    }
-    finally
-    {
-        connection.Close();
-    }
-}
-
-void EnsureSecureGroupTypeColumn(ChatDbContext db, ILogger logger)
-{
-    var connection = db.Database.GetDbConnection();
-    connection.Open();
-    try
-    {
-        if (!TableExists(connection, "SecureGroups", logger))
+        if (!TableExists(connection, table, logger))
             return;
+
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('SecureGroups')";
-        using var reader = cmd.ExecuteReader();
+        cmd.CommandText = $"PRAGMA table_info('{table}')";
         var exists = false;
-        while (reader.Read())
+        using (var reader = cmd.ExecuteReader())
         {
-            if (string.Equals(reader.GetString(1), "IsPublic", StringComparison.OrdinalIgnoreCase))
-            {
-                exists = true;
-                break;
-            }
+            while (reader.Read())
+                exists |= string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase);
         }
-        reader.Close();
         if (!exists)
         {
-            cmd.CommandText = "ALTER TABLE SecureGroups ADD COLUMN IsPublic INTEGER NOT NULL DEFAULT 0";
+            cmd.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
             cmd.ExecuteNonQuery();
         }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "SER15: Failed to ensure SecureGroups contains IsPublic column.");
-        throw;
-    }
-    finally
-    {
-        connection.Close();
-    }
-}
-
-void EnsureArchivedColumn(ChatDbContext db, ILogger logger)
-{
-    var connection = db.Database.GetDbConnection();
-    connection.Open();
-    try
-    {
-        if (!TableExists(connection, "Patients", logger))
-        {
-            return;
-        }
-
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('Patients')";
-        using var reader = cmd.ExecuteReader();
-        bool exists = false;
-        while (reader.Read())
-        {
-            if (string.Equals(reader.GetString(1), "IsArchived", StringComparison.OrdinalIgnoreCase))
-            {
-                exists = true;
-                break;
-            }
-        }
-        reader.Close();
-        if (!exists)
-        {
-            cmd.CommandText = "ALTER TABLE Patients ADD COLUMN IsArchived INTEGER NOT NULL DEFAULT 0";
-            cmd.ExecuteNonQuery();
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "SER02: Failed to ensure Patients table contains IsArchived column.");
+        logger.LogError(ex, "{ErrorCode}: Failed to ensure {Table} contains {Column} column.", errorCode, table, column);
         throw;
     }
     finally
@@ -376,41 +273,6 @@ bool TableExists(System.Data.Common.DbConnection connection, string tableName, I
     }
 }
 
-void EnsureIsDeletedColumn(ChatDbContext db, ILogger logger)
-{
-    var connection = db.Database.GetDbConnection();
-    connection.Open();
-    try
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('Messages')";
-        using var reader = cmd.ExecuteReader();
-        bool exists = false;
-        while (reader.Read())
-        {
-            if (string.Equals(reader.GetString(1), "IsDeleted", StringComparison.OrdinalIgnoreCase))
-            {
-                exists = true;
-                break;
-            }
-        }
-        reader.Close();
-        if (!exists)
-        {
-            cmd.CommandText = "ALTER TABLE Messages ADD COLUMN IsDeleted INTEGER NOT NULL DEFAULT 0";
-            cmd.ExecuteNonQuery();
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "SER04: Failed to ensure Messages table contains IsDeleted column.");
-        throw;
-    }
-    finally
-    {
-        connection.Close();
-    }
-}
 
 void EnsureUserSettingsTable(ChatDbContext db, ILogger logger)
 {
@@ -438,77 +300,7 @@ void EnsureUserSettingsTable(ChatDbContext db, ILogger logger)
     }
 }
 
-void EnsureReminderColumn(ChatDbContext db, ILogger logger)
-{
-    var connection = db.Database.GetDbConnection();
-    connection.Open();
-    try
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
-        using var reader = cmd.ExecuteReader();
-        bool exists = false;
-        while (reader.Read())
-        {
-            if (string.Equals(reader.GetString(1), "ReminderJson", StringComparison.OrdinalIgnoreCase))
-            {
-                exists = true;
-                break;
-            }
-        }
-        reader.Close();
-        if (!exists)
-        {
-            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN ReminderJson TEXT NOT NULL DEFAULT ''";
-            cmd.ExecuteNonQuery();
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "SER07: Failed to ensure ServerConfigs table contains ReminderJson column.");
-        throw;
-    }
-    finally
-    {
-        connection.Close();
-    }
-}
 
-void EnsureAppointmentSearchColumn(ChatDbContext db, ILogger logger)
-{
-    var connection = db.Database.GetDbConnection();
-    connection.Open();
-    try
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('ServerConfigs')";
-        using var reader = cmd.ExecuteReader();
-        bool exists = false;
-        while (reader.Read())
-        {
-            if (string.Equals(reader.GetString(1), "AppointmentSearchJson", StringComparison.OrdinalIgnoreCase))
-            {
-                exists = true;
-                break;
-            }
-        }
-        reader.Close();
-        if (!exists)
-        {
-            cmd.CommandText = "ALTER TABLE ServerConfigs ADD COLUMN AppointmentSearchJson TEXT NOT NULL DEFAULT ''";
-            cmd.ExecuteNonQuery();
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "SER15: Failed to ensure ServerConfigs table contains AppointmentSearchJson column.");
-        throw;
-    }
-    finally
-    {
-        connection.Close();
-    }
-}
 
 void EnsurePatientLogsTable(ChatDbContext db, ILogger logger)
 {

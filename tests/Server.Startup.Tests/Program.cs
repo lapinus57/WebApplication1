@@ -1,4 +1,6 @@
+using ChatServeur;
 using ChatServeur.Startup;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -67,4 +69,27 @@ try
     finally { await app.StopAsync(); }
 }
 finally { Directory.Delete(folder, recursive: true); }
+// Mots de passe des groupes protégés : nouveau format, ancien format toujours accepté.
+var hashed = PasswordHelper.HashPassword("groupe-secret");
+Check(hashed.StartsWith("v2:"), "New group hashes use the versioned format");
+Check(PasswordHelper.VerifyPassword("groupe-secret", hashed), "New hash accepts the right password");
+Check(!PasswordHelper.VerifyPassword("groupe-secreT", hashed), "New hash rejects a wrong password");
+var legacySalt = RandomNumberGenerator.GetBytes(16);
+var legacyHash = KeyDerivation.Pbkdf2("ancien", legacySalt, KeyDerivationPrf.HMACSHA256, 10000, 32);
+var legacy = $"{Convert.ToBase64String(legacySalt)}:{Convert.ToBase64String(legacyHash)}";
+Check(PasswordHelper.VerifyPassword("ancien", legacy), "Legacy hash still accepted");
+Check(!PasswordHelper.VerifyPassword("autre", legacy), "Legacy hash rejects a wrong password");
+Check(!PasswordHelper.VerifyPassword("x", "pas-du-base64:!!"), "Corrupted hash is rejected without exception");
+Check(!PasswordHelper.VerifyPassword("x", ""), "Empty hash is rejected");
+
+// Avatars : seules de vraies images, extension déduite du contenu.
+var png = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13 };
+Check(AvatarUpload.TryDecode(Convert.ToBase64String(png), out var pngBytes, out var pngExt, out _) && pngExt == ".png" && pngBytes.Length == png.Length, "PNG avatar accepted");
+Check(AvatarUpload.TryDecode("data:image/png;base64," + Convert.ToBase64String(png), out _, out _, out _), "Data URL prefix accepted");
+Check(AvatarUpload.TryDecode(Convert.ToBase64String(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 1, 2 }), out _, out var jpgExt, out _) && jpgExt == ".jpg", "JPEG avatar accepted");
+Check(!AvatarUpload.TryDecode(Convert.ToBase64String("<html><script>alert(1)</script>"u8.ToArray()), out _, out _, out _), "HTML disguised as avatar rejected");
+Check(!AvatarUpload.TryDecode("@@@ pas du base64 @@@", out _, out _, out var badError) && badError.Length > 0, "Invalid base64 rejected with a message");
+Check(!AvatarUpload.TryDecode(Convert.ToBase64String(new byte[AvatarUpload.MaxBytes + 1]), out _, out _, out _), "Oversized avatar rejected");
+Check(!AvatarUpload.TryDecode("", out _, out _, out _), "Empty avatar rejected");
+
 Console.WriteLine($"{checks} server startup checks passed; synthetic certificate, loopback HTTPS only.");

@@ -8,5 +8,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Compile Include="../../Serveur/Startup/AdministrationCertificate.cs" Link="AdministrationCertificate.cs" />
+    <Compile Include="../../Serveur/Models/PasswordHelper.cs" Link="PasswordHelper.cs" />
+    <Compile Include="../../Serveur/Hubs/AvatarUpload.cs" Link="AvatarUpload.cs" />
   </ItemGroup>
 </Project>

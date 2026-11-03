@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -39,10 +41,13 @@ public class LoginModel : PageModel
         var expectedUsername = _configuration["Administration:Username"];
         var expectedPassword = _configuration["Administration:Password"];
         if (string.IsNullOrWhiteSpace(expectedUsername) || string.IsNullOrWhiteSpace(expectedPassword) ||
-            !string.Equals(Credentials.Username, expectedUsername, StringComparison.Ordinal) ||
-            !string.Equals(Credentials.Password, expectedPassword, StringComparison.Ordinal))
+            // « | » et non « || » : les deux comparaisons sont toujours faites.
+            (!SecretEquals(Credentials.Username, expectedUsername) |
+             !SecretEquals(Credentials.Password, expectedPassword)))
         {
             _logger.LogWarning("Échec de connexion à l'administration pour {Username}.", Credentials.Username);
+            // Ralentit les tentatives répétées sans bloquer le thread.
+            await Task.Delay(TimeSpan.FromSeconds(1), HttpContext.RequestAborted);
             ModelState.AddModelError(string.Empty, "Identifiant ou mot de passe incorrect.");
             return Page();
         }
@@ -55,6 +60,14 @@ public class LoginModel : PageModel
         if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
             return LocalRedirect(ReturnUrl);
         return RedirectToPage("/Index");
+    }
+
+    // Comparaison à temps constant : la durée ne révèle pas combien de caractères sont corrects.
+    private static bool SecretEquals(string? provided, string expected)
+    {
+        var left = SHA256.HashData(Encoding.UTF8.GetBytes(provided ?? string.Empty));
+        var right = SHA256.HashData(Encoding.UTF8.GetBytes(expected));
+        return CryptographicOperations.FixedTimeEquals(left, right);
     }
 
     public sealed class LoginInput
