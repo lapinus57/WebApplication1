@@ -23,3 +23,19 @@ Revue du serveur `Serveur/`, du hub SignalR et de l'outillage. Les points marqu�
 4. **La clé de signature `Client/Client_TemporaryKey.pfx` est versionnée.** Si elle sert à signer les paquets distribués, il faut la retirer du dépôt et la remplacer.
 5. **Le workflow `.github/workflows/dotnet.yml` vise la branche `master`, qui n'existe pas.** Il compile sous Ubuntu, ce qui est incompatible avec le client WinUI. Il ne s'exécute donc jamais. La vraie CI est `windows-client.yml` : on peut supprimer `dotnet.yml`.
 6. **Fichiers parasites dans le dépôt :** `UpgradeLog.htm`, les avatars d'exemple dans `Serveur/wwwroot/avatars/`, et la ligne « lapin est bien » dans `docs/README.md`.
+
+## Même compte ouvert sur deux postes
+
+Fonctionnement prévu : le second poste voit « Connexion déjà active ». Le premier poste a 10 s pour accepter ou refuser. Passé ce délai, le second poste peut forcer la connexion, et le premier est alors déconnecté (`ForceLogout`).
+
+Défauts corrigés dans ce mécanisme :
+
+| Cas | Avant | Maintenant |
+|---|---|---|
+| Coupure réseau ou Wi-Fi, puis reconnexion du **même** poste | Le serveur garde l'ancienne connexion jusqu'à 30 s. Le poste se voyait donc « déjà connecté sur lui-même » : la fenêtre de conflit s'affichait, et il fallait attendre 10 s puis cliquer « Oui ». | Une connexion qui vient du même nom de poste remplace l'ancienne sans demande. Une éventuelle deuxième fenêtre EyeChat sur ce poste est déconnectée. |
+| Prise de relais par un autre poste | L'ancien poste restait rattaché au compte jusqu'à sa déconnexion effective, donc il recevait encore les messages privés (poste en veille ou réseau lent). De plus, l'ancien poste était déconnecté *avant* que le nouveau soit enregistré, ce qui pouvait passer le compte « hors ligne » au mauvais moment. | Le nouveau poste est enregistré d'abord. L'ancien est retiré du compte immédiatement, puis déconnecté. |
+| Même nom avec une casse différente (« marie » / « Marie ») | Le conflit était détecté, mais la prise de relais créait un second compte, en double dans la liste et dans la base. | Le nom est ramené à l'orthographe déjà connue. |
+
+Limites restantes :
+- Il n'y a pas de mot de passe par compte. N'importe quel poste peut donc prendre n'importe quel compte, en attendant 10 s. C'est le point 1 de la section précédente.
+- Deux postes qui se connectent au même compte à la même seconde peuvent tous deux passer sans conflit. C'est le point 3 de la section précédente (état partagé non verrouillé).

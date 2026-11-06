@@ -426,7 +426,8 @@ namespace ChatServeur
         public async Task RegisterUser(string username, string avatar, string room, string color, string machineName)
         {
             username = username?.Trim() ?? string.Empty;
-            machineName = string.IsNullOrWhiteSpace(machineName) ? "ce poste" : machineName.Trim();
+            var hasMachineName = !string.IsNullOrWhiteSpace(machineName);
+            machineName = hasMachineName ? machineName!.Trim() : "ce poste";
 
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -438,9 +439,32 @@ namespace ChatServeur
             {
                 EnsureUsersLoaded();
 
+                // « marie » et « Marie » désignent le même compte : on garde l'orthographe connue,
+                // sinon une prise de relais créerait un doublon dans la liste et dans la base.
+                if (TryGetUserEntry(username, out var knownKey, out _))
+                    username = knownKey;
+
                 if (TryGetConnectionEntry(username, out var existingKey, out var existingConnections))
                 {
                     var otherConnections = existingConnections.Where(id => id != Context.ConnectionId).ToList();
+
+                    // Après une coupure réseau, le poste se reconnecte avec une nouvelle connexion alors que
+                    // le serveur garde l'ancienne jusqu'à 30 s. Ce n'est pas un autre poste : pas de demande.
+                    var sameMachineConnections = otherConnections
+                        .Where(id => hasMachineName &&
+                                     ConnectedUsers.TryGetValue(id, out var info) &&
+                                     string.Equals(info.MachineName, machineName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    if (sameMachineConnections.Count > 0)
+                    {
+                        _logger.LogInformation("Reconnexion de {Username} depuis {Machine} : ancienne connexion remplacée.", username, machineName);
+                        DetachConnections(username, sameMachineConnections);
+                        otherConnections = otherConnections.Except(sameMachineConnections).ToList();
+                        // Connexion morte : le message se perd. Deuxième fenêtre EyeChat ouverte : elle se déconnecte.
+                        await Clients.Clients(sameMachineConnections)
+                            .SendAsync("ForceLogout", "Compte ouvert dans une autre fenêtre de ce poste.");
+                    }
+
                     if (otherConnections.Count > 0)
                     {
                         var existingMachineName = otherConnections
@@ -530,8 +554,7 @@ namespace ChatServeur
             if (approve)
             {
                 PendingLoginRequests.Remove(request.RequestId);
-                await ForceDisconnectExistingAsync(request);
-                await RegisterUserCoreAsync(request.Username, request.Avatar, request.Room, request.Color, request.MachineName);
+                await TakeOverAccountAsync(request);
                 await Clients.Clients(request.ExistingConnectionIds)
                     .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "approved");
                 await Clients.Client(request.RequestingConnectionId)
@@ -558,19 +581,37 @@ namespace ChatServeur
                 return;
 
             PendingLoginRequests.Remove(request.RequestId);
-            await ForceDisconnectExistingAsync(request);
-            await RegisterUserCoreAsync(request.Username, request.Avatar, request.Room, request.Color, request.MachineName);
+            await TakeOverAccountAsync(request);
             await Clients.Clients(request.ExistingConnectionIds)
                 .SendAsync("LoginConflictResolved", request.RequestId, request.Username, "approved");
         }
 
-        private async Task ForceDisconnectExistingAsync(PendingLoginRequest request)
+        // Le nouveau poste est enregistré AVANT que l'ancien soit déconnecté : sinon la déconnexion
+        // de l'ancien poste pouvait passer le compte « hors ligne » pendant que le nouveau s'enregistrait.
+        // L'ancien poste est retiré tout de suite du compte : il ne reçoit plus les messages privés,
+        // même s'il tarde à traiter la demande de déconnexion (veille, réseau lent).
+        private async Task TakeOverAccountAsync(PendingLoginRequest request)
         {
+            await RegisterUserCoreAsync(request.Username, request.Avatar, request.Room, request.Color, request.MachineName);
+            DetachConnections(request.Username, request.ExistingConnectionIds);
+
             if (request.ExistingConnectionIds.Count == 0)
                 return;
 
             var reason = $"Connexion ouverte sur {request.MachineName}.";
             await Clients.Clients(request.ExistingConnectionIds).SendAsync("ForceLogout", reason);
+        }
+
+        // Retire des connexions du compte sans le marquer hors ligne. Leur déconnexion ultérieure
+        // (OnDisconnectedAsync) ne les retrouvera plus et ne touchera donc pas au nouveau poste.
+        private static void DetachConnections(string username, IEnumerable<string> connectionIds)
+        {
+            foreach (var connectionId in connectionIds.ToList())
+            {
+                ConnectedUsers.Remove(connectionId);
+                if (TryGetConnectionEntry(username, out _, out var connections))
+                    connections.Remove(connectionId);
+            }
         }
 
         public async Task UpdateUserStatus(string username, string status)
