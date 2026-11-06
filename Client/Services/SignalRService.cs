@@ -2275,6 +2275,8 @@ namespace Client.Services
                     existing.DisplayName != incoming.DisplayName ||
                     existing.ColorUserName != incoming.ColorUserName ||
                     existing.Note != incoming.Note ||
+                    existing.Avatar != incoming.Avatar ||
+                    existing.Status != incoming.Status ||
                     existing.IsOnline != incoming.IsOnline ||
                     existing.Rooms.Count != incoming.Rooms.Count ||
                     !existing.Rooms.SequenceEqual(incoming.Rooms))

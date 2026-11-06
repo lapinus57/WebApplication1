@@ -343,11 +343,12 @@ namespace ChatServeur
             EnsureUsersLoaded();
             _logger.LogInformation("RegisterUser invoked for {Username}.", username);
 
-            var rooms = new List<string>();
-            if (AllUsers.TryGetValue(username, out var existing) && existing.Rooms.Any())
-                rooms = existing.Rooms.Where(r => r != "Hors ligne").ToList();
-            if (!rooms.Contains(room))
-                rooms.Add(room);
+            // La salle affichée est celle du poste qui vient de se connecter, et elle remplace l'ancienne.
+            // Avant, elle s'ajoutait aux précédentes : après un changement de poste, la personne
+            // apparaissait dans « Salle 1, Salle 3 », ou encore « 👻👻👻 » si l'ancien poste était en veille.
+            // Un poste sans salle configurée affiche son nom de poste plutôt qu'un libellé vide.
+            var location = !string.IsNullOrWhiteSpace(room) ? room.Trim() : machineName;
+            var rooms = new List<string> { location };
 
             var dbUser = await _db.KnownUsers.FirstOrDefaultAsync(u => u.Username == username);
             var isNewUser = dbUser == null;

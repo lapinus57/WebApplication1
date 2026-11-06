@@ -34,6 +34,8 @@ Défauts corrigés dans ce mécanisme :
 |---|---|---|
 | Coupure réseau ou Wi-Fi, puis reconnexion du **même** poste | Le serveur garde l'ancienne connexion jusqu'à 30 s. Le poste se voyait donc « déjà connecté sur lui-même » : la fenêtre de conflit s'affichait, et il fallait attendre 10 s puis cliquer « Oui ». | Une connexion qui vient du même nom de poste remplace l'ancienne sans demande. Une éventuelle deuxième fenêtre EyeChat sur ce poste est déconnectée. |
 | Prise de relais par un autre poste | L'ancien poste restait rattaché au compte jusqu'à sa déconnexion effective, donc il recevait encore les messages privés (poste en veille ou réseau lent). De plus, l'ancien poste était déconnecté *avant* que le nouveau soit enregistré, ce qui pouvait passer le compte « hors ligne » au mauvais moment. | Le nouveau poste est enregistré d'abord. L'ancien est retiré du compte immédiatement, puis déconnecté. |
+| Salle affichée après un changement de poste | La nouvelle salle s'**ajoutait** aux anciennes : la personne apparaissait par exemple dans « Salle 1, Salle 3 » jusqu'à son prochain changement de salle, ou avec « 👻👻👻 » si l'ancien poste était en veille. | La salle du nouveau poste remplace l'ancienne. Un poste sans salle configurée affiche son nom de poste. |
+| Changement d'avatar ou de statut | Les autres postes ignoraient une mise à jour de la liste qui ne changeait que l'avatar ou le statut. | Ces deux champs font partie de la comparaison côté client. |
 | Même nom avec une casse différente (« marie » / « Marie ») | Le conflit était détecté, mais la prise de relais créait un second compte, en double dans la liste et dans la base. | Le nom est ramené à l'orthographe déjà connue. |
 
 Limites restantes :
