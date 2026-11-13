@@ -8,7 +8,7 @@ namespace Serveur.Pages;
 
 [Authorize]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class EyeMailModel(EyeMailDbContext db, EyeMailImport import, IConfiguration configuration) : PageModel
+public sealed class EyeMailModel(EyeMailDbContext db, EyeMailImport import, IConfiguration configuration, ChatServeur.Fundus.FoAccessReader access) : PageModel
 {
     public const int PageSize = 100;
 
@@ -25,6 +25,8 @@ public sealed class EyeMailModel(EyeMailDbContext db, EyeMailImport import, ICon
     public int MatchCount { get; private set; }
     public int Pages => Math.Max(1, (MatchCount + PageSize - 1) / PageSize);
     public string Error { get; private set; } = "";
+    public (string Path, string Origin, bool Exists) AccessSource { get; private set; } = ("", "", false);
+    public bool UsesWorkgroup => !string.IsNullOrWhiteSpace(configuration["FoAccess:WorkgroupPath"]);
     public string Notice { get; private set; } = "";
 
     public string FormatUtc(DateTime? date) => date.HasValue
@@ -56,6 +58,7 @@ public sealed class EyeMailModel(EyeMailDbContext db, EyeMailImport import, ICon
             throw new InvalidDataException("Recherche invalide.");
 
         var ct = HttpContext.RequestAborted;
+        try { AccessSource = access.DescribeSource(); } catch { AccessSource = ("", "illisible", false); }
         ActiveCount = await db.Patients.CountAsync(p => p.IsActive, ct);
         InactiveCount = await db.Patients.CountAsync(p => !p.IsActive, ct);
         LastRun = await db.ImportRuns.AsNoTracking().OrderByDescending(r => r.Id).FirstOrDefaultAsync(ct);

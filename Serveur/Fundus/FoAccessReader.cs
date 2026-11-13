@@ -26,6 +26,17 @@ public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuratio
     }
 
     private FoAccessData Reader() => new(Options(), () => Now);
+    /// <summary>Chemin de la base Access que lit le serveur, et d'où il vient (affichage seulement, sans exception).</summary>
+    public (string Path, string Origin, bool Exists) DescribeSource()
+    {
+        var configured = configuration["FoAccess:DatabasePath"];
+        if (!string.IsNullOrWhiteSpace(configured))
+            return (configured, "réglage FoAccess:DatabasePath du serveur", File.Exists(configured));
+        var json = db.ServerConfigs.AsNoTracking().Select(c => c.AppointmentSearchJson).FirstOrDefault();
+        var path = string.IsNullOrEmpty(json) ? "" : JsonSerializer.Deserialize<AppointmentSearchConfig>(json)?.DatabasePath ?? "";
+        return (path, "Paramètres → Recherche RDV, envoyés par un poste", !string.IsNullOrWhiteSpace(path) && File.Exists(path));
+    }
+
     /// <summary>Chemin et droits Access du serveur, pour les autres lectures (base EyeMail).</summary>
     public AccessReadOptions AccessOptions() => Options();
     public IReadOnlyList<FoField> Inspect() => Reader().Inspect();

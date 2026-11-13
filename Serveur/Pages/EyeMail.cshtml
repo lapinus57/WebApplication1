@@ -23,6 +23,10 @@
         <form method="post" asp-page-handler="Import"><button type="submit" disabled="@Model.ImportStatus.Running">Importer / actualiser tous les patients</button></form>
         @if (Model.ImportStatus.Running) { <form method="post" asp-page-handler="Cancel"><button class="secondary" type="submit">Interrompre l’import</button></form> }
         <p id="registry-progress" class="@(Model.ImportStatus.Failed ? "registry-error" : "")" data-running="@((Model.WatchImport || Model.ImportStatus.Running) ? "true" : "false")" role="status">@Model.ImportStatus.Message</p>
+        <p class="registry-help"><strong>Base Access lue par le serveur :</strong>
+            @(Model.AccessSource.Path.Length > 0 ? Model.AccessSource.Path : "aucune")
+            (@Model.AccessSource.Origin@(Model.AccessSource.Path.Length > 0 && !Model.AccessSource.Exists ? " — fichier introuvable depuis le serveur" : ""))
+            · @(Model.UsesWorkgroup ? "avec fichier de groupe de travail" : "sans fichier de groupe de travail")</p>
         <p class="registry-help">L’import lit la table Patients d’Access avec les réglages Access du serveur. Seuls les patients modifiés sont réécrits. Un patient qui n’est plus dans Access est gardé et marqué absent, jamais supprimé.</p>
     </section>
 

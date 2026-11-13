@@ -17,7 +17,8 @@ public sealed class EyeMailAccessSource(FoAccessReader access, ChatDbContext cha
     public EyeMailSourceData ReadPatients(Action<int>? progress, CancellationToken ct)
     {
         var registry = RegistryMapping();
-        using var connection = ReadOnlyAccess.Open(access.AccessOptions());
+        var options = access.AccessOptions();
+        using var connection = ReadOnlyAccess.Open(options);
         var wanted = configuration["EyeMail:PatientsTable"] is { Length: > 0 } configured ? configured
             : registry?.PatientsTable is { Length: > 0 } registryTable ? registryTable
             : "Patients";
@@ -31,6 +32,8 @@ public sealed class EyeMailAccessSource(FoAccessReader access, ChatDbContext cha
         // On ne lit que les colonnes utiles : un SELECT * échoue sur certaines colonnes Access
         // (pièces jointes, valeurs multiples) et lirait inutilement les colonnes médicales.
         var names = ColumnNames(connection, table);
+        if (names.Count == 0)
+            throw new InvalidDataException(Diagnostic(options, connection, table));
         var columns = EyeMailColumns.Detect(names, preferred, table);
         var selected = columns.Found.Values.Distinct().Select(name => names.IndexOf(name)).OrderBy(i => i).ToList();
 
@@ -85,11 +88,33 @@ public sealed class EyeMailAccessSource(FoAccessReader access, ChatDbContext cha
 
         // Certains pilotes ne décrivent pas les colonnes (table liée, requête) : on demande seulement
         // la structure du résultat, sans lire aucune ligne.
-        using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT * FROM {Quote(table)}";
-        using var reader = command.ExecuteReader(CommandBehavior.SchemaOnly)!;
-        return Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = $"SELECT * FROM {Quote(table)}";
+            using var reader = command.ExecuteReader(CommandBehavior.SchemaOnly)!;
+            names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
+        }
+        if (names.Count > 0)
+            return names;
+
+        // Dernier essai : une vraie lecture d'une ligne. Si Access refuse (droits d'un groupe de travail),
+        // son message explicite remonte jusqu'à la page d'import.
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = $"SELECT TOP 1 * FROM {Quote(table)}";
+            using var reader = command.ExecuteReader()!;
+            return Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
+        }
     }
+
+    /// <summary>Ce que le serveur a réellement ouvert, pour comparer avec les postes (aucune donnée patient).</summary>
+    private static string Diagnostic(AccessReadOptions options, OleDbConnection connection, string table)
+        => $"Aucune colonne n'a pu être lue dans la table « {table} » d'Access. "
+           + $"Base ouverte par le serveur : {options.DatabasePath} (pilote {connection.Provider}, "
+           + (string.IsNullOrWhiteSpace(options.WorkgroupPath) ? "sans fichier de groupe de travail" : $"groupe de travail {options.WorkgroupPath}")
+           + (string.IsNullOrWhiteSpace(options.UserName) ? ", sans utilisateur Access)." : $", utilisateur {options.UserName}).")
+           + " Si c'est bien la base des postes, elle est sans doute protégée par un groupe de travail : "
+           + "renseignez FoAccess:WorkgroupPath, FoAccess:UserName et FoAccess:Password comme dans les paramètres Access des postes.";
 
     // Tables locales, tables liées (base dorsale) et requêtes enregistrées sont acceptées.
     private static readonly string[] ReadableTypes = { "TABLE", "LINK", "PASS-THROUGH", "VIEW" };
