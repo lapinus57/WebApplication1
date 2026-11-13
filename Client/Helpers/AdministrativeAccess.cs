@@ -7,7 +7,14 @@ namespace Client.Helpers
 {
     internal static class AdministrativeAccess
     {
-        internal const string ApplicationPassword = "901027";
+        // Mot de passe historique : utilisé seulement si le serveur est injoignable ou trop ancien
+        // pour vérifier lui-même (Administration:ApplicationPassword côté serveur).
+        private const string LegacyApplicationPassword = "901027";
+
+        private static string? _validatedPassword;
+
+        /// <summary>Mot de passe accepté lors de la dernière saisie, transmis au serveur avec les actions d'administration.</summary>
+        internal static string ApplicationPassword => _validatedPassword ?? LegacyApplicationPassword;
 
         public static async Task<bool> RequestPasswordAsync(XamlRoot xamlRoot)
         {
@@ -32,8 +39,11 @@ namespace Client.Helpers
                 if (result != ContentDialogResult.Primary)
                     return false;
 
-                if (IsPasswordValid(passwordBox.Password))
+                if (await IsPasswordValidAsync(passwordBox.Password))
+                {
+                    _validatedPassword = passwordBox.Password;
                     return true;
+                }
 
                 var errorDialog = new ContentDialog
                 {
@@ -46,7 +56,13 @@ namespace Client.Helpers
             }
         }
 
-        private static bool IsPasswordValid(string? password) =>
-            string.Equals(password, ApplicationPassword, StringComparison.Ordinal);
+        private static async Task<bool> IsPasswordValidAsync(string? password)
+        {
+            if (string.IsNullOrEmpty(password))
+                return false;
+
+            var serverAnswer = await App.ChatService.VerifyApplicationPasswordAsync(password);
+            return serverAnswer ?? string.Equals(password, LegacyApplicationPassword, StringComparison.Ordinal);
+        }
     }
 }

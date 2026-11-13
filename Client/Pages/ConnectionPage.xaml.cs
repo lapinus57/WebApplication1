@@ -30,7 +30,7 @@ namespace Client.Pages
         private async void Save_Click(object sender, RoutedEventArgs e)
         {
             App.ChatService.ServerAddress = ServerAddress;
-            ConnectionConfig.Save(new ConnectionConfig { ServerAddress = App.ChatService.ServerAddress });
+            ConnectionConfig.SaveServerAddress(App.ChatService.ServerAddress);
             await App.ChatService.InitializeAsync();
         }
 

@@ -11,6 +11,7 @@
     <Compile Include="../../Serveur/Models/PasswordHelper.cs" Link="PasswordHelper.cs" />
     <Compile Include="../../Serveur/Hubs/AvatarUpload.cs" Link="AvatarUpload.cs" />
     <Compile Include="../../Serveur/Startup/DatabaseBackup.cs" Link="DatabaseBackup.cs" />
+    <Compile Include="../../Serveur/Startup/StationAccess.cs" Link="StationAccess.cs" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
   </ItemGroup>
 </Project>

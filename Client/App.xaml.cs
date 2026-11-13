@@ -570,7 +570,7 @@ namespace Client
             {
                 address = detected;
                 ChatService.ServerAddress = address;
-                ConnectionConfig.Save(new ConnectionConfig { ServerAddress = address });
+                ConnectionConfig.SaveServerAddress(address);
             }
 
             if (string.IsNullOrWhiteSpace(address))
@@ -589,7 +589,11 @@ namespace Client
             try
             {
                 using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                using var response = await http.GetAsync($"{address.TrimEnd('/')}/api/configuration");
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{address.TrimEnd('/')}/api/configuration");
+                var stationKey = ConnectionConfig.LoadStationKey();
+                if (stationKey != null)
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", stationKey);
+                using var response = await http.SendAsync(request);
                 if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
                     return (true, null);
                 response.EnsureSuccessStatusCode();

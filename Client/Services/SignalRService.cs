@@ -300,7 +300,7 @@ namespace Client.Services
                 if (!string.IsNullOrEmpty(detected))
                 {
                     ServerAddress = detected;
-                    ConnectionConfig.Save(new ConnectionConfig { ServerAddress = ServerAddress });
+                    ConnectionConfig.SaveServerAddress(ServerAddress);
                 }
                 else if (ServerAddress.Contains("localhost"))
                 {
@@ -398,8 +398,12 @@ namespace Client.Services
                 }
             }
 
+            // La clé du poste est relue à chaque tentative : une clé saisie entre-temps est prise en compte.
             var connection = new HubConnectionBuilder()
-                .WithUrl($"{ServerAddress}/chatHub")
+                .WithUrl($"{ServerAddress}/chatHub", options =>
+                {
+                    options.AccessTokenProvider = () => Task.FromResult(ConnectionConfig.LoadStationKey());
+                })
                 .Build();
 
             Connection = connection;
@@ -750,8 +754,15 @@ namespace Client.Services
                 ResetIdleStatus();
                 StartIdleMonitor();
             }
+            catch (Exception ex) when (IsStationKeyRefused(ex))
+            {
+                // Le serveur exige une clé de poste : on la demande au lieu de réessayer en boucle.
+                Logger.Log("[SignalR] Connexion refusée : clé du poste absente ou incorrecte.");
+                Dispatcher?.TryEnqueue(async () => await PromptStationKeyAsync());
+            }
             catch (Exception ex)
             {
+                Logger.LogException("[SignalR] Connexion au serveur impossible", ex, "CLI70");
                 try
                 {
                     AppNotification notification = new AppNotificationBuilder()
@@ -936,6 +947,58 @@ namespace Client.Services
             _reconnectCountdownTimer?.Dispose();
             _reconnectCountdownTimer = null;
             ReconnectCountdownChanged?.Invoke(0);
+        }
+
+        private static bool IsStationKeyRefused(Exception ex)
+            => ex is System.Net.Http.HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized };
+
+        private bool _isPromptingStationKey;
+
+        private async Task PromptStationKeyAsync()
+        {
+            if (_isPromptingStationKey || !TryGetDialogRoot(out var root))
+                return;
+
+            _isPromptingStationKey = true;
+            var saved = false;
+            try
+            {
+                var keyBox = new PasswordBox { PlaceholderText = "Clé du poste", Width = 300 };
+                var panel = new StackPanel { Spacing = 8 };
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "Le serveur EyeChat demande la clé de ce poste. Demandez-la à la personne qui administre le serveur.",
+                    TextWrapping = TextWrapping.Wrap
+                });
+                panel.Children.Add(keyBox);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "Clé du poste requise",
+                    Content = panel,
+                    PrimaryButtonText = "Enregistrer",
+                    CloseButtonText = "Annuler",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = root.XamlRoot
+                };
+
+                if (await dialog.ShowAsync() == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(keyBox.Password))
+                {
+                    ConnectionConfig.SaveStationKey(keyBox.Password);
+                    saved = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[SignalR] Saisie de la clé du poste impossible", ex, "CLI71");
+            }
+            finally
+            {
+                _isPromptingStationKey = false;
+            }
+
+            if (saved)
+                await ReconnectAsync();
         }
 
         public async Task ReconnectAsync()
@@ -1974,6 +2037,26 @@ namespace Client.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"Erreur mise à jour couleur utilisateur : {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Demande au serveur si le mot de passe applicatif est correct.
+        /// Renvoie null si le serveur est injoignable ou ne connaît pas encore cette vérification.
+        /// </summary>
+        public async Task<bool?> VerifyApplicationPasswordAsync(string password)
+        {
+            if (!TryGetActiveConnection(out var connection))
+                return null;
+
+            try
+            {
+                return await connection.InvokeAsync<bool>("VerifyApplicationPassword", password);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[SignalR] Vérification du mot de passe applicatif impossible", ex, "CLI72");
+                return null;
             }
         }
 

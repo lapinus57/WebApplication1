@@ -1,3 +1,4 @@
+using ChatServeur.Startup;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +36,6 @@ namespace ChatServeur
         private static readonly Dictionary<string, PendingLoginRequest> PendingLoginRequests = new();
         private static bool _usersLoaded;
         private const int LoginConflictDelaySeconds = 10;
-        private const string ApplicationPassword = "901027";
 
         private static readonly List<UserInfo> BaseUsers = new()
         {
@@ -159,11 +159,25 @@ namespace ChatServeur
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<ChatHub> _logger;
 
-        public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger)
+        private readonly StationAccess _access;
+
+        public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, StationAccess access)
         {
             _db = db;
             _env = env;
             _logger = logger;
+            _access = access;
+        }
+
+        /// <summary>Permet au poste de vérifier le mot de passe applicatif saisi (configurable côté serveur).</summary>
+        public async Task<bool> VerifyApplicationPassword(string password)
+        {
+            if (_access.IsApplicationPasswordValid(password))
+                return true;
+            _logger.LogWarning("Mot de passe applicatif incorrect (connexion {ConnectionId}).", Context.ConnectionId);
+            // Ralentit les essais en série.
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            return false;
         }
 
         private string ToRelativeAvatar(string avatar)
@@ -675,10 +689,29 @@ namespace ChatServeur
         }
 
 
+        // L'expéditeur est celui de la connexion : un poste ne peut plus écrire au nom d'un collègue.
         public async Task SendMessage(string sender, string room, string destinataire, string content, string avatar, DateTime timestamp)
         {
+            if (!TryGetCaller(out var caller))
+            {
+                _logger.LogWarning("Message ignoré : la connexion {ConnectionId} n'est pas enregistrée.", Context.ConnectionId);
+                return;
+            }
+            if (!string.Equals(sender, caller.Username, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Expéditeur « {Claimed} » remplacé par « {Actual} ».", sender, caller.Username);
+                sender = caller.Username;
+            }
+            await SendMessageCoreAsync(sender, room, destinataire, content, avatar);
+        }
+
+        private bool TryGetCaller(out UserInfo caller)
+            => ConnectedUsers.TryGetValue(Context.ConnectionId, out caller!);
+
+        private async Task SendMessageCoreAsync(string sender, string room, string destinataire, string content, string avatar)
+        {
             avatar = ToRelativeAvatar(avatar);
-            timestamp = DateTime.Now;
+            var timestamp = DateTime.Now;
             var message = new ChatMessage
             {
                 Sender = sender,
@@ -764,7 +797,7 @@ namespace ChatServeur
 
             foreach (var (sender, room, destinataire, content, avatar) in messages)
             {
-                await SendMessage(sender, room, destinataire, content, avatar, DateTime.Now);
+                await SendMessageCoreAsync(sender, room, destinataire, content, avatar);
             }
         }
 
@@ -886,6 +919,9 @@ namespace ChatServeur
 
         public async Task DeleteMessage(int id)
         {
+            if (!TryGetCaller(out var caller))
+                return;
+            _logger.LogInformation("Message {Id} supprimé par {User}.", id, caller.Username);
             var message = await _db.Messages.FindAsync(id);
             if (message != null)
             {
@@ -898,6 +934,9 @@ namespace ChatServeur
 
         public async Task ClearTodayMessages()
         {
+            if (!TryGetCaller(out var caller))
+                return;
+            _logger.LogInformation("Messages du jour effacés par {User}.", caller.Username);
             var today = DateTime.Today;
             var tomorrow = today.AddDays(1);
             var messages = await _db.Messages
@@ -1060,7 +1099,7 @@ namespace ChatServeur
 
         public async Task ImportConfiguredUsers(IEnumerable<UserInfo> users, string applicationPassword)
         {
-            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+            if (!_access.IsApplicationPasswordValid(applicationPassword))
                 throw new HubException("Mot de passe de l’application incorrect.");
 
             EnsureUsersLoaded();
@@ -1122,7 +1161,7 @@ namespace ChatServeur
 
         public async Task SaveDeploymentConfiguration(string configurationJson, string applicationPassword)
         {
-            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+            if (!_access.IsApplicationPasswordValid(applicationPassword))
                 throw new HubException("Mot de passe de l’application incorrect.");
 
             var deployment = JsonSerializer.Deserialize<DeploymentConfiguration>(configurationJson)
@@ -1526,6 +1565,9 @@ namespace ChatServeur
 
         public async Task ClearTodayPatients()
         {
+            if (!TryGetCaller(out var caller))
+                return;
+            _logger.LogInformation("File des patients du jour vidée par {User}.", caller.Username);
             var today = DateTime.Today;
             var tomorrow = today.AddDays(1);
             var patients = await _db.Patients
@@ -1697,7 +1739,7 @@ namespace ChatServeur
 
         public async Task<string> CreateGroup(string groupName, bool isPublic, string password, string applicationPassword)
         {
-            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+            if (!_access.IsApplicationPasswordValid(applicationPassword))
                 return "Mot de passe de l’application incorrect.";
 
             groupName = groupName?.Trim() ?? string.Empty;
@@ -1735,7 +1777,7 @@ namespace ChatServeur
 
         public async Task<string> AddUserToGroup(string username, string groupName, string password, string applicationPassword)
         {
-            if (!string.Equals(applicationPassword, ApplicationPassword, StringComparison.Ordinal))
+            if (!_access.IsApplicationPasswordValid(applicationPassword))
                 return "Mot de passe de l’application incorrect.";
 
             username = username?.Trim() ?? string.Empty;
@@ -1779,6 +1821,10 @@ namespace ChatServeur
 
         public async Task RenameGroup(string oldName, string newName)
         {
+            if (!TryGetCaller(out var caller) || string.IsNullOrWhiteSpace(newName))
+                return;
+            newName = newName.Trim();
+            _logger.LogInformation("Groupe {Old} renommé en {New} par {User}.", oldName, newName, caller.Username);
             var secure = await _db.SecureGroups.FirstOrDefaultAsync(g => g.Name == oldName);
             if (secure != null)
             {
@@ -1821,8 +1867,20 @@ namespace ChatServeur
             }
         }
 
+        // Seul un membre du groupe peut changer son mot de passe : sinon n'importe quel poste
+        // pouvait le remplacer puis entrer dans un groupe protégé.
         public async Task ChangeGroupPassword(string groupName, string password)
         {
+            if (!TryGetCaller(out var caller))
+                throw new HubException("Connectez-vous avant de modifier un groupe.");
+            var memberships = await _db.GroupMemberships.Where(m => m.GroupName == groupName).Select(m => m.Username).ToListAsync();
+            if (memberships.Count > 0 && !memberships.Any(m => string.Equals(m, caller.Username, StringComparison.OrdinalIgnoreCase)))
+            {
+                _logger.LogWarning("{User} a tenté de changer le mot de passe du groupe {Group} sans en être membre.", caller.Username, groupName);
+                throw new HubException($"Seuls les membres de « {groupName} » peuvent changer son mot de passe.");
+            }
+            _logger.LogInformation("Mot de passe du groupe {Group} changé par {User}.", groupName, caller.Username);
+
             var group = await _db.SecureGroups.FirstOrDefaultAsync(g => g.Name == groupName);
             if (group == null)
             {
@@ -1840,6 +1898,9 @@ namespace ChatServeur
 
         public async Task RemoveUserFromGroup(string groupName, string username)
         {
+            if (!TryGetCaller(out var caller))
+                return;
+            _logger.LogInformation("{Member} retiré du groupe {Group} par {User}.", username, groupName, caller.Username);
             var member = await _db.GroupMemberships.FirstOrDefaultAsync(m => m.GroupName == groupName && m.Username == username);
             if (member != null)
             {

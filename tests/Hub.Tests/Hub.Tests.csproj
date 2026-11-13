@@ -15,6 +15,7 @@
     <Compile Include="../../Serveur/Hubs/*.cs" LinkBase="Hubs" />
     <Compile Include="../../Serveur/Fundus/*.cs" Exclude="../../Serveur/Fundus/FoAccessReader.cs" LinkBase="Fundus" />
     <Compile Include="../../Serveur/Registry/*.cs" LinkBase="Registry" />
+    <Compile Include="../../Serveur/Startup/StationAccess.cs" Link="Startup/StationAccess.cs" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
     <PackageReference Include="System.Data.OleDb" Version="8.0.0" />

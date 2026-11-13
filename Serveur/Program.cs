@@ -101,6 +101,8 @@ builder.Services.AddSignalR(o =>
     o.MaximumReceiveMessageSize = 2 * 1024 * 1024;
     o.AddFilter<ChatHubStateFilter>();
 });
+var stationAccess = StationAccess.FromConfiguration(builder.Configuration);
+builder.Services.AddSingleton(stationAccess);
 builder.Services.AddHostedService<ReminderService>();
 builder.Services.AddHostedService<DatabaseBackupService>();
 builder.Services.AddScoped<FoAccessReader>();
@@ -136,6 +138,23 @@ app.Use(async (context, next) =>
         var httpsHost = new HostString(context.Request.Host.Host, 5443);
         var destination = UriHelper.BuildAbsolute("https", httpsHost, context.Request.PathBase, context.Request.Path, context.Request.QueryString);
         context.Response.Redirect(destination, permanent: false);
+        return;
+    }
+    await next();
+});
+
+if (!stationAccess.RequiresStationKey)
+    logger.LogWarning("SER22: Administration:StationKey est vide : n'importe quel appareil du réseau peut se connecter au hub et lire les patients.");
+if (stationAccess.UsesLegacyApplicationPassword)
+    logger.LogWarning("SER23: Administration:ApplicationPassword n'est pas configuré : le mot de passe applicatif par défaut est utilisé.");
+
+// Postes : une clé partagée protège le hub et la configuration de déploiement.
+app.Use(async (context, next) =>
+{
+    if (StationAccess.IsProtectedPath(context.Request.Path) && !stationAccess.IsStationAuthorized(context.Request))
+    {
+        logger.LogWarning("Connexion refusée sans clé de poste valide depuis {Address}.", context.Connection.RemoteIpAddress);
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         return;
     }
     await next();

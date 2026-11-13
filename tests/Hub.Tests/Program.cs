@@ -1,6 +1,7 @@
 // Vérifie le hub SignalR avec un vrai serveur en mémoire (boucle locale) et plusieurs postes simulés.
 // Aucune donnée réelle : base SQLite temporaire, supprimée à la fin.
 using ChatServeur;
+using ChatServeur.Startup;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.SignalR;
@@ -25,9 +26,21 @@ try
     builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Loopback, 0));
     builder.Services.AddDbContext<ChatDbContext>(o => o.UseSqlite($"Data Source={Path.Combine(folder, "chat.db")};Default Timeout=30"));
     builder.Services.AddSignalR(o => o.AddFilter<ChatHubStateFilter>());
+    var access = new StationAccess("cle-de-test", "mot-de-passe-test");
+    builder.Services.AddSingleton(access);
     await using var app = builder.Build();
     using (var scope = app.Services.CreateScope())
         scope.ServiceProvider.GetRequiredService<ChatDbContext>().Database.EnsureCreated();
+    // Même contrôle que Program.cs.
+    app.Use(async (context, next) =>
+    {
+        if (StationAccess.IsProtectedPath(context.Request.Path) && !access.IsStationAuthorized(context.Request))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+        await next();
+    });
     app.MapHub<ChatHub>("/chatHub");
     await app.StartAsync();
     var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
@@ -35,7 +48,9 @@ try
     var connections = new List<HubConnection>();
     async Task<HubConnection> Connect()
     {
-        var c = new HubConnectionBuilder().WithUrl(address + "/chatHub").Build();
+        var c = new HubConnectionBuilder()
+            .WithUrl(address + "/chatHub", o => o.AccessTokenProvider = () => Task.FromResult<string?>("cle-de-test"))
+            .Build();
         await c.StartAsync();
         connections.Add(c);
         return c;
@@ -54,6 +69,32 @@ try
     }
     async Task<UserInfo?> FindUser(HubConnection c, string username)
         => (await c.InvokeAsync<List<UserInfo>>("GetAllUsers")).FirstOrDefault(u => u.Username == username);
+
+    // 0. Clé de poste : sans elle, ou avec une mauvaise clé, la connexion est refusée.
+    foreach (var wrongKey in new string?[] { null, "mauvaise-cle" })
+    {
+        var intruder = new HubConnectionBuilder()
+            .WithUrl(address + "/chatHub", o => { if (wrongKey != null) o.AccessTokenProvider = () => Task.FromResult<string?>(wrongKey); })
+            .Build();
+        try
+        {
+            await intruder.StartAsync();
+            Check(false, "Un poste sans clé valide ne doit pas se connecter");
+        }
+        catch (HttpRequestException ex) { Check(ex.StatusCode == HttpStatusCode.Unauthorized, "Refus 401 sans clé valide"); }
+        await intruder.DisposeAsync();
+    }
+    // WebSocket direct (sans négociation) : la clé passe dans access_token.
+    var direct = new HubConnectionBuilder()
+        .WithUrl(address + "/chatHub", Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets, o =>
+        {
+            o.SkipNegotiation = true;
+            o.AccessTokenProvider = () => Task.FromResult<string?>("cle-de-test");
+        })
+        .Build();
+    await direct.StartAsync();
+    Check(direct.State == HubConnectionState.Connected, "La clé est acceptée en WebSocket direct");
+    await direct.DisposeAsync();
 
     // 1. Changement de poste : l'ancien poste accepte, seul le nouveau reste, avec sa salle.
     var pcA = await Connect();
@@ -131,7 +172,29 @@ try
     var logs = await pcB2.InvokeAsync<List<PatientLog>>("GetPatientLogs", "p1");
     Check(logs.Count == 1 && logs[0].Username == "Marie", "Le journal du patient garde l'auteur");
 
-    // 6. Connexions simultanées : 30 postes en même temps, aucun utilisateur perdu.
+    // 6. Sécurité des actions : expéditeur, mot de passe applicatif, groupes protégés.
+    // (« lower » est la connexion active de Paul : celle de l'étape 1 a été remplacée à l'étape 3.)
+    var spoofed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+    pcB2.On<int, string, string, string, string, string, DateTime>("ReceiveMessage", (_, from, _, _, content, _, _) => { if (content == "usurpation") spoofed.TrySetResult(from); });
+    await lower.InvokeAsync("SendMessage", "Marie", "Accueil", "Marie", "usurpation", "", DateTime.Now);
+    Check(await Within(spoofed.Task, "Le message usurpé arrive") == "Paul", "L'expéditeur est imposé par le serveur");
+    var anonymous = await Connect();
+    await anonymous.InvokeAsync("SendMessage", "Marie", "Accueil", "A Tous", "anonyme", "", DateTime.Now);
+    Check(!(await pcB2.InvokeAsync<List<ChatMessage>>("GetTodayMessages", "Marie")).Any(m => m.Content == "anonyme"), "Un poste non enregistré ne peut pas écrire");
+    Check(await pcB2.InvokeAsync<bool>("VerifyApplicationPassword", "mot-de-passe-test"), "Le mot de passe applicatif configuré est accepté");
+    Check(!await pcB2.InvokeAsync<bool>("VerifyApplicationPassword", "901027"), "L'ancien mot de passe ne marche plus une fois configuré");
+    Check(!(await pcB2.InvokeAsync<string>("CreateGroup", "Bloc", false, "secret-bloc", "mot-de-passe-test")).Contains("incorrect"), "Création d’un groupe protégé avec le mot de passe configuré");
+    try
+    {
+        await lower.InvokeAsync("ChangeGroupPassword", "Bloc", "pirate");
+        Check(false, "Un non-membre ne doit pas changer le mot de passe du groupe");
+    }
+    catch (HubException ex) { Check(ex.Message.Contains("membres"), "Refus expliqué pour le mot de passe de groupe"); }
+    Check(await lower.InvokeAsync<string>("JoinProtectedGroup", "Bloc", "pirate") == "wrong_password", "Le mot de passe du groupe n'a pas changé");
+    await pcB2.InvokeAsync("ChangeGroupPassword", "Bloc", "nouveau-secret");
+    Check(await lower.InvokeAsync<string>("JoinProtectedGroup", "Bloc", "nouveau-secret") == "joined", "Un membre peut changer le mot de passe");
+
+    // 7. Connexions simultanées : 30 postes en même temps, aucun utilisateur perdu.
     var crowd = await Task.WhenAll(Enumerable.Range(0, 30).Select(_ => Connect()));
     await Task.WhenAll(crowd.Select((c, i) => c.InvokeAsync("RegisterUser", $"Poste{i:00}", "", $"Salle {i % 5}", "Green", $"PC-{i:00}")));
     users = await crowd[0].InvokeAsync<List<UserInfo>>("GetAllUsers");

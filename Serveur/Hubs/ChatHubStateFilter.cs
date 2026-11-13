@@ -29,6 +29,8 @@ namespace ChatServeur
             nameof(ChatHub.GetPatients),
             nameof(ChatHub.GetArchivedPatients),
             nameof(ChatHub.GetPatientLogs),
+            // N'utilise pas l'état partagé ; attend 1 s après un échec sans bloquer les autres postes.
+            nameof(ChatHub.VerifyApplicationPassword),
         };
 
         internal static bool IsDatabaseOnly(string methodName) => DatabaseOnlyMethods.Contains(methodName);

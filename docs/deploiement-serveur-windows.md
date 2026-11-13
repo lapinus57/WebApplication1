@@ -37,6 +37,24 @@ Le serveur refuse volontairement de démarrer tant qu'un compte administrateur r
 
 Le mot de passe d'administration doit contenir au moins 12 caractères. L'interface sera ensuite disponible à l'adresse `https://eyechat-server:5443`. Une requête HTTP vers une page d'administration est automatiquement redirigée vers cette adresse sécurisée.
 
+### Protéger l'accès des postes (recommandé)
+
+Deux réglages facultatifs, à définir de la même façon :
+
+```powershell
+setx /M Administration__StationKey "une-cle-longue-et-aleatoire"
+setx /M Administration__ApplicationPassword "nouveau-mot-de-passe-applicatif"
+```
+
+- **`StationKey`** : sans cette clé, un appareil du réseau ne peut ni se connecter au service EyeChat, ni lire la liste des patients. Au premier démarrage après ce réglage, chaque poste affiche « Clé du poste requise » : saisissez la clé une seule fois, elle est gardée dans `%LOCALAPPDATA%\EyeChat\connection.json`. Si ce réglage est vide, le service reste ouvert comme avant, et le journal du serveur le signale (`SER22`).
+- **`ApplicationPassword`** : remplace le mot de passe applicatif historique, demandé sur les postes pour l'import de configuration et la gestion des groupes. Les postes le vérifient désormais auprès du serveur. S'il est vide, l'ancien mot de passe reste valable (`SER23` dans le journal).
+
+Redémarrez le service après une modification.
+
+### Sauvegarde quotidienne de la base
+
+Le serveur copie chaque jour `data\chat.db` dans `data\sauvegardes\chat-AAAA-MM-JJ.db`, et garde les 14 dernières copies. La copie est cohérente même pendant que le serveur fonctionne. Pour restaurer : arrêtez le service, remplacez `data\chat.db` par la copie choisie, supprimez `chat.db-wal` et `chat.db-shm` s'ils existent, puis redémarrez le service.
+
 ## 3. Installer le service Windows
 
 1. Copiez le script `ChatServeurService.ps1` dans le dossier de publication ou gardez-le dans le dépôt.

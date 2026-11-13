@@ -129,4 +129,20 @@ finally
     Directory.Delete(backupRoot, recursive: true);
 }
 
+// Accès des postes : sans configuration, comportement historique (aucune clé, ancien mot de passe).
+var open = new StationAccess(null, null);
+var openRequest = new Microsoft.AspNetCore.Http.DefaultHttpContext().Request;
+Check(!open.RequiresStationKey && open.IsStationAuthorized(openRequest), "No station key configured: hub stays open");
+Check(open.UsesLegacyApplicationPassword && open.IsApplicationPasswordValid("901027"), "No password configured: legacy password still works");
+var locked = new StationAccess("cle-poste", "nouveau-mdp");
+Check(!locked.IsStationAuthorized(openRequest), "Configured key: request without key refused");
+var bearer = new Microsoft.AspNetCore.Http.DefaultHttpContext().Request;
+bearer.Headers.Authorization = "Bearer cle-poste";
+Check(locked.IsStationAuthorized(bearer), "Configured key: bearer header accepted");
+var query = new Microsoft.AspNetCore.Http.DefaultHttpContext().Request;
+query.QueryString = new Microsoft.AspNetCore.Http.QueryString("?access_token=cle-poste");
+Check(locked.IsStationAuthorized(query), "Configured key: WebSocket access_token accepted");
+Check(!locked.IsApplicationPasswordValid("901027") && locked.IsApplicationPasswordValid("nouveau-mdp"), "Configured password replaces the legacy one");
+Check(StationAccess.IsProtectedPath("/chatHub/negotiate") && StationAccess.IsProtectedPath("/api/configuration") && !StationAccess.IsProtectedPath("/api/discovery"), "Only hub and deployment configuration are protected");
+
 Console.WriteLine($"{checks} server startup checks passed; synthetic certificate, loopback HTTPS only.");
