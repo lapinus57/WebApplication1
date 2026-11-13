@@ -34,7 +34,6 @@ namespace ChatServeur
         private static readonly Dictionary<string, HashSet<string>> GroupMembers = new();
         private static readonly Dictionary<string, PendingLoginRequest> PendingLoginRequests = new();
         private static bool _usersLoaded;
-        private static readonly object UserStateLock = new();
         private const int LoginConflictDelaySeconds = 10;
         private const string ApplicationPassword = "901027";
 
@@ -198,9 +197,11 @@ namespace ChatServeur
                     .Select(r => r.Trim()).ToList();
         }
 
+        // Appelées depuis les pages d'administration : même verrou que les appels du hub.
         internal static IReadOnlyList<UserInfo>? ApplyAdministrativeUserUpdate(KnownUser updated)
         {
-            lock (UserStateLock)
+            ChatHubStateFilter.Gate.Wait();
+            try
             {
                 if (!_usersLoaded)
                     return null;
@@ -231,12 +232,23 @@ namespace ChatServeur
 
                 return BaseUsers.Concat(AllUsers.Values).ToList();
             }
+            finally
+            {
+                ChatHubStateFilter.Gate.Release();
+            }
         }
 
         internal static IReadOnlyList<UserInfo>? GetAuthoritativeUsers()
         {
-            lock (UserStateLock)
+            ChatHubStateFilter.Gate.Wait();
+            try
+            {
                 return _usersLoaded ? BaseUsers.Concat(AllUsers.Values).ToList() : null;
+            }
+            finally
+            {
+                ChatHubStateFilter.Gate.Release();
+            }
         }
 
         private string GetUsername()
@@ -849,11 +861,12 @@ namespace ChatServeur
         public async Task<List<ChatMessage>> GetTodayMessages(string username)
         {
             var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
 
             return await _db.Messages
                 .Where(m => !m.IsDeleted &&
                             (m.Sender == username || m.Destinataire == username || m.Destinataire == "A Tous") &&
-                            m.Timestamp.Date == today)
+                            m.Timestamp >= today && m.Timestamp < tomorrow)
                 .OrderBy(m => m.Timestamp)
                 .ToListAsync();
         }
@@ -861,11 +874,12 @@ namespace ChatServeur
         public async Task<List<ChatMessage>> GetMessagesForDate(string username, DateTime date)
         {
             var day = date.Date;
+            var nextDay = day.AddDays(1);
 
             return await _db.Messages
                 .Where(m => !m.IsDeleted &&
                             (m.Sender == username || m.Destinataire == username || m.Destinataire == "A Tous") &&
-                            m.Timestamp.Date == day)
+                            m.Timestamp >= day && m.Timestamp < nextDay)
                 .OrderBy(m => m.Timestamp)
                 .ToListAsync();
         }
@@ -885,8 +899,9 @@ namespace ChatServeur
         public async Task ClearTodayMessages()
         {
             var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
             var messages = await _db.Messages
-                .Where(m => !m.IsDeleted && m.Timestamp.Date == today)
+                .Where(m => !m.IsDeleted && m.Timestamp >= today && m.Timestamp < tomorrow)
                 .ToListAsync();
 
             if (!messages.Any())
@@ -1512,8 +1527,9 @@ namespace ChatServeur
         public async Task ClearTodayPatients()
         {
             var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
             var patients = await _db.Patients
-                .Where(p => p.HoldTime.Date == today && !p.IsArchived)
+                .Where(p => p.HoldTime >= today && p.HoldTime < tomorrow && !p.IsArchived)
                 .ToListAsync();
 
             if (!patients.Any())
@@ -1590,8 +1606,9 @@ namespace ChatServeur
         public async Task<List<Patient>> GetPatients()
         {
             var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
             return await _db.Patients
-                .Where(p => p.HoldTime.Date == today && !p.IsArchived)
+                .Where(p => p.HoldTime >= today && p.HoldTime < tomorrow && !p.IsArchived)
                 .OrderBy(p => p.HoldTime)
                 .ToListAsync();
         }
@@ -1599,8 +1616,9 @@ namespace ChatServeur
         public async Task<List<Patient>> GetArchivedPatients()
         {
             var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
             return await _db.Patients
-                .Where(p => p.IsArchived && p.HoldTime.Date == today)
+                .Where(p => p.IsArchived && p.HoldTime >= today && p.HoldTime < tomorrow)
                 .OrderBy(p => p.HoldTime)
                 .ToListAsync();
         }

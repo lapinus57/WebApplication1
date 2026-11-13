@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.SignalR;
 
 try
 {
@@ -70,8 +71,10 @@ var dbFolder = Path.Combine(AppContext.BaseDirectory, "data");
 Directory.CreateDirectory(dbFolder);
 var dbPath = Path.Combine(dbFolder, "chat.db");
 
+// Default Timeout : attend jusqu'à 30 s qu'une autre écriture se termine au lieu d'échouer
+// immédiatement avec « database is locked ».
 builder.Services.AddDbContext<ChatDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+    options.UseSqlite(new SqliteConnectionStringBuilder { DataSource = dbPath, DefaultTimeout = 30 }.ToString()));
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -96,8 +99,10 @@ builder.Services.AddRazorPages(options =>
 builder.Services.AddSignalR(o =>
 {
     o.MaximumReceiveMessageSize = 2 * 1024 * 1024;
+    o.AddFilter<ChatHubStateFilter>();
 });
 builder.Services.AddHostedService<ReminderService>();
+builder.Services.AddHostedService<DatabaseBackupService>();
 builder.Services.AddScoped<FoAccessReader>();
 builder.Services.AddScoped<IFoAccessReader>(p => p.GetRequiredService<FoAccessReader>());
 builder.Services.AddScoped<IRegistryAccessReader>(p => p.GetRequiredService<FoAccessReader>());
@@ -167,10 +172,46 @@ using (var scope = app.Services.CreateScope())
     EnsureKnownUsersTable(db, logger);
     EnsureColumn(db, logger, "SecureGroups", "IsPublic", "INTEGER NOT NULL DEFAULT 0", "SER15");
     CleanupKnownUsers(db, logger);
+    ConfigureSqlite(db, logger);
     if (!db.ServerConfigs.Any())
     {
         db.ServerConfigs.Add(new ServerConfig());
         db.SaveChanges();
+    }
+}
+
+// Mode WAL : les lectures (liste des patients, historique) ne bloquent plus les écritures.
+// Index : l'historique des messages et la file du jour sont filtrés par date.
+void ConfigureSqlite(ChatDbContext db, ILogger logger)
+{
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA journal_mode=WAL;";
+        cmd.ExecuteNonQuery();
+        foreach (var (table, statement) in new[]
+        {
+            ("Messages", "CREATE INDEX IF NOT EXISTS IX_Messages_Timestamp ON Messages (Timestamp)"),
+            ("Patients", "CREATE INDEX IF NOT EXISTS IX_Patients_HoldTime ON Patients (HoldTime)"),
+            ("PatientLogs", "CREATE INDEX IF NOT EXISTS IX_PatientLogs_PatientId ON PatientLogs (PatientId)"),
+        })
+        {
+            if (!TableExists(connection, table, logger))
+                continue;
+            cmd.CommandText = statement;
+            cmd.ExecuteNonQuery();
+        }
+    }
+    catch (Exception ex)
+    {
+        // Optimisation seulement : le serveur fonctionne sans.
+        logger.LogWarning(ex, "SER21: Failed to enable WAL mode or create indexes.");
+    }
+    finally
+    {
+        connection.Close();
     }
 }
 

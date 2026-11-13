@@ -92,4 +92,41 @@ Check(!AvatarUpload.TryDecode("@@@ pas du base64 @@@", out _, out _, out var bad
 Check(!AvatarUpload.TryDecode(Convert.ToBase64String(new byte[AvatarUpload.MaxBytes + 1]), out _, out _, out _), "Oversized avatar rejected");
 Check(!AvatarUpload.TryDecode("", out _, out _, out _), "Empty avatar rejected");
 
+// Sauvegarde quotidienne de la base : copie cohérente, une seule par jour, anciennes supprimées.
+var backupRoot = Path.Combine(Path.GetTempPath(), "EyeChat-Backup-Test-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(backupRoot);
+try
+{
+    var dbFile = Path.Combine(backupRoot, "chat.db");
+    using (var live = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbFile};Pooling=False"))
+    {
+        live.Open();
+        using var cmd = live.CreateCommand();
+        cmd.CommandText = "PRAGMA journal_mode=WAL; CREATE TABLE Messages (Content TEXT); INSERT INTO Messages VALUES ('synthétique');";
+        cmd.ExecuteNonQuery();
+        // Connexion laissée ouverte : la sauvegarde doit fonctionner pendant que le serveur tourne.
+        var backupFolder = Path.Combine(backupRoot, "sauvegardes");
+        var first = DatabaseBackup.RunIfDue(dbFile, backupFolder, new DateTime(2026, 11, 13));
+        Check(first != null && File.Exists(first), "Daily backup created while the database is open");
+        using (var copy = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={first};Mode=ReadOnly;Pooling=False"))
+        {
+            copy.Open();
+            using var read = copy.CreateCommand();
+            read.CommandText = "SELECT Content FROM Messages";
+            Check((string?)read.ExecuteScalar() == "synthétique", "Backup contains the data written in WAL mode");
+        }
+        Check(DatabaseBackup.RunIfDue(dbFile, backupFolder, new DateTime(2026, 11, 13)) == null, "Only one backup per day");
+        for (var day = 14; day <= 30; day++)
+            DatabaseBackup.RunIfDue(dbFile, backupFolder, new DateTime(2026, 11, day), keep: 5);
+        var kept = Directory.GetFiles(backupFolder, "chat-*.db").Select(Path.GetFileName).OrderBy(n => n).ToList();
+        Check(kept.Count == 5 && kept[0] == "chat-2026-11-26.db" && kept[^1] == "chat-2026-11-30.db", "Only the most recent backups are kept");
+        Check(!Directory.GetFiles(backupFolder, "*.tmp").Any(), "No temporary file left behind");
+    }
+}
+finally
+{
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+    Directory.Delete(backupRoot, recursive: true);
+}
+
 Console.WriteLine($"{checks} server startup checks passed; synthetic certificate, loopback HTTPS only.");

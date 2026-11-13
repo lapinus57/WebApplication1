@@ -1,6 +1,14 @@
 name: Windows client
 
 on:
+  push:
+    branches: [master2]
+    paths:
+      - 'Client/**'
+      - 'Serveur/**'
+      - 'Shared/**'
+      - 'tests/**'
+      - '.github/workflows/windows-client.yml'
   pull_request:
     branches: [master2]
     paths:
@@ -10,6 +18,7 @@ on:
       - 'tests/Fundus.Tests/**'
       - 'tests/Server.Startup.Tests/**'
       - 'tests/SmsMail.Tests/**'
+      - 'tests/Hub.Tests/**'
       - 'tests/Client.Configuration/**'
       - '.github/workflows/windows-client.yml'
 
@@ -33,6 +42,8 @@ jobs:
         run: dotnet run --project tests/Fundus.Tests --configuration Release
       - name: Verify server certificate loading and HTTPS handshake
         run: dotnet run --project tests/Server.Startup.Tests --configuration Release
+      - name: Verify hub connections, account switching and concurrent logins
+        run: dotnet run --project tests/Hub.Tests --configuration Release
       - name: Compile server and Razor pages
         run: dotnet build Serveur/Serveur.csproj --configuration Release
       - name: Verify Windows x86 server publication

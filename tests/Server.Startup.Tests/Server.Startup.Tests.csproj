@@ -10,5 +10,7 @@
     <Compile Include="../../Serveur/Startup/AdministrationCertificate.cs" Link="AdministrationCertificate.cs" />
     <Compile Include="../../Serveur/Models/PasswordHelper.cs" Link="PasswordHelper.cs" />
     <Compile Include="../../Serveur/Hubs/AvatarUpload.cs" Link="AvatarUpload.cs" />
+    <Compile Include="../../Serveur/Startup/DatabaseBackup.cs" Link="DatabaseBackup.cs" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
   </ItemGroup>
 </Project>
