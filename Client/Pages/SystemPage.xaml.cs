@@ -312,7 +312,7 @@ namespace Client.Pages
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[SystemPage] Impossible de charger les utilisateurs via le service : {ex.Message}");
+                    Logger.LogException("[SystemPage] Impossible de charger les utilisateurs via le service", ex);
                 }
             }
 
@@ -450,7 +450,7 @@ namespace Client.Pages
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SystemPage] Lecture des utilisateurs locaux impossible : {ex.Message}");
+                Logger.LogException("[SystemPage] Lecture des utilisateurs locaux impossible", ex);
                 return new List<string>();
             }
         }

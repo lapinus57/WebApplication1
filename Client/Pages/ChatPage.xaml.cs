@@ -637,7 +637,7 @@ namespace Client.Pages
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[ChatPage] Error adding test patients: {ex.Message}");
+                Logger.LogException("[ChatPage] Error adding test patients", ex);
             }
         }
 
@@ -665,7 +665,7 @@ namespace Client.Pages
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur chargement historique : {ex.Message}");
+                Logger.LogException("[ChatPage] Erreur chargement historique", ex);
             }
         }
 

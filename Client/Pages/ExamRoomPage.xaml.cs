@@ -282,7 +282,7 @@ namespace Client.Pages
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur synchro examens : {ex.Message}");
+                Logger.LogException("[ExamRoomPage] Erreur synchro examens", ex);
             }
         }
 
@@ -299,7 +299,7 @@ namespace Client.Pages
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur synchro salles : {ex.Message}");
+                Logger.LogException("[ExamRoomPage] Erreur synchro salles", ex);
             }
         }
 
@@ -419,7 +419,7 @@ namespace Client.Pages
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi configuration : {ex.Message}");
+                Logger.LogException("[ExamRoomPage] Erreur envoi configuration", ex);
             }
         }
 

@@ -47,12 +47,31 @@ namespace Client.Helpers
                         Directory.CreateDirectory(directory);
                     }
 
+                    RotateIfTooLarge();
                     File.AppendAllText(_logPath, line, Encoding.UTF8);
                 }
             }
             catch
             {
                 // Ignore logging failures – the goal is to avoid crashing the app when we cannot log.
+            }
+        }
+
+        // Au-delà de 5 Mo, le journal devient app.old.log (l'ancien est remplacé) :
+        // le fichier ne grossit plus indéfiniment sur les postes.
+        private const long MaxLogBytes = 5 * 1024 * 1024;
+
+        private static void RotateIfTooLarge()
+        {
+            try
+            {
+                var info = new FileInfo(_logPath);
+                if (info.Exists && info.Length >= MaxLogBytes)
+                    File.Move(_logPath, Path.ChangeExtension(_logPath, ".old.log"), overwrite: true);
+            }
+            catch
+            {
+                // Rotation impossible (fichier ouvert ailleurs) : on continue d'écrire dans le même fichier.
             }
         }
 

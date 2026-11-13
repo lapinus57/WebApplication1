@@ -394,7 +394,7 @@ namespace Client.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"❌ Error disposing previous connection: {ex.Message}");
+                    Logger.LogException("[SignalRService] Error disposing previous connection", ex);
                 }
             }
 
@@ -424,7 +424,7 @@ namespace Client.Services
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"❌ Toast error: {ex.Message}");
+                        Logger.LogException("[SignalRService] Toast error", ex);
                     }
                 }
 
@@ -740,7 +740,7 @@ namespace Client.Services
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Erreur MAJ paramètres : {ex.Message}");
+                        Logger.LogException("[SignalRService] Erreur MAJ paramètres", ex);
                     }
                 });
             });
@@ -853,7 +853,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"❌ Erreur lors du chargement des messages : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur lors du chargement des messages", ex);
                 ShowToast("Impossible de récupérer les messages du jour.");
                 return Result<List<ChatMessageModel>>.Fail("Erreur interne.");
             }
@@ -908,7 +908,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"❌ Reconnexion échouée : {ex.Message}");
+                Logger.LogException("[SignalRService] Reconnexion échouée", ex);
                 return false;
             }
         }
@@ -1205,7 +1205,7 @@ namespace Client.Services
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"❌ Error closing login conflict dialog: {ex.Message}");
+                        Logger.LogException("[SignalRService] Error closing login conflict dialog", ex);
                     }
                 }
                 _loginConflictDialogs.Clear();
@@ -1287,7 +1287,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"❌ Toast error: {ex.Message}");
+                Logger.LogException("[SignalRService] Toast error", ex);
             }
         }
 
@@ -1350,7 +1350,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur lecture cache local : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur lecture cache local", ex);
             }
             return new();
         }
@@ -1366,7 +1366,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur sauvegarde cache local : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur sauvegarde cache local", ex);
             }
         }
 
@@ -1464,7 +1464,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur sauvegarde users cache : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur sauvegarde users cache", ex);
             }
         }
 
@@ -1543,7 +1543,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SignalRService] RenameLocalUserAsync erreur : {ex.Message}");
+                Logger.LogException("[SignalRService] RenameLocalUserAsync erreur", ex);
             }
 
             return false;
@@ -1595,7 +1595,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SignalRService] DeleteLocalUserAsync erreur : {ex.Message}");
+                Logger.LogException("[SignalRService] DeleteLocalUserAsync erreur", ex);
             }
 
             return false;
@@ -1612,7 +1612,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SignalRService] RenameServerUserAsync erreur : {ex.Message}");
+                Logger.LogException("[SignalRService] RenameServerUserAsync erreur", ex);
                 return false;
             }
         }
@@ -1628,7 +1628,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SignalRService] DeleteServerUserAsync erreur : {ex.Message}");
+                Logger.LogException("[SignalRService] DeleteServerUserAsync erreur", ex);
                 return false;
             }
         }
@@ -1647,7 +1647,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur nettoyage cache : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur nettoyage cache", ex);
             }
 
             Dispatcher?.TryEnqueue(() =>
@@ -1668,7 +1668,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi examens : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi examens", ex);
             }
         }
 
@@ -1682,7 +1682,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi examens silencieux : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi examens silencieux", ex);
             }
         }
 
@@ -1696,7 +1696,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi salles : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi salles", ex);
             }
         }
 
@@ -1710,7 +1710,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi salles silencieux : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi salles silencieux", ex);
             }
         }
 
@@ -1732,7 +1732,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi rappel : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi rappel", ex);
             }
         }
 
@@ -1751,7 +1751,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération rappel : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération rappel", ex);
                 return null;
             }
         }
@@ -1776,7 +1776,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi configuration RDV : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi configuration RDV", ex);
             }
         }
 
@@ -1796,7 +1796,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération configuration RDV : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération configuration RDV", ex);
                 return AppointmentConfig;
             }
         }
@@ -1815,7 +1815,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération examens : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération examens", ex);
                 return new List<ExamOption>();
             }
         }
@@ -1835,7 +1835,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération salles : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération salles", ex);
                 return new List<string>();
             }
         }
@@ -1898,7 +1898,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi paramètres : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi paramètres", ex);
             }
         }
 
@@ -1943,7 +1943,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur import utilisateurs vers le serveur : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur import utilisateurs vers le serveur", ex);
                 return false;
             }
         }
@@ -1963,7 +1963,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération paramètres : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération paramètres", ex);
                 return string.Empty;
             }
         }
@@ -1983,7 +1983,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération paramètres manquants : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération paramètres manquants", ex);
                 return new Dictionary<string, string>();
             }
         }
@@ -2004,7 +2004,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération patients : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération patients", ex);
                 return new List<Patient>();
             }
         }
@@ -2021,7 +2021,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur mise à jour nom de salle : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur mise à jour nom de salle", ex);
             }
         }
 
@@ -2036,7 +2036,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur mise à jour couleur utilisateur : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur mise à jour couleur utilisateur", ex);
             }
         }
 
@@ -2071,7 +2071,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur envoi avatar : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur envoi avatar", ex);
             }
             return null;
         }
@@ -2088,7 +2088,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération avatars : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération avatars", ex);
             }
             return new List<string>();
         }
@@ -2104,7 +2104,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur mise à jour avatar : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur mise à jour avatar", ex);
             }
         }
 
@@ -2119,7 +2119,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur archivage patients : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur archivage patients", ex);
             }
         }
 
@@ -2134,7 +2134,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur suppression patients du jour : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur suppression patients du jour", ex);
             }
         }
 
@@ -2149,7 +2149,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur suppression messages du jour : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur suppression messages du jour", ex);
             }
         }
 
@@ -2164,7 +2164,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur génération messages : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur génération messages", ex);
             }
         }
 
@@ -2179,7 +2179,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur désarchivage patients : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur désarchivage patients", ex);
             }
         }
 
@@ -2198,7 +2198,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération archives : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération archives", ex);
                 return new List<Patient>();
             }
         }
@@ -2214,7 +2214,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur désarchivage patient : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur désarchivage patient", ex);
             }
         }
         public async Task<List<PatientLog>> GetPatientLogsAsync(string patientId)
@@ -2232,7 +2232,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur récupération historique patient : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur récupération historique patient", ex);
                 return new List<PatientLog>();
             }
         }
@@ -2253,7 +2253,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur r\u00e9cup\u00e9ration groupes : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur r\u00e9cup\u00e9ration groupes", ex);
                 return new Dictionary<string, List<string>>();
             }
         }
@@ -2268,7 +2268,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur création groupe : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur création groupe", ex);
                 return "Impossible de créer le groupe.";
             }
         }
@@ -2283,7 +2283,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur ajout au groupe : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur ajout au groupe", ex);
                 return "Impossible d’ajouter l’utilisateur au groupe.";
             }
         }
@@ -2303,7 +2303,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur renommage groupe : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur renommage groupe", ex);
             }
         }
 
@@ -2322,7 +2322,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur changement mot de passe groupe : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur changement mot de passe groupe", ex);
             }
         }
 
@@ -2341,7 +2341,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Erreur suppression utilisateur groupe : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur suppression utilisateur groupe", ex);
             }
         }
 
@@ -2440,7 +2440,7 @@ namespace Client.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Erreur déconnexion : {ex.Message}");
+                    Logger.LogException("[SignalRService] Erreur déconnexion", ex);
                 }
             }
             _initialized = false;
@@ -2537,7 +2537,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"❌ Erreur MAJ statut utilisateur : {ex.Message}");
+                Logger.LogException("[SignalRService] Erreur MAJ statut utilisateur", ex);
             }
         }
 

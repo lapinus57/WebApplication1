@@ -199,7 +199,7 @@ namespace Client.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[HotKeyService] Failed to hide existing patient dialog: {ex.Message}");
+                    Logger.LogException("[HotKeyService] Failed to hide existing patient dialog", ex);
                 }
             }
 
@@ -374,7 +374,7 @@ namespace Client.Services
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
+                        Logger.LogException("[HotKeyService] Error declaring patient", ex);
                     }
                 }
             }
@@ -468,7 +468,7 @@ namespace Client.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[HotKeyService] Error updating patient: {ex.Message}");
+                    Logger.LogException("[HotKeyService] Error updating patient", ex);
                 }
             }
         }
@@ -482,7 +482,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[HotKeyService] Error retrieving patient logs: {ex.Message}");
+                Logger.LogException("[HotKeyService] Error retrieving patient logs", ex);
                 logs = new List<PatientLog>();
             }
 
@@ -543,7 +543,7 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[HotKeyService] Error declaring patient: {ex.Message}");
+                Logger.LogException("[HotKeyService] Error declaring patient", ex);
             }
         }
 

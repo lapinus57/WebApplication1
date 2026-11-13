@@ -214,7 +214,7 @@ namespace Client.Helpers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Sauvegarde échouée : {ex.Message}");
+                Logger.LogException("[AppSettings] Sauvegarde échouée", ex);
                 Logger.LogException("[AppSettings] Save failed", ex, "CLI10");
             }
         }
