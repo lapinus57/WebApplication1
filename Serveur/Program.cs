@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ChatServeur;
 using ChatServeur.Fundus;
 using ChatServeur.Registry;
+using ChatServeur.EyeMail;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging;
@@ -112,6 +113,14 @@ builder.Services.AddScoped<PatientRegistryStore>();
 builder.Services.AddSingleton<PatientRegistryImport>();
 builder.Services.AddScoped<FoStore>();
 
+// Base EyeChat des patients (EyeMail) : fichier séparé data/eyemail.db.
+var eyeMailPath = Path.Combine(dbFolder, "eyemail.db");
+builder.Services.AddDbContext<EyeMailDbContext>(options =>
+    options.UseSqlite(new SqliteConnectionStringBuilder { DataSource = eyeMailPath, DefaultTimeout = 30 }.ToString()));
+builder.Services.AddScoped<EyeMailStore>();
+builder.Services.AddScoped<IEyeMailSource, EyeMailAccessSource>();
+builder.Services.AddSingleton<EyeMailImport>();
+
 var app = builder.Build();
 var logger = app.Logger;
 
@@ -131,6 +140,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/Mobile") ||
         context.Request.Path.StartsWithSegments("/Fundus") ||
         context.Request.Path.StartsWithSegments("/PatientRegistry") ||
+        context.Request.Path.StartsWithSegments("/EyeMail") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)
@@ -192,6 +202,16 @@ using (var scope = app.Services.CreateScope())
     EnsureColumn(db, logger, "SecureGroups", "IsPublic", "INTEGER NOT NULL DEFAULT 0", "SER15");
     CleanupKnownUsers(db, logger);
     ConfigureSqlite(db, logger);
+
+    try
+    {
+        EyeMailSchema.Ensure(scope.ServiceProvider.GetRequiredService<EyeMailDbContext>());
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SER25: Failed to create the EyeMail database (eyemail.db).");
+        throw;
+    }
     if (!db.ServerConfigs.Any())
     {
         db.ServerConfigs.Add(new ServerConfig());

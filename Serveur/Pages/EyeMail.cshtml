@@ -1,0 +1,62 @@
+@page
+@model Serveur.Pages.EyeMailModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Base patients EyeMail";
+    var fr = CultureInfo.GetCultureInfo("fr-FR");
+}
+<link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
+<section class="registry">
+    <header class="registry-heading">
+        <div><p class="registry-eyebrow">BASE EYECHAT · EYEMAIL</p><h1>Tous les patients</h1>
+            <p>Copie des patients de la base Access du cabinet dans <code>data/eyemail.db</code>. Access n’est jamais modifié.</p></div>
+    </header>
+    @if (Model.Error.Length > 0) { <div class="registry-error" role="alert">@Model.Error</div> }
+    @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+
+    <section class="registry-card registry-import">
+        <div><strong>@Model.ActiveCount patient(s) dans la base EyeMail</strong>
+            @if (Model.InactiveCount > 0) { <span> · @Model.InactiveCount absent(s) du dernier import</span> }
+            <p>Dernier import : @Model.FormatUtc(Model.LastRun?.FinishedUtc)
+                @if (Model.LastRun is { } run) { <span>— table « @run.SourceTable », @run.Read lu(s), @run.Added nouveau(x), @run.Updated modifié(s), @run.Deactivated absent(s).</span> }
+            </p></div>
+        <form method="post" asp-page-handler="Import"><button type="submit" disabled="@Model.ImportStatus.Running">Importer / actualiser tous les patients</button></form>
+        @if (Model.ImportStatus.Running) { <form method="post" asp-page-handler="Cancel"><button class="secondary" type="submit">Interrompre l’import</button></form> }
+        <p id="registry-progress" class="@(Model.ImportStatus.Failed ? "registry-error" : "")" data-running="@((Model.WatchImport || Model.ImportStatus.Running) ? "true" : "false")" role="status">@Model.ImportStatus.Message</p>
+        <p class="registry-help">L’import lit la table Patients d’Access avec les réglages Access du serveur. Seuls les patients modifiés sont réécrits. Un patient qui n’est plus dans Access est gardé et marqué absent, jamais supprimé.</p>
+    </section>
+
+    <form method="post" asp-page-handler="Search" class="registry-filters">
+        <label>Rechercher un patient<input asp-for="Query" maxlength="100" placeholder="Nom, prénom, nom de jeune fille ou identifiant" /></label>
+        <label class="registry-check"><input asp-for="Inactive" />Absents du dernier import</label>
+        <button type="submit">Rechercher</button>
+    </form>
+    <p>@Model.MatchCount résultat(s) · page @Model.PageNumber sur @Model.Pages</p>
+    <div class="registry-table-wrap"><table class="registry-list">
+        <thead><tr><th>Patient</th><th>Naissance</th><th>Adresse</th><th>Téléphones</th><th>E-mail</th></tr></thead>
+        <tbody>
+        @foreach (var p in Model.Patients)
+        {
+            <tr>
+                <td><strong>@p.Civility @p.LastName @p.FirstName</strong>
+                    @if (p.MaidenName.Length > 0) { <small>Née @p.MaidenName</small> }
+                    <small>Identifiant Access : @p.AccessPatientId</small></td>
+                <td>@(p.BirthDate?.ToString("dd/MM/yyyy", fr) ?? "")</td>
+                <td>@p.Address @if (p.Address2.Length > 0) { <br />@p.Address2 }<small>@p.PostalCode @p.City</small></td>
+                <td>@p.Phone1 @if (p.Phone1Info.Length > 0) { <small>@p.Phone1Info</small> }
+                    @if (p.Phone2.Length > 0) { <br />@p.Phone2 } @if (p.Phone2Info.Length > 0) { <small>@p.Phone2Info</small> }</td>
+                <td>@p.Email @if (p.EmailInfo.Length > 0) { <small>@p.EmailInfo</small> }</td>
+            </tr>
+        }
+        </tbody>
+    </table></div>
+    @if (Model.MatchCount == 0 && Model.Error.Length == 0) { <p class="registry-card">Aucun patient. Si la base est vide, lancez un import.</p> }
+    @if (Model.Pages > 1)
+    {
+        <form method="post" asp-page-handler="Search" class="registry-pagination"><input type="hidden" name="Query" value="@Model.Query" /><input type="hidden" name="Inactive" value="@Model.Inactive" />
+            <button type="submit" name="PageNumber" value="@(Model.PageNumber - 1)" disabled="@(Model.PageNumber == 1)">Précédente</button>
+            <button type="submit" name="PageNumber" value="@(Model.PageNumber + 1)" disabled="@(Model.PageNumber == Model.Pages)">Suivante</button>
+        </form>
+    }
+</section>
+<script src="~/js/patient-registry.js" asp-append-version="true"></script>

@@ -4,21 +4,22 @@ using Microsoft.Data.Sqlite;
 namespace ChatServeur.Startup;
 
 /// <summary>
-/// Sauvegarde quotidienne de chat.db dans data/sauvegardes (chat-AAAA-MM-JJ.db).
+/// Sauvegarde quotidienne d'une base (chat.db, eyemail.db) dans data/sauvegardes (nom-AAAA-MM-JJ.db).
 /// La copie passe par l'API de sauvegarde SQLite : elle reste cohérente même pendant
 /// que le serveur écrit (mode WAL). Seules les <see cref="DefaultKeep"/> dernières sont gardées.
 /// </summary>
 public static class DatabaseBackup
 {
     public const int DefaultKeep = 14;
-    private const string Prefix = "chat-";
     private const string DateFormat = "yyyy-MM-dd";
 
     /// <summary>Crée la sauvegarde du jour si elle n'existe pas encore. Renvoie son chemin, ou null si déjà faite.</summary>
     public static string? RunIfDue(string databasePath, string backupFolder, DateTime today, int keep = DefaultKeep)
     {
         Directory.CreateDirectory(backupFolder);
-        var target = Path.Combine(backupFolder, $"{Prefix}{today.ToString(DateFormat, CultureInfo.InvariantCulture)}.db");
+        // chat.db → chat-AAAA-MM-JJ.db, eyemail.db → eyemail-AAAA-MM-JJ.db
+        var prefix = Path.GetFileNameWithoutExtension(databasePath) + "-";
+        var target = Path.Combine(backupFolder, $"{prefix}{today.ToString(DateFormat, CultureInfo.InvariantCulture)}.db");
         if (File.Exists(target))
             return null;
 
@@ -34,15 +35,15 @@ public static class DatabaseBackup
         // Le fichier n'apparaît sous son nom final qu'une fois complet.
         File.Move(temporary, target);
 
-        Prune(backupFolder, keep);
+        Prune(backupFolder, prefix, keep);
         return target;
     }
 
     /// <summary>Supprime les sauvegardes les plus anciennes au-delà de <paramref name="keep"/>.</summary>
-    public static void Prune(string backupFolder, int keep)
+    public static void Prune(string backupFolder, string prefix, int keep)
     {
-        var dated = Directory.EnumerateFiles(backupFolder, Prefix + "*.db")
-            .Select(path => (path, date: ParseDate(path)))
+        var dated = Directory.EnumerateFiles(backupFolder, prefix + "*.db")
+            .Select(path => (path, date: ParseDate(path, prefix)))
             .Where(item => item.date != null)
             .OrderByDescending(item => item.date)
             .Skip(Math.Max(1, keep));
@@ -50,11 +51,11 @@ public static class DatabaseBackup
             File.Delete(path);
     }
 
-    private static DateTime? ParseDate(string path)
+    private static DateTime? ParseDate(string path, string prefix)
     {
         var name = Path.GetFileNameWithoutExtension(path);
-        return name.StartsWith(Prefix, StringComparison.Ordinal) &&
-               DateTime.TryParseExact(name[Prefix.Length..], DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+        return name.StartsWith(prefix, StringComparison.Ordinal) &&
+               DateTime.TryParseExact(name[prefix.Length..], DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
             ? date
             : null;
     }

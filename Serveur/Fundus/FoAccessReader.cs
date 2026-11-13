@@ -26,6 +26,8 @@ public sealed class FoAccessReader(ChatDbContext db, IConfiguration configuratio
     }
 
     private FoAccessData Reader() => new(Options(), () => Now);
+    /// <summary>Chemin et droits Access du serveur, pour les autres lectures (base EyeMail).</summary>
+    public AccessReadOptions AccessOptions() => Options();
     public IReadOnlyList<FoField> Inspect() => Reader().Inspect();
     public string SourceKey(FoMapping mapping) => Reader().SourceKey(mapping);
     public string RegistrySourceKey(FoMapping mapping) => Reader().RegistrySourceKey(mapping);
