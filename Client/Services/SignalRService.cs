@@ -2360,6 +2360,7 @@ namespace Client.Services
                     existing.Note != incoming.Note ||
                     existing.Avatar != incoming.Avatar ||
                     existing.Status != incoming.Status ||
+                    existing.MachineName != incoming.MachineName ||
                     existing.IsOnline != incoming.IsOnline ||
                     existing.Rooms.Count != incoming.Rooms.Count ||
                     !existing.Rooms.SequenceEqual(incoming.Rooms))

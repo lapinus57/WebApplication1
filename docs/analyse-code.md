@@ -13,16 +13,23 @@ Revue du serveur `Serveur/`, du hub SignalR et de l'outillage. Les points marqu�
 | `Program.cs` | Sept fonctions presque identiques, environ 250 lignes, ajoutaient chacune une colonne SQLite. | Elles sont remplacées par un seul `EnsureColumn(table, colonne, définition, code)`. Les codes d'erreur `SERxx` sont conservés. |
 | Tests | Rien ne vérifiait les mots de passe ni les avatars. | 14 vérifications ajoutées à `tests/Server.Startup.Tests`, qui tourne déjà dans la CI Windows. |
 
-## À décider (non modifié)
+## Deuxième série de corrections (novembre 2026)
 
-1. **Le hub `/chatHub` n'a pas d'authentification.** Tout poste qui atteint le port 5000 peut appeler `GetPatients`, `ClearTodayPatients`, `ClearTodayMessages`, `DeleteMessage`, `RenameGroup`, `ChangeGroupPassword` ou `RemoveUserFromGroup`. Il peut aussi envoyer des messages au nom d'un autre utilisateur, car `SendMessage` fait confiance au paramètre `sender`.
-   - `ChangeGroupPassword` permet en particulier de remplacer le mot de passe d'un groupe protégé, puis d'y entrer.
-   - Piste : une clé partagée par poste, transmise à la connexion (`accessTokenProvider`) et vérifiée par un filtre de hub. Le serveur déduirait aussi l'expéditeur de la connexion au lieu de le lire dans le paramètre.
-2. **Le mot de passe applicatif `901027` est écrit en dur**, à la fois dans `Client/Helpers/AdministrativeAccess.cs` et dans `Serveur/Hubs/ChatHub.cs`. Il est donc lisible dans le dépôt et dans le binaire du client. Mieux vaudrait le placer dans `appsettings.json` côté serveur (comme `Administration:Password`) et le saisir côté client.
-3. **L'état partagé du hub n'est pas protégé contre les accès simultanés.** `ConnectedUsers`, `AllUsers`, `GroupMembers` et `_userToConnectionId` sont des `Dictionary` statiques, utilisés à environ 130 endroits. SignalR exécute les appels de plusieurs postes en parallèle, alors que seuls deux blocs utilisent `UserStateLock`. Des connexions ou déconnexions simultanées peuvent corrompre ces dictionnaires, ce qui se traduit par des exceptions aléatoires ou des utilisateurs « fantômes ». Piste : `ConcurrentDictionary`, ou un verrou systématique autour de toutes les lectures et écritures.
-4. **La clé de signature `Client/Client_TemporaryKey.pfx` est versionnée.** Si elle sert à signer les paquets distribués, il faut la retirer du dépôt et la remplacer.
-5. **Le workflow `.github/workflows/dotnet.yml` vise la branche `master`, qui n'existe pas.** Il compile sous Ubuntu, ce qui est incompatible avec le client WinUI. Il ne s'exécute donc jamais. La vraie CI est `windows-client.yml` : on peut supprimer `dotnet.yml`.
-6. **Fichiers parasites dans le dépôt :** `UpgradeLog.htm`, les avatars d'exemple dans `Serveur/wwwroot/avatars/`, et la ligne « lapin est bien » dans `docs/README.md`.
+| Point | État |
+|---|---|
+| Hub sans authentification | **Corrigé si configuré.** `Administration:StationKey` exige une clé de poste pour le hub et `/api/configuration` ; chaque poste la demande une fois. L'expéditeur des messages est imposé par le serveur. Seul un membre peut changer le mot de passe d'un groupe protégé. Les suppressions, purges et changements de groupe sont tracés dans le journal du serveur. |
+| Mot de passe applicatif en dur | **Corrigé si configuré.** `Administration:ApplicationPassword` côté serveur ; les postes le vérifient auprès du serveur. L'ancien mot de passe ne sert plus que si ce réglage est vide, ou si le serveur est injoignable. |
+| État partagé du hub sans verrou | **Corrigé.** Un filtre SignalR (`ChatHubStateFilter`) fait passer un par un les appels qui modifient l'état. Les lectures en base restent parallèles. |
+| Base SQLite | **Amélioré.** Mode WAL, attente de 30 s au lieu d'un échec « database is locked », index sur les dates, sauvegarde quotidienne dans `data/sauvegardes` (14 jours). |
+| Erreurs invisibles sur les postes | **Corrigé.** 64 blocs d'erreur du client écrivent dans `app.log`, avec une rotation à 5 Mo. |
+| Tests et CI | **Ajoutés.** `tests/Hub.Tests` démarre un vrai serveur et simule plusieurs postes (34 vérifications). La CI tourne aussi sur les envois vers `master2`. `dotnet.yml` est supprimé. |
+| Poste de chaque personne | **Ajouté.** Info-bulle « Poste : … » (ou « Dernier poste : … ») dans la liste des utilisateurs. |
+| `UpgradeLog.htm` | Supprimé. |
+
+Restent à décider :
+- **`Client/Client_TemporaryKey.pfx` est dans le dépôt.** Si cette clé signe les paquets distribués, il faut la remplacer et la retirer du dépôt. Je ne l'ai pas fait, parce que cela casserait la signature locale dans Visual Studio.
+- **Conservation des messages :** les messages supprimés restent en base (masqués). Leur purge automatique est une décision de politique de conservation.
+- **Découpage de `ChatHub.cs` (~1 900 lignes) et de `SignalRService.cs` (~2 500 lignes) :** utile pour la maintenance. C'est plus sûr maintenant qu'il y a des tests du hub.
 
 ## Même compte ouvert sur deux postes
 

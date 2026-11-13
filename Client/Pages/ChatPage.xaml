@@ -427,6 +427,7 @@
                         <StackPanel Orientation="Horizontal"
                                 Spacing="10"
                                 Padding="5"
+                                ToolTipService.ToolTip="{x:Bind PresenceToolTip}"
                                 ContextFlyout="{StaticResource UserContextMenu}">
                             <Image Source="{Binding Avatar, Converter={StaticResource StringToImageSourceConverter}}" Width="40" Height="40"/>
                             <StackPanel>

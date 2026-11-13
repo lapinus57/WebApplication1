@@ -13,6 +13,15 @@ namespace Client.Models
         public string ConnectionId { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string Avatar { get; set; } = DefaultAvatar;
+
+        /// <summary>Nom du dernier poste sur lequel la personne s'est connectée (envoyé par le serveur).</summary>
+        public string MachineName { get; set; } = string.Empty;
+
+        /// <summary>Info-bulle de la liste des utilisateurs : sur quel poste se trouve la personne.</summary>
+        public string PresenceToolTip
+            => string.IsNullOrWhiteSpace(MachineName) ? RoomsDisplay
+                : IsOnline ? $"Poste : {MachineName}"
+                : $"Dernier poste : {MachineName}";
         private ObservableCollection<string> _rooms = new();
         private string _colorUserName = string.Empty;
         private string _accentAwareColorUserName = string.Empty;
@@ -177,6 +186,7 @@ namespace Client.Models
                 IsSecretariat = IsSecretariat,
                 IsOnline = IsOnline,
                 Status = Status,
+                MachineName = MachineName,
                 CanRenameLocalUser = CanRenameLocalUser
             };
 
