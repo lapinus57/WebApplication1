@@ -119,6 +119,14 @@ finally
     SqliteConnection.ClearAllPools();
     try { Directory.Delete(folder, recursive: true); } catch { }
 }
+// 4. Messages d'échec : la vraie cause est affichée, sans données patient.
+var noProvider = EyeMailImport.Describe(new InvalidOperationException("Aucun fournisseur Access OLE DB compatible. Installez ACE de même architecture que l’application (x64/x86)."));
+Check(noProvider.Contains("Aucun fournisseur Access") && noProvider.Contains("bits"), "Pilote Access absent : cause et architecture affichées");
+Check(EyeMailImport.Describe(new SqliteException("Fichier verrouillé", 5)).Contains("Access a refusé la lecture : Fichier verrouillé"), "Erreur du pilote affichée");
+Check(EyeMailImport.Describe(new UnauthorizedAccessException("C:\\x")).Contains("droit de lire"), "Droits insuffisants expliqués");
+var unknown = EyeMailImport.Describe(new NullReferenceException("DUPONT Jean"));
+Check(unknown.Contains("NullReferenceException") && !unknown.Contains("DUPONT"), "Erreur inconnue : type seulement, sans son texte");
+
 Console.WriteLine($"{checks} EyeMail checks passed; temporary SQLite database, synthetic patients only.");
 
 sealed class FakeSource : IEyeMailSource

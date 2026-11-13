@@ -16,19 +16,24 @@ public sealed class EyeMailAccessSource(FoAccessReader access, IConfiguration co
         using var connection = ReadOnlyAccess.Open(access.AccessOptions());
         var table = FindTable(connection, configuration["EyeMail:PatientsTable"] ?? "Patients");
 
-        using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT * FROM [{table.Replace("]", "]]")}]";
-        using var reader = command.ExecuteReader()!;
-        var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
+        // On ne lit que les colonnes utiles : un SELECT * échoue sur certaines colonnes Access
+        // (pièces jointes, valeurs multiples) et lirait inutilement les colonnes médicales.
+        var names = ColumnNames(connection, table);
         var columns = EyeMailColumns.Detect(names);
+        var selected = columns.Found.Values.Distinct().Select(name => names.IndexOf(name)).OrderBy(i => i).ToList();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT {string.Join(", ", selected.Select(i => Quote(names[i])))} FROM {Quote(table)}";
+        using var reader = command.ExecuteReader()!;
         var today = access.Now.Date;
 
         var patients = new List<EyeMailSourcePatient>();
-        var values = new object?[reader.FieldCount];
+        var values = new object?[names.Count];
         while (reader.Read())
         {
             ct.ThrowIfCancellationRequested();
-            reader.GetValues(values!);
+            for (int i = 0; i < selected.Count; i++)
+                values[selected[i]] = reader.GetValue(i);
             if (columns.Map(values, today) is { } patient)
                 patients.Add(patient);
             if (patients.Count > EyeMailStore.MaxPatients)
@@ -38,6 +43,17 @@ public sealed class EyeMailAccessSource(FoAccessReader access, IConfiguration co
         }
         progress?.Invoke(patients.Count);
         return new EyeMailSourceData(table, columns.Found, patients);
+    }
+
+    private static string Quote(string name) => "[" + name.Replace("]", "]]") + "]";
+
+    private static List<string> ColumnNames(OleDbConnection connection, string table)
+    {
+        var rows = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Columns, new object?[] { null, null, table, null })!;
+        return rows.Rows.Cast<DataRow>()
+            .OrderBy(row => Convert.ToInt64(row["ORDINAL_POSITION"], System.Globalization.CultureInfo.InvariantCulture))
+            .Select(row => (string)row["COLUMN_NAME"])
+            .ToList();
     }
 
     private static string FindTable(OleDbConnection connection, string wanted)
