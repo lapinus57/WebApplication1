@@ -355,7 +355,7 @@ namespace Client.Pages
             if (visible && !present) Workspace.Items.Insert(Math.Max(0, Workspace.Items.IndexOf(SettingsTab)), PostItTab);
             else if (!visible && present)
             {
-                if (Workspace.SelectedItem == PostItTab) Workspace.SelectedIndex = 0;
+                if (ReferenceEquals(Workspace.SelectedItem, PostItTab)) Workspace.SelectedIndex = 0;
                 Workspace.Items.Remove(PostItTab);
             }
         }

@@ -304,7 +304,7 @@ namespace Client.Pages
                 {
                     var localUsers = await App.ChatService.LoadUsersFromDiskAsync();
                     names = localUsers
-                        .Select(u => u.Username?.Trim())
+                        .Select(u => u.Username?.Trim() ?? string.Empty)
                         .Where(u => !string.IsNullOrWhiteSpace(u))
                         .Distinct(comparer)
                         .OrderBy(u => u, comparer)
@@ -388,7 +388,7 @@ namespace Client.Pages
         {
             var comparer = StringComparer.OrdinalIgnoreCase;
             var finalNames = names
-                .Select(name => name?.Trim())
+                .Select(name => name?.Trim() ?? string.Empty)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Distinct(comparer)
                 .ToList();

@@ -315,7 +315,7 @@ namespace Client.Services
                    && extension.Equals(".mdb", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool IsProviderNotRegistered(Exception exception)
+        private static bool IsProviderNotRegistered(Exception? exception)
         {
             while (exception != null)
             {

@@ -597,7 +597,7 @@ namespace Client.Services
                     // Ctrl+E => show chat
                     App.MainWindow?.DispatcherQueue?.TryEnqueue(() =>
                     {
-                        App.MainWindow.Activate();
+                        App.MainWindow?.Activate();
                         if (App.MainWindow is MainWindow mw)
                         {
                             var chat = mw.ShowChatPage();

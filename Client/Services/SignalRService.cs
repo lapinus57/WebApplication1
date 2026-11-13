@@ -357,7 +357,7 @@ namespace Client.Services
             {
                 foreach (var item in Messages.OfType<ChatMessageModel>().ToList())
                     Messages.Remove(item);
-                foreach (var msg in result.Value)
+                foreach (var msg in result.Value ?? new List<ChatMessageModel>())
                     Messages.Add(msg);
 
                 _historyLoaded = true;

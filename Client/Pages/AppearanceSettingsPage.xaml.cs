@@ -48,7 +48,7 @@ namespace Client.Pages
             UpdateResourceBrush("SystemAccentColorDark1", args.NewColor);
             UpdateResourceBrush("AccentColor", args.NewColor);
             UpdateResourceBrush("SystemControlHighlightAccentBrush", args.NewColor);
-            if (App.MainWindow.Content is FrameworkElement root)
+            if (App.MainWindow?.Content is FrameworkElement root)
             {
                 var titleBar = root.FindName("AppTitleBar") as Grid;
                 var nav = root.FindName("nvSample") as NavigationView;
@@ -64,7 +64,7 @@ namespace Client.Pages
             var textNavColor = ColorUtils.GetContrastingTextColor(args.NewColor);
             currentSettings.TextNavigationViewColor = ColorUtils.ToHex(textNavColor);
             AppSettings.SetObject("Colors", currentSettings);
-            if (App.MainWindow.Content is FrameworkElement root)
+            if (App.MainWindow?.Content is FrameworkElement root)
             {
                 var nav = root.FindName("nvSample") as NavigationView;
                 NavZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.NavigationViewColor));
@@ -107,7 +107,7 @@ namespace Client.Pages
             var textColor = ColorUtils.GetContrastingTextColor(args.NewColor);
             currentSettings.TextMyMessageColor = ColorUtils.ToHex(textColor);
             AppSettings.SetObject("Colors", currentSettings);
-            if (App.MainWindow.Content is FrameworkElement root)
+            if (App.MainWindow?.Content is FrameworkElement root)
             {
                 var titleBar = root.FindName("AppTitleBar") as Grid;
                 var nav = root.FindName("nvSample") as NavigationView;
@@ -123,7 +123,7 @@ namespace Client.Pages
             var textColor = ColorUtils.GetContrastingTextColor(args.NewColor);
             currentSettings.TextOtherMessageColor = ColorUtils.ToHex(textColor);
             AppSettings.SetObject("Colors", currentSettings);
-            if (App.MainWindow.Content is FrameworkElement root)
+            if (App.MainWindow?.Content is FrameworkElement root)
             {
                 var titleBar = root.FindName("AppTitleBar") as Grid;
                 var nav = root.FindName("nvSample") as NavigationView;
@@ -163,7 +163,7 @@ namespace Client.Pages
         private void SaveSettings_Click(object sender, RoutedEventArgs e)
         {
             AppSettings.SetObject("Colors", currentSettings);
-            if (App.MainWindow.Content is FrameworkElement root)
+            if (App.MainWindow?.Content is FrameworkElement root)
             {
                 var titleBar = root.FindName("AppTitleBar") as Grid;
                 var nav = root.FindName("nvSample") as NavigationView;
