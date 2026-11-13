@@ -63,7 +63,10 @@ static class ExportChecks
 
         var json = DiagnosticPackage.BuildJson(Input(true));
         foreach (var leak in new[] { "Martinez", "Léa", "Hugo", "Zoé", "Inconnue", "Gare", "Hautecroix", "lea.martinez", "12 34 56 78", "0612345678", "612345678", "4242", "Almeida", "621123456" })
-            Check(!json.Contains(leak, StringComparison.OrdinalIgnoreCase), "Pseudonymized export hides " + leak);
+            // Mot entier seulement : les pseudonymes sont des syllabes aléatoires (« Bogare »), qui contiennent
+            // parfois « gare » ou « hugo » par hasard. Une vraie fuite reste un mot ou un nombre isolé.
+            Check(!System.Text.RegularExpressions.Regex.IsMatch(json, @"(?<![\p{L}\d])" + System.Text.RegularExpressions.Regex.Escape(leak) + @"(?![\p{L}\d])",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant), "Pseudonymized export hides " + leak);
         using var doc = JsonDocument.Parse(json);
         var rows = doc.RootElement.GetProperty("appointments").EnumerateArray().ToList();
         string Field(int i, string name) => rows[i].GetProperty(name).GetString()!;
