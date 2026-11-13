@@ -30,6 +30,13 @@ Check(future.BirthDate == null, "Date de naissance future ignorée");
 try { EyeMailColumns.Detect(new[] { "Prénom", "Ville" }); Check(false, "Sans Code Patient ni Nom, l'import doit être refusé"); }
 catch (InvalidDataException ex) { Check(ex.Message.Contains("Code Patient") && ex.Message.Contains("Ville"), "Refus expliqué avec les colonnes trouvées"); }
 Check(EyeMailColumns.SearchText("Léa", "D'Almeida-Brück") == "LEA DALMEIDABRUCK", "Texte de recherche sans accents ni ponctuation");
+var cabinet = EyeMailColumns.Detect(new[] { "Code patient", "NOM", "PRENOM", "Tel 1" });
+Check(cabinet.Found["Id"] == "Code patient" && cabinet.Found["LastName"] == "NOM" && cabinet.Found["FirstName"] == "PRENOM", "« Code patient » et « NOM » en majuscules reconnus");
+try { EyeMailColumns.Detect(Array.Empty<string>(), table: "Patients"); Check(false, "Une table sans colonne lue doit être refusée"); }
+catch (InvalidDataException ex) { Check(ex.Message.Contains("Aucune colonne") && ex.Message.Contains("Patients"), "Table sans colonne : message clair"); }
+var imposed = EyeMailColumns.Detect(new[] { "Code", "NumDossier", "NomUsage", "Nom" },
+    new Dictionary<string, string> { ["Id"] = "NumDossier", ["LastName"] = "NomUsage" });
+Check(imposed.Found["Id"] == "NumDossier" && imposed.Found["LastName"] == "NomUsage", "Les colonnes choisies dans le registre priment");
 
 // 2. Synchronisation dans une vraie base SQLite temporaire.
 var folder = Path.Combine(Path.GetTempPath(), "EyeMail-Test-" + Guid.NewGuid().ToString("N"));

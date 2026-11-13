@@ -15,7 +15,14 @@ La table `Patients` recopie la table **Patients** de la base Access du cabinet. 
 | Téléphones et leurs remarques | Tel 1, Tel 1 Info, Tel 2/Portable, Tel 2 Info |
 | E-mail et sa remarque | E-mail, Email, Courriel…, Email Info |
 
-Les colonnes sont reconnues d'après leur nom, sans réglage. La comparaison ignore la casse, les accents et les espaces. Aucune colonne médicale (observation, réfraction…) n'est recopiée. Si la table d'Access ne s'appelle pas `Patients`, réglez `EyeMail:PatientsTable`.
+Les colonnes sont reconnues d'après leur nom, sans réglage. La comparaison ignore la casse, les accents et les espaces (« Code patient », « NOM » conviennent). Aucune colonne médicale (observation, réfraction…) n'est recopiée.
+
+La table lue est, dans l'ordre :
+1. celle indiquée par `EyeMail:PatientsTable` ;
+2. sinon celle choisie dans les **Réglages Access** du registre « Patients · Diabète / HTO », dont l'identifiant, le nom et le prénom sont alors repris tels quels ;
+3. sinon la table `Patients`.
+
+Les tables liées à une base dorsale sont acceptées.
 
 Chaque patient garde aussi sa date de création, sa dernière modification, la date du dernier import où il était présent, et s'il est encore dans Access.
 

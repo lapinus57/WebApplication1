@@ -45,29 +45,39 @@ public sealed class EyeMailColumns
     /// <summary>Champs trouvés (champ EyeMail → nom de la colonne Access), pour l'affichage.</summary>
     public IReadOnlyDictionary<string, string> Found { get; private init; } = new Dictionary<string, string>();
 
-    public static EyeMailColumns Detect(IReadOnlyList<string> columnNames)
+    /// <param name="preferred">Colonnes imposées (champ → nom de colonne), par exemple celles choisies dans le registre patients.</param>
+    public static EyeMailColumns Detect(IReadOnlyList<string> columnNames, IReadOnlyDictionary<string, string>? preferred = null, string table = "Patients")
     {
+        if (columnNames.Count == 0)
+            throw new InvalidDataException($"Aucune colonne n'a pu être lue dans la table « {table} » d'Access. Vérifiez qu'il s'agit bien de la table des patients.");
+
         var byKey = new Dictionary<string, int>();
         for (int i = 0; i < columnNames.Count; i++)
             byKey.TryAdd(Fold(columnNames[i]), i);
 
         var ordinals = new Dictionary<string, int>();
         var found = new Dictionary<string, string>();
+        void Use(string field, int index) { ordinals[field] = index; found[field] = columnNames[index]; }
+
+        foreach (var (field, column) in preferred ?? new Dictionary<string, string>())
+            if (Aliases.ContainsKey(field) && !string.IsNullOrWhiteSpace(column) && byKey.TryGetValue(Fold(column), out var index) && !ordinals.ContainsValue(index))
+                Use(field, index);
+
         foreach (var (field, aliases) in Aliases)
         {
+            if (ordinals.ContainsKey(field)) continue;
             foreach (var alias in aliases)
             {
                 if (!byKey.TryGetValue(Fold(alias), out var index) || ordinals.ContainsValue(index))
                     continue;
-                ordinals[field] = index;
-                found[field] = columnNames[index];
+                Use(field, index);
                 break;
             }
         }
 
         if (!ordinals.ContainsKey("Id") || !ordinals.ContainsKey("LastName"))
             throw new InvalidDataException(
-                "La table Patients d'Access n'a pas de colonne « Code Patient » et « Nom » reconnaissable. Colonnes trouvées : "
+                $"La table « {table} » d'Access n'a pas de colonne d'identifiant (« Code Patient ») et de nom (« Nom ») reconnaissable. Colonnes trouvées : "
                 + string.Join(", ", columnNames));
         return new EyeMailColumns(ordinals) { Found = found };
     }
