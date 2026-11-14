@@ -26,7 +26,8 @@
         <p class="registry-help"><strong>Base Access lue par le serveur :</strong>
             @(Model.AccessSource.Path.Length > 0 ? Model.AccessSource.Path : "aucune")
             (@Model.AccessSource.Origin@(Model.AccessSource.Path.Length > 0 && !Model.AccessSource.Exists ? " — fichier introuvable depuis le serveur" : ""))
-            · @(Model.UsesWorkgroup ? "avec fichier de groupe de travail" : "sans fichier de groupe de travail")</p>
+            · @(Model.UsesWorkgroup ? "avec fichier de groupe de travail" : "sans fichier de groupe de travail")
+            · <a asp-page="/AccessSettings">Modifier les réglages Access</a></p>
         <p class="registry-help">L’import lit la table Patients d’Access avec les réglages Access du serveur. Seuls les patients modifiés sont réécrits. Un patient qui n’est plus dans Access est gardé et marqué absent, jamais supprimé.</p>
     </section>
 

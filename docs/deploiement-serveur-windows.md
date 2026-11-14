@@ -51,6 +51,10 @@ setx /M Administration__ApplicationPassword "nouveau-mot-de-passe-applicatif"
 
 Redémarrez le service après une modification.
 
+### Base Access lue par le serveur
+
+Dans l'administration, la page **Réglages Access** permet de régler la base Access lue par le serveur (import EyeMail, préparation FO, registre patients) : chemin, fournisseur, fichier de groupe de travail, utilisateur et mot de passe Access, avec un bouton **Tester la connexion**. Ces réglages priment sur les variables `FoAccess__*`. Le mot de passe est chiffré ; les clés de chiffrement sont dans `data\cles` (protégées par Windows) et doivent rester avec `chat.db` en cas de déplacement du serveur.
+
 ### Sauvegarde quotidienne de la base
 
 Le serveur copie chaque jour `data\chat.db` dans `data\sauvegardes\chat-AAAA-MM-JJ.db`, et garde les 14 dernières copies. La copie est cohérente même pendant que le serveur fonctionne. Pour restaurer : arrêtez le service, remplacez `data\chat.db` par la copie choisie, supprimez `chat.db-wal` et `chat.db-shm` s'ils existent, puis redémarrez le service.

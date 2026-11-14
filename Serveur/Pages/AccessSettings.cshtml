@@ -1,0 +1,37 @@
+@page
+@model Serveur.Pages.AccessSettingsModel
+@{
+    ViewData["Title"] = "Réglages Access du serveur";
+}
+<link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
+<section class="registry">
+    <header class="registry-heading">
+        <div><p class="registry-eyebrow">ADMINISTRATION</p><h1>Réglages Access du serveur</h1>
+            <p>Base Access que lit le serveur pour l’import EyeMail, la préparation FO et le registre patients. Access reste en lecture seule.</p></div>
+    </header>
+    @if (Model.Error.Length > 0) { <div class="registry-error" role="alert">@Model.Error</div> }
+    @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+
+    <section class="registry-card">
+        <p><strong>Base lue actuellement :</strong> @(Model.Source.Path.Length > 0 ? Model.Source.Path : "aucune")
+            (@Model.Source.Origin@(Model.Source.Path.Length > 0 && !Model.Source.Exists ? " — fichier introuvable depuis le serveur" : ""))</p>
+        <form method="post" asp-page-handler="Test"><button class="secondary" type="submit">Tester la connexion</button></form>
+        @if (Model.TestResult.Length > 0)
+        {
+            <p class="@(Model.TestFailed ? "registry-error" : "registry-notice")" role="status">@Model.TestResult</p>
+        }
+    </section>
+
+    <form method="post" asp-page-handler="Save" class="registry-card" autocomplete="off">
+        <p class="registry-help">Recopiez les valeurs de <strong>Paramètres → Recherche RDV</strong> d’un poste où l’onglet SMS/mail fonctionne. Les chemins doivent être valables depuis le PC du serveur (chemin réseau <code>\\SERVEUR\partage\…</code> si besoin). Un champ vide garde le comportement précédent.</p>
+        <label>Chemin de la base Access (.mdb / .accdb)<input asp-for="DatabasePath" maxlength="500" placeholder="Vide : chemin des paramètres RDV des postes" /></label>
+        <label>Fournisseur OLE DB<input asp-for="Provider" maxlength="500" placeholder="Vide : Microsoft.ACE.OLEDB.12.0, puis 16.0 et Jet 4.0 essayés" /></label>
+        <label>Chemin du fichier de groupe de travail (system.mdw)<input asp-for="WorkgroupPath" maxlength="500" placeholder="Vide si la base n’est pas protégée" /></label>
+        <label>Utilisateur Access<input asp-for="UserName" maxlength="500" /></label>
+        <label>Mot de passe Access<input asp-for="NewPassword" type="password" maxlength="200" autocomplete="new-password"
+            placeholder="@(Model.HasPassword ? "Enregistré — laisser vide pour le garder" : "Aucun")" /></label>
+        @if (Model.HasPassword) { <label class="registry-check"><input asp-for="ClearPassword" />Effacer le mot de passe enregistré</label> }
+        <p class="registry-help">Le mot de passe est chiffré sur le serveur et n’est jamais réaffiché.</p>
+        <button type="submit">Enregistrer</button>
+    </form>
+</section>

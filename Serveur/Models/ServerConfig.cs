@@ -9,5 +9,7 @@ namespace ChatServeur
         public string AppointmentSearchJson { get; set; } = string.Empty;
         public string DeploymentConfigurationJson { get; set; } = string.Empty;
         public int IdleRoomTimeoutSeconds { get; set; } = 180;
+        /// <summary>Réglages Access saisis dans l'administration (voir ServerAccessSettings).</summary>
+        public string AccessSettingsJson { get; set; } = string.Empty;
     }
 }

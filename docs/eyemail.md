@@ -17,6 +17,8 @@ La table `Patients` recopie la table **Patients** de la base Access du cabinet. 
 
 Les colonnes sont reconnues d'après leur nom, sans réglage. La comparaison ignore la casse, les accents et les espaces (« Code patient », « NOM » conviennent). Aucune colonne médicale (observation, réfraction…) n'est recopiée.
 
+La base Access lue se règle dans l'administration, page **Réglages Access** : chemin de la base, fournisseur, fichier de groupe de travail (`system.mdw`), utilisateur et mot de passe Access. Le bouton **Tester la connexion** montre ce que le serveur voit (pilote, tables, colonnes de la table des patients) sans lire de patient. Sans réglage, le serveur prend `FoAccess:*` puis le chemin des paramètres RDV des postes.
+
 La table lue est, dans l'ordre :
 1. celle indiquée par `EyeMail:PatientsTable` ;
 2. sinon celle choisie dans les **Réglages Access** du registre « Patients · Diabète / HTO », dont l'identifiant, le nom et le prénom sont alors repris tels quels ;

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.DataProtection;
 
 try
 {
@@ -106,6 +107,14 @@ var stationAccess = StationAccess.FromConfiguration(builder.Configuration);
 builder.Services.AddSingleton(stationAccess);
 builder.Services.AddHostedService<ReminderService>();
 builder.Services.AddHostedService<DatabaseBackupService>();
+// Clés de chiffrement gardées dans data\cles (protégées par Windows) : le mot de passe Access saisi
+// dans l'administration et les sessions de connexion restent valables après un redémarrage.
+var dataProtection = builder.Services.AddDataProtection()
+    .SetApplicationName("EyeChat.Serveur")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "data", "cles")));
+if (OperatingSystem.IsWindows())
+    dataProtection.ProtectKeysWithDpapi(protectToLocalMachine: true);
+builder.Services.AddScoped<ServerAccessSettingsStore>();
 builder.Services.AddScoped<FoAccessReader>();
 builder.Services.AddScoped<IFoAccessReader>(p => p.GetRequiredService<FoAccessReader>());
 builder.Services.AddScoped<IRegistryAccessReader>(p => p.GetRequiredService<FoAccessReader>());
@@ -141,6 +150,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/Fundus") ||
         context.Request.Path.StartsWithSegments("/PatientRegistry") ||
         context.Request.Path.StartsWithSegments("/EyeMail") ||
+        context.Request.Path.StartsWithSegments("/AccessSettings") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)
@@ -198,6 +208,7 @@ using (var scope = app.Services.CreateScope())
     EnsureColumn(db, logger, "ServerConfigs", "AppointmentSearchJson", "TEXT NOT NULL DEFAULT ''", "SER15");
     EnsureColumn(db, logger, "ServerConfigs", "DeploymentConfigurationJson", "TEXT NOT NULL DEFAULT ''", "SER17");
     EnsureColumn(db, logger, "ServerConfigs", "IdleRoomTimeoutSeconds", "INTEGER NOT NULL DEFAULT 180", "SER18");
+    EnsureColumn(db, logger, "ServerConfigs", "AccessSettingsJson", "TEXT NOT NULL DEFAULT ''", "SER26");
     EnsureKnownUsersTable(db, logger);
     EnsureColumn(db, logger, "SecureGroups", "IsPublic", "INTEGER NOT NULL DEFAULT 0", "SER15");
     CleanupKnownUsers(db, logger);
