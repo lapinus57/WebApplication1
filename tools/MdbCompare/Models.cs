@@ -2,19 +2,23 @@ namespace MdbCompare;
 
 public sealed record ColumnInfo(string Name, string Type);
 
-/// <summary>Contenu d'une table : colonnes, clé primaire et lignes (valeurs déjà converties en texte comparable).</summary>
-public sealed class TableData
+/// <summary>Structure d'une table : colonnes et clé primaire (sans les lignes).</summary>
+public sealed class TableSchema
 {
     public required string Name { get; init; }
     public required List<ColumnInfo> Columns { get; init; }
     public required List<string> PrimaryKey { get; init; }
-    public List<object?[]> Rows { get; } = new();
-    public bool RowsLoaded { get; set; }
 }
 
-public sealed class DatabaseSnapshot
+/// <summary>
+/// Base ouverte. Les lignes sont lues en flux, table par table, et jamais gardées toutes en mémoire :
+/// une grosse base (champs Mémo, images) ne doit pas épuiser la mémoire du programme 32 bits.
+/// </summary>
+public interface IDatabase
 {
-    public required string Path { get; init; }
-    public required string Provider { get; init; }
-    public List<TableData> Tables { get; } = new();
+    string Path { get; }
+    IReadOnlyList<TableSchema> Tables { get; }
+    int CountRows(TableSchema table);
+    /// <summary>Lit les colonnes demandées (dans cet ordre), une ligne à la fois.</summary>
+    IEnumerable<object?[]> ReadRows(TableSchema table, IReadOnlyList<string> columns, CancellationToken ct);
 }

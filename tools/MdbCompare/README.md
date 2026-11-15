@@ -13,6 +13,8 @@ Petit logiciel Windows qui compare deux fichiers `.mdb` (ou `.accdb`) **en lectu
 
 Les 1000 premières différences de chaque table sont listées ; les totaux restent exacts.
 
+Les lignes sont lues **en flux, une table à la fois** : seule une empreinte de 16 octets par ligne de la base 2 est gardée en mémoire, ce qui permet de comparer de grosses bases (comptes rendus en Mémo, images) même en 32 bits. Une ligne n’est relue que pour afficher le détail d’une différence.
+
 ## Utilisation
 
 1. Lancer `MdbCompare.exe`.

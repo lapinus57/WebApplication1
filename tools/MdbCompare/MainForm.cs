@@ -115,15 +115,15 @@ public sealed class MainForm : Form
         running = new CancellationTokenSource();
         var token = running.Token;
         SetBusy(true);
-        void Progress(string message) => BeginInvoke(() => status.Text = "Lecture : " + message);
+        void Progress(string message) => BeginInvoke(() => status.Text = "Comparaison : " + message + "…");
         try
         {
             var found = await Task.Run(() =>
             {
-                var db1 = AccessDatabase.Read(access1, options.CompareData, Progress, token);
-                var db2 = AccessDatabase.Read(access2, options.CompareData, Progress, token);
-                BeginInvoke(() => status.Text = "Comparaison…");
-                return MdbComparer.Compare(db1, db2, options);
+                Progress("ouverture des bases");
+                using var db1 = AccessDatabase.Open(access1);
+                using var db2 = AccessDatabase.Open(access2);
+                return MdbComparer.Compare(db1, db2, options, Progress, token);
             }, token);
             results = found;
             lastOptions = options;
@@ -132,6 +132,12 @@ public sealed class MainForm : Form
             export.Enabled = true;
         }
         catch (OperationCanceledException) { status.Text = "Comparaison annulée."; }
+        catch (OutOfMemoryException)
+        {
+            status.Text = "Mémoire insuffisante.";
+            MessageBox.Show(this, "Mémoire insuffisante pour comparer les données. Décochez « Comparer aussi les données » pour ne comparer que la structure, ou utilisez la version 64 bits si Office est en 64 bits.",
+                Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
         catch (Exception ex)
         {
             status.Text = "Échec de la comparaison.";

@@ -4,15 +4,33 @@ using EyeChat.Data;
 
 namespace MdbCompare;
 
-/// <summary>Lit une base .mdb/.accdb en lecture seule (aucune écriture).</summary>
-public static class AccessDatabase
+/// <summary>Base .mdb/.accdb ouverte en lecture seule (aucune écriture).</summary>
+public sealed class AccessDatabase : IDatabase, IDisposable
 {
-    public static DatabaseSnapshot Read(AccessReadOptions options, bool readRows, Action<string>? progress, CancellationToken ct)
-    {
-        using var connection = ReadOnlyAccess.Open(options);
-        var snapshot = new DatabaseSnapshot { Path = options.DatabasePath, Provider = connection.Provider };
+    private readonly OleDbConnection connection;
+    private readonly List<TableSchema> tables = new();
 
-        var tableNames = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object?[] { null, null, null, null })!.Rows.Cast<DataRow>()
+    public string Path { get; }
+    public string Provider => connection.Provider;
+    public IReadOnlyList<TableSchema> Tables => tables;
+
+    private AccessDatabase(OleDbConnection connection, string path)
+    {
+        this.connection = connection;
+        Path = path;
+    }
+
+    public static AccessDatabase Open(AccessReadOptions options)
+    {
+        var database = new AccessDatabase(ReadOnlyAccess.Open(options), options.DatabasePath);
+        try { database.ReadSchema(); }
+        catch { database.Dispose(); throw; }
+        return database;
+    }
+
+    private void ReadSchema()
+    {
+        var names = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object?[] { null, null, null, null })!.Rows.Cast<DataRow>()
             .Where(r => string.Equals(Convert.ToString(r["TABLE_TYPE"]), "TABLE", StringComparison.OrdinalIgnoreCase)
                      || string.Equals(Convert.ToString(r["TABLE_TYPE"]), "LINK", StringComparison.OrdinalIgnoreCase))
             .Select(r => Convert.ToString(r["TABLE_NAME"]) ?? "")
@@ -20,11 +38,8 @@ public static class AccessDatabase
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        foreach (var name in tableNames)
+        foreach (var name in names)
         {
-            ct.ThrowIfCancellationRequested();
-            progress?.Invoke($"{System.IO.Path.GetFileName(options.DatabasePath)} : {name}");
-
             var columns = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Columns, new object?[] { null, null, name, null })!.Rows.Cast<DataRow>()
                 .OrderBy(r => Convert.ToInt64(r["ORDINAL_POSITION"]))
                 .Select(r => new ColumnInfo(Convert.ToString(r["COLUMN_NAME"]) ?? "", DescribeType(r)))
@@ -40,26 +55,37 @@ public static class AccessDatabase
             }
             catch (OleDbException) { /* Table liée ou pilote sans clés : comparaison ligne entière. */ }
 
-            var table = new TableData { Name = name, Columns = columns, PrimaryKey = key };
-            if (readRows && columns.Count > 0)
-            {
-                using var command = connection.CreateCommand();
-                command.CommandText = "SELECT " + string.Join(", ", columns.Select(c => Quote(c.Name))) + " FROM " + Quote(name);
-                using var reader = command.ExecuteReader()!;
-                while (reader.Read())
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var values = new object?[reader.FieldCount];
-                    for (int i = 0; i < values.Length; i++)
-                        values[i] = reader.IsDBNull(i) ? null : reader.GetValue(i);
-                    table.Rows.Add(values);
-                }
-                table.RowsLoaded = true;
-            }
-            snapshot.Tables.Add(table);
+            tables.Add(new TableSchema { Name = name, Columns = columns, PrimaryKey = key });
         }
-        return snapshot;
     }
+
+    public int CountRows(TableSchema table)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM " + Quote(table.Name);
+        return Convert.ToInt32(command.ExecuteScalar());
+    }
+
+    public IEnumerable<object?[]> ReadRows(TableSchema table, IReadOnlyList<string> columns, CancellationToken ct)
+    {
+        if (columns.Count == 0) yield break;
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT " + string.Join(", ", columns.Select(Quote)) + " FROM " + Quote(table.Name);
+        using var reader = command.ExecuteReader()!;
+        while (reader.Read())
+        {
+            ct.ThrowIfCancellationRequested();
+            var values = new object?[reader.FieldCount];
+            for (int i = 0; i < values.Length; i++)
+            {
+                var value = reader.GetValue(i);
+                values[i] = value is DBNull ? null : value;
+            }
+            yield return values;
+        }
+    }
+
+    public void Dispose() => connection.Dispose();
 
     private static string Quote(string identifier) => "[" + identifier.Replace("]", "]]") + "]";
 
