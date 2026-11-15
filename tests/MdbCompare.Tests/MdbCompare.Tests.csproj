@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../tools/MdbCompare/Models.cs" Link="MdbCompare/Models.cs" />
+    <Compile Include="../../tools/MdbCompare/MdbComparer.cs" Link="MdbCompare/MdbComparer.cs" />
+    <Compile Include="../../tools/MdbCompare/Report.cs" Link="MdbCompare/Report.cs" />
+  </ItemGroup>
+</Project>
