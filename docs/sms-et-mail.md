@@ -130,6 +130,15 @@ Le filtre d'envoi ne change pas la règle de préparation « SMS seulement sans 
 pour préparer aussi des SMS aux familles avec mail, désactiver cette option puis
 préparer à nouveau.
 
+L'envoi se déroule en arrière-plan, un message après l'autre : la fenêtre reste
+fluide et la barre indique « Envoi 12 / 80 : SMS vers … ». Le bouton **Arrêter
+l'envoi après le message en cours** n'interrompt jamais un message déjà parti chez
+OVH ou au serveur SMTP (son résultat serait inconnu) : l'arrêt prend effet avant le
+message suivant, et les messages non commencés restent cochés et sélectionnables.
+Quitter l'onglet SMS et mail pendant l'envoi produit le même arrêt. Les onglets de
+la page restent indisponibles pendant l'envoi pour éviter une nouvelle préparation
+en cours de route.
+
 L'historique dispose d'un filtre par canal et d'une recherche par destinataire,
 date affichée ou statut. Chaque carte présente le contact, le canal, la date et
 le résultat. Lire le message envoyé ouvre son contenu complet, avec rendu HTML

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Client.Helpers;
 using Client.SmsMail.Configuration;
@@ -38,6 +39,7 @@ namespace Client.Pages
         private bool _busy;
         private bool _unloaded;
         private bool _loaded;
+        private CancellationTokenSource? _sendStop;
 
         public SmsMailPage()
         {
@@ -45,7 +47,7 @@ namespace Client.Pages
             Directory.CreateDirectory(SmsMailSettingsStore.DirectoryPath);
             _history = new MessageHistory(Path.Combine(SmsMailSettingsStore.DirectoryPath, "history.db"));
             Loaded += Page_Loaded;
-            Unloaded += (_, _) => _unloaded = true;
+            Unloaded += (_, _) => { _unloaded = true; _sendStop?.Cancel(); };
         }
 
         private async void Page_Loaded(object sender, RoutedEventArgs e)
@@ -148,6 +150,9 @@ namespace Client.Pages
                 _busy = false;
                 Workspace.IsEnabled = true;
                 BusyProgress.Visibility = Visibility.Collapsed;
+                BusyProgress.IsIndeterminate = true;
+                BusyProgress.Value = 0;
+                StopSendButton.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -279,7 +284,7 @@ namespace Client.Pages
             TimeChangesText.Text = changes.Count == 0 ? "Aucun horaire ajusté." : string.Join(Environment.NewLine, changes);
             _preparedSignature = MessagePreparation.PreparationSignature(_settings);
             await ReloadHistoryAsync();
-            var sent = await _history.LoadReservedKeysAsync();
+            var sent = await Task.Run(() => _history.LoadReservedKeysAsync());
             foreach (var message in _messages.Where(m => sent.Contains(m.Key) || m.ReservationKeys.Any(sent.Contains)))
             {
                 message.Selected = false;
@@ -481,38 +486,10 @@ namespace Client.Pages
                 catch (Exception ex) { args.Cancel = true; error.Text = ex.Message; }
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary || prepared == null || settings == null) return;
-            var outcomes = new List<string>();
-            foreach (var message in prepared)
-            {
-                if (_unloaded) break;
-                if (!await _history.ReserveAsync(message)) continue;
-                string status;
-                long? providerId = null;
-                try
-                {
-                    if (message.Channel == "Mail")
-                    {
-                        await new MailService(settings.Email).SendAsync(message);
-                        status = "[TEST] Accepté par SMTP — réception non confirmée";
-                    }
-                    else
-                    {
-                        var response = await new SmsService(settings.Sms).SendSmsAsync(message.Contact, message.Body);
-                        if (response.Ids.Length > 0 && response.ValidReceivers.Length > 0)
-                        {
-                            providerId = response.Ids[0];
-                            status = "[TEST] Accepté par OVH — réception en attente";
-                        }
-                        else status = "[TEST] Non accepté par OVH — vérifier le compte";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    status = "[TEST] Résultat non confirmé — vérifier le compte avant un nouvel essai. " + ex.Message;
-                }
-                await _history.UpdateAsync(message.Key, status, providerId);
-                outcomes.Add($"{message.Channel} vers {message.Contact} : {status}");
-            }
+            var sms = new SmsService(settings.Sms);
+            var mail = new MailService(settings.Email);
+            await SendInBackgroundAsync(prepared, message => SendOneAsync(message, sms, mail, test: true));
+            var outcomes = prepared.Where(m => !string.IsNullOrEmpty(m.Status)).Select(m => $"{m.Channel} vers {m.Contact} : {m.Status}").ToList();
             await ReloadHistoryAsync();
             StatusText.Text = string.Join(Environment.NewLine, outcomes);
         });
@@ -546,49 +523,70 @@ namespace Client.Pages
                 PrimaryButtonText = "Envoyer", CloseButtonText = "Annuler", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            int accepted = 0, skipped = 0, uncertain = 0;
-            foreach (var message in selected)
-            {
-                if (_unloaded) break;
-                if (!await _history.ReserveAsync(message)) { skipped++; message.Selected = false; message.CanSend = false; message.Status = "Déjà traité pour ce contact ou cette famille"; continue; }
-                string status;
-                long? providerId = null;
-                try
-                {
-                    if (message.Channel == "SMS")
-                    {
-                        var response = await sms.SendSmsAsync(message.Contact, message.Body);
-                        if (response.Ids.Length > 0 && response.ValidReceivers.Length > 0)
-                        {
-                            providerId = response.Ids[0];
-                            status = "Accepté par OVH — réception en attente";
-                            accepted++;
-                        }
-                        else { status = "Non accepté par OVH — vérifier le compte avant tout nouvel essai"; uncertain++; }
-                    }
-                    else
-                    {
-                        await mail.SendAsync(message);
-                        status = "Accepté par SMTP — réception non confirmée";
-                        accepted++;
-                    }
-                }
-                catch (Exception)
-                {
-                    status = "Résultat non confirmé — vérifier le compte OVH/SMTP avant tout nouvel essai";
-                    uncertain++;
-                }
-                // Separate persistence from submission: a log failure must never
-                // trigger a second network send after the provider accepted it.
-                await _history.UpdateAsync(message.Key, status, providerId);
-                message.CanSend = false;
-                message.Status = status;
-                message.Selected = false;
-            }
+            var outcome = await SendInBackgroundAsync(selected, message => SendOneAsync(message, sms, mail, test: false));
             FilterMessages();
             await ReloadHistoryAsync();
-            StatusText.Text = $"{accepted} accepté(s), {skipped} déjà traité(s), {uncertain} à vérifier.";
+            StatusText.Text = $"{outcome.Accepted} accepté(s), {outcome.Skipped} déjà traité(s), {outcome.Uncertain} à vérifier."
+                + (outcome.Stopped ? $" Envoi arrêté : {outcome.NotStarted} message(s) non envoyé(s), toujours sélectionnables." : "");
         });
+
+        // Envoi hors du fil de l'interface : la fenêtre reste fluide, la progression s'affiche
+        // et l'utilisateur peut arrêter l'envoi après le message en cours.
+        private async Task<SendOutcome> SendInBackgroundAsync(IReadOnlyList<PreparedMessage> messages, Func<PreparedMessage, Task<SendResult>> send)
+        {
+            using var stop = new CancellationTokenSource();
+            _sendStop = stop;
+            if (_unloaded) stop.Cancel();
+            BusyProgress.IsIndeterminate = false;
+            BusyProgress.Maximum = Math.Max(1, messages.Count);
+            BusyProgress.Value = 0;
+            StopSendButton.IsEnabled = true;
+            StopSendButton.Visibility = Visibility.Visible;
+            var progress = new Progress<SendProgress>(p =>
+            {
+                if (_sendStop != stop) return;
+                BusyProgress.Value = p.Done;
+                StatusText.Text = stop.IsCancellationRequested
+                    ? $"Arrêt demandé : fin du message en cours ({p.Done + 1} / {p.Total})…"
+                    : $"Envoi {p.Done + 1} / {p.Total} : {(p.Current.Channel == "SMS" ? "SMS" : "mail")} vers {p.Current.Contact}…";
+            });
+            var sender = new MessageSender(_history, send);
+            try { return await Task.Run(() => sender.SendAsync(messages, progress, stop.Token)); }
+            finally
+            {
+                _sendStop = null;
+                StopSendButton.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void StopSend_Click(object sender, RoutedEventArgs e)
+        {
+            if (_sendStop == null) return;
+            _sendStop.Cancel();
+            StopSendButton.IsEnabled = false;
+            StatusText.Text = "Arrêt demandé : l'envoi s'arrête après le message en cours.";
+        }
+
+        private static async Task<SendResult> SendOneAsync(PreparedMessage message, SmsService sms, MailService mail, bool test)
+        {
+            var prefix = test ? "[TEST] " : "";
+            try
+            {
+                if (message.Channel == "SMS")
+                {
+                    var response = await sms.SendSmsAsync(message.Contact, message.Body).ConfigureAwait(false);
+                    return response.Ids.Length > 0 && response.ValidReceivers.Length > 0
+                        ? new SendResult(prefix + "Accepté par OVH — réception en attente", response.Ids[0], true)
+                        : new SendResult(prefix + (test ? "Non accepté par OVH — vérifier le compte" : "Non accepté par OVH — vérifier le compte avant tout nouvel essai"), null, false);
+                }
+                await mail.SendAsync(message).ConfigureAwait(false);
+                return new SendResult(prefix + "Accepté par SMTP — réception non confirmée", null, true);
+            }
+            catch (Exception ex)
+            {
+                return new SendResult(test ? "[TEST] Résultat non confirmé — vérifier le compte avant un nouvel essai. " + ex.Message : MessageSender.UncertainStatus, null, false);
+            }
+        }
 
         private async void MailReports_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
@@ -615,7 +613,8 @@ namespace Client.Pages
 
         private async Task ReloadHistoryAsync()
         {
-            _entries = await _history.LoadAsync();
+            // Microsoft.Data.Sqlite exécute ses méthodes « Async » de façon synchrone : lecture hors du fil de l'interface.
+            _entries = await Task.Run(() => _history.LoadAsync());
             FilterHistory();
         }
 

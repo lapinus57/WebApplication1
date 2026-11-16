@@ -177,6 +177,7 @@ Check(MessageSelection.ForSending(selectionCases, "Mail").Single().Contact == "a
 Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", "ALICE")).Count == 2, "Mixed view supports family search without losing either channel");
 checks += await EyeEmailChecks.RunAsync();
 checks += await FamilySmsChecks.RunAsync();
+checks += await SendingChecks.RunAsync();
 checks += ReminderTimeChecks.Run();
 checks += MailTextPreviewChecks.Run();
 checks += AppointmentQueryChecks.Run();

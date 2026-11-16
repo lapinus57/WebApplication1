@@ -371,6 +371,8 @@
         </Pivot>
         <StackPanel Grid.Row="2" Margin="0,12,0,0" Spacing="4">
             <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" Visibility="Collapsed" />
+            <Button x:Name="StopSendButton" Content="Arrêter l'envoi après le message en cours" Visibility="Collapsed" Click="StopSend_Click"
+                    AutomationProperties.Name="Arrêter l'envoi après le message en cours" />
             <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
         </StackPanel>
     </Grid>
