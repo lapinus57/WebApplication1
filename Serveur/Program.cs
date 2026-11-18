@@ -14,10 +14,13 @@ using Microsoft.AspNetCore.DataProtection;
 
 try
 {
+var webRoot = WebRootLocator.Find(AppContext.BaseDirectory);
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
-    ContentRootPath = AppContext.BaseDirectory
+    ContentRootPath = AppContext.BaseDirectory,
+    // Sans wwwroot, les pages d'administration s'affichent sans mise en forme (voir WebRootLocator).
+    WebRootPath = webRoot
 });
 
 var administrationUsername = builder.Configuration["Administration:Username"];
@@ -132,6 +135,10 @@ builder.Services.AddSingleton<EyeMailImport>();
 
 var app = builder.Build();
 var logger = app.Logger;
+if (webRoot == null)
+    logger.LogError(WebRootLocator.MissingMessage(AppContext.BaseDirectory));
+else if (!string.Equals(webRoot, Path.Combine(AppContext.BaseDirectory, WebRootLocator.FolderName), StringComparison.OrdinalIgnoreCase))
+    logger.LogWarning("SER28: wwwroot absent à côté de Serveur.exe ; utilisation de celui du projet : {WebRoot}. Pour installer le serveur, utilisez le dossier « publish ».", webRoot);
 
 if (!app.Environment.IsDevelopment())
 {

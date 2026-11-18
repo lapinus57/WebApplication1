@@ -12,6 +12,7 @@
     <Compile Include="../../Serveur/Hubs/AvatarUpload.cs" Link="AvatarUpload.cs" />
     <Compile Include="../../Serveur/Startup/DatabaseBackup.cs" Link="DatabaseBackup.cs" />
     <Compile Include="../../Serveur/Startup/StationAccess.cs" Link="StationAccess.cs" />
+    <Compile Include="../../Serveur/Startup/WebRootLocator.cs" Link="WebRootLocator.cs" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
   </ItemGroup>
 </Project>

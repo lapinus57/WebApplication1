@@ -145,4 +145,24 @@ Check(locked.IsStationAuthorized(query), "Configured key: WebSocket access_token
 Check(!locked.IsApplicationPasswordValid("901027") && locked.IsApplicationPasswordValid("nouveau-mdp"), "Configured password replaces the legacy one");
 Check(StationAccess.IsProtectedPath("/chatHub/negotiate") && StationAccess.IsProtectedPath("/api/configuration") && !StationAccess.IsProtectedPath("/api/discovery"), "Only hub and deployment configuration are protected");
 
+// wwwroot : à côté de l'exe (publication), sinon celui du projet quand le serveur est lancé depuis bin\…
+var webRootTest = Path.Combine(Path.GetTempPath(), "webroot-" + Guid.NewGuid().ToString("N"));
+try
+{
+    var project = Path.Combine(webRootTest, "Serveur");
+    var bin = Path.Combine(project, "bin", "x86", "Release", "net8.0-windows10.0.17763.0", "win-x86");
+    Directory.CreateDirectory(Path.Combine(project, "wwwroot", "css"));
+    Directory.CreateDirectory(bin);
+    File.WriteAllText(Path.Combine(project, "Serveur.csproj"), "<Project />");
+    File.WriteAllText(Path.Combine(project, "wwwroot", "css", "site.css"), "body{}");
+    Check(WebRootLocator.Find(bin) == Path.Combine(project, "wwwroot"), "Build output uses the project wwwroot");
+    Directory.CreateDirectory(Path.Combine(bin, "wwwroot", "css"));
+    File.WriteAllText(Path.Combine(bin, "wwwroot", "css", "site.css"), "body{}");
+    Check(WebRootLocator.Find(bin) == Path.Combine(bin, "wwwroot"), "Published wwwroot beside the exe wins");
+    var copied = Path.Combine(webRootTest, "ChatServeur");
+    Directory.CreateDirectory(copied);
+    Check(WebRootLocator.Find(copied) == null && WebRootLocator.MissingMessage(copied).Contains("SER27"), "Copied binaries without wwwroot are reported");
+}
+finally { Directory.Delete(webRootTest, true); }
+
 Console.WriteLine($"{checks} server startup checks passed; synthetic certificate, loopback HTTPS only.");

@@ -161,3 +161,11 @@ Pour désactiver la tâche planifiée :
 - Vérifiez que les ports 5000 (clients) et 5443 (administration HTTPS) sont ouverts sur le réseau local.
 - Pour changer le nom ou l'emplacement d'installation, utilisez les paramètres `-ServiceName`, `-DisplayName` et `-InstallPath` du script.
 - Les fichiers SQLite sont créés dans un sous-dossier `data` du répertoire d'installation. Sauvegardez ce dossier avant les mises à jour si vous ne disposez pas d'une sauvegarde automatique.
+
+## Les pages d'administration s'affichent sans mise en forme
+
+Si l'administration (`https://…:5443`) apparaît en texte brut — titres en Times, liens bleus soulignés, aucune carte ni couleur —, le navigateur ne reçoit pas la feuille de style `css/site.css`. Elle se trouve dans le dossier `wwwroot`, qui doit être à côté de `Serveur.exe`.
+
+Une simple compilation (Visual Studio, `dotnet build`) ne copie **pas** `wwwroot` dans `bin\…` : seule la publication le fait. Le serveur doit donc être installé à partir du dossier `publish` (voir plus haut), avec `ChatServeurService.ps1 -Action Update -SourcePath …\publish`.
+
+Depuis cette version, le serveur lancé depuis `bin\…` dans le dossier du projet retrouve tout seul le `wwwroot` du projet (message `SER28` dans le journal). S'il ne trouve aucun `wwwroot`, il l'écrit dans le journal avec le code `SER27`. Pour vérifier, ouvrir `https://<serveur>:5443/css/site.css` : une page d'erreur 404 confirme que le dossier manque.
