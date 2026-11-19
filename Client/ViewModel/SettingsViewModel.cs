@@ -14,6 +14,7 @@ namespace Client.ViewModel
     {
         [SupportedOSPlatform("windows")]
         private bool _isOldSchoolMode;
+        private bool _notifyNewPatients = true;
         private double _messageFontSize = 14;
         private string _appTheme = "Dark";
         private string _colorUserName = "Black";
@@ -144,6 +145,21 @@ namespace Client.ViewModel
                     OnPropertyChanged(nameof(Avatar));
                     Set("Avatar", value);
                     App.ChatService?.UpdateAvatarAsync(value);
+                }
+            }
+        }
+
+        /// <summary>Notification Windows quand un autre poste déclare un patient.</summary>
+        public bool NotifyNewPatients
+        {
+            get => _notifyNewPatients;
+            set
+            {
+                if (_notifyNewPatients != value)
+                {
+                    _notifyNewPatients = value;
+                    OnPropertyChanged(nameof(NotifyNewPatients));
+                    AppSettings.Set(PatientNotification.SettingKey, value ? "True" : "False");
                 }
             }
         }
@@ -410,6 +426,7 @@ namespace Client.ViewModel
                     .Select(s => char.ToUpperInvariant(s[0])));
             }
             _useSenderColorForBubbles = AppSettings.Get("UseSenderColorForBubbles", "False") == "True";
+            _notifyNewPatients = AppSettings.Get(PatientNotification.SettingKey, "True") != "False";
 
             _shortcutF5Refraction = Get("ShortcutF5Refraction");
             _shortcutF5Lentilles = Get("ShortcutF5Lentilles");

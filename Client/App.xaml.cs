@@ -109,6 +109,7 @@ namespace Client
                 m_window.Closed += MainWindow_Closed;
                 ChatService.Dispatcher = m_window.DispatcherQueue;
                 ChatService.OnMessageReceived += ChatService_OnMessageReceived;
+                ChatService.OnNewPatient += ChatService_OnNewPatient;
                 // Register handler once the window root has loaded so XamlRoot is valid
                 if (m_window.Content is FrameworkElement windowRoot)
                 {
@@ -976,6 +977,28 @@ namespace Client
                 {
                     mw.DispatcherQueue.TryEnqueue(() => ShowNotification(chat));
                 }
+            }
+        }
+
+        // Appelé sur le fil de l'interface (SignalRService passe par le Dispatcher).
+        private static void ChatService_OnNewPatient(Patient patient)
+        {
+            var enabled = AppSettings.Get(PatientNotification.SettingKey, "True") != "False";
+            if (!PatientNotification.ShouldNotify(patient.Examinator, UserName, enabled))
+                return;
+            try
+            {
+                var (header, name, details) = PatientNotification.Build(patient.Title, patient.LastName, patient.FirstName,
+                    patient.Exams, patient.Eye, patient.Position, patient.Examinator);
+                var builder = new AppNotificationBuilder().AddText(header).AddText(name);
+                if (details.Length > 0)
+                    builder.AddText(details);
+                AppNotificationManager.Default.Register();
+                AppNotificationManager.Default.Show(builder.BuildNotification());
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[App] New patient notification failed", ex);
             }
         }
 

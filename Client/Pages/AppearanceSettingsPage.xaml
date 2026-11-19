@@ -27,6 +27,9 @@
                     <ToggleSwitch x:Name="SenderColorToggle" Header="Bulles colorées selon l'utilisateur"
                                    IsOn="{x:Bind ViewModelSettings.UseSenderColorForBubbles, Mode=TwoWay}" />
 
+                    <ToggleSwitch x:Name="NewPatientNotificationToggle" Header="Notification quand un autre poste déclare un patient"
+                                   IsOn="{x:Bind ViewModelSettings.NotifyNewPatients, Mode=TwoWay}" />
+
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <TextBlock Text="Taille du texte" VerticalAlignment="Center"/>
                         <Slider Minimum="12" Maximum="24" Width="200" Value="{x:Bind ViewModelSettings.MessageFontSize, Mode=TwoWay}"/>

@@ -25,6 +25,15 @@ internal static class NativeChecks
         reporter.Report(() => logs++, () => handled++, _ => false, () => notices++);
         check(logs == 4 && handled == 5, "Logging, dispatch and notification failures do not strand the guard");
 
+        // Notification « nouveau patient » : jamais sur le poste qui déclare, désactivable.
+        check(PatientNotification.ShouldNotify("Caroline", "Benoit", enabled: true), "Other workstations are notified of a new patient");
+        check(!PatientNotification.ShouldNotify(" caroline ", "Caroline", enabled: true), "The declaring user is not notified");
+        check(!PatientNotification.ShouldNotify("Caroline", "Benoit", enabled: false), "Notification can be disabled");
+        var toast = PatientNotification.Build("Mme", "MARTIN", "Léa", "Champ visuel", "OD", "Ortho 1", "Caroline");
+        check(toast == ("Nouveau patient · Ortho 1", "Mme MARTIN Léa", "Champ visuel · OD · déclaré par Caroline"), "Notification shows room, identity, exam, eye and declarer");
+        var sparse = PatientNotification.Build("", " ", null, "", "", "", "");
+        check(sparse == ("Nouveau patient", "Patient sans nom", ""), "Empty fields leave no stray separators");
+
         var lifetime = new FoPageLifetime();
         check(lifetime.TryStart() == null, "No query before the page is loaded");
         check(lifetime.Open() && !lifetime.Open(), "Repeated Loaded notifications initialize only once");

@@ -57,5 +57,6 @@ D'autres données sont uniquement locales au client (par exemple l'historique du
 2. L'utilisateur saisit un message sur `ChatPage`. Celui‑ci est envoyé via `SendMessage` au hub SignalR, puis distribué aux destinataires.
 3. Les examens et salles peuvent être modifiés sur `ExamRoomPage` et synchronisés manuellement avec le serveur.
 4. Les paramètres visuels ou de raccourcis sont sauvegardés immédiatement dans les fichiers locaux.
+5. Quand un poste déclare un patient (raccourci clavier ou bouton), le serveur le diffuse à tous les postes (`NewPatient`). Chaque autre poste affiche une notification Windows : « Nouveau patient · salle », l'identité, puis l'examen, l'œil et le déclarant. Le poste qui déclare n'en reçoit pas. Chaque utilisateur peut la désactiver dans Paramètres → Apparence → « Notification quand un autre poste déclare un patient ».
 
 Ainsi l'application fournit un système de messagerie interne avec des options personnalisables adaptées au flux de travail médical.
