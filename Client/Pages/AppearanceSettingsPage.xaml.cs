@@ -25,6 +25,7 @@ namespace Client.Pages
 
             currentSettings = AppSettings.GetObject<AppColorSettings>("Colors");
             RefreshColorPreview();
+            LoadDefaultWaitingRooms();
             if (FindName("ThemeCombo") is ComboBox theme)
             {
                 theme.SelectedIndex = ViewModelSettings.AppTheme switch
@@ -131,6 +132,27 @@ namespace Client.Pages
                 OtherMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.OtherMessageColor));
                 ApplyColors(currentSettings, titleBar, nav, titleText);
             }
+        }
+
+        private bool _loadingWaitingRooms;
+
+        // Salles d'attente de la configuration, puis « Toutes ». Sans choix enregistré : la première salle (comportement d'origine).
+        private void LoadDefaultWaitingRooms()
+        {
+            _loadingWaitingRooms = true;
+            try
+            {
+                var tabs = RoomList.Load().Where(r => !string.IsNullOrWhiteSpace(r)).Append(WaitingRoomTab.AllRooms).ToList();
+                DefaultWaitingRoomCombo.ItemsSource = tabs;
+                DefaultWaitingRoomCombo.SelectedIndex = WaitingRoomTab.SelectIndex(tabs, null, AppSettings.Get(WaitingRoomTab.SettingKey));
+            }
+            finally { _loadingWaitingRooms = false; }
+        }
+
+        private void DefaultWaitingRoomCombo_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_loadingWaitingRooms || DefaultWaitingRoomCombo.SelectedItem is not string room) return;
+            AppSettings.Set(WaitingRoomTab.SettingKey, room);
         }
 
         private void ThemeCombo_Changed(object sender, SelectionChangedEventArgs e)

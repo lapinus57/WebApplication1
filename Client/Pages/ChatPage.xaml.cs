@@ -925,10 +925,11 @@ namespace Client.Pages
 
         private void BuildRooms()
         {
+            var current = (RoomsPivot.SelectedItem as PivotItem)?.Header as string;
             RoomsWithAll.Clear();
             foreach (var room in Rooms)
                 RoomsWithAll.Add(room);
-            RoomsWithAll.Add("Toutes");
+            RoomsWithAll.Add(WaitingRoomTab.AllRooms);
 
             RoomsPivot.Items.Clear();
             foreach (var room in RoomsWithAll)
@@ -940,6 +941,7 @@ namespace Client.Pages
                 var item = new PivotItem { Header = room, Content = list };
                 RoomsPivot.Items.Add(item);
             }
+            RoomsPivot.SelectedIndex = WaitingRoomTab.SelectIndex(RoomsWithAll, current, AppSettings.Get(WaitingRoomTab.SettingKey));
 
             UpdatePatientViews();
         }
@@ -1224,7 +1226,7 @@ namespace Client.Pages
 
         private IEnumerable<Patient> GetPatientsForRoom(string room)
         {
-            IEnumerable<Patient> query = room == "Toutes"
+            IEnumerable<Patient> query = room == WaitingRoomTab.AllRooms
               ? Patients.Where(p => !p.IsArchived)
               : Patients.Where(p => p.Position == room && !p.IsArchived);
 

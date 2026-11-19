@@ -34,6 +34,14 @@ internal static class NativeChecks
         var sparse = PatientNotification.Build("", " ", null, "", "", "", "");
         check(sparse == ("Nouveau patient", "Patient sans nom", ""), "Empty fields leave no stray separators");
 
+        // Onglet de salle d'attente : celui affiché reste affiché, sinon la salle choisie, sinon la première.
+        var tabs = new[] { "RDC", "1er", WaitingRoomTab.AllRooms };
+        check(WaitingRoomTab.SelectIndex(tabs, null, null) == 0, "Without a choice the first waiting room is shown");
+        check(WaitingRoomTab.SelectIndex(tabs, null, "1er") == 1 && WaitingRoomTab.SelectIndex(tabs, null, "toutes") == 2, "Chosen waiting room is selected at startup");
+        check(WaitingRoomTab.SelectIndex(tabs, "Toutes", "1er") == 2, "Rebuilding the tabs keeps the tab being viewed");
+        check(WaitingRoomTab.SelectIndex(tabs, "Ancienne salle", "Salle supprimée") == 0, "A removed room falls back to the first tab");
+        check(WaitingRoomTab.SelectIndex(Array.Empty<string>(), null, "1er") == -1, "No tab, no selection");
+
         var lifetime = new FoPageLifetime();
         check(lifetime.TryStart() == null, "No query before the page is loaded");
         check(lifetime.Open() && !lifetime.Open(), "Repeated Loaded notifications initialize only once");

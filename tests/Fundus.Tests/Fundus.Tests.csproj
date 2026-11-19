@@ -4,6 +4,7 @@
     <Compile Include="../../Shared/ReadOnlyAccess.cs" Link="Fundus/ReadOnlyAccess.cs" />
     <Compile Include="../../Client/Helpers/UnhandledUiErrorReporter.cs" Link="Native/UnhandledUiErrorReporter.cs" />
     <Compile Include="../../Client/Helpers/PatientNotification.cs" Link="Native/PatientNotification.cs" />
+    <Compile Include="../../Client/Helpers/WaitingRoomTab.cs" Link="Native/WaitingRoomTab.cs" />
     <Compile Include="../../Client/Fundus/FoPageLifetime.cs" Link="Native/FoPageLifetime.cs" />
     <Compile Include="../../Client/Fundus/FoPatientRow.cs" Link="Native/FoPatientRow.cs" />
     <Compile Include="../../Shared/Fundus/*.cs" LinkBase="Fundus" />

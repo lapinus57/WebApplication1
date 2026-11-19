@@ -44,6 +44,13 @@
                         </ComboBox>
                     </StackPanel>
 
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="Salle d'attente affichée par défaut" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="DefaultWaitingRoomCombo" MinWidth="160" SelectionChanged="DefaultWaitingRoomCombo_Changed"
+                                  AutomationProperties.Name="Salle d'attente affichée par défaut dans la liste des patients"
+                                  ToolTipService.ToolTip="Onglet sélectionné à l'ouverture de la liste des patients (chat et historique)." />
+                    </StackPanel>
+
                     <StackPanel Padding="20" Spacing="10">
                         <TextBlock Text="Aperçu : cliquez sur une zone pour choisir la couleur"/>
                         <Canvas Height="300">

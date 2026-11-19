@@ -88,10 +88,11 @@ namespace Client.Pages
         }
         private void BuildRooms()
         {
+            var current = (NotArchivedPivot.SelectedItem as PivotItem)?.Header as string;
             RoomsWithAll.Clear();
             foreach (var r in Rooms)
                 RoomsWithAll.Add(r);
-            RoomsWithAll.Add("Toutes");
+            RoomsWithAll.Add(WaitingRoomTab.AllRooms);
 
             NotArchivedPivot.Items.Clear();
             ArchivedPivot.Items.Clear();
@@ -111,11 +112,14 @@ namespace Client.Pages
                 var item2 = new PivotItem { Header = room, Content = list2 };
                 ArchivedPivot.Items.Add(item2);
             }
+            var index = WaitingRoomTab.SelectIndex(RoomsWithAll, current, AppSettings.Get(WaitingRoomTab.SettingKey));
+            NotArchivedPivot.SelectedIndex = index;
+            ArchivedPivot.SelectedIndex = index;
         }
 
         private IEnumerable<Patient> GetPatientsForRoom(IEnumerable<Patient> source, string room)
         {
-            IEnumerable<Patient> query = room == "Toutes" ? source : source.Where(p => p.Position == room);
+            IEnumerable<Patient> query = room == WaitingRoomTab.AllRooms ? source : source.Where(p => p.Position == room);
             return query.OrderByDescending(p => p.IsTaken).ThenBy(p => p.HoldTime);
         }
 
