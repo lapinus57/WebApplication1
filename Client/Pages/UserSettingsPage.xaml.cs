@@ -11,6 +11,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage.Pickers;
 using Windows.Storage;
+using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
 using WinRT.Interop;
 using System;
 using System.IO;
@@ -238,11 +240,18 @@ namespace Client.Pages
             grid.SelectedIndex = _defaultAvatars.IndexOf(ViewModelSettings.Avatar);
 
             var importButton = new Button { Content = "Importer une image..." };
-            importButton.Click += async (s, args) => await ImportAvatarAsync(grid);
+            var importStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 420 };
+            importButton.Click += async (s, args) =>
+            {
+                importButton.IsEnabled = false;
+                try { await ImportAvatarAsync(grid, importStatus); }
+                finally { importButton.IsEnabled = true; }
+            };
 
             var panel = new StackPanel { Spacing = 10 };
             panel.Children.Add(grid);
             panel.Children.Add(importButton);
+            panel.Children.Add(importStatus);
 
             dialog.Content = panel;
             var result = await dialog.ShowAsync();
@@ -253,37 +262,71 @@ namespace Client.Pages
             }
         }
 
-        private async Task ImportAvatarAsync(ListViewBase list)
+        // Côté le plus long d'un avatar envoyé : largement assez pour l'affichage (60 px), et bien
+        // en dessous de la limite du serveur (1,5 Mo) même pour une photo de téléphone de plusieurs Mo.
+        private const uint AvatarMaxSize = 256;
+
+        private async Task ImportAvatarAsync(ListViewBase list, TextBlock status)
         {
             var picker = new FileOpenPicker();
-            picker.FileTypeFilter.Add(".png");
-            picker.FileTypeFilter.Add(".jpg");
-            picker.FileTypeFilter.Add(".jpeg");
+            foreach (var extension in new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif" })
+                picker.FileTypeFilter.Add(extension);
             var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
             InitializeWithWindow.Initialize(picker, hwnd);
             var file = await picker.PickSingleFileAsync();
-            if (file != null)
+            if (file == null) return;
+
+            Logger.Log($"[UserSettingsPage] Importing avatar '{file.Name}'.");
+            status.Text = "Envoi de l'image au serveur…";
+            byte[] bytes;
+            try { bytes = await ResizeAvatarAsync(file, AvatarMaxSize); }
+            catch (Exception ex)
             {
-                Logger.Log($"[UserSettingsPage] Importing avatar '{file.Name}'.");
-                var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync("Avatars", CreationCollisionOption.OpenIfExists);
-                var newFile = await file.CopyAsync(folder, file.Name, NameCollisionOption.GenerateUniqueName);
-
-                using var stream = await newFile.OpenStreamForReadAsync();
-                using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                var base64 = Convert.ToBase64String(ms.ToArray());
-                var serverPath = await App.ChatService.UploadAvatarAsync(newFile.Name, base64);
-                string path = string.IsNullOrEmpty(serverPath)
-                    ? $"ms-appdata:///local/Avatars/{newFile.Name}"
-                    : $"{App.ChatService.ServerAddress}{serverPath}";
-
-                ViewModelSettings.Avatar = path;
-                if (!_defaultAvatars.Contains(path))
-                    _defaultAvatars.Add(path);
-                list.SelectedItem = null;
+                Logger.LogException("[UserSettingsPage] Avatar illisible", ex);
+                status.Text = "Cette image ne peut pas être lue. Choisissez une image PNG, JPEG, BMP ou GIF.";
+                return;
             }
+
+            var (serverPath, error) = await App.ChatService.UploadAvatarAsync(file.Name, Convert.ToBase64String(bytes));
+            if (serverPath == null)
+            {
+                // Pas de repli sur une copie locale : elle ne serait visible que sur ce poste.
+                status.Text = error ?? "Envoi de l'avatar impossible.";
+                return;
+            }
+
+            var path = $"{App.ChatService.ServerAddress}{serverPath}";
+            if (!_defaultAvatars.Contains(path))
+                _defaultAvatars.Add(path);
+            list.SelectedItem = path;
+            list.ScrollIntoView(path);
+            status.Text = "Image importée. Cliquez sur Valider pour l'utiliser.";
         }
 
+        /// <summary>Réduit l'image (orientation de l'appareil photo respectée) et la convertit en PNG.</summary>
+        private static async Task<byte[]> ResizeAvatarAsync(StorageFile file, uint maxSize)
+        {
+            using var input = await file.OpenReadAsync();
+            var decoder = await BitmapDecoder.CreateAsync(input);
+            using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Straight,
+                new BitmapTransform(), ExifOrientationMode.RespectExifOrientation, ColorManagementMode.ColorManageToSRgb);
+
+            var scale = Math.Min(1.0, (double)maxSize / Math.Max(bitmap.PixelWidth, bitmap.PixelHeight));
+            using var output = new InMemoryRandomAccessStream();
+            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, output);
+            encoder.SetSoftwareBitmap(bitmap);
+            encoder.BitmapTransform.ScaledWidth = (uint)Math.Max(1, Math.Round(bitmap.PixelWidth * scale));
+            encoder.BitmapTransform.ScaledHeight = (uint)Math.Max(1, Math.Round(bitmap.PixelHeight * scale));
+            encoder.BitmapTransform.InterpolationMode = BitmapInterpolationMode.Fant;
+            await encoder.FlushAsync();
+
+            var bytes = new byte[output.Size];
+            output.Seek(0);
+            using var reader = new DataReader(output);
+            await reader.LoadAsync((uint)output.Size);
+            reader.ReadBytes(bytes);
+            return bytes;
+        }
     }
 
     public sealed class ExamShortcutGroup : IDisposable

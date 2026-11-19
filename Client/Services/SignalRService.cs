@@ -2060,20 +2060,30 @@ namespace Client.Services
             }
         }
 
-        public async Task<string?> UploadAvatarAsync(string fileName, string base64)
+        /// <summary>Envoie l'avatar au serveur. Retourne son chemin (/avatars/…) ou le motif de l'échec, à afficher.</summary>
+        public async Task<(string? Path, string? Error)> UploadAvatarAsync(string fileName, string base64)
         {
             if (!TryGetActiveConnection(out var connection))
-                return null;
+                return (null, "Le serveur n'est pas connecté : l'avatar ne peut pas être partagé avec les autres postes. Réessayez une fois connecté.");
 
             try
             {
-                return await connection.InvokeAsync<string>("UploadAvatar", fileName, base64);
+                var path = await connection.InvokeAsync<string>("UploadAvatar", fileName, base64);
+                return string.IsNullOrWhiteSpace(path) ? (null, "Le serveur n'a pas enregistré l'image.") : (path, null);
+            }
+            catch (Microsoft.AspNetCore.SignalR.HubException ex)
+            {
+                Logger.LogException("[SignalRService] Avatar refusé par le serveur", ex);
+                // Le message du serveur arrive précédé de « … HubException: ».
+                var message = ex.Message;
+                var marker = message.LastIndexOf("HubException: ", StringComparison.Ordinal);
+                return (null, "Avatar refusé : " + (marker >= 0 ? message[(marker + "HubException: ".Length)..] : message));
             }
             catch (Exception ex)
             {
                 Logger.LogException("[SignalRService] Erreur envoi avatar", ex);
+                return (null, "Envoi de l'avatar impossible : " + ex.Message);
             }
-            return null;
         }
 
         public async Task<List<string>> GetAvailableAvatarsAsync()

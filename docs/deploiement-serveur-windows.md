@@ -169,3 +169,7 @@ Si l'administration (`https://…:5443`) apparaît en texte brut — titres en T
 Une simple compilation (Visual Studio, `dotnet build`) ne copie **pas** `wwwroot` dans `bin\…` : seule la publication le fait. Le serveur doit donc être installé à partir du dossier `publish` (voir plus haut), avec `ChatServeurService.ps1 -Action Update -SourcePath …\publish`.
 
 Depuis cette version, le serveur lancé depuis `bin\…` dans le dossier du projet retrouve tout seul le `wwwroot` du projet (message `SER28` dans le journal). S'il ne trouve aucun `wwwroot`, il l'écrit dans le journal avec le code `SER27`. Pour vérifier, ouvrir `https://<serveur>:5443/css/site.css` : une page d'erreur 404 confirme que le dossier manque.
+
+## Avatars des utilisateurs
+
+Les images importées depuis les postes (Paramètres utilisateur → Changer d'avatar → Importer une image) sont réduites à 256 pixels sur le poste puis rangées par le serveur dans `data\avatars`, avec les bases. Elles ne dépendent donc plus du dossier `wwwroot` et survivent aux mises à jour. Au démarrage, le serveur recopie dans `data\avatars` les avatars importés par les anciennes versions dans `wwwroot\avatars` (message `SER29`). Si l'envoi échoue (serveur déconnecté, image illisible), le poste affiche le motif au lieu de garder en silence une image visible sur ce seul poste.

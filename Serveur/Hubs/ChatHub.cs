@@ -1036,31 +1036,13 @@ namespace ChatServeur
                 throw new HubException(error);
             }
 
-            var webRoot = _env.WebRootPath;
-            if (string.IsNullOrEmpty(webRoot))
-                webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
-
-            var avatarsPath = Path.Combine(webRoot, "avatars");
-            Directory.CreateDirectory(avatarsPath);
-            var safeName = Path.ChangeExtension(Path.GetRandomFileName(), extension);
-            var filePath = Path.Combine(avatarsPath, safeName);
-            await File.WriteAllBytesAsync(filePath, bytes);
-            return $"/avatars/{safeName}";
+            var path = await AvatarStorage.SaveAsync(AvatarStorage.Folder(AppContext.BaseDirectory), bytes, extension);
+            _logger.LogInformation("Avatar importé par {User} : {Path} ({Size} octets).", GetUsername(), path, bytes.Length);
+            return path;
         }
 
         public Task<List<string>> GetAvailableAvatars()
-        {
-            var webRoot = _env.WebRootPath;
-            if (string.IsNullOrEmpty(webRoot))
-                webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
-            var avatarsPath = Path.Combine(webRoot, "avatars");
-            if (!Directory.Exists(avatarsPath))
-                return Task.FromResult(new List<string>());
-            var files = Directory.GetFiles(avatarsPath)
-                .Select(f => $"/avatars/{Path.GetFileName(f)}")
-                .ToList();
-            return Task.FromResult(files);
-        }
+            => Task.FromResult(AvatarStorage.List(AvatarStorage.Folder(AppContext.BaseDirectory), _env.WebRootPath));
 
         public async Task SaveUserSettings(string username, string json)
         {

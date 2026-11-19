@@ -165,4 +165,24 @@ try
 }
 finally { Directory.Delete(webRootTest, true); }
 
+// Avatars : rangés dans data\avatars, anciens avatars de wwwroot\avatars toujours proposés.
+var avatarTest = Path.Combine(Path.GetTempPath(), "avatars-" + Guid.NewGuid().ToString("N"));
+try
+{
+    var avatarFolder = AvatarStorage.Folder(avatarTest);
+    var oldWebRoot = Path.Combine(avatarTest, "wwwroot");
+    Directory.CreateDirectory(Path.Combine(oldWebRoot, "avatars"));
+    File.WriteAllBytes(Path.Combine(oldWebRoot, "avatars", "ancien.png"), png);
+    File.WriteAllText(Path.Combine(oldWebRoot, "avatars", "notes.txt"), "pas une image");
+    var saved = await AvatarStorage.SaveAsync(avatarFolder, png, ".png");
+    Check(saved.StartsWith("/avatars/") && saved.EndsWith(".png") && File.Exists(Path.Combine(avatarFolder, saved["/avatars/".Length..])), "Imported avatar written to data/avatars");
+    var listed = AvatarStorage.List(avatarFolder, oldWebRoot);
+    Check(listed.SequenceEqual(new[] { saved, "/avatars/ancien.png" }), "New and old avatars listed, non-images ignored");
+    Check(AvatarStorage.List(avatarFolder, null).SequenceEqual(new[] { saved }), "Missing wwwroot does not break the list");
+    Check(AvatarStorage.ImportLegacy(avatarTest) == 1 && File.Exists(Path.Combine(avatarFolder, "ancien.png")), "Old uploads copied to data/avatars");
+    Check(AvatarStorage.ImportLegacy(avatarTest) == 0, "Old uploads copied only once");
+    Check(AvatarStorage.List(avatarFolder, oldWebRoot).Count(a => a == "/avatars/ancien.png") == 1, "Copied avatar listed once");
+}
+finally { Directory.Delete(avatarTest, true); }
+
 Console.WriteLine($"{checks} server startup checks passed; synthetic certificate, loopback HTTPS only.");

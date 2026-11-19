@@ -147,6 +147,20 @@ if (!app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
+// Avatars importés (data\avatars) d'abord, puis fichiers de wwwroot (dont les anciens avatars).
+var avatarFolder = AvatarStorage.Folder(AppContext.BaseDirectory);
+Directory.CreateDirectory(avatarFolder);
+try
+{
+    var imported = AvatarStorage.ImportLegacy(AppContext.BaseDirectory);
+    if (imported > 0) logger.LogInformation("SER29: {Count} avatar(s) de wwwroot\\avatars recopié(s) dans data\\avatars.", imported);
+}
+catch (Exception ex) { logger.LogWarning(ex, "SER29: anciens avatars non recopiés dans data\\avatars."); }
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(avatarFolder),
+    RequestPath = AvatarStorage.RequestPath
+});
 app.UseStaticFiles();
 
 app.Use(async (context, next) =>
