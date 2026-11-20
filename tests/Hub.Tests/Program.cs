@@ -25,9 +25,10 @@ try
     builder.Logging.ClearProviders();
     builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Loopback, 0));
     builder.Services.AddDbContext<ChatDbContext>(o => o.UseSqlite($"Data Source={Path.Combine(folder, "chat.db")};Default Timeout=30"));
-    builder.Services.AddSignalR(o => o.AddFilter<ChatHubStateFilter>());
+    builder.Services.AddSignalR(o => { o.MaximumReceiveMessageSize = 2 * 1024 * 1024; o.AddFilter<ChatHubStateFilter>(); }); // Même limite que Program.cs.
     var access = new StationAccess("cle-de-test", "mot-de-passe-test");
     builder.Services.AddSingleton(access);
+    builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(folder, "sms-mail-history.db")));
     await using var app = builder.Build();
     using (var scope = app.Services.CreateScope())
         scope.ServiceProvider.GetRequiredService<ChatDbContext>().Database.EnsureCreated();
@@ -203,6 +204,27 @@ try
     await Task.Delay(500);
     users = await pcB2.InvokeAsync<List<UserInfo>>("GetAllUsers");
     Check(Enumerable.Range(0, 30).All(i => users.Any(u => u.Username == $"Poste{i:00}" && !u.IsOnline)), "Les 30 postes déconnectés passent hors ligne");
+
+    // 8. Historique SMS/mail commun : un envoi réservé sur un poste est visible et bloqué sur un autre.
+    var posteA = await Connect();
+    var posteB = await Connect();
+    var reservation = new EyeChat.SmsMail.HistoryReservation
+    {
+        Key = "sms-test-1", ReservationKeys = new() { "famille-80|2026-10-23", "tel-+33612345678|2026-10-23" },
+        Channel = "SMS", Contact = "+33612345678", Body = "Rappel de rendez-vous", ProviderService = "sms-test"
+    };
+    Check(await posteA.InvokeAsync<bool>("SmsMailReserve", reservation), "Le premier poste réserve l'envoi");
+    Check(!await posteB.InvokeAsync<bool>("SmsMailReserve", reservation), "Un autre poste ne peut pas renvoyer le même rappel");
+    var sameFamily = new EyeChat.SmsMail.HistoryReservation { Key = "sms-test-2", ReservationKeys = new() { "famille-80|2026-10-23" }, Channel = "SMS", Contact = "+33698765432", Body = "x", ProviderService = "sms-test" };
+    Check(!await posteB.InvokeAsync<bool>("SmsMailReserve", sameFamily), "Même famille, autre numéro : bloqué depuis un autre poste");
+    await posteA.InvokeAsync("SmsMailUpdate", "sms-test-1", "Accepté par OVH", (long?)123);
+    var shared = await posteB.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad");
+    Check(shared.Single() is { Key: "sms-test-1", Status: "Accepté par OVH", ProviderId: 123 }, "Le second poste voit l'envoi et son statut");
+    Check((await posteB.InvokeAsync<List<string>>("SmsMailReservedKeys")).Contains("famille-80|2026-10-23"), "Les réservations sont partagées");
+    var mail = new EyeChat.SmsMail.HistoryRecord { Key = "mail-ancien", Channel = "Mail", Contact = "Lea@Example.fr", Body = "<p>" + new string('x', 400_000) + "</p>", Status = "Accepté", CreatedAtUtc = "2026-10-20T08:00:00.0000000+00:00", ProviderService = "smtp.test" };
+    Check(await posteA.InvokeAsync<int>("SmsMailImport", new List<EyeChat.SmsMail.HistoryRecord> { mail, mail }, new List<EyeChat.SmsMail.HistoryReservationKey>()) == 1, "Import : une seule ligne ajoutée pour une clé en double");
+    Check(await posteB.InvokeAsync<DateTimeOffset?>("SmsMailEarliestMail", "smtp.test") == new DateTimeOffset(2026, 10, 20, 8, 0, 0, TimeSpan.Zero), "Date du premier mail");
+    Check(await posteB.InvokeAsync<int>("SmsMailApplyReport", "mail-ancien", "lea@example.fr", "Remis", "smtp.test") == 1, "Retour de remise appliqué depuis un autre poste");
 
     foreach (var c in connections)
         await c.DisposeAsync();

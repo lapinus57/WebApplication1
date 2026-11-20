@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\Fundus\*.cs" Link="Fundus\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\SmsMail\*.cs" Link="SmsMail\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\ReadOnlyAccess.cs" Link="Fundus\ReadOnlyAccess.cs" />
     <PackageReference Include="System.Data.OleDb" Version="8.0.0" />
     <PackageReference Include="RtfPipe" Version="2.0.7677.4303" />

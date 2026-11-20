@@ -139,6 +139,15 @@ Quitter l'onglet SMS et mail pendant l'envoi produit le même arrêt. Les onglet
 la page restent indisponibles pendant l'envoi pour éviter une nouvelle préparation
 en cours de route.
 
+L'historique des SMS et mails est **sur le serveur** (`data\sms-mail-history.db`, sauvegardé
+chaque jour avec les autres bases) : il est le même sur tous les postes. La réservation
+anti-doublon y est faite aussi : un rappel envoyé depuis un poste ne peut pas repartir d'un
+autre poste. Sans connexion au serveur, l'historique ne s'affiche pas et aucun envoi n'est
+possible. À la première ouverture de l'onglet après la mise à jour, l'ancien historique du
+poste (`history.db`) est envoyé au serveur, sans écraser ce qui y est déjà, puis renommé
+`history.db.envoye-au-serveur`. Il suffit d'ouvrir l'onglet SMS et mail une fois sur chaque
+poste qui envoyait des rappels.
+
 L'historique dispose d'un filtre par canal et d'une recherche par destinataire,
 date affichée ou statut. Chaque carte présente le contact, le canal, la date et
 le résultat. Lire le message envoyé ouvre son contenu complet, avec rendu HTML

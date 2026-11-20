@@ -160,13 +160,34 @@ namespace ChatServeur
         private readonly ILogger<ChatHub> _logger;
 
         private readonly StationAccess _access;
+        private readonly EyeChat.SmsMail.SmsMailHistoryStore _smsMailHistory;
 
-        public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, StationAccess access)
+        public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, StationAccess access,
+            EyeChat.SmsMail.SmsMailHistoryStore smsMailHistory)
         {
             _db = db;
             _env = env;
             _logger = logger;
             _access = access;
+            _smsMailHistory = smsMailHistory;
+        }
+
+        // Historique des SMS et mails, commun à tous les postes (data\sms-mail-history.db).
+        // La réservation est faite ici, en un seul endroit : deux postes ne peuvent pas envoyer le même rappel.
+        public Task<bool> SmsMailReserve(EyeChat.SmsMail.HistoryReservation reservation) => _smsMailHistory.ReserveAsync(reservation);
+        public Task SmsMailUpdate(string key, string status, long? providerId) => _smsMailHistory.UpdateAsync(key, status, providerId);
+        public Task<List<string>> SmsMailReservedKeys() => _smsMailHistory.LoadReservedKeysAsync();
+        public Task<int> SmsMailApplyReport(string messageKey, string recipient, string status, string smtpHost)
+            => _smsMailHistory.ApplyReportAsync(messageKey, recipient, status, smtpHost);
+        public Task<DateTimeOffset?> SmsMailEarliestMail(string smtpHost) => _smsMailHistory.EarliestMailAsync(smtpHost);
+        public Task<List<EyeChat.SmsMail.HistoryRecord>> SmsMailLoad() => _smsMailHistory.LoadAsync();
+        public async Task<int> SmsMailImport(List<EyeChat.SmsMail.HistoryRecord> records, List<EyeChat.SmsMail.HistoryReservationKey> reservations)
+        {
+            var count = await _smsMailHistory.ImportAsync(records, reservations);
+            if (records.Count > 0 || reservations.Count > 0)
+                _logger.LogInformation("Historique SMS/mail importé depuis {Machine} : {Count} message(s) ajouté(s) sur {Records}, {Reservations} réservation(s).",
+                    Context.GetHttpContext()?.Connection.RemoteIpAddress, count, records.Count, reservations.Count);
+            return count;
         }
 
         /// <summary>Permet au poste de vérifier le mot de passe applicatif saisi (configurable côté serveur).</summary>

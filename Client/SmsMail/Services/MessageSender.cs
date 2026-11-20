@@ -22,10 +22,10 @@ namespace Client.SmsMail.Services
         public const string UncertainStatus = "Résultat non confirmé — vérifier le compte OVH/SMTP avant tout nouvel essai";
         public const string AlreadyHandledStatus = "Déjà traité pour ce contact ou cette famille";
 
-        private readonly MessageHistory _history;
+        private readonly IMessageHistory _history;
         private readonly Func<PreparedMessage, Task<SendResult>> _send;
 
-        public MessageSender(MessageHistory history, Func<PreparedMessage, Task<SendResult>> send)
+        public MessageSender(IMessageHistory history, Func<PreparedMessage, Task<SendResult>> send)
         {
             _history = history;
             _send = send;

@@ -132,6 +132,8 @@ builder.Services.AddDbContext<EyeMailDbContext>(options =>
 builder.Services.AddScoped<EyeMailStore>();
 builder.Services.AddScoped<IEyeMailSource, EyeMailAccessSource>();
 builder.Services.AddSingleton<EyeMailImport>();
+// Historique des SMS et mails, commun à tous les postes.
+builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(dbFolder, "sms-mail-history.db")));
 
 var app = builder.Build();
 var logger = app.Logger;

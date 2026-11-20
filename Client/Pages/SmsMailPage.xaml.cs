@@ -12,6 +12,7 @@ using Client.Helpers;
 using Client.SmsMail.Configuration;
 using Client.SmsMail.Models;
 using Client.SmsMail.Services;
+using Client.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
@@ -23,7 +24,9 @@ namespace Client.Pages
     public sealed partial class SmsMailPage : Page
     {
         private SmsMailSettings _settings = new();
-        private readonly MessageHistory _history;
+        private readonly IMessageHistory _history;
+        // Ancien historique gardé sur ce poste, envoyé au serveur au premier passage.
+        private static readonly string LocalHistoryPath = Path.Combine(SmsMailSettingsStore.DirectoryPath, "history.db");
         private List<RdvInfo> _appointments = new();
         private List<RdvInfo> _working = new();
         private List<PreparedMessage> _messages = new();
@@ -45,7 +48,7 @@ namespace Client.Pages
         {
             InitializeComponent();
             Directory.CreateDirectory(SmsMailSettingsStore.DirectoryPath);
-            _history = new MessageHistory(Path.Combine(SmsMailSettingsStore.DirectoryPath, "history.db"));
+            _history = new ServerMessageHistory(() => App.ChatService.GetSmsMailHistoryConnection());
             Loaded += Page_Loaded;
             Unloaded += (_, _) => { _unloaded = true; _sendStop?.Cancel(); };
         }
@@ -97,8 +100,19 @@ namespace Client.Pages
                 MailPasswordText.Password = _settings.Email.Password;
                 MailFromText.Text = _settings.Email.FromAddress;
                 MailDisplayText.Text = _settings.Email.FromDisplayName;
-                await ReloadHistoryAsync();
                 StatusText.Text = "Sélectionnez un jour et chargez les rendez-vous. Vérifiez vos paramètres avant le premier envoi.";
+                try
+                {
+                    var migrated = await LocalHistoryMigration.MigrateAsync(LocalHistoryPath, _history);
+                    await ReloadHistoryAsync();
+                    if (migrated.HasValue)
+                        StatusText.Text = $"Historique de ce poste envoyé au serveur ({migrated} message(s) ajouté(s)) : il est maintenant commun à tous les postes. " + StatusText.Text;
+                }
+                catch (Exception ex)
+                {
+                    // Le reste de la page reste utilisable ; l'historique et l'envoi demandent le serveur.
+                    StatusText.Text = "Historique des SMS et mails indisponible : " + ex.Message;
+                }
             });
         }
 

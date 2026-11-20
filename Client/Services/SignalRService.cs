@@ -59,6 +59,11 @@ namespace Client.Services
         private HubConnection GetRequiredConnection()
             => GetActiveConnection() ?? throw new InvalidOperationException("Connexion SignalR non établie.");
 
+        /// <summary>Connexion au hub pour l'historique SMS/mail, partagé sur le serveur ; message clair si le serveur n'est pas joignable.</summary>
+        public HubConnection GetSmsMailHistoryConnection()
+            => GetActiveConnection() ?? throw new InvalidOperationException(
+                "Serveur EyeChat non connecté : l'historique des SMS et mails, commun à tous les postes, est sur le serveur. Réessayez une fois la connexion rétablie.");
+
         private bool TryGetActiveConnection([NotNullWhen(true)] out HubConnection? connection)
         {
             connection = GetActiveConnection();

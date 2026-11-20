@@ -178,6 +178,7 @@ Check(MessageSelection.ForSending(MessageSelection.Visible(selectionCases, "", "
 checks += await EyeEmailChecks.RunAsync();
 checks += await FamilySmsChecks.RunAsync();
 checks += await SendingChecks.RunAsync();
+checks += await HistoryMigrationChecks.RunAsync();
 checks += ReminderTimeChecks.Run();
 checks += MailTextPreviewChecks.Run();
 checks += AppointmentQueryChecks.Run();

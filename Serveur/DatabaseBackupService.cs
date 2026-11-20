@@ -2,7 +2,7 @@ using ChatServeur.Startup;
 
 namespace ChatServeur
 {
-    /// <summary>Vérifie toutes les heures que la sauvegarde du jour de chat.db et eyemail.db existe, et la crée sinon.</summary>
+    /// <summary>Vérifie toutes les heures que la sauvegarde du jour de chat.db, eyemail.db et sms-mail-history.db existe, et la crée sinon.</summary>
     public sealed class DatabaseBackupService : BackgroundService
     {
         private readonly ILogger<DatabaseBackupService> _logger;
@@ -13,7 +13,7 @@ namespace ChatServeur
         {
             _logger = logger;
             var dataFolder = Path.Combine(AppContext.BaseDirectory, "data");
-            _databasePaths = new[] { Path.Combine(dataFolder, "chat.db"), Path.Combine(dataFolder, "eyemail.db") };
+            _databasePaths = new[] { Path.Combine(dataFolder, "chat.db"), Path.Combine(dataFolder, "eyemail.db"), Path.Combine(dataFolder, "sms-mail-history.db") };
             _backupFolder = Path.Combine(dataFolder, "sauvegardes");
         }
 

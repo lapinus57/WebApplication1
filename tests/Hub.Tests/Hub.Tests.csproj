@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Shared/ReadOnlyAccess.cs" Link="Fundus/ReadOnlyAccess.cs" />
+    <Compile Include="../../Shared/SmsMail/*.cs" LinkBase="SmsMail" />
     <Compile Include="../../Shared/Fundus/*.cs" LinkBase="Fundus" />
     <Compile Include="../../Serveur/Models/*.cs" LinkBase="Models" />
     <Compile Include="../../Serveur/Hubs/*.cs" LinkBase="Hubs" />
