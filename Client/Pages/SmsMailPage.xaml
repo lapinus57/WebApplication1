@@ -130,6 +130,36 @@
                     </Border>
                 </Grid>
             </PivotItem>
+            <PivotItem Header="Message individuel">
+                <ScrollViewer>
+                    <StackPanel Spacing="12" Padding="0,0,16,16" MaxWidth="720" HorizontalAlignment="Left">
+                        <TextBlock TextWrapping="Wrap" Text="Message à une seule personne, en dehors des rappels groupés. Vous pouvez y ajouter le lien « Confirmer / Annuler » : la réponse du patient arrive par mail à l’adresse indiquée et s’affiche dans l’historique de tous les postes." />
+                        <AutoSuggestBox x:Name="IndividualPatientBox" Header="Patient (parmi les RDV chargés)" PlaceholderText="Nom ou prénom… (facultatif : vous pouvez tout saisir à la main)"
+                                        TextChanged="IndividualPatient_TextChanged" SuggestionChosen="IndividualPatient_SuggestionChosen" QueryIcon="Find" />
+                        <TextBox x:Name="IndividualNameText" Header="Personne (nom affiché dans l’historique et dans le mail de réponse)" />
+                        <RadioButtons x:Name="IndividualChannel" Header="Envoyer par" SelectedIndex="0" SelectionChanged="IndividualChannel_Changed" MaxColumns="2">
+                            <x:String>SMS</x:String>
+                            <x:String>Mail</x:String>
+                        </RadioButtons>
+                        <TextBox x:Name="IndividualPhoneText" Header="Téléphone mobile" PlaceholderText="06… ou +33…" InputScope="TelephoneNumber" />
+                        <TextBox x:Name="IndividualEmailText" Header="Adresse mail" Visibility="Collapsed" InputScope="EmailSmtpAddress" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <CalendarDatePicker x:Name="IndividualDatePicker" Header="Date du RDV" DateFormat="{}{dayofweek.full} {day.integer} {month.full}" />
+                            <TimePicker x:Name="IndividualTimePicker" Header="Heure du RDV" ClockIdentifier="24HourClock" MinuteIncrement="5" />
+                        </StackPanel>
+                        <CheckBox x:Name="IndividualLinkCheck" Content="Ajouter le lien « Confirmer / Annuler »" Checked="IndividualLink_Changed" Unchecked="IndividualLink_Changed" />
+                        <TextBox x:Name="IndividualReplyEmailText" Header="Adresse qui reçoit la réponse du patient" Visibility="Collapsed" InputScope="EmailSmtpAddress" />
+                        <TextBox x:Name="IndividualSubjectText" Header="Objet du mail" Visibility="Collapsed" />
+                        <TextBox x:Name="IndividualText" Header="Message ([LIEN] est remplacé par le lien à l’envoi)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" TextChanged="IndividualText_Changed" />
+                        <TextBlock x:Name="IndividualMetrics" Opacity="0.75" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button Content="Texte par défaut" Click="IndividualDefaultText_Click" />
+                            <Button Style="{StaticResource AccentButtonStyle}" Content="Envoyer" Click="SendIndividual_Click" />
+                        </StackPanel>
+                        <TextBlock x:Name="IndividualStatus" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
             <PivotItem Header="Familles">
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>

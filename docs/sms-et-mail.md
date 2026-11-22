@@ -153,6 +153,26 @@ date affichée ou statut. Chaque carte présente le contact, le canal, la date e
 le résultat. Lire le message envoyé ouvre son contenu complet, avec rendu HTML
 pour les mails et texte pour les SMS. Les aperçus ne chargent aucun contenu distant.
 
+## Message individuel et lien « Confirmer / Annuler »
+
+L'onglet **Message individuel** envoie un SMS ou un mail à une seule personne, en dehors des
+rappels groupés. On peut choisir le patient parmi les rendez-vous chargés (téléphone, mail, date
+et heure sont alors remplis) ou tout saisir à la main. Le message est inscrit dans l'historique
+commun ; il n'est jamais bloqué par un rappel groupé déjà envoyé, et ne bloque pas les rappels.
+
+En cochant **Ajouter le lien « Confirmer / Annuler »**, on indique l'adresse mail qui recevra la
+réponse (la dernière utilisée est proposée). À l'envoi, `[LIEN]` est remplacé par un lien du type
+`https://rdv.mulleroph.workers.dev/Ab3dEf7h` (ajouté à la fin si la balise a été effacée ; le
+compteur de caractères tient compte de sa longueur). Le patient choisit « Je confirme » ou
+« J'annule » ; il peut changer d'avis jusqu'à 3 heures après le rendez-vous. Le serveur relève les
+réponses chaque minute : l'historique de tous les postes affiche « ✅ Confirmé par le patient » ou
+« ❌ Annulé par le patient », et un mail (« ❌ ANNULATION — Léa MARTIN — lun. 23/11 09h30 ») part
+vers l'adresse choisie. Un mail en échec est retenté à chaque relevé.
+
+Le service de réponse est un Cloudflare Worker (dossier `relay/`, procédure dans
+`relay/README.md`) qui ne connaît ni nom, ni téléphone, ni adresse mail. Il se règle dans
+l'administration du serveur → **Réponses des patients** (adresse, clé secrète, compte mail).
+
 ## Tableau des envois et SMS par famille
 
 La liste Envois est un tableau : sélection, canal, destinataire, personnes,

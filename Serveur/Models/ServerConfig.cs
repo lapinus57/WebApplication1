@@ -11,5 +11,7 @@ namespace ChatServeur
         public int IdleRoomTimeoutSeconds { get; set; } = 180;
         /// <summary>Réglages Access saisis dans l'administration (voir ServerAccessSettings).</summary>
         public string AccessSettingsJson { get; set; } = string.Empty;
+        /// <summary>Réglages « Réponses des patients » (voir ChatServeur.Replies.ReplySettings).</summary>
+        public string ReplySettingsJson { get; set; } = string.Empty;
     }
 }

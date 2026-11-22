@@ -29,6 +29,14 @@ try
     var access = new StationAccess("cle-de-test", "mot-de-passe-test");
     builder.Services.AddSingleton(access);
     builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(folder, "sms-mail-history.db")));
+    // Réponses des patients : service externe et envoi de mail simulés (aucun appel réseau réel).
+    var relay = new FakeRelay();
+    var mailer = new FakeMailer();
+    Microsoft.AspNetCore.DataProtection.DataProtectionBuilderExtensions.SetApplicationName(builder.Services.AddDataProtection(), "EyeChat.Tests");
+    builder.Services.AddHttpClient("replies").ConfigurePrimaryHttpMessageHandler(() => relay);
+    builder.Services.AddSingleton<ChatServeur.Replies.IReplyMailer>(mailer);
+    builder.Services.AddScoped<ChatServeur.Replies.ReplySettingsStore>();
+    builder.Services.AddScoped<ChatServeur.Replies.ReplyLinkServiceFactory>();
     await using var app = builder.Build();
     using (var scope = app.Services.CreateScope())
         scope.ServiceProvider.GetRequiredService<ChatDbContext>().Database.EnsureCreated();
@@ -226,6 +234,64 @@ try
     Check(await posteB.InvokeAsync<DateTimeOffset?>("SmsMailEarliestMail", "smtp.test") == new DateTimeOffset(2026, 10, 20, 8, 0, 0, TimeSpan.Zero), "Date du premier mail");
     Check(await posteB.InvokeAsync<int>("SmsMailApplyReport", "mail-ancien", "lea@example.fr", "Remis", "smtp.test") == 1, "Retour de remise appliqué depuis un autre poste");
 
+    // 9. Message individuel avec lien « Confirmer / Annuler ».
+    var poste = await Connect();
+    var tomorrow = DateTime.Today.AddDays(1).AddHours(9).AddMinutes(30);
+    var linkRequest = new EyeChat.SmsMail.ReplyLinkRequest
+    {
+        MessageKey = "individuel-1", Channel = "SMS", Contact = "+33612345678", People = "Léa MARTIN", AppointmentStart = tomorrow,
+        Cabinet = "Cabinet Test", CabinetAddress = "1 rue des Lilas", ReplyEmail = "secretariat@example.fr"
+    };
+    Check(await poste.InvokeAsync<string>("SmsMailReplyLinkBase") == "", "Service de réponse non configuré : aucune adresse");
+    try { await poste.InvokeAsync<string>("SmsMailCreateReplyLink", linkRequest); Check(false, "Lien refusé sans configuration"); }
+    catch (HubException ex) { Check(ex.Message.Contains("Réponses des patients"), "Refus expliqué sans configuration"); }
+
+    using (var scope = app.Services.CreateScope())
+        await scope.ServiceProvider.GetRequiredService<ChatServeur.Replies.ReplySettingsStore>().SaveAsync(new ChatServeur.Replies.ReplySettings
+        {
+            RelayUrl = "https://rdv.test.workers.dev/", SmtpHost = "smtp.test", FromAddress = "eyechat@example.fr"
+        }, FakeRelay.Key, "mot-de-passe-smtp", CancellationToken.None);
+    Check(await poste.InvokeAsync<string>("SmsMailReplyLinkBase") == "https://rdv.test.workers.dev", "Adresse du service configurée");
+
+    var url = await poste.InvokeAsync<string>("SmsMailCreateReplyLink", linkRequest);
+    var token = url["https://rdv.test.workers.dev/".Length..];
+    Check(url.StartsWith("https://rdv.test.workers.dev/") && token.Length == 8 && token.All(char.IsLetterOrDigit), "Lien court créé : adresse + jeton de 8 caractères");
+    Check(relay.LinkBodies.Count == 1 && relay.LinkBodies[0].Contains(token) && relay.LinkBodies[0].Contains("Cabinet Test") && relay.LinkBodies[0].Contains("9h30"),
+        "Le service externe reçoit le jeton, le cabinet et l'heure");
+    Check(!relay.LinkBodies[0].Contains("MARTIN") && !relay.LinkBodies[0].Contains("612345678") && !relay.LinkBodies[0].Contains("secretariat"),
+        "Le service externe ne reçoit ni nom, ni téléphone, ni adresse mail");
+    var past = new EyeChat.SmsMail.ReplyLinkRequest { MessageKey = "x", Channel = "SMS", Contact = "+33600000000", AppointmentStart = DateTime.Now.AddDays(-1), ReplyEmail = "a@example.fr" };
+    try { await poste.InvokeAsync<string>("SmsMailCreateReplyLink", past); Check(false, "RDV passé refusé"); }
+    catch (HubException ex) { Check(ex.Message.Contains("passé"), "RDV passé : pas de lien"); }
+
+    Check(await poste.InvokeAsync<bool>("SmsMailReserve", new EyeChat.SmsMail.HistoryReservation { Key = "individuel-1", Channel = "SMS", Contact = "+33612345678", Body = "RDV " + url, ProviderService = "sms-test" }),
+        "Le message individuel est inscrit dans l'historique");
+
+    async Task<int> Poll()
+    {
+        using var scope = app.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<ChatServeur.Replies.ReplyLinkServiceFactory>().Create().PollAsync();
+    }
+    relay.Answer(token, "Annule");
+    Check(await Poll() == 1, "Réponse relevée");
+    var history = await poste.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad");
+    Check(history.Single(h => h.Key == "individuel-1").Status.StartsWith("❌ Annulé par le patient"), "L'annulation s'affiche dans l'historique commun");
+    Check(mailer.Sent.Count == 1 && mailer.Sent[0].To == "secretariat@example.fr" && mailer.Sent[0].Subject.Contains("ANNULATION") && mailer.Sent[0].Subject.Contains("Léa MARTIN"),
+        "Mail d'annulation envoyé à l'adresse choisie, avec le nom du patient");
+    Check(await Poll() == 0 && mailer.Sent.Count == 1, "Pas de second mail pour la même réponse");
+
+    mailer.Fail = true;
+    relay.Answer(token, "Confirme");
+    await Poll();
+    Check(mailer.Sent.Count == 1, "Mail en échec : rien d'envoyé");
+    mailer.Fail = false;
+    await Poll();
+    Check(mailer.Sent.Count == 2 && mailer.Sent[1].Subject.Contains("Confirmation"), "Mail retenté au relevé suivant (patient qui change d'avis)");
+    Check((await poste.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad")).Single(h => h.Key == "individuel-1").Status.StartsWith("✅ Confirmé"),
+        "L'historique montre la dernière réponse");
+    relay.Answer("Inconnu1", "Annule");
+    Check(await Poll() == 0 && mailer.Sent.Count == 2, "Réponse pour un lien inconnu ignorée");
+
     foreach (var c in connections)
         await c.DisposeAsync();
     await app.StopAsync();
@@ -236,3 +302,45 @@ finally
     try { Directory.Delete(folder, recursive: true); } catch { }
 }
 Console.WriteLine($"{checks} hub checks passed; local loopback server, synthetic data only.");
+
+// Service de réponse simulé : mêmes adresses et même clé que le Worker Cloudflare (relay/worker.js).
+sealed class FakeRelay : HttpMessageHandler
+{
+    public const string Key = "cle-du-service-de-reponse-0123456789";
+    public List<string> LinkBodies { get; } = new();
+    private readonly List<(long Id, string Token, string Choice, long At)> _responses = new();
+    public void Answer(string token, string choice) => _responses.Add((_responses.Count + 1, token, choice, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (request.Headers.Authorization?.Parameter != Key) return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+        var path = request.RequestUri!.AbsolutePath;
+        if (path == "/api/links" && request.Method == HttpMethod.Post)
+        {
+            LinkBodies.Add(await request.Content!.ReadAsStringAsync(cancellationToken));
+            return Json("{\"created\":1}");
+        }
+        if (path == "/api/responses")
+        {
+            var after = long.Parse(System.Web.HttpUtility.ParseQueryString(request.RequestUri.Query)["after"] ?? "0");
+            var list = _responses.Where(r => r.Id > after).Select(r => new { id = r.Id, token = r.Token, choice = r.Choice, answeredAt = r.At });
+            return Json(System.Text.Json.JsonSerializer.Serialize(new { responses = list }));
+        }
+        if (path == "/api/ping") return Json("{\"ok\":true}");
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
+    }
+
+    private static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
+}
+
+sealed class FakeMailer : ChatServeur.Replies.IReplyMailer
+{
+    public List<(string To, string Subject, string Html)> Sent { get; } = new();
+    public bool Fail { get; set; }
+    public Task SendAsync(ChatServeur.Replies.ReplyConfiguration config, string to, string subject, string htmlBody, CancellationToken ct)
+    {
+        if (Fail) throw new System.Net.Mail.SmtpException("serveur mail indisponible");
+        Sent.Add((to, subject, htmlBody));
+        return Task.CompletedTask;
+    }
+}

@@ -161,10 +161,12 @@ namespace ChatServeur
 
         private readonly StationAccess _access;
         private readonly EyeChat.SmsMail.SmsMailHistoryStore _smsMailHistory;
+        private readonly ChatServeur.Replies.ReplyLinkServiceFactory _replies;
 
         public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, StationAccess access,
-            EyeChat.SmsMail.SmsMailHistoryStore smsMailHistory)
+            EyeChat.SmsMail.SmsMailHistoryStore smsMailHistory, ChatServeur.Replies.ReplyLinkServiceFactory replies)
         {
+            _replies = replies;
             _db = db;
             _env = env;
             _logger = logger;
@@ -181,6 +183,25 @@ namespace ChatServeur
             => _smsMailHistory.ApplyReportAsync(messageKey, recipient, status, smtpHost);
         public Task<DateTimeOffset?> SmsMailEarliestMail(string smtpHost) => _smsMailHistory.EarliestMailAsync(smtpHost);
         public Task<List<EyeChat.SmsMail.HistoryRecord>> SmsMailLoad() => _smsMailHistory.LoadAsync();
+
+        /// <summary>Adresse du service de réponse « Confirmer / Annuler », ou vide s'il n'est pas configuré.</summary>
+        public string SmsMailReplyLinkBase()
+        {
+            var config = _replies.Configuration();
+            return config.RelayConfigured ? config.RelayUrl : string.Empty;
+        }
+
+        /// <summary>Crée le lien de réponse d'un rappel juste avant son envoi.</summary>
+        public async Task<string> SmsMailCreateReplyLink(EyeChat.SmsMail.ReplyLinkRequest request)
+        {
+            try { return await _replies.Create().CreateAsync(request, Context.ConnectionAborted); }
+            catch (InvalidOperationException ex) { throw new HubException(ex.Message); }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex, "SER34: service de réponse injoignable lors de la création d'un lien.");
+                throw new HubException("Service de réponse injoignable : vérifiez son adresse dans l'administration et la connexion Internet du serveur.");
+            }
+        }
         public async Task<int> SmsMailImport(List<EyeChat.SmsMail.HistoryRecord> records, List<EyeChat.SmsMail.HistoryReservationKey> reservations)
         {
             var count = await _smsMailHistory.ImportAsync(records, reservations);

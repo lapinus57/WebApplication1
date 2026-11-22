@@ -9,6 +9,7 @@ on:
       - 'Shared/**'
       - 'tests/**'
       - 'tools/MdbCompare/**'
+      - 'relay/**'
       - '.github/workflows/windows-client.yml'
   pull_request:
     branches: [master2]
@@ -24,6 +25,7 @@ on:
       - 'tests/Client.Configuration/**'
       - 'tests/MdbCompare.Tests/**'
       - 'tools/MdbCompare/**'
+      - 'relay/**'
       - '.github/workflows/windows-client.yml'
 
 permissions:
@@ -50,6 +52,11 @@ jobs:
         run: dotnet run --project tests/Hub.Tests --configuration Release
       - name: Verify EyeMail patient database import
         run: dotnet run --project tests/EyeMail.Tests --configuration Release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify the appointment reply service (Cloudflare Worker)
+        run: node --test relay/test/worker.test.mjs
       - name: Verify Access database comparison tool
         run: dotnet run --project tests/MdbCompare.Tests --configuration Release
       - name: Compile Access database comparison tool (x86)

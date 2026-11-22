@@ -134,6 +134,12 @@ builder.Services.AddScoped<IEyeMailSource, EyeMailAccessSource>();
 builder.Services.AddSingleton<EyeMailImport>();
 // Historique des SMS et mails, commun à tous les postes.
 builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(dbFolder, "sms-mail-history.db")));
+// Réponses des patients (lien « Confirmer / Annuler » des rappels, service externe Cloudflare Worker).
+builder.Services.AddHttpClient("replies", c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddSingleton<ChatServeur.Replies.IReplyMailer, ChatServeur.Replies.SmtpReplyMailer>();
+builder.Services.AddScoped<ChatServeur.Replies.ReplySettingsStore>();
+builder.Services.AddScoped<ChatServeur.Replies.ReplyLinkServiceFactory>();
+builder.Services.AddHostedService<ChatServeur.Replies.ReplyPollingService>();
 
 var app = builder.Build();
 var logger = app.Logger;
@@ -174,6 +180,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/PatientRegistry") ||
         context.Request.Path.StartsWithSegments("/EyeMail") ||
         context.Request.Path.StartsWithSegments("/AccessSettings") ||
+        context.Request.Path.StartsWithSegments("/Replies") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)
@@ -232,6 +239,7 @@ using (var scope = app.Services.CreateScope())
     EnsureColumn(db, logger, "ServerConfigs", "DeploymentConfigurationJson", "TEXT NOT NULL DEFAULT ''", "SER17");
     EnsureColumn(db, logger, "ServerConfigs", "IdleRoomTimeoutSeconds", "INTEGER NOT NULL DEFAULT 180", "SER18");
     EnsureColumn(db, logger, "ServerConfigs", "AccessSettingsJson", "TEXT NOT NULL DEFAULT ''", "SER26");
+    EnsureColumn(db, logger, "ServerConfigs", "ReplySettingsJson", "TEXT NOT NULL DEFAULT ''", "SER33");
     EnsureKnownUsersTable(db, logger);
     EnsureColumn(db, logger, "SecureGroups", "IsPublic", "INTEGER NOT NULL DEFAULT 0", "SER15");
     CleanupKnownUsers(db, logger);

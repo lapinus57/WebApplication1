@@ -179,6 +179,7 @@ checks += await EyeEmailChecks.RunAsync();
 checks += await FamilySmsChecks.RunAsync();
 checks += await SendingChecks.RunAsync();
 checks += await HistoryMigrationChecks.RunAsync();
+checks += IndividualMessageChecks.Run();
 checks += ReminderTimeChecks.Run();
 checks += MailTextPreviewChecks.Run();
 checks += AppointmentQueryChecks.Run();

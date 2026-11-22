@@ -14,6 +14,7 @@
     <Compile Include="../../Shared/Fundus/*.cs" LinkBase="Fundus" />
     <Compile Include="../../Serveur/Models/*.cs" LinkBase="Models" />
     <Compile Include="../../Serveur/Hubs/*.cs" LinkBase="Hubs" />
+    <Compile Include="../../Serveur/Replies/*.cs" LinkBase="Replies" />
     <Compile Include="../../Serveur/Fundus/*.cs" Exclude="../../Serveur/Fundus/FoAccessReader.cs" LinkBase="Fundus" />
     <Compile Include="../../Serveur/Registry/*.cs" LinkBase="Registry" />
     <Compile Include="../../Serveur/Startup/StationAccess.cs" Link="Startup/StationAccess.cs" />

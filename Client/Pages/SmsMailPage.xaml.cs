@@ -13,6 +13,7 @@ using Client.SmsMail.Configuration;
 using Client.SmsMail.Models;
 using Client.SmsMail.Services;
 using Client.Services;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
@@ -601,6 +602,131 @@ namespace Client.Pages
                 return new SendResult(test ? "[TEST] Résultat non confirmé — vérifier le compte avant un nouvel essai. " + ex.Message : MessageSender.UncertainStatus, null, false);
             }
         }
+
+        // ---------- Onglet « Message individuel » ----------
+
+        private const string ReplyEmailSetting = "SmsMailReplyEmail";
+
+        private string IndividualChannelValue => IndividualChannel?.SelectedItem as string ?? "SMS";
+
+        private void IndividualPatient_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            var query = sender.Text.Trim();
+            sender.ItemsSource = query.Length < 2 ? null : _appointments
+                .Where(r => !r.IsCancelled && ($"{r.Nom} {r.Prenom} {r.Prenom} {r.Nom}").Contains(query, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(r => r.Nom).ThenBy(r => r.HeureRDV).Take(20)
+                .Select(r => new IndividualPatientChoice(r)).ToList();
+        }
+
+        private void IndividualPatient_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+        {
+            if (args.SelectedItem is not IndividualPatientChoice choice) return;
+            var r = choice.Rdv;
+            IndividualNameText.Text = $"{r.Prenom} {r.Nom}".Trim();
+            IndividualPhoneText.Text = new[] { r.Tel1, r.Tel2 }.Select(MessagePreparation.NormalizePhone).FirstOrDefault(p => p.Length > 0) ?? string.Empty;
+            IndividualEmailText.Text = r.Email?.Trim() ?? string.Empty;
+            IndividualDatePicker.Date = new DateTimeOffset(r.DateRDV.Date);
+            IndividualTimePicker.Time = r.HeureRDV.TimeOfDay;
+            if (string.IsNullOrWhiteSpace(IndividualText.Text)) IndividualDefaultText_Click(sender, new RoutedEventArgs());
+        }
+
+        private sealed class IndividualPatientChoice(RdvInfo rdv)
+        {
+            public RdvInfo Rdv { get; } = rdv;
+            public override string ToString() => $"{Rdv.Nom} {Rdv.Prenom} — {Rdv.DateRDV:dd/MM} {Rdv.HeureRDV:HH:mm}";
+        }
+
+        private void IndividualChannel_Changed(object sender, SelectionChangedEventArgs e) => UpdateIndividualFields();
+        private void IndividualLink_Changed(object sender, RoutedEventArgs e)
+        {
+            if (IndividualLinkCheck.IsChecked == true && string.IsNullOrWhiteSpace(IndividualReplyEmailText.Text))
+                IndividualReplyEmailText.Text = AppSettings.Get(ReplyEmailSetting, string.Empty);
+            UpdateIndividualFields();
+        }
+        private void IndividualText_Changed(object sender, TextChangedEventArgs e) => UpdateIndividualFields();
+
+        private void UpdateIndividualFields()
+        {
+            if (IndividualPhoneText == null || IndividualEmailText == null || IndividualMetrics == null) return;
+            var sms = IndividualChannelValue == "SMS";
+            var withLink = IndividualLinkCheck.IsChecked == true;
+            IndividualPhoneText.Visibility = sms ? Visibility.Visible : Visibility.Collapsed;
+            IndividualEmailText.Visibility = sms ? Visibility.Collapsed : Visibility.Visible;
+            IndividualSubjectText.Visibility = sms ? Visibility.Collapsed : Visibility.Visible;
+            IndividualReplyEmailText.Visibility = withLink ? Visibility.Visible : Visibility.Collapsed;
+            IndividualMetrics.Text = sms
+                ? MessagePreparation.SmsMetrics(IndividualMessage.ForMetrics(IndividualText.Text, withLink)) + (withLink ? " (lien compris)" : "")
+                : string.Empty;
+        }
+
+        private DateTime? IndividualAppointmentStart()
+            => IndividualDatePicker.Date is DateTimeOffset date ? date.Date + IndividualTimePicker.Time : null;
+
+        private void IndividualDefaultText_Click(object sender, RoutedEventArgs e)
+        {
+            var start = IndividualAppointmentStart() ?? DateTime.Today.AddDays(1).AddHours(9);
+            IndividualText.Text = IndividualMessage.DefaultText(ReadSettings().Cabinet, start, IndividualLinkCheck.IsChecked == true);
+        }
+
+        private async void SendIndividual_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            IndividualStatus.Text = string.Empty;
+            var settings = ReadSettings();
+            var channel = IndividualChannelValue;
+            var withLink = IndividualLinkCheck.IsChecked == true;
+            var start = IndividualAppointmentStart();
+            if (withLink && start == null) throw new InvalidOperationException("Indiquez la date et l’heure du rendez-vous : elles s’affichent sur la page de réponse.");
+            var replyEmail = IndividualReplyEmailText.Text.Trim();
+            if (withLink && !System.Net.Mail.MailAddress.TryCreate(replyEmail, out _))
+                throw new InvalidOperationException("Indiquez l’adresse mail qui recevra la réponse du patient.");
+            var message = IndividualMessage.Create(settings, channel, IndividualNameText.Text, IndividualPhoneText.Text, IndividualEmailText.Text,
+                start ?? DateTime.Today, IndividualText.Text, IndividualSubjectText.Text);
+            var sms = new SmsService(settings.Sms);
+            var mail = new MailService(settings.Email);
+            if (channel == "SMS") sms.Validate(); else mail.Validate();
+
+            var connection = App.ChatService.GetSmsMailHistoryConnection();
+            if (withLink && string.IsNullOrEmpty(await connection.InvokeAsync<string>("SmsMailReplyLinkBase")))
+                throw new InvalidOperationException("Le service de réponse n’est pas configuré sur le serveur (administration du serveur → Réponses des patients).");
+
+            var preview = channel == "SMS" ? IndividualMessage.ForMetrics(IndividualText.Text.Trim(), false) : IndividualText.Text.Trim();
+            var dialog = new ContentDialog
+            {
+                Title = "Envoyer ce message ?",
+                Content = new ScrollViewer
+                {
+                    MaxHeight = 400,
+                    Content = new TextBlock
+                    {
+                        TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
+                        Text = $"{(channel == "SMS" ? "SMS" : "Mail")} à {message.Contact}{(message.PeopleDisplay.Length > 0 ? " (" + message.PeopleDisplay + ")" : "")}\n\n{preview}"
+                            + (withLink ? $"\n\n[LIEN] sera remplacé par le lien « Confirmer / Annuler ». La réponse sera envoyée à {replyEmail}." : "")
+                    }
+                },
+                PrimaryButtonText = "Envoyer", CloseButtonText = "Annuler", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            if (withLink)
+            {
+                AppSettings.Set(ReplyEmailSetting, replyEmail);
+                var url = await connection.InvokeAsync<string>("SmsMailCreateReplyLink", new EyeChat.SmsMail.ReplyLinkRequest
+                {
+                    MessageKey = message.Key, Channel = channel, Contact = message.Contact, People = message.PeopleDisplay,
+                    AppointmentStart = start!.Value, Cabinet = settings.Cabinet, CabinetAddress = settings.CabinetAddress, ReplyEmail = replyEmail
+                });
+                message.Body = IndividualMessage.WithLink(message.Body, IndividualMessage.LinkFor(channel, url));
+            }
+
+            var outcome = await SendInBackgroundAsync(new[] { message }, m => SendOneAsync(m, sms, mail, test: false));
+            await ReloadHistoryAsync();
+            IndividualStatus.Text = outcome.Accepted == 1
+                ? $"Message envoyé à {message.Contact}. {message.Status}" + (withLink ? $" La réponse du patient arrivera à {replyEmail} et dans l’historique." : "")
+                : $"Message non confirmé : {message.Status}";
+            StatusText.Text = IndividualStatus.Text;
+            if (outcome.Accepted == 1) IndividualText.Text = string.Empty;
+        });
 
         private async void MailReports_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {

@@ -1,0 +1,17 @@
+-- À coller une seule fois dans la Console de la base D1 « rdv-db » (Cloudflare → D1 → rdv-db → Console).
+-- Aucune donnée nominative : jeton aléatoire, cabinet, date/heure du rendez-vous et réponse uniquement.
+CREATE TABLE IF NOT EXISTS links (
+  token TEXT PRIMARY KEY,
+  cabinet TEXT NOT NULL,
+  address TEXT NOT NULL,
+  appointment TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS responses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token TEXT NOT NULL,
+  choice TEXT NOT NULL,
+  answered_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS responses_token ON responses (token);

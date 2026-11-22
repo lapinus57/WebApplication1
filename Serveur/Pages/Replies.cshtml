@@ -1,0 +1,48 @@
+@page
+@model Serveur.Pages.RepliesModel
+@{
+    ViewData["Title"] = "Réponses des patients";
+}
+<link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
+<section class="registry">
+    <header class="registry-heading">
+        <div><p class="registry-eyebrow">ADMINISTRATION</p><h1>Réponses des patients</h1>
+            <p>Lien « Confirmer / Annuler » des messages individuels (onglet SMS et mail → Message individuel des postes). Le serveur crée le lien à l’envoi, relève les réponses chaque minute, les inscrit dans l’historique de tous les postes et prévient par mail l’adresse choisie lors de l’envoi. Les rappels groupés ne contiennent pas ce lien.</p></div>
+    </header>
+    @if (Model.Error.Length > 0) { <div class="registry-error" role="alert">@Model.Error</div> }
+    @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+
+    <section class="registry-card">
+        <p><strong>État :</strong> @Model.State</p>
+        <form method="post" asp-page-handler="Test"><button class="secondary" type="submit">Tester le service de réponse</button></form>
+        <form method="post" asp-page-handler="TestMail" class="registry-inline">
+            <label>Envoyer un mail de test à<input asp-for="TestAddress" type="email" maxlength="200" placeholder="secretariat@exemple.fr" /></label>
+            <button class="secondary" type="submit">Envoyer le mail de test</button>
+        </form>
+        @if (Model.TestResult.Length > 0)
+        {
+            <p class="@(Model.TestFailed ? "registry-error" : "registry-notice")" role="status">@Model.TestResult</p>
+        }
+    </section>
+
+    <form method="post" asp-page-handler="Save" class="registry-card" autocomplete="off">
+        <h2>Service de réponse (Cloudflare Worker)</h2>
+        <label>Adresse du service<input asp-for="RelayUrl" maxlength="200" placeholder="https://rdv.exemple.workers.dev" /></label>
+        <label>Clé secrète (RELAY_KEY)<input asp-for="NewRelayKey" type="password" maxlength="500" autocomplete="new-password"
+            placeholder="@(Model.HasRelayKey ? "Enregistrée — laisser vide pour la garder" : "Aucune")" /></label>
+        <p class="registry-help">Le service externe ne reçoit jamais de nom, téléphone ni adresse mail : seulement un jeton aléatoire, le nom et l’adresse du cabinet, la date et l’heure du rendez-vous.</p>
+
+        <h2>Compte mail qui prévient le cabinet</h2>
+        <p class="registry-help">Mêmes valeurs que l’onglet SMS et mail des postes (compte SMTP). L’adresse de destination est choisie à chaque envoi de rappels.</p>
+        <label>Serveur SMTP<input asp-for="SmtpHost" maxlength="200" placeholder="ssl0.ovh.net" /></label>
+        <label>Port<input asp-for="SmtpPort" type="number" min="1" max="65535" /></label>
+        <label class="registry-check"><input asp-for="SmtpSsl" />Connexion chiffrée (SSL/TLS)</label>
+        <label>Utilisateur<input asp-for="SmtpUser" maxlength="200" /></label>
+        <label>Mot de passe<input asp-for="NewSmtpPassword" type="password" maxlength="200" autocomplete="new-password"
+            placeholder="@(Model.HasSmtpPassword ? "Enregistré — laisser vide pour le garder" : "Aucun")" /></label>
+        <label>Adresse de l’expéditeur<input asp-for="FromAddress" type="email" maxlength="200" /></label>
+        <label>Nom de l’expéditeur<input asp-for="FromName" maxlength="100" /></label>
+        <p class="registry-help">La clé et le mot de passe sont chiffrés sur le serveur et ne sont jamais réaffichés.</p>
+        <button type="submit">Enregistrer</button>
+    </form>
+</section>
