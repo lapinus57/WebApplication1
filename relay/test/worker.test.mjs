@@ -122,3 +122,11 @@ test("diagnostic : base non liée ou tables absentes expliquées au serveur EyeC
   assert.equal(ping.status, 500, "le test de l'administration détecte les tables absentes");
   assert.match((await ping.json()).error, /schema\.sql/);
 });
+
+test("la page d'accueil indique ce qui manque à l'installation", async () => {
+  assert.match(await (await call({ RELAY_KEY: KEY }, "/")).text(), /Installation incomplète[\s\S]*Base D1 non liée/);
+  assert.match(await (await call({ DB: fakeD1() }, "/")).text(), /RELAY_KEY/);
+  const empty = fakeD1(); empty.raw.exec("DROP TABLE links; DROP TABLE responses;");
+  assert.match(await (await call({ DB: empty, RELAY_KEY: KEY }, "/")).text(), /Tables absentes/);
+  assert.match(await (await call(env(), "/")).text(), /en ligne/);
+});

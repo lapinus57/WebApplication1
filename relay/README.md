@@ -21,7 +21,8 @@ Pré-requis : Worker `rdv`, base D1 `rdv-db` et secret `RELAY_KEY` créés (voir
 4. **Secret** : vérifier que *Paramètres* → *Variables et secrets* contient **`RELAY_KEY`** (type Secret, au moins 20 caractères).
 5. **Aperçus** : *Paramètres* → *Domaines et routes* → désactiver les URL d'aperçu (« Preview URLs ») si l'option existe.
 6. **Vérifier** :
-   - `https://rdv.mulleroph.workers.dev` affiche « Service de réponse aux rendez-vous — en ligne » ;
+   - `https://rdv.mulleroph.workers.dev` affiche « Service de réponse aux rendez-vous — en ligne ».
+     Sinon, la page « Installation incomplète » indique ce qui manque (base non liée, tables absentes, secret absent) ;
    - `https://rdv.mulleroph.workers.dev/ABC123xy` affiche « Lien inconnu ou expiré ».
    - « Service momentanément indisponible » sur ces pages : la base n'est pas liée (étape 3) ou les tables manquent (étape 1).
      Le bouton « Tester le service de réponse » de l'administration EyeChat indique laquelle.

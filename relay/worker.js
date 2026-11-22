@@ -45,10 +45,15 @@ async function route(request, env) {
     return json(404, { error: "Adresse inconnue." });
   }
 
-  if (!env.DB) throw new Error(missingDatabase());
+  // Page d'accueil : indique aussi si l'installation est complète (aucune donnée affichée).
+  if (path === "/" && request.method === "GET") {
+    const problem = await setupProblem(env);
+    return problem
+      ? page(500, "Installation incomplète", `<p>${escape(problem)}</p>`)
+      : page(200, "Service de réponse aux rendez-vous — en ligne", "<p>Ce service permet de confirmer ou d'annuler un rendez-vous à partir du lien reçu par SMS ou par mail.</p>");
+  }
 
-  if (path === "/" && request.method === "GET")
-    return page(200, "Service de réponse aux rendez-vous — en ligne", "<p>Ce service permet de confirmer ou d'annuler un rendez-vous à partir du lien reçu par SMS ou par mail.</p>");
+  if (!env.DB) throw new Error(missingDatabase());
 
   const token = path.slice(1);
   if (!TOKEN.test(token)) return page(404, "Lien inconnu ou expiré", expiredText());
@@ -158,6 +163,18 @@ async function answer(token, request, env) {
   if (!last || last.choice !== CHOICES[choice])
     await env.DB.prepare("INSERT INTO responses (token, choice, answered_at) VALUES (?1, ?2, ?3)").bind(token, CHOICES[choice], Date.now()).run();
   return new Response(null, { status: 303, headers: { ...securityHeaders(), Location: `/${token}?ok=1` } });
+}
+
+async function setupProblem(env) {
+  if (!env.DB) return missingDatabase();
+  if (!env.RELAY_KEY || env.RELAY_KEY.length < 20)
+    return "Secret RELAY_KEY absent ou trop court (au moins 20 caractères) : Worker → Paramètres → Variables et secrets.";
+  try {
+    await env.DB.prepare("SELECT (SELECT COUNT(*) FROM links) AS links, (SELECT COUNT(*) FROM responses) AS responses").first();
+    return null;
+  } catch (error) {
+    return explain(error);
+  }
 }
 
 function missingDatabase() {
