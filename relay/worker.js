@@ -26,7 +26,7 @@ export default {
   },
 };
 
-export async function route(request, env) {
+async function route(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
 
