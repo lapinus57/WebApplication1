@@ -63,10 +63,10 @@ public sealed class RepliesModel(ReplySettingsStore store, ReplyLinkServiceFacto
         if (!config.RelayConfigured) { TestFailed = true; TestResult = "Renseignez d’abord l’adresse du service et sa clé secrète."; return Page(); }
         try
         {
-            var ok = await replies.Create(config).PingAsync(HttpContext.RequestAborted);
-            TestFailed = !ok;
-            TestResult = ok ? "Le service de réponse répond et accepte la clé du serveur."
-                : "Le service répond mais refuse la clé : vérifiez que la clé saisie ici est identique au secret RELAY_KEY du Worker.";
+            var problem = await replies.Create(config).PingAsync(HttpContext.RequestAborted);
+            TestFailed = problem != null;
+            TestResult = problem == null ? "Le service de réponse répond, accepte la clé du serveur et sa base est prête."
+                : "Le service de réponse a répondu " + problem;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {

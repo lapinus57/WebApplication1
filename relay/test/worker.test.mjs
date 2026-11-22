@@ -106,3 +106,19 @@ test("nettoyage : liens et réponses anciens supprimés au relevé", async () =>
   assert.equal(e.DB.raw.prepare("SELECT COUNT(*) AS n FROM links").get().n, 0);
   assert.equal(e.DB.raw.prepare("SELECT COUNT(*) AS n FROM responses").get().n, 0);
 });
+
+test("diagnostic : base non liée ou tables absentes expliquées au serveur EyeChat", async () => {
+  const noDb = { RELAY_KEY: KEY };
+  const res = await api(noDb, "/api/links", { method: "POST", body: JSON.stringify({ links: [link("Diag1234")] }) });
+  assert.equal(res.status, 500);
+  assert.match((await res.json()).error, /Base D1 non liée.*DB.*rdv-db/);
+  assert.equal((await call(noDb, "/Diag1234")).status, 500, "le patient voit une page d'indisponibilité");
+
+  const empty = { DB: (() => { const d = fakeD1(); d.raw.exec("DROP TABLE links; DROP TABLE responses;"); return d; })(), RELAY_KEY: KEY };
+  const created = await api(empty, "/api/links", { method: "POST", body: JSON.stringify({ links: [link("Diag1234")] }) });
+  assert.equal(created.status, 500);
+  assert.match((await created.json()).error, /Tables absentes.*schema\.sql/);
+  const ping = await api(empty, "/api/ping");
+  assert.equal(ping.status, 500, "le test de l'administration détecte les tables absentes");
+  assert.match((await ping.json()).error, /schema\.sql/);
+});

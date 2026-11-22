@@ -21,6 +21,8 @@ export default {
       return await route(request, env);
     } catch (error) {
       console.error(error);
+      // Pour le serveur EyeChat : la cause exacte (réglage Cloudflare manquant), affichée dans l'administration.
+      if (new URL(request.url).pathname.startsWith("/api/")) return json(500, { error: explain(error) });
       return page(500, "Service momentanément indisponible", "<p>Merci de réessayer dans quelques minutes ou d'appeler le cabinet.</p>");
     }
   },
@@ -32,11 +34,18 @@ async function route(request, env) {
 
   if (path.startsWith("/api/")) {
     if (!(await authorized(request, env))) return json(401, { error: "Clé du serveur EyeChat absente ou incorrecte." });
+    if (!env.DB) return json(500, { error: missingDatabase() });
     if (path === "/api/links" && request.method === "POST") return createLinks(request, env);
     if (path === "/api/responses" && request.method === "GET") return listResponses(url, env);
-    if (path === "/api/ping" && request.method === "GET") return json(200, { ok: true });
+    if (path === "/api/ping" && request.method === "GET") {
+      // Vérifie aussi que les tables existent (schema.sql exécuté dans la console D1).
+      await env.DB.prepare("SELECT (SELECT COUNT(*) FROM links) AS links, (SELECT COUNT(*) FROM responses) AS responses").first();
+      return json(200, { ok: true });
+    }
     return json(404, { error: "Adresse inconnue." });
   }
+
+  if (!env.DB) throw new Error(missingDatabase());
 
   if (path === "/" && request.method === "GET")
     return page(200, "Service de réponse aux rendez-vous — en ligne", "<p>Ce service permet de confirmer ou d'annuler un rendez-vous à partir du lien reçu par SMS ou par mail.</p>");
@@ -149,6 +158,17 @@ async function answer(token, request, env) {
   if (!last || last.choice !== CHOICES[choice])
     await env.DB.prepare("INSERT INTO responses (token, choice, answered_at) VALUES (?1, ?2, ?3)").bind(token, CHOICES[choice], Date.now()).run();
   return new Response(null, { status: 303, headers: { ...securityHeaders(), Location: `/${token}?ok=1` } });
+}
+
+function missingDatabase() {
+  return "Base D1 non liée : Worker → Paramètres → Liaisons → Ajouter → Base de données D1, nom de variable DB, base rdv-db.";
+}
+
+function explain(error) {
+  const message = String(error?.message ?? error);
+  if (/no such table/i.test(message))
+    return "Tables absentes dans la base D1 : collez le contenu de schema.sql dans D1 → rdv-db → Console et exécutez-le. (" + message + ")";
+  return message;
 }
 
 function expiredText() {

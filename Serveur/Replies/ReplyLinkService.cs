@@ -87,7 +87,7 @@ public sealed class ReplyLinkService(ReplyConfiguration config, SmsMailHistorySt
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.RelayKey);
         using var response = await http.SendAsync(message, ct);
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Le service de réponse a refusé le lien ({(int)response.StatusCode}). Vérifiez son adresse et sa clé dans l'administration.");
+            throw new InvalidOperationException($"Le service de réponse a refusé le lien ({(int)response.StatusCode}) : {await RelayErrorAsync(response, ct)}");
 
         await store.AddReplyLinkAsync(new ReplyLinkRecord
         {
@@ -97,12 +97,31 @@ public sealed class ReplyLinkService(ReplyConfiguration config, SmsMailHistorySt
         return config.RelayUrl + "/" + token;
     }
 
-    public async Task<bool> PingAsync(CancellationToken ct = default)
+    /// <summary>Vérifie l'adresse, la clé et la base du service. Retourne null si tout va bien, sinon la cause.</summary>
+    public async Task<string?> PingAsync(CancellationToken ct = default)
     {
         using var message = new HttpRequestMessage(HttpMethod.Get, config.RelayUrl + "/api/ping");
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.RelayKey);
         using var response = await http.SendAsync(message, ct);
-        return response.IsSuccessStatusCode;
+        return response.IsSuccessStatusCode ? null : $"{(int)response.StatusCode} : {await RelayErrorAsync(response, ct)}";
+    }
+
+    /// <summary>Message d'erreur renvoyé par le Worker ({"error": "..."}), ou explication selon le code HTTP.</summary>
+    public static async Task<string> RelayErrorAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        string? detail = null;
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            if (json.RootElement.TryGetProperty("error", out var error)) detail = error.GetString();
+        }
+        catch (System.Text.Json.JsonException) { }
+        return detail ?? response.StatusCode switch
+        {
+            HttpStatusCode.Unauthorized => "clé refusée : la clé saisie dans l'administration doit être identique au secret RELAY_KEY du Worker.",
+            HttpStatusCode.NotFound => "adresse inconnue : vérifiez l'adresse du service et que le code du Worker a bien été déployé.",
+            _ => "erreur du service ; vérifiez dans Cloudflare que la base D1 est liée (DB) et que schema.sql a été exécuté."
+        };
     }
 
     private sealed record RelayResponse(long Id, string Token, string Choice, long AnsweredAt);

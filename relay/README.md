@@ -23,6 +23,8 @@ Pré-requis : Worker `rdv`, base D1 `rdv-db` et secret `RELAY_KEY` créés (voir
 6. **Vérifier** :
    - `https://rdv.mulleroph.workers.dev` affiche « Service de réponse aux rendez-vous — en ligne » ;
    - `https://rdv.mulleroph.workers.dev/ABC123xy` affiche « Lien inconnu ou expiré ».
+   - « Service momentanément indisponible » sur ces pages : la base n'est pas liée (étape 3) ou les tables manquent (étape 1).
+     Le bouton « Tester le service de réponse » de l'administration EyeChat indique laquelle.
 7. **EyeChat** : administration du serveur → **Réponses des patients** :
    adresse `https://rdv.mulleroph.workers.dev`, clé `RELAY_KEY`, compte mail (SMTP) qui prévient le cabinet.
    Boutons « Tester le service de réponse » et « Envoyer le mail de test ».

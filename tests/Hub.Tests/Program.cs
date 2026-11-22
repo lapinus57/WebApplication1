@@ -260,6 +260,10 @@ try
         "Le service externe reçoit le jeton, le cabinet et l'heure");
     Check(!relay.LinkBodies[0].Contains("MARTIN") && !relay.LinkBodies[0].Contains("612345678") && !relay.LinkBodies[0].Contains("secretariat"),
         "Le service externe ne reçoit ni nom, ni téléphone, ni adresse mail");
+    relay.FailWith = "Base D1 non liée : Worker → Paramètres → Liaisons";
+    try { await poste.InvokeAsync<string>("SmsMailCreateReplyLink", linkRequest); Check(false, "Erreur du service attendue"); }
+    catch (HubException ex) { Check(ex.Message.Contains("(500)") && ex.Message.Contains("Base D1 non liée"), "La cause donnée par le service s'affiche sur le poste"); }
+    relay.FailWith = null;
     var past = new EyeChat.SmsMail.ReplyLinkRequest { MessageKey = "x", Channel = "SMS", Contact = "+33600000000", AppointmentStart = DateTime.Now.AddDays(-1), ReplyEmail = "a@example.fr" };
     try { await poste.InvokeAsync<string>("SmsMailCreateReplyLink", past); Check(false, "RDV passé refusé"); }
     catch (HubException ex) { Check(ex.Message.Contains("passé"), "RDV passé : pas de lien"); }
@@ -308,6 +312,7 @@ sealed class FakeRelay : HttpMessageHandler
 {
     public const string Key = "cle-du-service-de-reponse-0123456789";
     public List<string> LinkBodies { get; } = new();
+    public string? FailWith { get; set; }
     private readonly List<(long Id, string Token, string Choice, long At)> _responses = new();
     public void Answer(string token, string choice) => _responses.Add((_responses.Count + 1, token, choice, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
 
@@ -315,6 +320,8 @@ sealed class FakeRelay : HttpMessageHandler
     {
         if (request.Headers.Authorization?.Parameter != Key) return new HttpResponseMessage(HttpStatusCode.Unauthorized);
         var path = request.RequestUri!.AbsolutePath;
+        if (FailWith != null)
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new { error = FailWith })) };
         if (path == "/api/links" && request.Method == HttpMethod.Post)
         {
             LinkBodies.Add(await request.Content!.ReadAsStringAsync(cancellationToken));
