@@ -14,7 +14,11 @@ supprimés 7 jours après le rendez-vous, les réponses après 30 jours.
 Pré-requis : Worker `rdv`, base D1 `rdv-db` et secret `RELAY_KEY` créés (voir la procédure Cloudflare).
 
 1. **Tables** : Cloudflare → *Stockage et bases de données* → *D1* → `rdv-db` → *Console* : coller le contenu de
-   [`schema.sql`](schema.sql) et exécuter.
+   [`schema.sql`](schema.sql) et exécuter (trois instructions, une par ligne ; si la console n'en accepte qu'une, les
+   exécuter l'une après l'autre). Le fichier ne contient volontairement aucun commentaire : collé sur une seule ligne,
+   un commentaire `--` masquerait tout le reste (« No SQL statements detected »). Les tables ne contiennent aucune
+   donnée nominative : jeton aléatoire, cabinet, date et heure du rendez-vous, réponse.
+   Vérification : `SELECT name FROM sqlite_master WHERE type = 'table';` doit lister `links` et `responses`.
 2. **Code** : Worker `rdv` → *Modifier le code* → remplacer tout le contenu par [`worker.js`](worker.js) → *Déployer*.
 3. **Liaison de la base** : Worker `rdv` → *Paramètres* → *Liaisons* → *Ajouter* → *Base de données D1* :
    nom de variable **`DB`**, base **`rdv-db`**.
