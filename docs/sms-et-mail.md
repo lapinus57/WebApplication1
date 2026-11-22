@@ -165,8 +165,10 @@ réponse (la dernière utilisée est proposée). À l'envoi, `[LIEN]` est rempla
 `https://rdv.mulleroph.workers.dev/Ab3dEf7h` (ajouté à la fin si la balise a été effacée ; le
 compteur de caractères tient compte de sa longueur). Le patient choisit « Je confirme » ou
 « J'annule » ; il peut changer d'avis jusqu'à 3 heures après le rendez-vous. Le serveur relève les
-réponses chaque minute : l'historique de tous les postes affiche « ✅ Confirmé par le patient » ou
-« ❌ Annulé par le patient », et un mail (« ❌ ANNULATION — Léa MARTIN — lun. 23/11 09h30 ») part
+réponses chaque minute : l'historique de tous les postes affiche, sous le statut d'envoi et sans
+l'effacer, « ⏳ … en attente de réponse », « ✅ Confirmé par le patient le … », « ❌ Annulé par le
+patient le … » ou « ⌛ … pas de réponse » une fois le lien expiré (recherche possible sur « annulé »,
+colonne « Réponse du patient » dans les exports), et un mail (« ❌ ANNULATION — Léa MARTIN — lun. 23/11 09h30 ») part
 vers l'adresse choisie. Un mail en échec est retenté à chaque relevé.
 
 Le service de réponse est un Cloudflare Worker (dossier `relay/`, procédure dans

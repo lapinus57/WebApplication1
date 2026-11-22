@@ -55,6 +55,7 @@ public static class MessageExportReport
             && (channel.Length == 0 || h.Channel == channel)
             && (h.Contact.Contains(search, StringComparison.OrdinalIgnoreCase)
                 || h.Status.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || h.Reply.Contains(search, StringComparison.OrdinalIgnoreCase)
                 || h.CreatedAt.Contains(search, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(h => h.CreatedAtLocal).ThenBy(h => h.Contact).ToList();
     }
@@ -65,13 +66,13 @@ public static class MessageExportReport
         var sheet = new XlsxSheet
         {
             Name = "Envois " + day.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture),
-            Headers = new[] { "Envoi", "Canal", "Destinataire", "Statut", "Message envoyé" },
-            Widths = new double[] { 8, 7, 30, 30, 80 }
+            Headers = new[] { "Envoi", "Canal", "Destinataire", "Statut", "Réponse du patient", "Message envoyé" },
+            Widths = new double[] { 8, 7, 30, 30, 30, 80 }
         };
         foreach (var row in rows.Where(r => r.CreatedAtLocal?.Date == day.Date).OrderBy(r => r.CreatedAtLocal))
             sheet.Rows.Add(new[]
             {
-                row.CreatedAtLocal?.ToString("HH:mm", CultureInfo.InvariantCulture), row.Channel, row.Contact, row.Status,
+                row.CreatedAtLocal?.ToString("HH:mm", CultureInfo.InvariantCulture), row.Channel, row.Contact, row.Status, row.Reply,
                 row.Channel == "Mail" ? MailText(row.Body) : row.Body
             });
         return sheet;

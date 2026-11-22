@@ -145,7 +145,7 @@ public sealed class ReplyLinkService(ReplyConfiguration config, SmsMailHistorySt
                 if (reply.Choice is Confirmed or Cancelled)
                 {
                     var at = DateTimeOffset.FromUnixTimeMilliseconds(reply.AnsweredAt);
-                    if (await store.RecordReplyAsync(reply.Token, reply.Choice, at, HistoryStatus(reply.Choice, at))) received++;
+                    if (await store.RecordReplyAsync(reply.Token, reply.Choice, at)) received++;
                     else logger.LogWarning("Réponse de patient pour un lien inconnu ignorée.");
                 }
                 await store.SetStateAsync(LastResponseState, reply.Id.ToString(CultureInfo.InvariantCulture));
@@ -154,12 +154,6 @@ public sealed class ReplyLinkService(ReplyConfiguration config, SmsMailHistorySt
         }
         await SendPendingMailsAsync(ct);
         return received;
-    }
-
-    public static string HistoryStatus(string choice, DateTimeOffset answeredAt)
-    {
-        var local = TimeZoneInfo.ConvertTime(answeredAt, CabinetTimeZone());
-        return (choice == Cancelled ? "❌ Annulé par le patient" : "✅ Confirmé par le patient") + $" le {local:dd/MM} à {local:HH:mm}";
     }
 
     private async Task SendPendingMailsAsync(CancellationToken ct)

@@ -1043,8 +1043,8 @@ namespace Client.Pages
                 if (value.Length > 0 && "=+-@\t\r".Contains(value[0])) value = "'" + value;
                 return "\"" + value.Replace("\"", "\"\"") + "\"";
             }
-            var csv = new StringBuilder("Canal;Contact;Date;Statut;Message\r\n");
-            foreach (var entry in _entries) csv.AppendLine(string.Join(";", new[] { entry.Channel, entry.Contact, entry.CreatedAt, entry.Status, entry.Body }.Select(Cell)));
+            var csv = new StringBuilder("Canal;Contact;Date;Statut;Réponse du patient;Message\r\n");
+            foreach (var entry in _entries) csv.AppendLine(string.Join(";", new[] { entry.Channel, entry.Contact, entry.CreatedAt, entry.Status, entry.Reply, entry.Body }.Select(Cell)));
             await FileIO.WriteTextAsync(file, "\uFEFF" + csv);
             StatusText.Text = "Historique exporté.";
         });

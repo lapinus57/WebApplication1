@@ -18,6 +18,28 @@ namespace Client.SmsMail.Services
         public DateTime? CreatedAtLocal { get; set; }
         public long? ProviderId { get; set; }
         public string ProviderService { get; set; } = string.Empty;
+        /// <summary>Réponse au lien « Confirmer / Annuler » : vide si le message n'a pas de lien.</summary>
+        public string Reply { get; set; } = string.Empty;
+        public string ReplyChoice { get; set; } = string.Empty;
+
+        /// <summary>Le lien reste valable 3 heures après le rendez-vous (comme sur le serveur et le service de réponse).</summary>
+        public static string ReplyText(string choice, string answeredAtUtc, string appointment, DateTime now)
+        {
+            switch (choice)
+            {
+                case "Confirme":
+                case "Annule":
+                    var at = DateTimeOffset.TryParse(answeredAtUtc, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+                        ? $" le {date.ToLocalTime():dd/MM} à {date.ToLocalTime():HH:mm}" : string.Empty;
+                    return (choice == "Annule" ? "❌ Annulé par le patient" : "✅ Confirmé par le patient") + at;
+                case "Attente":
+                    var expired = DateTime.TryParseExact(appointment, "yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var start)
+                        && start.AddHours(3) < now;
+                    return expired ? "⌛ Lien « Confirmer / Annuler » : pas de réponse" : "⏳ Lien « Confirmer / Annuler » : en attente de réponse";
+                default:
+                    return string.Empty;
+            }
+        }
 
         /// <summary>Date affichée calculée sur le poste (heure et format locaux), à partir de la date UTC enregistrée.</summary>
         public static MessageHistoryEntry From(HistoryRecord record)
@@ -27,7 +49,8 @@ namespace Client.SmsMail.Services
             {
                 Key = record.Key, Channel = record.Channel, Contact = record.Contact, Body = record.Body, Status = record.Status,
                 CreatedAtLocal = date.DateTime, CreatedAt = date.ToString("g"),
-                ProviderId = record.ProviderId, ProviderService = record.ProviderService
+                ProviderId = record.ProviderId, ProviderService = record.ProviderService,
+                ReplyChoice = record.ReplyChoice, Reply = ReplyText(record.ReplyChoice, record.ReplyAtUtc, record.ReplyAppointment, DateTime.Now)
             };
         }
     }

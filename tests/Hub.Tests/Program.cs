@@ -268,8 +268,13 @@ try
     try { await poste.InvokeAsync<string>("SmsMailCreateReplyLink", past); Check(false, "RDV passé refusé"); }
     catch (HubException ex) { Check(ex.Message.Contains("passé"), "RDV passé : pas de lien"); }
 
+    Check(await poste.InvokeAsync<bool>("SmsMailReserve", new EyeChat.SmsMail.HistoryReservation { Key = "sans-lien", Channel = "SMS", Contact = "+33611111111", Body = "x", ProviderService = "sms-test" }), "Message sans lien");
     Check(await poste.InvokeAsync<bool>("SmsMailReserve", new EyeChat.SmsMail.HistoryReservation { Key = "individuel-1", Channel = "SMS", Contact = "+33612345678", Body = "RDV " + url, ProviderService = "sms-test" }),
         "Le message individuel est inscrit dans l'historique");
+
+    var beforeReply = await poste.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad");
+    Check(beforeReply.Single(h => h.Key == "individuel-1") is { ReplyChoice: "Attente", ReplyAppointment.Length: > 0 } && beforeReply.Single(h => h.Key == "sans-lien").ReplyChoice == "",
+        "Avant réponse : « en attente » pour le message avec lien, rien pour les autres");
 
     async Task<int> Poll()
     {
@@ -279,7 +284,8 @@ try
     relay.Answer(token, "Annule");
     Check(await Poll() == 1, "Réponse relevée");
     var history = await poste.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad");
-    Check(history.Single(h => h.Key == "individuel-1").Status.StartsWith("❌ Annulé par le patient"), "L'annulation s'affiche dans l'historique commun");
+    Check(history.Single(h => h.Key == "individuel-1") is { ReplyChoice: "Annule", Status: "Envoi commencé — résultat à vérifier" } && history.Single(h => h.Key == "individuel-1").ReplyAtUtc.Length > 0,
+        "L'annulation s'affiche à part dans l'historique commun, sans effacer le statut d'envoi");
     Check(mailer.Sent.Count == 1 && mailer.Sent[0].To == "secretariat@example.fr" && mailer.Sent[0].Subject.Contains("ANNULATION") && mailer.Sent[0].Subject.Contains("Léa MARTIN"),
         "Mail d'annulation envoyé à l'adresse choisie, avec le nom du patient");
     Check(await Poll() == 0 && mailer.Sent.Count == 1, "Pas de second mail pour la même réponse");
@@ -291,8 +297,9 @@ try
     mailer.Fail = false;
     await Poll();
     Check(mailer.Sent.Count == 2 && mailer.Sent[1].Subject.Contains("Confirmation"), "Mail retenté au relevé suivant (patient qui change d'avis)");
-    Check((await poste.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad")).Single(h => h.Key == "individuel-1").Status.StartsWith("✅ Confirmé"),
-        "L'historique montre la dernière réponse");
+    await poste.InvokeAsync("SmsMailUpdate", "individuel-1", "Reçu — 22/11 18:05", (long?)null); // « Statuts SMS » d'OVH
+    Check((await poste.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad")).Single(h => h.Key == "individuel-1") is { ReplyChoice: "Confirme", Status: "Reçu — 22/11 18:05" },
+        "La dernière réponse reste visible après l'actualisation des statuts OVH");
     relay.Answer("Inconnu1", "Annule");
     Check(await Poll() == 0 && mailer.Sent.Count == 2, "Réponse pour un lien inconnu ignorée");
 

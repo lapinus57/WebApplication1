@@ -32,6 +32,11 @@ namespace EyeChat.SmsMail
         public string CreatedAtUtc { get; set; } = string.Empty;
         public long? ProviderId { get; set; }
         public string ProviderService { get; set; } = string.Empty;
+        /// <summary>Lien « Confirmer / Annuler » : vide si le message n'en a pas, « Attente », « Confirme » ou « Annule ».</summary>
+        public string ReplyChoice { get; set; } = string.Empty;
+        public string ReplyAtUtc { get; set; } = string.Empty;
+        /// <summary>Heure locale du rendez-vous du lien (yyyy-MM-ddTHH:mm:ss), pour savoir si le lien a expiré.</summary>
+        public string ReplyAppointment { get; set; } = string.Empty;
     }
 
     public sealed class HistoryReservationKey
@@ -231,14 +236,17 @@ namespace EyeChat.SmsMail
         {
             await using var connection = await OpenAsync();
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT MessageKey, Channel, Contact, Body, Status, CreatedAt, ProviderId, ProviderService FROM MessageHistory ORDER BY CreatedAt DESC";
+            command.CommandText = "SELECT h.MessageKey, h.Channel, h.Contact, h.Body, h.Status, h.CreatedAt, h.ProviderId, h.ProviderService, "
+                + "CASE WHEN r.Token IS NULL THEN '' WHEN r.Choice = '' THEN 'Attente' ELSE r.Choice END, COALESCE(r.AnsweredAt, ''), COALESCE(r.AppointmentStart, '') "
+                + "FROM MessageHistory h LEFT JOIN ReplyLinks r ON r.MessageKey = h.MessageKey ORDER BY h.CreatedAt DESC";
             using var reader = await command.ExecuteReaderAsync();
             var records = new List<HistoryRecord>();
             while (await reader.ReadAsync()) records.Add(new HistoryRecord
             {
                 Key = reader.GetString(0), Channel = reader.GetString(1), Contact = reader.GetString(2), Body = reader.GetString(3),
                 Status = reader.GetString(4), CreatedAtUtc = reader.GetString(5),
-                ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6), ProviderService = reader.GetString(7)
+                ProviderId = reader.IsDBNull(6) ? null : reader.GetInt64(6), ProviderService = reader.GetString(7),
+                ReplyChoice = reader.GetString(8), ReplyAtUtc = reader.GetString(9), ReplyAppointment = reader.GetString(10)
             });
             return records;
         }
@@ -262,28 +270,20 @@ namespace EyeChat.SmsMail
         }
 
         /// <summary>
-        /// Enregistre la réponse d'un patient : dernière réponse du lien, mail au cabinet à envoyer,
-        /// et statut du message dans l'historique commun. Retourne false si le jeton est inconnu.
+        /// Enregistre la réponse d'un patient (dernière réponse du lien, mail au cabinet à envoyer).
+        /// Le statut d'envoi du message n'est pas touché : la réponse s'affiche à part dans l'historique,
+        /// et une actualisation des statuts OVH ou des retours mail ne peut plus l'effacer.
+        /// Retourne false si le jeton est inconnu.
         /// </summary>
-        public async Task<bool> RecordReplyAsync(string token, string choice, DateTimeOffset answeredAt, string historyStatus)
+        public async Task<bool> RecordReplyAsync(string token, string choice, DateTimeOffset answeredAt)
         {
             await using var connection = await OpenAsync();
-            using var transaction = connection.BeginTransaction();
             using var update = connection.CreateCommand();
-            update.Transaction = transaction;
             update.CommandText = "UPDATE ReplyLinks SET Choice=$choice, AnsweredAt=$at, MailPending=1 WHERE Token=$token";
             update.Parameters.AddWithValue("$choice", choice);
             update.Parameters.AddWithValue("$at", answeredAt.ToUniversalTime().ToString("O"));
             update.Parameters.AddWithValue("$token", token);
-            if (await update.ExecuteNonQueryAsync() == 0) return false;
-            using var history = connection.CreateCommand();
-            history.Transaction = transaction;
-            history.CommandText = "UPDATE MessageHistory SET Status=$status WHERE MessageKey=(SELECT MessageKey FROM ReplyLinks WHERE Token=$token)";
-            history.Parameters.AddWithValue("$status", historyStatus);
-            history.Parameters.AddWithValue("$token", token);
-            await history.ExecuteNonQueryAsync();
-            transaction.Commit();
-            return true;
+            return await update.ExecuteNonQueryAsync() > 0;
         }
 
         public async Task<List<ReplyLinkRecord>> PendingReplyMailsAsync()

@@ -40,6 +40,18 @@ static class IndividualMessageChecks
             try { IndividualMessage.Create(settings, channel, "", phone, email, start, body, ""); Check(false, "Refus attendu : " + reason); }
             catch (InvalidOperationException) { count++; }
         }
+        // Réponse au lien, affichée à part du statut d'envoi dans l'historique.
+        var now = new DateTime(2026, 11, 23, 8, 0, 0);
+        Check(MessageHistoryEntry.ReplyText("", "", "", now) == "", "Pas de lien : rien d'affiché");
+        Check(MessageHistoryEntry.ReplyText("Attente", "", "2026-11-23T09:30:00", now).Contains("en attente de réponse"), "Lien envoyé, pas encore de réponse");
+        Check(MessageHistoryEntry.ReplyText("Attente", "", "2026-11-23T09:30:00", now.AddHours(5)).Contains("pas de réponse"), "Lien expiré sans réponse");
+        var answered = new DateTimeOffset(2026, 11, 22, 18, 10, 0, TimeSpan.Zero);
+        var cancelText = MessageHistoryEntry.ReplyText("Annule", answered.ToString("O"), "2026-11-23T09:30:00", now);
+        Check(cancelText.StartsWith("❌ Annulé par le patient le ") && cancelText.Contains(answered.ToLocalTime().ToString("HH:mm")), "Annulation avec date et heure locales");
+        Check(MessageHistoryEntry.ReplyText("Confirme", answered.ToString("O"), "", now).StartsWith("✅ Confirmé par le patient"), "Confirmation");
+        var entries = new[] { new MessageHistoryEntry { Contact = "+33612345678", Status = "Reçu", Reply = cancelText, CreatedAt = "", CreatedAtLocal = now } };
+        Check(MessageExportReport.FilterHistory(entries, null, "", "annulé").Count == 1, "Recherche « annulé » dans l'historique");
+        Check(MessageExportReport.HistorySheet(entries, now.Date).Rows.Single()[4] == cancelText, "Colonne « Réponse du patient » dans l'export Excel");
         return count;
     }
 }
