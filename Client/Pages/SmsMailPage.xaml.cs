@@ -641,7 +641,7 @@ namespace Client.Pages
         private void IndividualLink_Changed(object sender, RoutedEventArgs e)
         {
             if (IndividualLinkCheck.IsChecked == true && string.IsNullOrWhiteSpace(IndividualReplyEmailText.Text))
-                IndividualReplyEmailText.Text = AppSettings.Get(ReplyEmailSetting, string.Empty);
+                IndividualReplyEmailText.Text = Client.Helpers.AppSettings.Get(ReplyEmailSetting, string.Empty);
             UpdateIndividualFields();
         }
         private void IndividualText_Changed(object sender, TextChangedEventArgs e) => UpdateIndividualFields();
@@ -710,7 +710,7 @@ namespace Client.Pages
 
             if (withLink)
             {
-                AppSettings.Set(ReplyEmailSetting, replyEmail);
+                Client.Helpers.AppSettings.Set(ReplyEmailSetting, replyEmail);
                 var url = await connection.InvokeAsync<string>("SmsMailCreateReplyLink", new EyeChat.SmsMail.ReplyLinkRequest
                 {
                     MessageKey = message.Key, Channel = channel, Contact = message.Contact, People = message.PeopleDisplay,
