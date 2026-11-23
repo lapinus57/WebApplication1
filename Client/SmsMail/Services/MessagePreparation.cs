@@ -24,7 +24,9 @@ namespace Client.SmsMail.Services
         public string PeopleDisplay { get; set; } = string.Empty;
         public string GroupingReason { get; set; } = string.Empty;
         public DateTime AppointmentStart { get; set; }
-        public string AppointmentTimeDisplay => AppointmentStart.ToString("HH:mm", CultureInfo.InvariantCulture);
+        /// <summary>Heures des rendez-vous regroupés quand elles diffèrent (« 13:00 / 16:30 »), sinon vide.</summary>
+        public string AppointmentTimesText { get; set; } = string.Empty;
+        public string AppointmentTimeDisplay => AppointmentTimesText.Length > 0 ? AppointmentTimesText : AppointmentStart.ToString("HH:mm", CultureInfo.InvariantCulture);
         public string TimeExplanation { get; set; } = string.Empty;
         public string ArrivalHint => CalendarStart == AppointmentStart ? string.Empty : "Arrivée " + CalendarStart.ToString("HH:mm", CultureInfo.InvariantCulture);
         public string BodyDisplay => Channel == "Mail" ? MailTextPreview.ForTable(Body, PeopleDisplay) : Body;
@@ -174,6 +176,8 @@ namespace Client.SmsMail.Services
                         GroupingReason = GroupingExplanation.Explain(people, r => familyNumber.TryGetValue(r, out var n) ? n : -1),
                         PeopleDisplay = string.Join(Environment.NewLine, people.OrderBy(r => originalTimes[r]).Select(r => $"{r.Prenom} {r.Nom}".Trim()).Distinct()),
                         AppointmentStart = date.Date + people.Min(r => originalTimes[r].TimeOfDay),
+                        AppointmentTimesText = people.Select(r => originalTimes[r].TimeOfDay).Distinct().Count() > 1
+                            ? string.Join(" / ", people.Select(r => originalTimes[r].TimeOfDay).Distinct().OrderBy(t => t).Select(t => t.ToString(@"hh\:mm"))) : string.Empty,
                         Subject = settings.Subject, Body = body, Key = key,
                         CabinetDisplay = settings.Cabinet, AddressDisplay = settings.CabinetAddress,
                         ReservationKeys = channel == "SMS" ? people.SelectMany(p => familyKeys[p]).Distinct().ToList() : new(),
@@ -204,6 +208,7 @@ namespace Client.SmsMail.Services
             string Encode(string value) => html ? WebUtility.HtmlEncode(value) : value;
             var names = string.Join(", ", people.Select(r => r.Prenom).Distinct());
             var persons = string.Join("", people.Select(r => $"<li>{WebUtility.HtmlEncode($"{r.Prenom} {r.Nom}")} — {r.HeureRDV:HH:mm}</li>"));
+            var differentTimes = people.Select(r => r.HeureRDV.TimeOfDay).Distinct().Count() > 1;
             var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["[ADRESSE_CABINET]"] = Encode(cabinetAddress), ["[PRENOMS]"] = Encode(names), ["[CABINET]"] = Encode(cabinet),
@@ -211,10 +216,22 @@ namespace Client.SmsMail.Services
                 ["[DATE]"] = first.DateRDV.ToString(html ? "dddd dd MMMM yyyy" : "dd/MM/yyyy", culture),
                 ["[DatejourL]"] = first.DateRDV.ToString("d/MM/yyyy", culture),
                 ["[DatejourC]"] = first.DateRDV.ToString("d/MM", culture),
-                ["[HEURE]"] = first.HeureRDV.ToString("HH:mm", culture),
-                ["[LISTE_PERSONNES]"] = html ? persons : string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom}"))
+                ["[HEURE]"] = Encode(Times(people, culture)),
+                ["[LISTE_PERSONNES]"] = html ? persons : string.Join(", ", people.OrderBy(r => r.HeureRDV)
+                    .Select(r => differentTimes ? $"{r.Prenom} {r.Nom} — {r.HeureRDV:HH:mm}" : $"{r.Prenom} {r.Nom}"))
             };
             return Regex.Replace(template, @"\[[A-Z_]+\]", m => replacements.TryGetValue(m.Value, out var value) ? value : m.Value, RegexOptions.IgnoreCase);
+        }
+
+        /// <summary>
+        /// [HEURE] : l'heure commune, ou, pour des personnes regroupées à des heures différentes, l'heure de chacune
+        /// (« 13:00 (Henri), 16:30 (Béatrice) »). Avant, seule la première heure était annoncée à tout le monde.
+        /// </summary>
+        public static string Times(IReadOnlyList<RdvInfo> people, CultureInfo culture)
+        {
+            var groups = people.GroupBy(r => r.HeureRDV.TimeOfDay).OrderBy(g => g.Key).ToList();
+            if (groups.Count <= 1) return people.Count == 0 ? string.Empty : people.Min(r => r.HeureRDV).ToString("HH:mm", culture);
+            return string.Join(", ", groups.Select(g => $"{g.First().HeureRDV.ToString("HH:mm", culture)} ({string.Join(", ", g.Select(r => r.Prenom).Distinct())})"));
         }
 
         public static string SmsMetrics(string text)

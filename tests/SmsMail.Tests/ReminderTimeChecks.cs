@@ -42,7 +42,19 @@ static class ReminderTimeChecks
         catch (InvalidOperationException) { count++; }
         try { ReminderTimes.Validate(new[] { new AppointmentTimeRule { To = TimeSpan.FromDays(1) } }); throw new Exception("Invalid time allowed"); }
         catch (InvalidOperationException) { count++; }
-        Check(mail.AppointmentStart == day.AddHours(11.5) && mail.AppointmentTimeDisplay == "11:30", "RDV column keeps the original appointment time");
+        // Personnes regroupées (même adresse) à des heures différentes : chacune reçoit sa propre heure.
+        var household = new[]
+        {
+            new RdvInfo { Id = 601, Nom = "MARTIN", Prenom = "Henri", DateRDV = day, HeureRDV = day.AddHours(13), Email = "henri@example.com", Adresse = "7 rue de l'Église", Ville = "Metz" },
+            new RdvInfo { Id = 602, Nom = "DURAND", Prenom = "Béatrice", DateRDV = day, HeureRDV = day.AddHours(16.5), Email = "henri@example.com", Adresse = "7 rue de l'Église", Ville = "Metz" }
+        };
+        var grouped = MessagePreparation.Prepare(household, day, new SmsMailSettings { SmsOnlyWhenNoEmail = false, SmsTemplate = "RDV à [HEURE] pour [PRENOMS]" });
+        var groupedMail = grouped.Single(m => m.Channel == "Mail");
+        Check(MailTextPreview.Convert(groupedMail.Body).Contains("13:00 (Henri), 16:30 (Béatrice)"), "Grouped mail: each person's own time, not only the first");
+        Check(groupedMail.AppointmentTimeDisplay == "13:00 / 16:30", "Table and export show both times");
+        Check(MessagePreparation.Render("[HEURE] — [LISTE_PERSONNES]", household, "C", html: false) == "13:00 (Henri), 16:30 (Béatrice) — Henri MARTIN — 13:00, Béatrice DURAND — 16:30", "SMS text: times per person");
+        Check(MessagePreparation.Render("[HEURE]", new[] { household[0] }, "C", html: false) == "13:00", "Single person: unchanged");
+        Check(mail.AppointmentStart == day.AddHours(11.5) && mail.AppointmentTimeDisplay == "11:30 / 18:00", "RDV column keeps the original appointment times of grouped people");
         Check(mail.ArrivalHint == "Arrivée 11:20", "Adjusted arrival is clearly distinguished from appointment time");
         Check(mail.PeopleDisplay == "Alice Test" + Environment.NewLine + "Bob Test", "People column lists names only, one per line");
         Check(mail.BodyDisplay.Contains("11:20") && !mail.BodyDisplay.Contains("<table"), "Message column displays readable text with announced time");
