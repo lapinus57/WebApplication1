@@ -29,6 +29,10 @@
 
                     <ToggleSwitch x:Name="NewPatientNotificationToggle" Header="Notification quand un autre poste déclare un patient"
                                    IsOn="{x:Bind ViewModelSettings.NotifyNewPatients, Mode=TwoWay}" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Button Content="Tester la notification" Click="TestNotification_Click" />
+                        <TextBlock x:Name="NotificationTestText" TextWrapping="Wrap" MaxWidth="520" VerticalAlignment="Center" />
+                    </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <TextBlock Text="Taille du texte" VerticalAlignment="Center"/>

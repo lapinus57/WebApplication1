@@ -425,7 +425,7 @@ namespace Client.Services
                             .SetDuration(AppNotificationDuration.Long)
                             .BuildNotification();
 
-                        AppNotificationManager.Default.Show(notification);
+                        Notifications.Show(notification, "Serveur indisponible");
                     }
                     catch (Exception ex)
                     {
@@ -775,7 +775,7 @@ namespace Client.Services
                         .AddText($"Erreur de connexion au serveur SignalR {ex.Message}")
                         .BuildNotification();
 
-                    AppNotificationManager.Default.Show(notification);
+                    Notifications.Show(notification, "Connexion au serveur");
                 }
                 catch (Exception toastEx)
                 {
@@ -1287,8 +1287,7 @@ namespace Client.Services
 
             try
             {
-                AppNotificationManager.Default.Register();
-                AppNotificationManager.Default.Show(new AppNotification(payload));
+                Notifications.Show(new AppNotification(payload), "Message du service");
             }
             catch (Exception ex)
             {

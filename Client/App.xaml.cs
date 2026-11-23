@@ -110,6 +110,9 @@ namespace Client
                 ChatService.Dispatcher = m_window.DispatcherQueue;
                 ChatService.OnMessageReceived += ChatService_OnMessageReceived;
                 ChatService.OnNewPatient += ChatService_OnNewPatient;
+                // Notifications Windows : enregistrement unique ; un clic ramène EyeChat au premier plan.
+                Notifications.Clicked += () => m_window?.DispatcherQueue.TryEnqueue(() => (m_window as MainWindow)?.BringToForeground());
+                Notifications.Initialize();
                 // Register handler once the window root has loaded so XamlRoot is valid
                 if (m_window.Content is FrameworkElement windowRoot)
                 {
@@ -993,8 +996,7 @@ namespace Client
                 var builder = new AppNotificationBuilder().AddText(header).AddText(name);
                 if (details.Length > 0)
                     builder.AddText(details);
-                AppNotificationManager.Default.Register();
-                AppNotificationManager.Default.Show(builder.BuildNotification());
+                Notifications.Show(builder.BuildNotification(), "Nouveau patient");
             }
             catch (Exception ex)
             {
@@ -1011,8 +1013,7 @@ namespace Client
                     .AddText($"{chat.Sender}: {chat.Content}")
                     .BuildNotification();
 
-                AppNotificationManager.Default.Register();
-                AppNotificationManager.Default.Show(notification);
+                Notifications.Show(notification, "Message reçu");
             }
             catch (Exception ex)
             {

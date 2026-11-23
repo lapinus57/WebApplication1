@@ -7,6 +7,7 @@ using System.Diagnostics;
 using Client.Models;
 using Client.Helpers;
 using System.Linq;
+using Microsoft.Windows.AppNotifications.Builder;
 
 namespace Client.Pages
 {
@@ -132,6 +133,18 @@ namespace Client.Pages
                 OtherMessageZone.Background = new SolidColorBrush(ColorUtils.FromHex(currentSettings.OtherMessageColor));
                 ApplyColors(currentSettings, titleBar, nav, titleText);
             }
+        }
+
+        // Exemple de notification « nouveau patient » sur ce poste, avec la cause si rien ne peut s'afficher.
+        private void TestNotification_Click(object sender, RoutedEventArgs e)
+        {
+            var (header, name, details) = PatientNotification.Build("Mme", "EXEMPLE", "Test", "Champ visuel", "OD", "Salle d'attente", App.UserName);
+            var shown = Notifications.Show(new AppNotificationBuilder().AddText(header).AddText(name).AddText(details).BuildNotification(), "Test");
+            NotificationTestText.Text = !shown
+                ? "Windows a refusé la notification. Le détail est dans le journal d'EyeChat (codes CLI80 / CLI81)."
+                : Notifications.DisabledByWindows()
+                    ? "Les notifications d'EyeChat sont désactivées dans Windows : Paramètres → Système → Notifications → EyeChat."
+                    : "Notification envoyée. Si rien n'apparaît en bas à droite, désactivez « Ne pas déranger » / « Assistant de concentration » de Windows.";
         }
 
         private bool _loadingWaitingRooms;
