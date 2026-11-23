@@ -87,6 +87,34 @@ function Ensure-Directory {
     }
 }
 
+# Fichiers propres à chaque installation : jamais remplacés par une mise à jour s'ils existent déjà
+# (identifiants d'administration, certificat, clés…). Le dossier « data » (bases, clés de chiffrement,
+# avatars, sauvegardes) n'est jamais copié depuis la publication.
+$PreservedFileNames = @('appsettings.json', 'appsettings.Production.json', 'appsettings.Development.json')
+$PreservedExtensions = @('.pfx')
+
+function Copy-Release {
+    param([string]$Source, [string]$Destination)
+
+    Ensure-Directory -Path $Destination
+    $separators = [char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $sourceRoot = (Resolve-Path -LiteralPath $Source).ProviderPath.TrimEnd($separators)
+    foreach ($item in Get-ChildItem -LiteralPath $sourceRoot -Recurse -Force) {
+        $relative = $item.FullName.Substring($sourceRoot.Length).TrimStart($separators)
+        $topLevel = $relative.Split($separators)[0]
+        if ($topLevel -ieq 'data') { continue }
+        $target = Join-Path $Destination $relative
+        if ($item.PSIsContainer) { Ensure-Directory -Path $target; continue }
+        $atRoot = $relative.IndexOfAny($separators) -lt 0
+        $preserved = $atRoot -and (($PreservedFileNames -contains $item.Name) -or ($PreservedExtensions -contains $item.Extension))
+        if ($preserved -and (Test-Path -LiteralPath $target)) {
+            Write-Host "Conservé (réglages de cette installation) : $relative"
+            continue
+        }
+        Copy-Item -LiteralPath $item.FullName -Destination $target -Force
+    }
+}
+
 function Backup-CurrentInstall {
     param([string]$CurrentPath, [string]$DestinationRoot, [int]$Retention)
 
@@ -271,9 +299,8 @@ function Invoke-DownloadAndExtract {
         Write-Host "Extraction de l'archive vers '$tempFolder'..."
         Expand-Archive -Path $tempFile -DestinationPath $tempFolder -Force
 
-        Write-Host "Copie des fichiers extraits vers '$Destination'..."
-        Ensure-Directory -Path $Destination
-        Copy-Item -Path (Join-Path $tempFolder '*') -Destination $Destination -Recurse -Force
+        Write-Host "Copie des fichiers extraits vers '$Destination' (appsettings.json, certificat et dossier data conservés)..."
+        Copy-Release -Source $tempFolder -Destination $Destination
     }
     finally {
         if (Test-Path -LiteralPath $tempFile) { Remove-Item -LiteralPath $tempFile -Force }
@@ -326,8 +353,8 @@ switch ($Action) {
 
         $backupPath = Backup-CurrentInstall -CurrentPath $InstallPath -DestinationRoot $BackupRoot -Retention $BackupRetention
 
-        Write-Host "Mise à jour des fichiers dans '$InstallPath'..."
-        Copy-Item -Path (Join-Path $SourcePath '*') -Destination $InstallPath -Recurse -Force
+        Write-Host "Mise à jour des fichiers dans '$InstallPath' (appsettings.json, certificat et dossier data conservés)..."
+        Copy-Release -Source $SourcePath -Destination $InstallPath
 
         if ($backupPath) {
             Write-Host "Sauvegarde disponible dans '$backupPath'."

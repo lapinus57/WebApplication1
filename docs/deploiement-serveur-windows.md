@@ -82,6 +82,8 @@ Le serveur copie chaque jour `data\chat.db` dans `data\sauvegardes\chat-AAAA-MM-
 
 ## 4. Mettre à jour le service (avec sauvegarde automatique)
 
+> **Mise à jour par copier-coller** (sans le script) : avant de copier, **supprimez `appsettings.json`** (et un éventuel dossier `data`) **du dossier `publish`**, puis copiez son contenu dans le dossier du serveur arrêté en acceptant de remplacer les fichiers. Sinon votre `appsettings.json` est remplacé par celui du projet, sans identifiants : le serveur refuse alors de démarrer. Gardez de toute façon une copie de `appsettings.json` et du dossier `data` avant la mise à jour.
+
 Lorsqu'une nouvelle version est publiée, relancez le script avec l'action `Update` en pointant vers le nouveau dossier de publication :
 
 ```powershell
@@ -92,7 +94,7 @@ Le script :
 
 - arrête le service ;
 - réalise une sauvegarde horodatée de l'installation actuelle dans `C:\Program Files\ChatServeur\Backups` (conservez les `BackupRetention` dernières, 5 par défaut) ;
-- copie les nouveaux fichiers ;
+- copie les nouveaux fichiers, **sans remplacer** `appsettings.json` (ni `appsettings.Production.json` / `appsettings.Development.json`), les certificats `.pfx` du dossier ni le dossier `data` (bases, clés de chiffrement, avatars, sauvegardes) : les réglages de l'installation sont conservés. Un nouveau réglage introduit par une version (section ajoutée dans `appsettings.json`) doit donc être recopié à la main ;
 - redémarre le service.
 
 Pour revenir à la version précédente, utilisez l'action `Rollback` sans paramètre (restauration de la dernière sauvegarde) ou en spécifiant un chemin de sauvegarde particulier :
