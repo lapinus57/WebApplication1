@@ -342,17 +342,23 @@ namespace Client.Pages
             // Imported archives can hold images or attachments as long encoded blocks.
             content = System.Text.RegularExpressions.Regex.Replace(content, @"[A-Za-z0-9+/=\r\n]{2000,}", "[contenu encodé non affiché]");
             if (content.Length > 60000) content = content.Substring(0, 60000) + "\n\n[… message tronqué pour l’affichage]";
-            var text = new TextBox
+            // Bloc de texte dans une zone qui défile (et non une TextBox) : la TextBox en lecture seule
+            // n'affichait que la première ligne des mails convertis (retours à la ligne « \n »).
+            var text = new ScrollViewer
             {
-                Text = content,
-                IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
-                FontSize = 16, Padding = new Thickness(16),
+                Content = new TextBlock
+                {
+                    Text = content.Replace("\r\n", "\n"),
+                    TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
+                    FontSize = 16, Margin = new Thickness(16)
+                },
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Height = Math.Clamp(XamlRoot.Size.Height - 250, 160, 650),
                 Width = Math.Clamp(XamlRoot.Size.Width - 120, 240, 820)
             };
-            ScrollViewer.SetVerticalScrollBarVisibility(text, ScrollBarVisibility.Auto);
             var panel = new StackPanel { Spacing = 12 };
-            panel.Children.Add(new TextBlock { Text = caption, TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(new TextBlock { Text = caption, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
             panel.Children.Add(text);
             var dialog = new ContentDialog { Title = channel == "Mail" ? "Mail · aperçu texte" : "SMS", Content = panel, CloseButtonText = "Fermer", XamlRoot = XamlRoot };
             dialog.Resources["ContentDialogMaxWidth"] = 920.0;

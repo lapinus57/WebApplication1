@@ -24,6 +24,12 @@ static class MailTextPreviewChecks
         Check(rendered.Contains("MESSAGE DE TEST") && rendered.Contains("Rappel de Rendez-vous") && rendered.Contains("10:00") && rendered.Contains("Utilisateur TEST"), "Actual cabinet template stays complete and readable");
         Check(!rendered.Contains("<table") && !rendered.Contains("style="), "Layout table and styles disappear");
         Check(mail.Body == body && mail.Body.Contains("<table"), "Preview conversion never replaces the outgoing HTML body");
+        var day = new DateTime(2026, 11, 19);
+        var reminder = MessagePreparation.Prepare(new[] { new Client.SmsMail.Models.RdvInfo { Id = 1, Nom = "EXEMPLE", Prenom = "Adeline", DateRDV = day, HeureRDV = day.AddHours(10), Email = "a@example.fr" } },
+            day, new SmsMailSettings { Cabinet = "Cabinet Test", CabinetAddress = "1 rue des Lilas" }).Single(m => m.Channel == "Mail");
+        var reminderText = MailTextPreview.Convert(reminder.Body);
+        Check(reminderText.StartsWith("VOTRE CABINET MÉDICAL\n\nRappel de Rendez-vous") && reminderText.Contains("• Adeline EXEMPLE") && reminderText.EndsWith("Le cabinet médical"),
+            "Real reminder mail: the whole text follows the header line (aperçu de l'historique)");
         var patientHtml = "<p>Heure : 08:30</p><ul><li>Zehra GOKSEN — 08:30</li><li>Autre personne — 09:00</li></ul>";
         var tableText = MailTextPreview.ForTable(patientHtml, "Zehra GOKSEN");
         Check(tableText.Contains("• Zehra GOKSEN") && !tableText.Contains("GOKSEN —"), "Known person name loses its appended time in table details");
