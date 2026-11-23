@@ -4,14 +4,16 @@ Ce guide explique comment publier le projet **Serveur**, l'installer comme un se
 
 ## 1. Publier le serveur pour Windows
 
-1. Ouvrez un terminal à la racine du dépôt.
-2. Lancez la publication autoportée pour Windows 64 bits :
+Le serveur est publié en **32 bits (x86)**, comme le pilote Access (ACE) d'Office 32 bits, avec le profil `FolderProfile` (le même que la CI).
 
-   ```powershell
-   dotnet publish .\Serveur\Serveur.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
-   ```
+- **Visual Studio** : clic droit sur le projet **Serveur** → **Publier…** → profil **FolderProfile** → **Publier**.
+- **Ou en ligne de commande**, à la racine du dépôt :
 
-   Les fichiers publiés se trouvent dans `Serveur/bin/Release/net8.0/win-x64/publish`.
+  ```powershell
+  dotnet publish .\Serveur\Serveur.csproj -c Release -p:PublishProfile=FolderProfile
+  ```
+
+Les fichiers publiés se trouvent dans `Serveur\bin\Release\net8.0-windows10.0.17763.0\win-x86\publish`. C'est ce dossier (avec `wwwroot`) qu'il faut installer : pas le dossier `bin\Debug` ou `bin\Release` d'une simple compilation.
 
 ## 2. Configurer l'administration HTTPS
 
@@ -66,7 +68,7 @@ Le serveur copie chaque jour `data\chat.db` dans `data\sauvegardes\chat-AAAA-MM-
 
    ```powershell
    cd .\Serveur\Deployment
-   ./ChatServeurService.ps1 -Action Install -SourcePath "..\bin\Release\net8.0\win-x64\publish"
+   ./ChatServeurService.ps1 -Action Install -SourcePath "..\bin\Release\net8.0-windows10.0.17763.0\win-x86\publish"
    ```
 
    Le script :
@@ -83,7 +85,7 @@ Le serveur copie chaque jour `data\chat.db` dans `data\sauvegardes\chat-AAAA-MM-
 Lorsqu'une nouvelle version est publiée, relancez le script avec l'action `Update` en pointant vers le nouveau dossier de publication :
 
 ```powershell
-./ChatServeurService.ps1 -Action Update -SourcePath "..\bin\Release\net8.0\win-x64\publish"
+./ChatServeurService.ps1 -Action Update -SourcePath "..\bin\Release\net8.0-windows10.0.17763.0\win-x86\publish"
 ```
 
 Le script :
