@@ -33,7 +33,9 @@ namespace Client.SmsMail.Services.Grouping
             if (string.IsNullOrWhiteSpace(rdv.Adresse) || string.IsNullOrWhiteSpace(rdv.Ville)) return null;
             return familles.FirstOrDefault(famille =>
                 famille.Adresse.Any(adresse => string.Equals(adresse.Trim(), rdv.Adresse.Trim(), StringComparison.OrdinalIgnoreCase)) &&
-                famille.Ville.Any(ville => string.Equals(ville.Trim(), rdv.Ville.Trim(), StringComparison.OrdinalIgnoreCase)));
+                famille.Ville.Any(ville => string.Equals(ville.Trim(), rdv.Ville.Trim(), StringComparison.OrdinalIgnoreCase)) &&
+                // Même adresse : seulement avec un nom ou un contact commun (sinon immeuble, voisins…).
+                famille.RDVs.Any(m => FamilyUtilities.SameHousehold(m, rdv)));
         }
 
         private static void MarquerFamilleAvecCorrespondanceAdresse(RdvFamille famille, string method)

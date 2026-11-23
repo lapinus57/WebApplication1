@@ -40,10 +40,20 @@ static class EyeEmailChecks
         Check(EyeEmailRecordMapper.ConsolidateDuplicateAppointments(new() { Person(0, "A", "A"), Person(0, "B", "B") }).Count == 2, "anonymous imports remain distinct");
 
         var a = Person(1, "Alice", "Dupont"); a.Email = "parent@example.com"; a.Adresse = "12 rue des Fleurs"; a.Ville = "Metz";
-        var b = Person(2, "Bob", "Martin", 10); b.Tel1 = "0612345678"; b.Adresse = a.Adresse; b.Ville = a.Ville;
+        var neighbour = Person(2, "Bob", "Martin", 10); neighbour.Tel1 = "0612345678"; neighbour.Adresse = a.Adresse; neighbour.Ville = a.Ville;
+        Check(EyeEmailFamilyGrouping.Build(new[] { a, neighbour }).Count == 2, "same address only (other surname, other phone/mail): neighbours are not a family");
+        var b = Person(2, "Bob", "Dupont", 10); b.Tel1 = "0612345678"; b.Adresse = a.Adresse; b.Ville = a.Ville; b.DatePriseRDV = a.DatePriseRDV;
         var settings = new SmsMailSettings { SmsOnlyWhenNoEmail = true };
         var families = EyeEmailFamilyGrouping.Build(new[] { a, b });
-        Check(families.Count == 1 && families[0].RDVs.Count == 2, "same address/city family pass");
+        Check(families.Count == 1 && families[0].RDVs.Count == 2, "same address/city family pass (same surname)");
+        var maiden = Person(7, "Léa", "Martin", 10); maiden.DatePriseRDV = a.DatePriseRDV; maiden.NomJeuneFille = "DUPONT"; maiden.Adresse = a.Adresse; maiden.Ville = a.Ville;
+        Check(EyeEmailFamilyGrouping.Build(new[] { a, maiden }).Count == 1, "same address and maiden name: grouped");
+        var farApart = Person(9, "Paul", "Dupont"); farApart.DatePriseRDV = a.DatePriseRDV; farApart.HeureRDV = a.HeureRDV.AddMinutes(210); farApart.Adresse = a.Adresse; farApart.Ville = a.Ville;
+        Check(EyeEmailFamilyGrouping.Build(new[] { a, farApart }).Count == 2, "same address and surname, but appointments 3h30 apart: not grouped");
+        var otherDay = Person(10, "Paul", "Dupont"); otherDay.HeureRDV = a.HeureRDV.AddMinutes(15); otherDay.DatePriseRDV = a.DatePriseRDV.AddDays(-90); otherDay.Adresse = a.Adresse; otherDay.Ville = a.Ville;
+        Check(EyeEmailFamilyGrouping.Build(new[] { a, otherDay }).Count == 2, "same address and surname, but booked on different days: not grouped");
+        var sharedMail = Person(8, "Paul", "Bernard", 16); sharedMail.Email = "parent@example.com"; sharedMail.Adresse = a.Adresse; sharedMail.Ville = a.Ville;
+        Check(EyeEmailFamilyGrouping.Build(new[] { a, sharedMail }).Count == 1, "same address and shared mail: grouped");
         var prepared = MessagePreparation.Prepare(new[] { a, b }, day, settings);
         Check(prepared.Count == 1 && prepared[0].Channel == "Mail" && prepared[0].Family.Contains("Bob"), "SMS fallback is evaluated for the whole family");
         settings.SmsOnlyWhenNoEmail = false;

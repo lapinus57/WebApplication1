@@ -33,7 +33,8 @@ namespace Client.SmsMail.Services.Grouping
                         }
                     }
 
-                    if (villeOK && adresseOK)
+                    // Même adresse : seulement avec un nom ou un contact commun (sinon immeuble, voisins…).
+                    if (villeOK && adresseOK && famille.RDVs.Any(m => FamilyUtilities.SameHousehold(m, rdv)))
                     {
                         familleCorrespondante = famille;
                         break;

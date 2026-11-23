@@ -103,6 +103,41 @@ namespace Client.SmsMail.Utilities
 
         public static IEnumerable<string> GroupingEmails(string? value) =>
             Client.SmsMail.Services.MessagePreparation.Emails(value ?? string.Empty);
+
+        /// <summary>Écart maximal entre deux rendez-vous d'une même famille reconnue par l'adresse et le nom.</summary>
+        public const int MaxHouseholdGapMinutes = 90;
+
+        /// <summary>
+        /// Une même adresse ne suffit pas à faire une famille (immeuble, résidence, voisins) :
+        /// il faut un téléphone / mail commun, ou un nom commun (nom ou nom de jeune fille) ET des rendez-vous
+        /// pris ensemble : le même jour, et à moins de 90 minutes d'écart.
+        /// </summary>
+        public static bool SameHousehold(RdvInfo a, RdvInfo b) => SharesContact(a, b) || (SharesSurname(a, b) && BookedTogether(a, b));
+
+        public static bool BookedTogether(RdvInfo a, RdvInfo b)
+        {
+            if (Math.Abs((a.HeureRDV - b.HeureRDV).TotalMinutes) > MaxHouseholdGapMinutes) return false;
+            // Date de prise de RDV inconnue sur l'une des deux : seul l'écart entre les rendez-vous compte.
+            return a.DatePriseRDV == default || b.DatePriseRDV == default || a.DatePriseRDV.Date == b.DatePriseRDV.Date;
+        }
+
+        public static bool SharesContact(RdvInfo a, RdvInfo b)
+        {
+            var phonesA = new[] { GroupingPhone(a.Tel1), GroupingPhone(a.Tel2) }.Where(p => p.Length > 0);
+            var phonesB = new[] { GroupingPhone(b.Tel1), GroupingPhone(b.Tel2) }.Where(p => p.Length > 0);
+            return phonesA.Intersect(phonesB).Any() || GroupingEmails(a.Email).Intersect(GroupingEmails(b.Email), StringComparer.OrdinalIgnoreCase).Any();
+        }
+
+        public static bool SharesSurname(RdvInfo a, RdvInfo b) => SurnameTokens(a).Overlaps(SurnameTokens(b));
+
+        private static HashSet<string> SurnameTokens(RdvInfo r)
+        {
+            var text = (r.Nom + " " + r.NomJeuneFille).Normalize(System.Text.NormalizationForm.FormD);
+            var letters = new string(text.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+                .Select(c => char.IsLetter(c) ? char.ToUpperInvariant(c) : ' ').ToArray());
+            // Particules (« DE », « LE », « DI »…) ignorées : trois lettres au moins.
+            return letters.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t.Length >= 3).ToHashSet();
+        }
     }
 }
 

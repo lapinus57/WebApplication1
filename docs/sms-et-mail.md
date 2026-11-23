@@ -30,6 +30,12 @@ téléphone/mail, adresse et ville, adresse, remarques, nom et date de création
 puis historique si demandé. La liste Familles EyeEmail affiche les membres,
 contacts et méthodes utilisées. Vérifier les rapprochements avant l'envoi.
 
+Une même adresse ne suffit pas à faire une famille (immeuble, résidence, voisins) :
+les passes « adresse » demandent en plus un téléphone ou un mail commun, ou bien un
+nom commun (nom ou nom de jeune fille) **et** des rendez-vous pris le même jour, à
+moins de 90 minutes d'écart. Quand des personnes regroupées ont des heures
+différentes, `[HEURE]` annonce l'heure de chacune (« 13:00 (Henri), 16:30 (Béatrice) »).
+
 Une base familles Access facultative peut être choisie. Elle accepte
 `FamilyMembership(FamilyId, PersonId)` ou l'ancien
 `Patients(NumeroFamille, CodePatient)`, ainsi que `Person`, `ContactChannel` et
