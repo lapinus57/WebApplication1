@@ -40,6 +40,15 @@ static class IndividualMessageChecks
             try { IndividualMessage.Create(settings, channel, "", phone, email, start, body, ""); Check(false, "Refus attendu : " + reason); }
             catch (InvalidOperationException) { count++; }
         }
+        // Texte automatique : suit la date, l'heure et la case tant qu'il n'a pas été modifié à la main.
+        var auto = IndividualMessage.AutoText("", "", "Cabinet Müller", start, withLink: true);
+        Check(auto == text, "Date et heure choisies : texte rédigé avec le cabinet et le lien");
+        var later = IndividualMessage.AutoText(auto!, auto!, "Cabinet Müller", start.AddHours(2), withLink: true);
+        Check(later != null && later.Contains("11h30") && later.EndsWith("[LIEN]"), "Nouvelle heure : texte mis à jour");
+        Check(IndividualMessage.AutoText(auto!, auto!, "Cabinet Müller", start, withLink: false) == IndividualMessage.DefaultText("Cabinet Müller", start, false), "Case décochée : texte sans lien");
+        Check(IndividualMessage.AutoText(auto + " Apportez vos lunettes.", auto!, "Cabinet Müller", start.AddDays(1), true) == null, "Texte modifié à la main : jamais remplacé");
+        Check(IndividualMessage.AutoText("", "", "Cabinet Müller", null, true) == null, "Sans date ni heure : rien n'est rédigé");
+
         // Case « Ajouter le lien » : le texte montre toujours l'emplacement du lien.
         Check(IndividualMessage.ToggleLink("", true, "Cabinet Müller", start) == text, "Zone vide + case cochée : texte par défaut avec [LIEN]");
         Check(IndividualMessage.ToggleLink("Bonjour Léa.", true, "C", start) == "Bonjour Léa. Merci de confirmer ou d'annuler : [LIEN]", "Texte saisi : [LIEN] ajouté à la fin");

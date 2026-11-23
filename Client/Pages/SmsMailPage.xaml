@@ -144,13 +144,13 @@
                         <TextBox x:Name="IndividualPhoneText" Header="Téléphone mobile" PlaceholderText="06… ou +33…" InputScope="TelephoneNumber" />
                         <TextBox x:Name="IndividualEmailText" Header="Adresse mail" Visibility="Collapsed" InputScope="EmailSmtpAddress" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <CalendarDatePicker x:Name="IndividualDatePicker" Header="Date du RDV" DateFormat="{}{dayofweek.full} {day.integer} {month.full}" />
-                            <TimePicker x:Name="IndividualTimePicker" Header="Heure du RDV" ClockIdentifier="24HourClock" MinuteIncrement="5" />
+                            <CalendarDatePicker x:Name="IndividualDatePicker" Header="Date du RDV" DateFormat="{}{dayofweek.full} {day.integer} {month.full}" DateChanged="IndividualDate_Changed" />
+                            <TimePicker x:Name="IndividualTimePicker" Header="Heure du RDV" ClockIdentifier="24HourClock" MinuteIncrement="5" SelectedTimeChanged="IndividualTime_Changed" />
                         </StackPanel>
                         <CheckBox x:Name="IndividualLinkCheck" Content="Ajouter le lien « Confirmer / Annuler »" Checked="IndividualLink_Changed" Unchecked="IndividualLink_Changed" />
                         <TextBox x:Name="IndividualReplyEmailText" Header="Adresse qui reçoit la réponse du patient" Visibility="Collapsed" InputScope="EmailSmtpAddress" />
                         <TextBox x:Name="IndividualSubjectText" Header="Objet du mail" Visibility="Collapsed" />
-                        <TextBox x:Name="IndividualText" Header="Message ([LIEN] est remplacé par le lien à l’envoi)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" TextChanged="IndividualText_Changed" />
+                        <TextBox x:Name="IndividualText" Header="Message (rédigé automatiquement d’après la date, l’heure et le lien ; modifiable — [LIEN] est remplacé par le lien à l’envoi)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" TextChanged="IndividualText_Changed" />
                         <TextBlock x:Name="IndividualMetrics" Opacity="0.75" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Button Content="Texte par défaut" Click="IndividualDefaultText_Click" />

@@ -627,8 +627,8 @@ namespace Client.Pages
             IndividualPhoneText.Text = new[] { r.Tel1, r.Tel2 }.Select(MessagePreparation.NormalizePhone).FirstOrDefault(p => p.Length > 0) ?? string.Empty;
             IndividualEmailText.Text = r.Email?.Trim() ?? string.Empty;
             IndividualDatePicker.Date = new DateTimeOffset(r.DateRDV.Date);
-            IndividualTimePicker.Time = r.HeureRDV.TimeOfDay;
-            if (string.IsNullOrWhiteSpace(IndividualText.Text)) IndividualDefaultText_Click(sender, new RoutedEventArgs());
+            IndividualTimePicker.SelectedTime = r.HeureRDV.TimeOfDay;
+            RefreshIndividualAutoText();
         }
 
         private sealed class IndividualPatientChoice(RdvInfo rdv)
@@ -643,9 +643,15 @@ namespace Client.Pages
             var withLink = IndividualLinkCheck.IsChecked == true;
             if (withLink && string.IsNullOrWhiteSpace(IndividualReplyEmailText.Text))
                 IndividualReplyEmailText.Text = Client.Helpers.AppSettings.Get(ReplyEmailSetting, string.Empty);
-            // Le texte montre toujours où le lien sera placé (texte par défaut si la zone est vide).
-            IndividualText.Text = IndividualMessage.ToggleLink(IndividualText.Text, withLink, ReadSettings().Cabinet,
-                IndividualAppointmentStart() ?? DateTime.Today.AddDays(1).AddHours(9));
+            // Texte rédigé automatiquement s'il n'a pas été modifié ; sinon le lien est ajouté ou retiré du texte saisi.
+            if (!RefreshIndividualAutoText())
+            {
+                var before = IndividualText.Text.Trim();
+                IndividualText.Text = IndividualMessage.ToggleLink(IndividualText.Text, withLink, ReadSettings().Cabinet,
+                    IndividualAppointmentStart() ?? DateTime.Today.AddDays(1).AddHours(9));
+                // Texte proposé sans date choisie : il reste « automatique » et suivra la date et l'heure choisies ensuite.
+                if (before.Length == 0 || before == _individualGeneratedText.Trim()) _individualGeneratedText = IndividualText.Text;
+            }
             UpdateIndividualFields();
         }
         private void IndividualText_Changed(object sender, TextChangedEventArgs e) => UpdateIndividualFields();
@@ -665,12 +671,29 @@ namespace Client.Pages
         }
 
         private DateTime? IndividualAppointmentStart()
-            => IndividualDatePicker.Date is DateTimeOffset date ? date.Date + IndividualTimePicker.Time : null;
+            => IndividualDatePicker.Date is DateTimeOffset date && IndividualTimePicker.SelectedTime is TimeSpan time ? date.Date + time : null;
+
+        // Dernier texte rédigé automatiquement : tant que la zone le contient encore, il suit la date, l'heure et la case.
+        private string _individualGeneratedText = string.Empty;
+
+        private bool RefreshIndividualAutoText()
+        {
+            var text = IndividualMessage.AutoText(IndividualText.Text, _individualGeneratedText, ReadSettings().Cabinet,
+                IndividualAppointmentStart(), IndividualLinkCheck.IsChecked == true);
+            if (text == null) return false;
+            _individualGeneratedText = text;
+            IndividualText.Text = text;
+            return true;
+        }
+
+        private void IndividualDate_Changed(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) => RefreshIndividualAutoText();
+        private void IndividualTime_Changed(TimePicker sender, TimePickerSelectedValueChangedEventArgs args) => RefreshIndividualAutoText();
 
         private void IndividualDefaultText_Click(object sender, RoutedEventArgs e)
         {
             var start = IndividualAppointmentStart() ?? DateTime.Today.AddDays(1).AddHours(9);
-            IndividualText.Text = IndividualMessage.DefaultText(ReadSettings().Cabinet, start, IndividualLinkCheck.IsChecked == true);
+            _individualGeneratedText = IndividualMessage.DefaultText(ReadSettings().Cabinet, start, IndividualLinkCheck.IsChecked == true);
+            IndividualText.Text = _individualGeneratedText;
         }
 
         private async void SendIndividual_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
@@ -731,7 +754,7 @@ namespace Client.Pages
                 ? $"Message envoyé à {message.Contact}. {message.Status}" + (withLink ? $" La réponse du patient arrivera à {replyEmail} et dans l’historique." : "")
                 : $"Message non confirmé : {message.Status}";
             StatusText.Text = IndividualStatus.Text;
-            if (outcome.Accepted == 1) IndividualText.Text = string.Empty;
+            if (outcome.Accepted == 1) { IndividualText.Text = string.Empty; _individualGeneratedText = string.Empty; }
         });
 
         private async void MailReports_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>

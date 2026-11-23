@@ -27,6 +27,18 @@ namespace Client.SmsMail.Services
         }
 
         /// <summary>
+        /// Texte rédigé automatiquement (cabinet, date, heure, lien) quand la date, l'heure ou la case changent.
+        /// Retourne null — on ne touche à rien — si l'utilisateur a modifié le texte à la main ou si la date
+        /// et l'heure ne sont pas encore choisies.
+        /// </summary>
+        public static string? AutoText(string currentText, string lastGenerated, string cabinet, DateTime? start, bool withLink)
+        {
+            var current = (currentText ?? string.Empty).Trim();
+            if (current.Length > 0 && current != (lastGenerated ?? string.Empty).Trim()) return null;
+            return start.HasValue ? DefaultText(cabinet, start.Value, withLink) : null;
+        }
+
+        /// <summary>
         /// Texte après avoir coché ou décoché « Ajouter le lien » : texte par défaut si la zone est vide,
         /// [LIEN] ajouté à la fin s'il manque, ou retiré (avec la phrase qui l'annonce) quand on décoche.
         /// </summary>
