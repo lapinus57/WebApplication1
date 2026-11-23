@@ -26,6 +26,27 @@ namespace Client.SmsMail.Services
             return withLink ? text + " Merci de confirmer ou d'annuler : " + LinkTag : text;
         }
 
+        /// <summary>
+        /// Texte après avoir coché ou décoché « Ajouter le lien » : texte par défaut si la zone est vide,
+        /// [LIEN] ajouté à la fin s'il manque, ou retiré (avec la phrase qui l'annonce) quand on décoche.
+        /// </summary>
+        public static string ToggleLink(string text, bool withLink, string cabinet, DateTime start)
+        {
+            text = (text ?? string.Empty).TrimEnd();
+            if (withLink)
+            {
+                if (text.Length == 0) return DefaultText(cabinet, start, withLink: true);
+                return text.Contains(LinkTag, StringComparison.OrdinalIgnoreCase) ? text : text + " Merci de confirmer ou d'annuler : " + LinkTag;
+            }
+            text = text.Replace(" Merci de confirmer ou d'annuler : " + LinkTag, string.Empty, StringComparison.OrdinalIgnoreCase)
+                       .Replace(LinkTag, string.Empty, StringComparison.OrdinalIgnoreCase);
+            return text.TrimEnd();
+        }
+
+        /// <summary>Un message ne peut pas être réduit au seul lien : le patient doit savoir qui écrit et pour quel rendez-vous.</summary>
+        public static bool HasTextBesidesLink(string text)
+            => (text ?? string.Empty).Replace(LinkTag, string.Empty, StringComparison.OrdinalIgnoreCase).Any(char.IsLetterOrDigit);
+
         /// <summary>Texte tel qu'il partira, avec un lien fictif de la bonne longueur (compteur de caractères).</summary>
         public static string ForMetrics(string text, bool withLink)
             => withLink ? WithLink(text, new string('x', EstimatedLinkLength)) : text;

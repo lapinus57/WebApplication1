@@ -640,8 +640,12 @@ namespace Client.Pages
         private void IndividualChannel_Changed(object sender, SelectionChangedEventArgs e) => UpdateIndividualFields();
         private void IndividualLink_Changed(object sender, RoutedEventArgs e)
         {
-            if (IndividualLinkCheck.IsChecked == true && string.IsNullOrWhiteSpace(IndividualReplyEmailText.Text))
+            var withLink = IndividualLinkCheck.IsChecked == true;
+            if (withLink && string.IsNullOrWhiteSpace(IndividualReplyEmailText.Text))
                 IndividualReplyEmailText.Text = Client.Helpers.AppSettings.Get(ReplyEmailSetting, string.Empty);
+            // Le texte montre toujours où le lien sera placé (texte par défaut si la zone est vide).
+            IndividualText.Text = IndividualMessage.ToggleLink(IndividualText.Text, withLink, ReadSettings().Cabinet,
+                IndividualAppointmentStart() ?? DateTime.Today.AddDays(1).AddHours(9));
             UpdateIndividualFields();
         }
         private void IndividualText_Changed(object sender, TextChangedEventArgs e) => UpdateIndividualFields();
@@ -677,6 +681,8 @@ namespace Client.Pages
             var withLink = IndividualLinkCheck.IsChecked == true;
             var start = IndividualAppointmentStart();
             if (withLink && start == null) throw new InvalidOperationException("Indiquez la date et l’heure du rendez-vous : elles s’affichent sur la page de réponse.");
+            if (!IndividualMessage.HasTextBesidesLink(IndividualText.Text))
+                throw new InvalidOperationException("Écrivez un message (nom du cabinet, date et heure du rendez-vous) : un lien seul ne dit pas au patient qui lui écrit. « Texte par défaut » propose un exemple.");
             var replyEmail = IndividualReplyEmailText.Text.Trim();
             if (withLink && !System.Net.Mail.MailAddress.TryCreate(replyEmail, out _))
                 throw new InvalidOperationException("Indiquez l’adresse mail qui recevra la réponse du patient.");

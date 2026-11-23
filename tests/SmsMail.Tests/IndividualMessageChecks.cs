@@ -40,6 +40,13 @@ static class IndividualMessageChecks
             try { IndividualMessage.Create(settings, channel, "", phone, email, start, body, ""); Check(false, "Refus attendu : " + reason); }
             catch (InvalidOperationException) { count++; }
         }
+        // Case « Ajouter le lien » : le texte montre toujours l'emplacement du lien.
+        Check(IndividualMessage.ToggleLink("", true, "Cabinet Müller", start) == text, "Zone vide + case cochée : texte par défaut avec [LIEN]");
+        Check(IndividualMessage.ToggleLink("Bonjour Léa.", true, "C", start) == "Bonjour Léa. Merci de confirmer ou d'annuler : [LIEN]", "Texte saisi : [LIEN] ajouté à la fin");
+        Check(IndividualMessage.ToggleLink("Cliquez : [LIEN] merci", true, "C", start) == "Cliquez : [LIEN] merci", "[LIEN] déjà placé : texte inchangé");
+        Check(IndividualMessage.ToggleLink(text, false, "C", start) == "Cabinet Müller : votre RDV du lundi 23 novembre à 9h30.", "Case décochée : lien et phrase retirés");
+        Check(!IndividualMessage.HasTextBesidesLink("[LIEN]") && !IndividualMessage.HasTextBesidesLink("  : [LIEN] ") && IndividualMessage.HasTextBesidesLink(text), "Un lien seul est refusé");
+
         // Réponse au lien, affichée à part du statut d'envoi dans l'historique.
         var now = new DateTime(2026, 11, 23, 8, 0, 0);
         Check(MessageHistoryEntry.ReplyText("", "", "", now) == "", "Pas de lien : rien d'affiché");
