@@ -189,6 +189,14 @@ var declaredLinks = VitaleLinks.Links(vitaleRows, vmatch, new DateTime(2026, 11,
 DeclaredLink D(int a, int b) => declaredLinks.Single(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
 Check(D(801, 802) is { Relation: "parent et enfant", Current: true } && D(801, 803).Relation == "conjoints" && D(802, 803).Relation == "parent et enfant", "Nature du lien d'après la qualité");
 Check(D(804, 805) is { Current: false, Separated: false } && D(804, 805).Relation == "conjoints séparés, divorcés ou veufs", "Rattachement terminé : pas en cours");
+var adult = new VitaleRow(1, "A", "", "Enfant", new DateTime(1990, 1, 1), "c", 6, true, null, null);
+var minor = adult with { BirthDate = new DateTime(2012, 1, 1) };
+var parentRow = new VitaleRow(2, "A", "", "Parent", new DateTime(1965, 1, 1), "c", 0, true, null, null);
+var today24 = new DateTime(2026, 11, 24);
+Check(VitaleLinks.PresumedHousehold("parent et enfant", parentRow, minor, today24) && !VitaleLinks.PresumedHousehold("parent et enfant", parentRow, adult, today24)
+    && VitaleLinks.PresumedHousehold("conjoints", parentRow, adult, today24) && !VitaleLinks.PresumedHousehold("enfants de la même carte", minor, adult, today24),
+    "Enfant de 20 ans ou plus encore actif sur la carte : pas présumé du même foyer");
+Check(VitaleLinks.Age(new DateTime(2006, 11, 25), today24) == 19 && VitaleLinks.Age(new DateTime(2006, 11, 24), today24) == 20, "Âge exact");
 Check(VitaleLinks.Relation(6, 6) == "enfants de la même carte" && VitaleLinks.Relation(0, 9) == "même carte Vitale", "Autres qualités");
 
 // Effet sur les familles : lien Vitale en cours sans aucun indice d'agenda → même foyer ; conjoints séparés → jamais.
@@ -203,6 +211,12 @@ vres.Vitale = vmatch;
 PatientLink VL(int a, int b) => vres.Links.Single(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
 Check(VL(801, 802) is { Strength: LinkStrength.Forte, SameHouseholdNow: true, AgendaHouseholdNow: false } && VL(801, 802).Reasons.StartsWith("carte Vitale : parent et enfant"), "Vitale en cours : même foyer, trouvé grâce à Vitale");
 Check(VL(804, 805) is { SameHouseholdNow: false, AgendaHouseholdNow: true, VitaleSeparated: true }, "Conjoints séparés : plus regroupés, même si l'agenda les rapprochait");
+var olds = new FamilyScanner { Today = today24 };
+olds.Add(new ScanRow(901, new DateTime(2025, 1, 10), new DateTime(2025, 1, 10, 9, 0, 0), null, null, "", "OLD", "", "Parent", "1 rue P", "Metz", new[] { "0606000901" }, Array.Empty<string>(), false));
+olds.Add(new ScanRow(902, new DateTime(2025, 6, 10), new DateTime(2025, 6, 10, 15, 0, 0), null, null, "", "OLD", "", "Fils", "9 rue Q", "Nancy", new[] { "0606000902" }, Array.Empty<string>(), false));
+olds.AddDeclared(new[] { new DeclaredLink(901, 902, "parent et enfant", true, false, null, Household: false) });
+var oldLink = olds.Finish().Links.Single();
+Check(oldLink is { Strength: LinkStrength.Forte, SameHouseholdNow: false } && oldLink.Reasons.Contains("enfant de 20 ans ou plus"), "Enfant adulte encore actif sur la carte, rien d'autre en commun : lié mais pas même foyer");
 Check(vres.DeclaredLinks == 2 && vres.DeclaredLinksWithoutAgenda == 2, "Liens vers des patients sans RDV ignorés");
 var vreport = FamilyScanReport.Anonymous(vres);
 Check(vreport.Contains("5 rapprochés d'un Code Patient") && vreport.Contains("nouveaux grâce à Vitale : 1") && vreport.Contains("regroupés à tort par l'agenda seul : 1")

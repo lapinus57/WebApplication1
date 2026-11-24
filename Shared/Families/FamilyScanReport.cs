@@ -52,8 +52,9 @@ namespace EyeChat.Families
                 sb.AppendLine($"  {r.DeclaredLinks:N0} liens déclarés entre patients de l'agenda ({r.DeclaredLinksWithoutAgenda:N0} ignorés : patients sans RDV).");
                 foreach (var g in vit.GroupBy(l => l.VitaleRelation).OrderByDescending(g => g.Count()))
                     sb.AppendLine($"    {g.Key,-38} {g.Count(),7:N0}   dont en cours : {g.Count(l => l.VitaleCurrent),7:N0}");
-                var current = vit.Where(l => l.VitaleCurrent && !l.VitaleSeparated).ToList();
-                sb.AppendLine($"  Rattachements en cours : {current.Count:N0}, dont déjà trouvés par l'agenda seul : {current.Count(l => l.AgendaHouseholdNow):N0}, nouveaux grâce à Vitale : {current.Count(l => !l.AgendaHouseholdNow):N0}.");
+                sb.AppendLine($"  Rattachements en cours d'enfants de 20 ans ou plus (foyer décidé par l'agenda) : {vit.Count(l => l.VitaleCurrent && !l.VitaleSeparated && !l.VitaleHousehold):N0}, dont même foyer : {vit.Count(l => l.VitaleCurrent && !l.VitaleSeparated && !l.VitaleHousehold && l.SameHouseholdNow):N0}.");
+                var current = vit.Where(l => l.VitaleCurrent && !l.VitaleSeparated && l.VitaleHousehold).ToList();
+                sb.AppendLine($"  Rattachements en cours valant « même foyer » (conjoints, enfants de moins de 20 ans) : {current.Count:N0}, dont déjà trouvés par l'agenda seul : {current.Count(l => l.AgendaHouseholdNow):N0}, nouveaux grâce à Vitale : {current.Count(l => !l.AgendaHouseholdNow):N0}.");
                 sb.AppendLine($"  Séparés, divorcés ou veufs : {vit.Count(l => l.VitaleSeparated):N0}, dont regroupés à tort par l'agenda seul : {vit.Count(l => l.VitaleSeparated && l.AgendaHouseholdNow):N0}.");
                 sb.AppendLine();
             }

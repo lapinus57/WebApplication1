@@ -18,7 +18,8 @@ namespace EyeChat.Families
     public sealed record AgendaIdentity(int Code, string Surname, string MaidenName, string FirstName, DateTime? BirthDate);
 
     /// <summary>Lien déclaré : deux patients de l'agenda sur la même carte Vitale.</summary>
-    public sealed record DeclaredLink(int A, int B, string Relation, bool Current, bool Separated, DateTime? Since);
+    /// <param name="Household">Le rattachement suffit à dire « même foyer » : conjoints, ou enfant(s) de moins de 20 ans.</param>
+    public sealed record DeclaredLink(int A, int B, string Relation, bool Current, bool Separated, DateTime? Since, bool Household = true);
 
     public sealed class VitaleMatch
     {
@@ -36,6 +37,11 @@ namespace EyeChat.Families
         public static readonly int[] SeparatedQualities = { 3, 5, 8 };
         /// <summary>Une carte portée par plus de patients que cela est une anomalie de saisie : ignorée.</summary>
         public const int MaxPatientsPerCard = 10;
+        /// <summary>
+        /// Au-delà, un enfant encore « actif » sur la carte de ses parents n'est plus présumé vivre avec eux : les fiches
+        /// Vitale restent souvent actives des années après le départ (mesuré : familles de 7 personnes ou plus × 3,5).
+        /// </summary>
+        public const int ChildHouseholdMaxAge = 20;
 
         /// <summary>
         /// Rapproche chaque patient Vitale d'un Code Patient de l'agenda : même date de naissance, même premier prénom,
@@ -86,13 +92,31 @@ namespace EyeChat.Families
                         var separated = current && (SeparatedQualities.Contains(a.Quality ?? -1) || SeparatedQualities.Contains(b.Quality ?? -1));
                         var since = new[] { a.Created, b.Created }.Where(d => d.HasValue).Select(d => d!.Value).DefaultIfEmpty().Max();
                         var key = a.PatientId < b.PatientId ? (a.PatientId, b.PatientId) : (b.PatientId, a.PatientId);
-                        var link = new DeclaredLink(key.Item1, key.Item2, Relation(a.Quality, b.Quality), current, separated, since == default ? null : since);
+                        var relation = Relation(a.Quality, b.Quality);
+                        var link = new DeclaredLink(key.Item1, key.Item2, relation, current, separated, since == default ? null : since,
+                            Household: PresumedHousehold(relation, a, b, today));
                         // Deux cartes communes : on garde la plus parlante (actuelle d'abord).
                         if (!links.TryGetValue(key, out var existing) || (link.Current && !existing.Current)) links[key] = link;
                     }
             }
             return links.Values.ToList();
         }
+
+        /// <summary>Conjoints : oui. Parent et enfant, enfants de la même carte : seulement si les enfants ont moins de 20 ans.</summary>
+        public static bool PresumedHousehold(string relation, VitaleRow a, VitaleRow b, DateTime today)
+        {
+            bool Young(VitaleRow r) => r.BirthDate is { } birth && Age(birth, today) < ChildHouseholdMaxAge;
+            return relation switch
+            {
+                "conjoints" => true,
+                "parent et enfant" => (a.Quality == 6 && Young(a)) || (b.Quality == 6 && Young(b)),
+                "enfants de la même carte" => Young(a) && Young(b),
+                _ => false
+            };
+        }
+
+        public static int Age(DateTime birth, DateTime today)
+            => today.Year - birth.Year - (today.Date < birth.Date.AddYears(today.Year - birth.Year) ? 1 : 0);
 
         public static bool IsCurrent(VitaleRow row, DateTime today)
             => row.Active != false && (row.ValidUntil is null || row.ValidUntil.Value.Date >= today.Date);

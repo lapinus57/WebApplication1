@@ -70,8 +70,10 @@ dotnet run --project tests/FamilyScan.Tests
 
 Les fiches `BENEFICIAIRE` du logiciel Vitale disent quels patients sont sur **la même carte Vitale** et avec quelle
 **qualité** (0 assuré, 2 conjoint, 4 concubin, 6 enfant ; 3, 5, 8 divorcé, séparé, veuf). Ce sont des liens
-**déclarés** : forts, et nommés (« parent et enfant », « conjoints »). Un rattachement en cours regroupe ; des conjoints
-séparés, divorcés ou veufs ne sont plus regroupés.
+**déclarés** : forts, et nommés (« parent et enfant », « conjoints »). Un rattachement en cours regroupe les conjoints
+et les enfants de **moins de 20 ans** ; un enfant plus âgé encore « actif » sur la carte (fiches rarement mises à jour)
+n'est regroupé que si l'agenda le confirme (venue commune récente, téléphone ou mail commun). Des conjoints séparés,
+divorcés ou veufs ne sont plus regroupés.
 
 Aucun numéro n'est commun aux deux logiciels : chaque patient Vitale est rapproché d'un **Code Patient** de l'agenda par
 **date de naissance + premier prénom + nom** (d'usage ou de naissance). En cas d'homonymes, il n'est pas rapproché.

@@ -38,6 +38,8 @@ namespace EyeChat.Families
         public string? VitaleRelation { get; set; }
         public bool VitaleCurrent { get; set; }
         public bool VitaleSeparated { get; set; }
+        /// <summary>Le rattachement en cours suffit à dire « même foyer » (conjoints, enfants de moins de 20 ans).</summary>
+        public bool VitaleHousehold { get; set; }
         /// <summary>Même foyer d'après l'agenda seul (avant la carte Vitale), pour comparer les deux sources.</summary>
         public bool AgendaHouseholdNow { get; set; }
         public string Reasons { get; set; } = string.Empty;
@@ -276,6 +278,7 @@ namespace EyeChat.Families
                 link.VitaleRelation = d.Relation;
                 link.VitaleCurrent = d.Current;
                 link.VitaleSeparated = d.Separated;
+                link.VitaleHousehold = d.Household;
                 declared++;
             }
 
@@ -318,18 +321,20 @@ namespace EyeChat.Families
             l.SameHouseholdNow = l.Strength >= LinkStrength.Moyenne && (l.SharedContactNow || recent);
             l.AgendaHouseholdNow = l.SameHouseholdNow;
 
-            // Carte Vitale : lien déclaré, donc fort. Rattachement en cours = même foyer ; conjoints séparés,
-            // divorcés ou veufs = jamais regroupés. Ancien rattachement : le foyer dépend des autres indices.
+            // Carte Vitale : lien déclaré, donc fort. Rattachement en cours de conjoints ou d'enfants de moins de 20 ans
+            // = même foyer ; conjoints séparés, divorcés ou veufs = jamais regroupés. Sinon (ancien rattachement, enfant
+            // adulte encore « actif » sur la carte) : le foyer dépend des autres indices.
             if (l.VitaleRelation != null)
             {
                 l.Strength = LinkStrength.Forte;
                 if (l.VitaleSeparated) l.SameHouseholdNow = false;
-                else if (l.VitaleCurrent) l.SameHouseholdNow = true;
+                else if (l.VitaleCurrent && l.VitaleHousehold) l.SameHouseholdNow = true;
                 else l.SameHouseholdNow = l.SharedContactNow || recent;
             }
 
             var reasons = new List<string>();
-            if (l.VitaleRelation != null) reasons.Add($"carte Vitale : {l.VitaleRelation}{(l.VitaleCurrent ? "" : " (ancien rattachement)")}");
+            if (l.VitaleRelation != null)
+                reasons.Add($"carte Vitale : {l.VitaleRelation}{(!l.VitaleCurrent ? " (ancien rattachement)" : !l.VitaleHousehold && !l.VitaleSeparated && l.VitaleRelation != "conjoints" ? " (enfant de 20 ans ou plus)" : "")}");
             if (l.SharedNoSS) reasons.Add($"même numéro d'assuré {l.NoSSFirst:yyyy}" + (l.NoSSLast?.Year != l.NoSSFirst?.Year ? $"-{l.NoSSLast:yyyy}" : ""));
             if (l.CovisitDays > 0) reasons.Add($"venus ensemble {l.CovisitDays} fois ({l.FirstCovisit:yyyy}" + (l.LastCovisit?.Year != l.FirstCovisit?.Year ? $"-{l.LastCovisit:yyyy}" : "") + ")");
             if (l.BookedTogetherDays > 0) reasons.Add($"RDV pris à la même minute {l.BookedTogetherDays} fois");
