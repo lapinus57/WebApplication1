@@ -10,6 +10,7 @@ on:
       - 'tests/**'
       - 'tools/MdbCompare/**'
       - 'tools/FamilyScan/**'
+      - 'tools/FbExplore/**'
       - 'relay/**'
       - '.github/workflows/windows-client.yml'
   pull_request:
@@ -27,6 +28,8 @@ on:
       - 'tests/MdbCompare.Tests/**'
       - 'tests/Server.Deployment/**'
       - 'tests/FamilyScan.Tests/**'
+      - 'tests/FbExplore.Tests/**'
+      - 'tools/FbExplore/**'
       - 'tools/FamilyScan/**'
       - 'tools/MdbCompare/**'
       - 'relay/**'
@@ -68,6 +71,8 @@ jobs:
         run: dotnet run --project tests/FamilyScan.Tests --configuration Release
       - name: Compile family reconstruction tool (x86)
         run: dotnet build tools/FamilyScan/FamilyScan.csproj --configuration Release -p:Platform=x86
+      - name: Verify Firebird structure explorer
+        run: dotnet run --project tests/FbExplore.Tests --configuration Release
       - name: Verify Access database comparison tool
         run: dotnet run --project tests/MdbCompare.Tests --configuration Release
       - name: Compile Access database comparison tool (x86)
