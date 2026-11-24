@@ -152,7 +152,7 @@ public static class Explorer
         sb.AppendLine();
         sb.AppendLine("Colonnes probablement utiles (familles, ayants droit, coordonnées) :");
         foreach (var t in tables.Where(t => t.Columns.Any(c => IsInteresting(c.Name))).OrderByDescending(t => t.Rows))
-            sb.AppendLine($"  {t.Name} ({(t.IsView ? "vue" : t.Rows.ToString("N0", CultureInfo.InvariantCulture) + " lignes")}) : "
+            sb.AppendLine($"  {t.Name} ({(t.IsView ? "vue" : Rows(t.Rows))}) : "
                 + string.Join(", ", t.Columns.Where(c => IsInteresting(c.Name)).Select(c => c.Name)));
         sb.AppendLine();
         sb.AppendLine("Détail de toutes les tables :");
