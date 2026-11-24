@@ -44,6 +44,20 @@ namespace EyeChat.Families
             sb.AppendLine($"  Téléphones collectifs ignorés (plus de {FamilyScanner.CollectiveThreshold} patients) : {r.CollectivePhones:N0} ; mails collectifs : {r.CollectiveEmails:N0}");
             sb.AppendLine();
 
+            if (r.Vitale is { } v)
+            {
+                sb.AppendLine("Carte Vitale (logiciel Vitale) :");
+                sb.AppendLine($"  {v.VitalePatients:N0} patients Vitale : {v.Matched:N0} rapprochés d'un Code Patient, {v.Ambiguous:N0} ambigus, {v.NotFound:N0} non trouvés, {v.WithoutBirthDate:N0} sans date de naissance.");
+                var vit = r.Links.Where(l => l.VitaleRelation != null).ToList();
+                sb.AppendLine($"  {r.DeclaredLinks:N0} liens déclarés entre patients de l'agenda ({r.DeclaredLinksWithoutAgenda:N0} ignorés : patients sans RDV).");
+                foreach (var g in vit.GroupBy(l => l.VitaleRelation).OrderByDescending(g => g.Count()))
+                    sb.AppendLine($"    {g.Key,-38} {g.Count(),7:N0}   dont en cours : {g.Count(l => l.VitaleCurrent),7:N0}");
+                var current = vit.Where(l => l.VitaleCurrent && !l.VitaleSeparated).ToList();
+                sb.AppendLine($"  Rattachements en cours : {current.Count:N0}, dont déjà trouvés par l'agenda seul : {current.Count(l => l.AgendaHouseholdNow):N0}, nouveaux grâce à Vitale : {current.Count(l => !l.AgendaHouseholdNow):N0}.");
+                sb.AppendLine($"  Séparés, divorcés ou veufs : {vit.Count(l => l.VitaleSeparated):N0}, dont regroupés à tort par l'agenda seul : {vit.Count(l => l.VitaleSeparated && l.AgendaHouseholdNow):N0}.");
+                sb.AppendLine();
+            }
+
             sb.AppendLine("Familles « même foyer aujourd'hui » :");
             sb.AppendLine($"  {r.Families.Count:N0} familles, {r.Families.Sum(f => f.Members.Count):N0} patients regroupés.");
             foreach (var size in r.Families.GroupBy(f => Math.Min(f.Members.Count, 7)).OrderBy(g => g.Key))

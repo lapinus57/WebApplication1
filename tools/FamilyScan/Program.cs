@@ -49,8 +49,24 @@ try
         Console.WriteLine($"  {year} : {count,7:N0} rendez-vous lus ({clock.Elapsed:mm\\:ss})");
     }
 
+    VitaleMatch? vitaleMatch = null;
+    if (options.Vitale != null)
+    {
+        Console.WriteLine($"Carte Vitale : lecture de {options.Vitale}…");
+        List<VitaleRow> vitale;
+        using (var csv = new StreamReader(options.Vitale, Encoding.UTF8, detectEncodingFromByteOrderMarks: true)) vitale = VitaleLinks.ReadCsv(csv);
+        var identitiesTable = options.Patients ?? (map["naissance"] != null ? table : Schema.FindTable(connection, "Patients"));
+        var identitiesMap = identitiesTable == table ? map : Schema.Map(Schema.Columns(connection, identitiesTable), options.Overrides);
+        var identities = Schema.ReadIdentities(connection, identitiesTable, identitiesMap);
+        vitaleMatch = VitaleLinks.Match(vitale, identities);
+        var declared = VitaleLinks.Links(vitale, vitaleMatch, DateTime.Today);
+        scanner.AddDeclared(declared);
+        Console.WriteLine($"  {vitale.Count:N0} fiches, {vitaleMatch.VitalePatients:N0} patients Vitale, {vitaleMatch.Matched:N0} rapprochés (table « {identitiesTable} », {identities.Count:N0} identités), {declared.Count:N0} liens déclarés.");
+    }
+
     Console.WriteLine("Calcul des liens et des familles…");
     var result = scanner.Finish();
+    result.Vitale = vitaleMatch;
     var folder = options.Output ?? Path.Combine(Environment.CurrentDirectory, $"Familles-{DateTime.Now:yyyy-MM-dd-HHmm}");
     Directory.CreateDirectory(folder);
     var reportPath = Path.Combine(folder, "rapport-anonymise.txt");
@@ -78,6 +94,10 @@ public sealed class Options
     public string User { get; set; } = "";
     public string Password { get; set; } = "";
     public string? Output { get; set; }
+    /// <summary>Export CSV de la base Vitale (PATIENT + BENEFICIAIRE, requête fournie).</summary>
+    public string? Vitale { get; set; }
+    /// <summary>Table Access des patients (date de naissance), si AG_rdv n'en a pas.</summary>
+    public string? Patients { get; set; }
     public Dictionary<string, string> Overrides { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public static Options Parse(string[] args)
@@ -93,6 +113,8 @@ public sealed class Options
                 case "--utilisateur": o.User = Next(); break;
                 case "--motdepasse": o.Password = Next(); break;
                 case "--sortie": o.Output = Next(); break;
+                case "--vitale": o.Vitale = Next(); break;
+                case "--patients": o.Patients = Next(); break;
                 case "--colonne":
                     var pair = Next().Split('=', 2);
                     if (pair.Length != 2) throw new ArgumentException("Format attendu : --colonne role=NomDeLaColonne");
@@ -116,6 +138,8 @@ static class Interactive
         var folder = AppContext.BaseDirectory;
         var bases = Directory.GetFiles(folder, "*.mdb").Concat(Directory.GetFiles(folder, "*.accdb")).ToList();
         o.Database = Choose("Base Access", bases, "Chemin de la base Access (copie de la base du cabinet, .mdb ou .accdb) :");
+        var vitale = Directory.GetFiles(folder, "*vitale*.csv").ToList();
+        if (vitale.Count == 1) { o.Vitale = vitale[0]; Console.WriteLine($"Export Vitale : {o.Vitale}"); }
         var workgroups = Directory.GetFiles(folder, "*.mdw").ToList();
         if (workgroups.Count > 0)
         {

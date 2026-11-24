@@ -26,6 +26,7 @@ public static class Schema
         ["email"] = new[] { "EmailPatient", "E-mail", "Email", "PatientEmail" },
         ["email2"] = new[] { "E-mail 2", "Email 2", "EmailCopie" },
         ["annule"] = new[] { "Annulé", "Annule", "Cancelled" },
+        ["naissance"] = new[] { "Date de naissance", "DateNaissance", "Date naissance", "Naissance", "DDN", "Né le" },
     };
 
     public static string Q(string name) => "[" + name.Replace("]", "]]") + "]";
@@ -60,6 +61,29 @@ public static class Schema
 
     public static string Simple(string value)
         => new string(value.Normalize(NormalizationForm.FormD).Where(ch => char.IsLetterOrDigit(ch)).ToArray()).ToUpperInvariant();
+
+    /// <summary>
+    /// Identités (code, nom, nom de jeune fille, prénom, date de naissance) pour le rapprochement avec la carte Vitale :
+    /// depuis AG_rdv s'il a une date de naissance, sinon depuis la table des patients.
+    /// </summary>
+    public static List<AgendaIdentity> ReadIdentities(OleDbConnection connection, string table, Dictionary<string, string?> map)
+    {
+        if (map["patient"] == null || map["naissance"] == null)
+            throw new InvalidOperationException($"Pas de date de naissance dans « {table} ». Indiquez la table des patients avec --patients NomDeLaTable.");
+        string Col(string role) => map[role] is { } c ? Q(c) : "NULL";
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT DISTINCT {Col("patient")}, {Col("nom")}, {Col("nomjf")}, {Col("prenom")}, {Col("naissance")} FROM {Q(table)}";
+        using var reader = command.ExecuteReader()!;
+        var result = new List<AgendaIdentity>();
+        string Text(int i) => reader.IsDBNull(i) ? "" : Convert.ToString(reader.GetValue(i), CultureInfo.InvariantCulture)?.Trim() ?? "";
+        while (reader.Read())
+        {
+            if (!int.TryParse(Text(0), out var code) || code <= 0) continue;
+            DateTime? birth = reader.IsDBNull(4) ? null : reader.GetValue(4) is DateTime d ? d : VitaleLinks.Date(Text(4));
+            result.Add(new AgendaIdentity(code, Text(1), Text(2), Text(3), birth));
+        }
+        return result;
+    }
 
     public static (DateTime First, DateTime Last) DateRange(OleDbConnection connection, string table, string dateColumn)
     {

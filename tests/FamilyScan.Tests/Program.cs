@@ -163,4 +163,49 @@ using (var agendaReader = agenda.CreateDataReader())
     Check(rowReader.Row() == null, "Ligne sans patient ignorée");
 }
 
+// ---------- Carte Vitale ----------
+var csvText = "\uFEFFPAT_ID;NOM;NOM_NAISSANCE;PRENOM;NAISSANCE;CARTE;QUALITE;ACTIVE;CREATION;FIN_VALIDITE\n"
+    + "501;DUPONT;;Marie;1970-02-03;-77123;0;1;2015-01-01 10:00:00.000;\n"
+    + "502;DUPONT;;Lucas Jean;2010-05-06;-77123;6;1;2015-01-01 10:00:00.000;\n"
+    + "503;\"DUPONT, épouse\";BERNARD;Anne;1972-08-09;-77123;2;1;2015-01-01;\n"
+    + "504;MARTIN;;Paul;1950-01-01;9988;0;0;2001-01-01;2010-01-01\n"
+    + "505;MARTIN;;Jeanne;1952-02-02;9988;5;1;2001-01-01;\n"
+    + "506;INCONNU;;Zoé;1990-01-01;5555;0;1;2020-01-01;\n"
+    + "507;JUMEAU;;Tom;2005-03-03;4444;6;1;2020-01-01;\n";
+var vitaleRows = VitaleLinks.ReadCsv(new StringReader(csvText));
+Check(vitaleRows.Count == 7 && vitaleRows[2].Surname == "DUPONT, épouse" && vitaleRows[3].Active == false && vitaleRows[3].ValidUntil == new DateTime(2010, 1, 1)
+    && vitaleRows[0].Created == new DateTime(2015, 1, 1, 10, 0, 0) && vitaleRows[0].Quality == 0, "Export Vitale lu (séparateur, guillemets, dates, booléens)");
+var identities = new List<AgendaIdentity>
+{
+    new(801, "DUPONT", "", "Marie", new DateTime(1970, 2, 3)), new(802, "Dupont", "", "Lucas", new DateTime(2010, 5, 6)),
+    new(803, "DUPONT", "BERNARD", "Anne-Sophie", new DateTime(1972, 8, 9)), new(804, "MARTIN", "", "Paul", new DateTime(1950, 1, 1)),
+    new(805, "MARTIN", "", "Jeanne", new DateTime(1952, 2, 2)), new(807, "JUMEAU", "", "Tom", new DateTime(2005, 3, 3)),
+    new(808, "JUMEAU", "", "Tom", new DateTime(2005, 3, 3))
+};
+var vmatch = VitaleLinks.Match(vitaleRows, identities);
+Check(vmatch.CodeByVitaleId[501] == 801 && vmatch.CodeByVitaleId[502] == 802 && vmatch.CodeByVitaleId[503] == 803, "Rapprochement par nom (ou nom de naissance), premier prénom et naissance");
+Check(vmatch.Matched == 5 && vmatch.NotFound == 1 && vmatch.Ambiguous == 1 && !vmatch.CodeByVitaleId.ContainsKey(507), "Inconnu non trouvé, homonymes ambigus non rapprochés");
+var declaredLinks = VitaleLinks.Links(vitaleRows, vmatch, new DateTime(2026, 11, 24));
+DeclaredLink D(int a, int b) => declaredLinks.Single(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
+Check(D(801, 802) is { Relation: "parent et enfant", Current: true } && D(801, 803).Relation == "conjoints" && D(802, 803).Relation == "parent et enfant", "Nature du lien d'après la qualité");
+Check(D(804, 805) is { Current: false, Separated: false } && D(804, 805).Relation == "conjoints séparés, divorcés ou veufs", "Rattachement terminé : pas en cours");
+Check(VitaleLinks.Relation(6, 6) == "enfants de la même carte" && VitaleLinks.Relation(0, 9) == "même carte Vitale", "Autres qualités");
+
+// Effet sur les familles : lien Vitale en cours sans aucun indice d'agenda → même foyer ; conjoints séparés → jamais.
+var vs = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+vs.Add(new ScanRow(801, new DateTime(2025, 1, 10), new DateTime(2025, 1, 10, 9, 0, 0), null, null, "", "DUPONT", "", "Marie", "1 rue V", "Metz", new[] { "0605000801" }, Array.Empty<string>(), false));
+vs.Add(new ScanRow(802, new DateTime(2025, 6, 10), new DateTime(2025, 6, 10, 15, 0, 0), null, null, "", "DUPONT", "", "Lucas", "", "", new[] { "0605000802" }, Array.Empty<string>(), false));
+vs.Add(new ScanRow(804, new DateTime(2026, 3, 1), new DateTime(2026, 3, 1, 9, 0, 0), null, null, "", "MARTIN", "", "Paul", "2 rue W", "Metz", new[] { "0387000804" }, Array.Empty<string>(), false));
+vs.Add(new ScanRow(805, new DateTime(2026, 3, 1), new DateTime(2026, 3, 1, 9, 15, 0), null, null, "", "MARTIN", "", "Jeanne", "2 rue W", "Metz", new[] { "0387000804" }, Array.Empty<string>(), false));
+vs.AddDeclared(declaredLinks.Concat(new[] { new DeclaredLink(804, 805, "conjoints séparés, divorcés ou veufs", true, true, null) }).Where(l => l.A != 804 || l.Separated));
+var vres = vs.Finish();
+vres.Vitale = vmatch;
+PatientLink VL(int a, int b) => vres.Links.Single(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
+Check(VL(801, 802) is { Strength: LinkStrength.Forte, SameHouseholdNow: true, AgendaHouseholdNow: false } && VL(801, 802).Reasons.StartsWith("carte Vitale : parent et enfant"), "Vitale en cours : même foyer, trouvé grâce à Vitale");
+Check(VL(804, 805) is { SameHouseholdNow: false, AgendaHouseholdNow: true, VitaleSeparated: true }, "Conjoints séparés : plus regroupés, même si l'agenda les rapprochait");
+Check(vres.DeclaredLinks == 2 && vres.DeclaredLinksWithoutAgenda == 2, "Liens vers des patients sans RDV ignorés");
+var vreport = FamilyScanReport.Anonymous(vres);
+Check(vreport.Contains("5 rapprochés d'un Code Patient") && vreport.Contains("nouveaux grâce à Vitale : 1") && vreport.Contains("regroupés à tort par l'agenda seul : 1")
+    && !vreport.Contains("DUPONT") && !vreport.Contains("-77123"), "Rapport Vitale anonymisé");
+
 Console.WriteLine($"{checks} vérifications réussies.");

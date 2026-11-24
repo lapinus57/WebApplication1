@@ -65,3 +65,45 @@ sont justes. Puis il lit l'agenda **année par année** (affichage de l'avanceme
 ```bash
 dotnet run --project tests/FamilyScan.Tests
 ```
+
+## Ajouter la carte Vitale (logiciel Vitale, base Firebird)
+
+Les fiches `BENEFICIAIRE` du logiciel Vitale disent quels patients sont sur **la même carte Vitale** et avec quelle
+**qualité** (0 assuré, 2 conjoint, 4 concubin, 6 enfant ; 3, 5, 8 divorcé, séparé, veuf). Ce sont des liens
+**déclarés** : forts, et nommés (« parent et enfant », « conjoints »). Un rattachement en cours regroupe ; des conjoints
+séparés, divorcés ou veufs ne sont plus regroupés.
+
+Aucun numéro n'est commun aux deux logiciels : chaque patient Vitale est rapproché d'un **Code Patient** de l'agenda par
+**date de naissance + premier prénom + nom** (d'usage ou de naissance). En cas d'homonymes, il n'est pas rapproché.
+
+### 1. Exporter depuis DBeaver
+
+Exécuter cette requête sur la **copie** de la base Vitale. Remplacer `mot-secret` par un mot de votre choix : le
+numéro de l'assuré n'est **jamais exporté**, seulement une empreinte (`HASH`) qui est la même pour tous les patients de
+la carte.
+
+```sql
+SELECT p.PAT_ID, p.PAT_NOM AS NOM, p.PAT_NOMNAISSANCE AS NOM_NAISSANCE, p.PAT_PRENOM AS PRENOM,
+       p.PAT_DATEHNAISSANCE AS NAISSANCE, HASH('mot-secret' || TRIM(b.BEN_NUMIMMATRI)) AS CARTE,
+       b.BEN_QUALITE AS QUALITE, b.BEN_ISACTIVE AS ACTIVE, b.BEN_DATEHCREATION AS CREATION,
+       b.BEN_DATEFINVALIDITE AS FIN_VALIDITE
+FROM PATIENT p JOIN BENEFICIAIRE b ON b.BEN_PAT_ID = p.PAT_ID
+WHERE b.BEN_NUMIMMATRI IS NOT NULL AND TRIM(b.BEN_NUMIMMATRI) <> '';
+```
+
+Puis, dans les résultats : clic droit → **Exporter les données** → **CSV** (séparateur `;`, en-tête activé), fichier
+nommé par exemple `export-vitale.csv`, enregistré **dans le dossier de `FamilyScan.exe`**.
+
+Ce fichier contient des noms et des dates de naissance : **le garder au cabinet** et le supprimer après la mesure.
+
+### 2. Lancer FamilyScan
+
+Double-clic : l'outil trouve seul un fichier `*vitale*.csv` posé à côté de lui. Ou :
+
+```bash
+FamilyScan.exe "D:\FamilyScan\Base.mdb" --mdw "D:\FamilyScan\system.mdw" --utilisateur NOM --motdepasse MOT --vitale "D:\FamilyScan\export-vitale.csv"
+```
+
+La date de naissance des patients de l'agenda est lue dans `AG_rdv` si elle y est, sinon dans la table `Patients`
+(autre nom : `--patients NomDeLaTable`). Le rapport ajoute une partie **Carte Vitale** : patients rapprochés, liens
+déclarés par nature, liens **nouveaux grâce à Vitale**, et couples séparés que l'agenda seul **regroupait à tort**.

@@ -34,6 +34,12 @@ namespace EyeChat.Families
         public LinkStrength Strength { get; set; }
         public bool SameHouseholdNow { get; set; }
         public bool SharedNoSS => NoSSFirst.HasValue;
+        /// <summary>Lien déclaré par la carte Vitale (« parent et enfant », « conjoints »…), ou null.</summary>
+        public string? VitaleRelation { get; set; }
+        public bool VitaleCurrent { get; set; }
+        public bool VitaleSeparated { get; set; }
+        /// <summary>Même foyer d'après l'agenda seul (avant la carte Vitale), pour comparer les deux sources.</summary>
+        public bool AgendaHouseholdNow { get; set; }
         public string Reasons { get; set; } = string.Empty;
     }
 
@@ -80,6 +86,10 @@ namespace EyeChat.Families
         public IReadOnlyDictionary<int, PatientInfo> PatientsById { get; init; } = new Dictionary<int, PatientInfo>();
         public int CollectivePhones { get; init; }
         public int CollectiveEmails { get; init; }
+        public VitaleMatch? Vitale { get; set; }
+        public int DeclaredLinks { get; init; }
+        /// <summary>Liens Vitale entre patients absents de l'agenda lu (aucun RDV) : ignorés.</summary>
+        public int DeclaredLinksWithoutAgenda { get; init; }
     }
 
     /// <summary>
@@ -104,6 +114,10 @@ namespace EyeChat.Families
         private readonly Dictionary<string, Dictionary<int, (DateTime First, DateTime Last)>> _noss = new();
         private readonly Dictionary<string, HashSet<int>> _phoneOwners = new(), _emailOwners = new();
         private readonly Dictionary<int, PatientInfo> _patients = new();
+        private readonly List<DeclaredLink> _declared = new();
+
+        /// <summary>Liens déclarés par la carte Vitale (codes patients de l'agenda), pris en compte à la fin.</summary>
+        public void AddDeclared(IEnumerable<DeclaredLink> links) => _declared.AddRange(links);
 
         /// <summary>Ajoute une ligne. Les lignes doivent arriver dans l'ordre chronologique (jour par jour).</summary>
         public void Add(ScanRow row)
@@ -254,6 +268,17 @@ namespace EyeChat.Families
             SharedContacts(_phoneOwners, true, ref collectivePhones);
             SharedContacts(_emailOwners, false, ref collectiveEmails);
 
+            int declared = 0, withoutAgenda = 0;
+            foreach (var d in _declared)
+            {
+                if (!_patients.ContainsKey(d.A) || !_patients.ContainsKey(d.B)) { withoutAgenda++; continue; }
+                var link = Link(d.A, d.B);
+                link.VitaleRelation = d.Relation;
+                link.VitaleCurrent = d.Current;
+                link.VitaleSeparated = d.Separated;
+                declared++;
+            }
+
             foreach (var link in _links.Values)
             {
                 var pa = _patients[link.A]; var pb = _patients[link.B];
@@ -266,7 +291,8 @@ namespace EyeChat.Families
             {
                 FirstDay = _firstDay, LastDay = _lastDay, Rows = _rows, Patients = _patients.Count,
                 Years = _years.Values.OrderBy(y => y.Year).ToList(), Links = links, Families = BuildFamilies(links),
-                PatientsById = _patients, CollectivePhones = collectivePhones, CollectiveEmails = collectiveEmails
+                PatientsById = _patients, CollectivePhones = collectivePhones, CollectiveEmails = collectiveEmails,
+                DeclaredLinks = declared, DeclaredLinksWithoutAgenda = withoutAgenda
             };
         }
 
@@ -290,8 +316,20 @@ namespace EyeChat.Families
 
             var recent = l.LastCovisit is { } last && end - last <= RecentPeriod;
             l.SameHouseholdNow = l.Strength >= LinkStrength.Moyenne && (l.SharedContactNow || recent);
+            l.AgendaHouseholdNow = l.SameHouseholdNow;
+
+            // Carte Vitale : lien déclaré, donc fort. Rattachement en cours = même foyer ; conjoints séparés,
+            // divorcés ou veufs = jamais regroupés. Ancien rattachement : le foyer dépend des autres indices.
+            if (l.VitaleRelation != null)
+            {
+                l.Strength = LinkStrength.Forte;
+                if (l.VitaleSeparated) l.SameHouseholdNow = false;
+                else if (l.VitaleCurrent) l.SameHouseholdNow = true;
+                else l.SameHouseholdNow = l.SharedContactNow || recent;
+            }
 
             var reasons = new List<string>();
+            if (l.VitaleRelation != null) reasons.Add($"carte Vitale : {l.VitaleRelation}{(l.VitaleCurrent ? "" : " (ancien rattachement)")}");
             if (l.SharedNoSS) reasons.Add($"même numéro d'assuré {l.NoSSFirst:yyyy}" + (l.NoSSLast?.Year != l.NoSSFirst?.Year ? $"-{l.NoSSLast:yyyy}" : ""));
             if (l.CovisitDays > 0) reasons.Add($"venus ensemble {l.CovisitDays} fois ({l.FirstCovisit:yyyy}" + (l.LastCovisit?.Year != l.FirstCovisit?.Year ? $"-{l.LastCovisit:yyyy}" : "") + ")");
             if (l.BookedTogetherDays > 0) reasons.Add($"RDV pris à la même minute {l.BookedTogetherDays} fois");
