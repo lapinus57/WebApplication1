@@ -59,6 +59,8 @@ public sealed record TableInfo(string Name, long Rows, IReadOnlyList<ColumnInfo>
 
 public static class Explorer
 {
+    public static (int Ods, string Firebird)? LastDiskVersion { get; set; }
+
     /// <summary>
     /// Version de Firebird qui a créé le fichier, lue dans l'en-tête (structure sur disque, « ODS »), sans l'ouvrir :
     /// 11 = Firebird 2.x, 12 = Firebird 3, 13 = Firebird 4 ou 5. Il faut le moteur de la même famille pour l'ouvrir.

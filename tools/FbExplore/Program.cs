@@ -11,7 +11,7 @@ try
     if (string.IsNullOrWhiteSpace(o.Database)) Ask(o);
     if (!File.Exists(o.Database) && o.Server == null) throw new FileNotFoundException("Base Firebird introuvable.", o.Database);
 
-    if (Explorer.DiskVersion(o.Database) is { } disk)
+    if ((Explorer.LastDiskVersion = Explorer.DiskVersion(o.Database)) is { } disk)
         Console.WriteLine($"Fichier créé par {disk.Firebird} (structure ODS {disk.Ods}) : il faut un moteur Firebird de cette version pour l'ouvrir.");
     Console.WriteLine($"Ouverture en lecture seule de {o.Database} ({(o.ClientLibrary != null ? "mode embarqué" : "serveur " + (o.Server ?? "localhost"))})…");
     using var connection = new FbConnection(o.ConnectionString());
@@ -30,7 +30,14 @@ catch (Exception ex)
     if (ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("login", StringComparison.OrdinalIgnoreCase))
         Console.Error.WriteLine("→ Utilisateur ou mot de passe Firebird refusé (souvent SYSDBA ; le mot de passe dépend de l'installation).");
     if (new[] { "unavailable", "network request", "connection refused", "No connection" }.Any(m => ex.Message.Contains(m, StringComparison.OrdinalIgnoreCase)))
-        Console.Error.WriteLine("→ Aucun serveur Firebird joignable : lancez le service Firebird, ou utilisez le mode embarqué (--client chemin\\fbclient.dll).");
+    {
+        Console.Error.WriteLine("→ Aucun serveur Firebird joignable : utilisez le mode embarqué (rien à installer).");
+        var ods = Explorer.LastDiskVersion;
+        Console.Error.WriteLine(ods?.Ods == 11
+            ? $"   Base Firebird 2.x : téléchargez sur firebirdsql.org le kit « Firebird 2.5.9 Embedded » en {(Environment.Is64BitProcess ? "64" : "32")} bits (fichier …_{(Environment.Is64BitProcess ? "x64" : "Win32")}_embed.zip),"
+            : $"   Téléchargez sur firebirdsql.org le « Zip kit » de la version de Firebird indiquée plus haut, en {(Environment.Is64BitProcess ? "64" : "32")} bits,");
+        Console.Error.WriteLine($"   puis copiez TOUT son contenu dans {AppContext.BaseDirectory} (à côté de FbExplore.exe) et relancez.");
+    }
     if (ex.Message.Contains("ODS", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("unsupported on-disk structure", StringComparison.OrdinalIgnoreCase))
         Console.Error.WriteLine("→ La base a été créée par une autre version de Firebird : utilisez la même version que le logiciel Vitale.");
     Environment.ExitCode = 1;
