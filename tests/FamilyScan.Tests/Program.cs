@@ -128,6 +128,9 @@ var map = Schema.Map(columnsFound, new Dictionary<string, string>());
 Check(map["patient"] == "Code Patient" && map["creation"] == "Pris le" && map["arrivee"] == "Arrivé à" && map["noss"] == "NoSS" && map["prenom"] == "Prénom" && map["adresse"] == null,
     "Colonnes d'AG_rdv reconnues (accents compris), absentes signalées");
 Check(Schema.Map(columnsFound, new Dictionary<string, string> { ["noss"] = "nOsS" })["noss"] == "NoSS", "Colonne imposée avec --colonne");
+var cabinetColumns = new List<string> { "Code Patient", "Date", "Heure", "Tel 1", "Tel Bureau", "EmailPatient", "Email" };
+var cabinetMap = Schema.Map(cabinetColumns, new Dictionary<string, string>());
+Check(cabinetMap["tel2"] == "Tel Bureau" && cabinetMap["email"] == "EmailPatient", "Colonnes du cabinet : Tel Bureau et EmailPatient");
 using (var agendaReader = agenda.CreateDataReader())
 {
     var rowReader = new RowReader(agendaReader, map);

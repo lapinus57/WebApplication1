@@ -22,8 +22,8 @@ public static class Schema
         ["adresse"] = new[] { "Adresse", "Adr" },
         ["ville"] = new[] { "Ville", "Commune", "CP Ville", "CPVille" },
         ["tel1"] = new[] { "Tel 1", "Téléphone 1", "Téléphone", "Telephone", "Tel" },
-        ["tel2"] = new[] { "Tel 2", "Téléphone 2", "Portable", "Mobile", "Tel2" },
-        ["email"] = new[] { "E-mail", "Email", "PatientEmail" },
+        ["tel2"] = new[] { "Tel Bureau", "Tel 2", "Téléphone 2", "Portable", "Mobile", "Tel2" },
+        ["email"] = new[] { "EmailPatient", "E-mail", "Email", "PatientEmail" },
         ["email2"] = new[] { "E-mail 2", "Email 2", "EmailCopie" },
         ["annule"] = new[] { "Annulé", "Annule", "Cancelled" },
     };
