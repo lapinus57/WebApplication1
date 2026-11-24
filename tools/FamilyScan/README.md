@@ -38,7 +38,9 @@ dotnet publish tools/FamilyScan/FamilyScan.csproj -c Release -p:Platform=x86 -r 
 
 ## Lancer
 
-Double-cliquer sur `FamilyScan.exe` puis indiquer le chemin de la copie de la base, ou :
+**Par double-clic** : déposer la copie de la base (`.mdb` / `.accdb`) et, si elle est protégée, le fichier de groupe de
+travail (`.mdw`) **dans le dossier de `FamilyScan.exe`**, puis double-cliquer sur `FamilyScan.exe`. Il les trouve
+seul et demande l'utilisateur et le mot de passe Access (le mot de passe ne s'affiche pas). Ou en ligne de commande :
 
 ```bash
 FamilyScan.exe "D:\Copie\Base.mdb"

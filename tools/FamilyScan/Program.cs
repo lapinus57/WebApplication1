@@ -12,11 +12,7 @@ Console.OutputEncoding = Encoding.UTF8;
 try
 {
     var options = Options.Parse(args);
-    if (string.IsNullOrWhiteSpace(options.Database))
-    {
-        Console.WriteLine("Chemin de la base Access (copie de la base du cabinet, .mdb ou .accdb) :");
-        options.Database = (Console.ReadLine() ?? string.Empty).Trim().Trim('"');
-    }
+    if (string.IsNullOrWhiteSpace(options.Database)) Interactive.Ask(options);
     if (!File.Exists(options.Database)) throw new FileNotFoundException("Base Access introuvable.", options.Database);
 
     using var connection = ReadOnlyAccess.Open(new AccessReadOptions(options.Database, "", options.Workgroup, options.User, options.Password));
@@ -74,7 +70,7 @@ catch (Exception ex)
 }
 if (args.Length == 0) { Console.WriteLine("Appuyez sur Entrée pour fermer."); Console.ReadLine(); }
 
-sealed class Options
+public sealed class Options
 {
     public string Database { get; set; } = "";
     public string Table { get; set; } = "AG_rdv";
@@ -111,3 +107,51 @@ sealed class Options
         return o;
     }
 }
+
+// Lancement par double-clic : base et fichier .mdw déposés à côté de FamilyScan.exe, identifiants demandés.
+static class Interactive
+{
+    public static void Ask(Options o)
+    {
+        var folder = AppContext.BaseDirectory;
+        var bases = Directory.GetFiles(folder, "*.mdb").Concat(Directory.GetFiles(folder, "*.accdb")).ToList();
+        o.Database = Choose("Base Access", bases, "Chemin de la base Access (copie de la base du cabinet, .mdb ou .accdb) :");
+        var workgroups = Directory.GetFiles(folder, "*.mdw").ToList();
+        if (workgroups.Count > 0)
+        {
+            o.Workgroup = Choose("Fichier de groupe de travail", workgroups, "");
+            Console.Write("Utilisateur Access : ");
+            o.User = (Console.ReadLine() ?? "").Trim();
+            Console.Write("Mot de passe Access : ");
+            o.Password = ReadHidden();
+        }
+    }
+
+    private static string Choose(string label, List<string> found, string question)
+    {
+        if (found.Count == 1) { Console.WriteLine($"{label} : {found[0]}"); return found[0]; }
+        if (found.Count > 1)
+        {
+            Console.WriteLine($"{label} — plusieurs fichiers trouvés :");
+            for (int i = 0; i < found.Count; i++) Console.WriteLine($"  {i + 1}. {Path.GetFileName(found[i])}");
+            Console.Write("Numéro : ");
+            if (int.TryParse(Console.ReadLine(), out var n) && n >= 1 && n <= found.Count) return found[n - 1];
+            throw new ArgumentException("Choix invalide.");
+        }
+        Console.WriteLine(question);
+        return (Console.ReadLine() ?? string.Empty).Trim().Trim('"');
+    }
+
+    private static string ReadHidden()
+    {
+        var text = new StringBuilder();
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Enter) { Console.WriteLine(); return text.ToString(); }
+            if (key.Key == ConsoleKey.Backspace) { if (text.Length > 0) text.Length--; continue; }
+            if (!char.IsControl(key.KeyChar)) text.Append(key.KeyChar);
+        }
+    }
+}
+
