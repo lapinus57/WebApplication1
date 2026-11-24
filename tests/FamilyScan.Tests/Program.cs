@@ -1,0 +1,120 @@
+// Reconstitution des familles sur un historique synthétique couvrant les trois périodes d'AG_rdv :
+// 2001-2006 (NoSS, pas de date de création ni d'arrivée), 2006-2007, puis fin 2007+ (création et arrivée).
+using EyeChat.Families;
+
+int checks = 0;
+void Check(bool condition, string message)
+{
+    if (!condition) throw new Exception("ÉCHEC : " + message);
+    checks++;
+}
+
+var rows = new List<ScanRow>();
+ScanRow Row(int id, DateTime day, int hour, int minute, string surname, string first, string address = "", string phone = "", string email = "",
+    string noss = "", DateTime? created = null, int? arrivalHour = null, int arrivalMinute = 0, string maiden = "", bool cancelled = false)
+{
+    var time = day.Date.AddHours(hour).AddMinutes(minute);
+    var row = new ScanRow(id, day.Date, time, created, arrivalHour.HasValue ? day.Date.AddHours(arrivalHour.Value).AddMinutes(arrivalMinute) : null,
+        noss, surname, maiden, first, address, "Metz", new[] { phone }, new[] { email }, cancelled);
+    rows.Add(row);
+    return row;
+}
+
+// Famille A (2003) : même NoSS, pas encore de date de création → parenté ; venus ensemble encore en 2025 → même foyer.
+Row(1, new(2003, 3, 10), 9, 0, "MARTIN", "Paul", "1 rue A", "0387000001", noss: "1 55 03 57 463 012 45");
+Row(2, new(2003, 3, 10), 9, 15, "MARTIN", "Léo", "1 rue A", "0387000001", noss: "155035746301299");
+Row(1, new(2025, 5, 2), 10, 0, "MARTIN", "Paul", "1 rue A", "0612000001", created: new(2025, 1, 4, 11, 32, 10), arrivalHour: 9, arrivalMinute: 50);
+Row(2, new(2025, 5, 2), 10, 15, "MARTIN", "Léo", "1 rue A", "0612000002", created: new(2025, 1, 4, 11, 32, 40), arrivalHour: 9, arrivalMinute: 52);
+
+// Parenté ancienne seulement : même NoSS en 2004, jamais revenus ensemble, contacts différents → lien, mais pas même foyer.
+Row(3, new(2004, 6, 1), 14, 0, "DURAND", "Anne", "2 rue B", "0387000003", noss: "2700457463012");
+Row(4, new(2004, 9, 1), 15, 0, "DURAND", "Tom", "2 rue B", "0387000004", noss: "2700457463012");
+Row(3, new(2024, 2, 1), 8, 0, "DURAND", "Anne", "9 rue X", "0611000003");
+Row(4, new(2024, 6, 1), 16, 0, "DURAND", "Tom", "5 rue Y", "0611000004");
+
+// Voisins d'immeuble : même adresse, noms et contacts différents, RDV pris à des mois d'écart, 3 h 30 d'écart → aucun lien.
+Row(5, new(2026, 11, 20), 13, 0, "FRANZ", "Henri", "7 rue de l'Église", "0372000005", created: new(2026, 6, 2, 9, 40, 0));
+Row(6, new(2026, 11, 20), 16, 30, "VINGT", "Béa", "7 rue de l'Église", "0631000006", created: new(2026, 3, 6, 15, 11, 0));
+
+// Inconnus à des créneaux voisins, sans aucun indice commun → aucun lien.
+Row(7, new(2026, 11, 20), 9, 0, "ALPHA", "A", "10 rue C", "0600000007", created: new(2026, 10, 1, 9, 0, 0));
+Row(8, new(2026, 11, 20), 9, 15, "BETA", "B", "11 rue D", "0600000008", created: new(2026, 10, 2, 9, 0, 0));
+
+// Couple récent : RDV pris à la même minute, venus ensemble → forte, même foyer.
+Row(9, new(2026, 11, 20), 11, 0, "PETIT", "Jean", "3 rue E", "0601000009", created: new(2026, 9, 1, 10, 5, 0));
+Row(10, new(2026, 11, 20), 11, 15, "GRAND", "Lise", "3 rue E", "0601000010", created: new(2026, 9, 1, 10, 5, 30));
+
+// Numéro collectif (EHPAD) partagé par 8 résidents → ignoré.
+for (int i = 0; i < 8; i++) Row(20 + i, new(2026, 1, 5 + i), 10, 0, "RESIDENT" + (char)('A' + i), "X", "Résidence Les Tilleuls", "0387999999");
+
+// Chaîne : 11–12 même téléphone, 12–13 même mail, rien entre 11 et 13 → famille à vérifier.
+Row(11, new(2026, 4, 1), 9, 0, "LOUP", "A", "", "0602000011", "chaine@example.fr", created: new(2026, 3, 1, 8, 0, 0));
+Row(12, new(2026, 4, 1), 9, 15, "LOUP", "B", "", "0602000011", "chaine2@example.fr", created: new(2026, 3, 1, 8, 0, 20));
+Row(12, new(2026, 5, 6), 14, 0, "LOUP", "B", "", "0602000011", "chaine2@example.fr", created: new(2026, 4, 2, 10, 0, 0));
+Row(13, new(2026, 5, 6), 14, 15, "RENARD", "C", "", "0602000013", "conjointe : chaine2@example.fr", created: new(2026, 4, 9, 16, 0, 0));
+
+// Rendez-vous annulé : ne compte pas comme venue commune.
+Row(14, new(2026, 2, 2), 9, 0, "ANNUL", "A", "8 rue F", created: new(2026, 1, 1, 9, 0, 0));
+Row(15, new(2026, 2, 2), 9, 15, "ANNUL", "B", "8 rue F", created: new(2026, 1, 1, 9, 0, 0), cancelled: true);
+
+var scanner = new FamilyScanner();
+foreach (var row in rows.OrderBy(r => r.Day).ThenBy(r => r.Time)) scanner.Add(row);
+var result = scanner.Finish();
+PatientLink? L(int a, int b) => result.Links.FirstOrDefault(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
+
+Check(L(1, 2) is { Strength: LinkStrength.Forte, SharedNoSS: true, SameHouseholdNow: true, BookedTogetherDays: 1, ArrivedTogetherDays: 1 }, "NoSS commun en 2003 + venue commune récente : forte, même foyer");
+Check(L(1, 2)!.Reasons.Contains("même numéro d'assuré 2003") && L(1, 2)!.Reasons.Contains("venus ensemble 2 fois"), "Raisons lisibles");
+Check(L(3, 4) is { Strength: LinkStrength.Forte, SameHouseholdNow: false }, "NoSS commun ancien sans venue récente : parenté, pas même foyer");
+Check(L(5, 6) == null, "Voisins d'immeuble : aucun lien");
+Check(L(7, 8) == null, "Inconnus à des créneaux voisins : aucun lien");
+Check(L(9, 10) is { Strength: LinkStrength.Forte, SameHouseholdNow: true }, "RDV pris à la même minute et venus ensemble : forte");
+Check(Enumerable.Range(20, 8).All(a => Enumerable.Range(20, 8).All(b => a >= b || L(a, b) == null)) && result.CollectivePhones == 1, "Numéro collectif ignoré");
+Check(L(11, 13) == null && L(11, 12) != null && L(12, 13) != null, "Chaîne : pas de lien direct entre les extrémités");
+var chain = result.Families.Single(f => f.Members.Contains(11));
+Check(chain.Members.SequenceEqual(new[] { 11, 12, 13 }) && chain.HasChain && chain.ToReview, "Chaîne regroupée mais marquée à vérifier");
+Check(L(14, 15) == null || L(14, 15)!.CovisitDays == 0, "Annulation : pas de venue commune");
+Check(result.Families.Single(f => f.Members.Contains(1)).Members.SequenceEqual(new[] { 1, 2 }), "Famille MARTIN");
+Check(!result.Families.Any(f => f.Members.Contains(3)), "Parenté ancienne : pas de famille pour les rappels");
+Check(result.PatientsById[1].Phones.SetEquals(new[] { "0612000001" }), "Coordonnées les plus récentes");
+Check(result.Years.Single(y => y.Year == 2003).WithNoSS == 2 && result.Years.Single(y => y.Year == 2026).WithCreated > 0, "Statistiques par année");
+
+try { var s2 = new FamilyScanner(); s2.Add(rows[2]); s2.Add(rows[0]); Check(false, "Ordre chronologique exigé"); }
+catch (InvalidOperationException) { checks++; }
+
+Check(FamilyScanner.NormalizeNoSS("1 55 03 57 463 012 45") == "1550357463012" && FamilyScanner.NormalizeNoSS("0000000000000") == "" && FamilyScanner.NormalizeNoSS("123") == "", "NoSS normalisé");
+Check(FamilyScanner.NormalizePhone("+33 6 12 00 00 01") == "0612000001" && FamilyScanner.NormalizePhone("00 00") == "", "Téléphones normalisés");
+Check(FamilyScanner.NormalizeEmail("conjointe : Chaine2@Example.fr") == "chaine2@example.fr" && FamilyScanner.NormalizeEmail("pas de mail") == "", "Mails annotés");
+
+var report = FamilyScanReport.Anonymous(result);
+var names = rows.SelectMany(r => new[] { r.Surname, r.FirstName }).Where(n => n.Length > 2).Distinct();
+Check(!names.Any(n => report.Contains(n, StringComparison.OrdinalIgnoreCase)), "Rapport anonymisé : aucun nom");
+Check(!report.Contains("0612000001") && !report.Contains("1550357463012") && !report.Contains("@"), "Rapport anonymisé : ni téléphone, ni NoSS, ni mail");
+Check(report.Contains("même numéro d'assuré") && report.Contains("Remplissage des colonnes"), "Rapport : indices et remplissage");
+var detail = FamilyScanReport.DetailCsv(result);
+Check(detail.Contains("Paul MARTIN") && !detail.Contains("1550357463012"), "Détail nominatif sans NoSS");
+
+// Lecture d'une table AG_rdv simulée : noms de colonnes réels, heures Access au 30/12/1899, annulation.
+var agenda = new System.Data.DataTable();
+foreach (var (name, type) in new[] { ("Code Patient", typeof(int)), ("Date", typeof(DateTime)), ("Heure", typeof(DateTime)), ("Pris le", typeof(DateTime)),
+    ("Arrivé à", typeof(DateTime)), ("NoSS", typeof(string)), ("Nom", typeof(string)), ("Prénom", typeof(string)), ("Tel 1", typeof(string)), ("E-mail", typeof(string)), ("Annulé", typeof(bool)) })
+    agenda.Columns.Add(name, type);
+agenda.Rows.Add(42, new DateTime(2010, 5, 3), new DateTime(1899, 12, 30, 9, 15, 0), new DateTime(2010, 4, 1, 10, 2, 0), new DateTime(1899, 12, 30, 9, 5, 0), "1 55 03", "MARTIN", "Paul", "06 12 00 00 01", "p@example.fr", false);
+agenda.Rows.Add(DBNull.Value, new DateTime(2010, 5, 3), DBNull.Value, DBNull.Value, DBNull.Value, "", "", "", "", "", true);
+var columnsFound = agenda.Columns.Cast<System.Data.DataColumn>().Select(c => c.ColumnName).ToList();
+var map = Schema.Map(columnsFound, new Dictionary<string, string>());
+Check(map["patient"] == "Code Patient" && map["creation"] == "Pris le" && map["arrivee"] == "Arrivé à" && map["noss"] == "NoSS" && map["prenom"] == "Prénom" && map["adresse"] == null,
+    "Colonnes d'AG_rdv reconnues (accents compris), absentes signalées");
+Check(Schema.Map(columnsFound, new Dictionary<string, string> { ["noss"] = "nOsS" })["noss"] == "NoSS", "Colonne imposée avec --colonne");
+using (var agendaReader = agenda.CreateDataReader())
+{
+    var rowReader = new RowReader(agendaReader, map);
+    agendaReader.Read();
+    var first = rowReader.Row()!;
+    Check(first.PatientId == 42 && first.Time == new DateTime(2010, 5, 3, 9, 15, 0) && first.Arrival == new DateTime(2010, 5, 3, 9, 5, 0) && first.Created == new DateTime(2010, 4, 1, 10, 2, 0),
+        "Heures Access ramenées sur le jour du RDV");
+    Check(first.Surname == "MARTIN" && first.Phones.Contains("06 12 00 00 01") && first.Emails.Contains("p@example.fr") && !first.Cancelled, "Champs de la ligne lus");
+    agendaReader.Read();
+    Check(rowReader.Row() == null, "Ligne sans patient ignorée");
+}
+
+Console.WriteLine($"{checks} vérifications réussies.");

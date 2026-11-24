@@ -1,0 +1,89 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+
+namespace EyeChat.Families
+{
+    public static class FamilyScanReport
+    {
+        /// <summary>
+        /// Rapport sans aucune donnée nominative : ni nom, ni numéro de patient, ni NoSS, ni téléphone, ni mail.
+        /// Il peut être transmis pour régler les seuils.
+        /// </summary>
+        public static string Anonymous(ScanResult r)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Reconstitution des familles — rapport anonymisé");
+            sb.AppendLine($"Historique : {r.FirstDay:dd/MM/yyyy} → {r.LastDay:dd/MM/yyyy}, {r.Rows:N0} rendez-vous, {r.Patients:N0} patients.");
+            sb.AppendLine();
+            sb.AppendLine("Remplissage des colonnes par année (en % des rendez-vous) :");
+            sb.AppendLine("Année    RDV   NoSS  Création  Arrivée  Heure");
+            foreach (var y in r.Years)
+                sb.AppendLine($"{y.Year}  {y.Rows,6}  {Pct(y.WithNoSS, y.Rows),4}  {Pct(y.WithCreated, y.Rows),8}  {Pct(y.WithArrival, y.Rows),7}  {Pct(y.WithTime, y.Rows),5}");
+            sb.AppendLine();
+
+            sb.AppendLine("Liens entre patients :");
+            foreach (var s in new[] { LinkStrength.Forte, LinkStrength.Moyenne, LinkStrength.Faible })
+            {
+                var group = r.Links.Where(l => l.Strength == s).ToList();
+                sb.AppendLine($"  {s,-8} {group.Count,7:N0}   dont même foyer aujourd'hui : {group.Count(l => l.SameHouseholdNow),7:N0}");
+            }
+            sb.AppendLine();
+            sb.AppendLine("Indices rencontrés (un lien peut en cumuler plusieurs) :");
+            void Line(string label, Func<PatientLink, bool> test) => sb.AppendLine($"  {label,-45} {r.Links.Count(test),7:N0}");
+            Line("même numéro d'assuré (NoSS)", l => l.SharedNoSS);
+            Line("RDV pris à la même minute", l => l.BookedTogetherDays > 0);
+            Line("arrivés ensemble", l => l.ArrivedTogetherDays > 0);
+            Line("venus ensemble au moins 2 fois", l => l.CovisitDays >= 2);
+            Line("venus ensemble une seule fois", l => l.CovisitDays == 1);
+            Line("même téléphone ou mail actuel", l => l.SharedContactNow);
+            Line("téléphone ou mail commun seulement par le passé", l => !l.SharedContactNow && (l.SharedPhoneEver || l.SharedEmailEver));
+            Line("NoSS commun, sans venue commune depuis 3 ans", l => l.SharedNoSS && !l.SameHouseholdNow);
+            sb.AppendLine($"  Téléphones collectifs ignorés (plus de {FamilyScanner.CollectiveThreshold} patients) : {r.CollectivePhones:N0} ; mails collectifs : {r.CollectiveEmails:N0}");
+            sb.AppendLine();
+
+            sb.AppendLine("Familles « même foyer aujourd'hui » :");
+            sb.AppendLine($"  {r.Families.Count:N0} familles, {r.Families.Sum(f => f.Members.Count):N0} patients regroupés.");
+            foreach (var size in r.Families.GroupBy(f => Math.Min(f.Members.Count, 7)).OrderBy(g => g.Key))
+                sb.AppendLine($"  {(size.Key >= 7 ? "7 personnes ou plus" : size.Key + " personnes"),-22} {size.Count(),6:N0}");
+            sb.AppendLine($"  À vérifier : {r.Families.Count(f => f.ToReview):N0} (chaîne sans lien direct : {r.Families.Count(f => f.HasChain):N0}, plus de 6 personnes : {r.Families.Count(f => f.Members.Count > 6):N0}, lien faible : {r.Families.Count(f => f.Weakest < LinkStrength.Moyenne):N0})");
+            sb.AppendLine();
+
+            sb.AppendLine("Exemples de liens à examiner (anonymes) :");
+            var examples = r.Links.Where(l => l.Strength == LinkStrength.Moyenne).Take(10)
+                .Concat(r.Links.Where(l => l.SharedNoSS && !l.SameHouseholdNow).Take(5))
+                .Concat(r.Links.Where(l => l.Strength == LinkStrength.Faible).Take(5)).ToList();
+            for (int i = 0; i < examples.Count; i++)
+                sb.AppendLine($"  Lien {i + 1} — {examples[i].Strength}{(examples[i].SameHouseholdNow ? ", même foyer" : "")} : {examples[i].Reasons}");
+            return sb.ToString();
+        }
+
+        /// <summary>Détail nominatif (à garder au cabinet) : une ligne par membre de famille, puis les liens à vérifier.</summary>
+        public static string DetailCsv(ScanResult r)
+        {
+            static string Cell(string v) => "\"" + (v ?? string.Empty).Replace("\"", "\"\"") + "\"";
+            var sb = new StringBuilder();
+            sb.AppendLine("Famille;À vérifier;Code patient;Nom;Dernière venue;Téléphones actuels;Mails actuels;Liens dans la famille");
+            var byPatient = r.Links.Where(l => l.SameHouseholdNow).SelectMany(l => new[] { (Id: l.A, Link: l), (Id: l.B, Link: l) })
+                .ToLookup(x => x.Id, x => x.Link);
+            foreach (var f in r.Families)
+                foreach (var id in f.Members)
+                {
+                    var p = r.PatientsById[id];
+                    var reasons = byPatient[id].Where(l => f.Members.Contains(l.A == id ? l.B : l.A))
+                        .Select(l => $"avec {(l.A == id ? l.B : l.A)} : {l.Reasons}");
+                    sb.AppendLine(string.Join(";", new[]
+                    {
+                        f.Number.ToString(CultureInfo.InvariantCulture), f.ToReview ? "oui" : "", id.ToString(CultureInfo.InvariantCulture),
+                        p.Name, p.LastSeen.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
+                        string.Join(" ", p.Phones), string.Join(" ", p.Emails), string.Join(" | ", reasons)
+                    }.Select(Cell)));
+                }
+            return sb.ToString();
+        }
+
+        private static string Pct(int part, int total) => total == 0 ? "-" : (100.0 * part / total).ToString("0", CultureInfo.InvariantCulture) + "%";
+    }
+}

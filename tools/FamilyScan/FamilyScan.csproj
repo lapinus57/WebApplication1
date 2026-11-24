@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Le pilote Access (ACE) doit avoir la même architecture que le programme : x86 pour Office 32 bits. -->
+    <Platforms>x86;x64</Platforms>
+    <PlatformTarget Condition="'$(Platform)' == 'x64'">x64</PlatformTarget>
+    <PlatformTarget Condition="'$(PlatformTarget)' == ''">x86</PlatformTarget>
+    <AssemblyName>FamilyScan</AssemblyName>
+    <RootNamespace>FamilyScan</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Shared\ReadOnlyAccess.cs" Link="ReadOnlyAccess.cs" />
+    <Compile Include="..\..\Shared\Families\*.cs" LinkBase="Families" />
+    <PackageReference Include="System.Data.OleDb" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

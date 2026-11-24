@@ -9,6 +9,7 @@ on:
       - 'Shared/**'
       - 'tests/**'
       - 'tools/MdbCompare/**'
+      - 'tools/FamilyScan/**'
       - 'relay/**'
       - '.github/workflows/windows-client.yml'
   pull_request:
@@ -25,6 +26,8 @@ on:
       - 'tests/Client.Configuration/**'
       - 'tests/MdbCompare.Tests/**'
       - 'tests/Server.Deployment/**'
+      - 'tests/FamilyScan.Tests/**'
+      - 'tools/FamilyScan/**'
       - 'tools/MdbCompare/**'
       - 'relay/**'
       - '.github/workflows/windows-client.yml'
@@ -61,6 +64,10 @@ jobs:
       - name: Verify that a server update keeps appsettings.json, certificate and data
         shell: pwsh
         run: ./tests/Server.Deployment/Test-CopyRelease.ps1
+      - name: Verify family reconstruction from the appointment history
+        run: dotnet run --project tests/FamilyScan.Tests --configuration Release
+      - name: Compile family reconstruction tool (x86)
+        run: dotnet build tools/FamilyScan/FamilyScan.csproj --configuration Release -p:Platform=x86
       - name: Verify Access database comparison tool
         run: dotnet run --project tests/MdbCompare.Tests --configuration Release
       - name: Compile Access database comparison tool (x86)
