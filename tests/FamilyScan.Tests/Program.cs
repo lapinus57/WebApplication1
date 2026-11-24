@@ -74,6 +74,12 @@ Row(60, new(2026, 7, 1), 9, 0, "UN", "A", "", "0604000060", "a60@example.fr"); R
 Row(61, new(2026, 7, 2), 9, 0, "DEUX", "B", "", "0604000060", "b61@example.fr"); Row(62, new(2026, 7, 2), 9, 15, "TROIS", "C", "", "0604000062", "b61@example.fr");
 Row(62, new(2026, 7, 3), 9, 0, "TROIS", "C", "", "0604000062", "b61@example.fr"); Row(63, new(2026, 7, 3), 9, 15, "QUATRE", "D", "", "0604000062", "d63@example.fr");
 
+// Portable de la grand-mère noté sur les fiches de deux foyers (même nom, adresses différentes, jamais venus ensemble)
+// → lien, mais pas même foyer.
+Row(80, new(2026, 1, 5), 9, 0, "MAMIE", "Rose", "1 rue M", "0607000080"); Row(81, new(2026, 2, 9), 14, 0, "MAMIE", "Léo", "8 rue N", "0607000080");
+// Même téléphone, même nom ET même adresse, jamais venus ensemble → même foyer.
+Row(82, new(2026, 1, 6), 9, 0, "MAISON", "Ana", "3 rue O", "0607000082"); Row(83, new(2026, 3, 9), 15, 0, "MAISON", "Eva", "3 rue O", "0607000082");
+
 // Rendez-vous annulé : ne compte pas comme venue commune.
 Row(14, new(2026, 2, 2), 9, 0, "ANNUL", "A", "8 rue F", created: new(2026, 1, 1, 9, 0, 0));
 Row(15, new(2026, 2, 2), 9, 15, "ANNUL", "B", "8 rue F", created: new(2026, 1, 1, 9, 0, 0), cancelled: true);
@@ -98,6 +104,8 @@ Check(Enumerable.Range(40, 6).All(a => Enumerable.Range(40, 6).All(b => a >= b |
 Check(L(30, 31) == null, "Arrivés à la même heure sans autre indice (habitués du créneau) : aucun lien");
 var longChain = result.Families.Single(f => f.Members.Contains(60));
 Check(longChain.Members.Count == 4 && longChain.HasChain && longChain.ToReview, "Chaîne A–B–C–D : à vérifier");
+Check(L(80, 81) is { Strength: LinkStrength.Forte, SharedContactNow: true, SameHouseholdNow: false }, "Téléphone commun seul (autre adresse, jamais venus ensemble) : lié, pas même foyer");
+Check(L(82, 83) is { SameHouseholdNow: true }, "Même téléphone, même nom, même adresse : même foyer");
 var rose = result.Families.Single(f => f.Members.Contains(50));
 Check(rose.Members.Count == 4 && !rose.HasChain && !rose.ToReview, "Parent relié à chaque enfant : famille de 4 non signalée");
 Check(L(14, 15) == null || L(14, 15)!.CovisitDays == 0, "Annulation : pas de venue commune");

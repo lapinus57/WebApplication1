@@ -318,7 +318,11 @@ namespace EyeChat.Families
                 l.Strength = 0;
 
             var recent = l.LastCovisit is { } last && end - last <= RecentPeriod;
-            l.SameHouseholdNow = l.Strength >= LinkStrength.Moyenne && (l.SharedContactNow || recent);
+            // Un téléphone ou mail actuel commun, sans même adresse ni aucune venue commune, est souvent celui d'un
+            // grand-parent noté sur les fiches de plusieurs foyers (mesuré : groupes de 13 à 17 personnes). Il lie, mais
+            // ne fait pas un foyer ; les rappels du jour regroupent de toute façon les personnes d'un même contact.
+            var contactHousehold = l.SharedContactNow && (l.SameAddressNow || l.CovisitDays > 0);
+            l.SameHouseholdNow = l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent);
             l.AgendaHouseholdNow = l.SameHouseholdNow;
 
             // Carte Vitale : lien déclaré, donc fort. Rattachement en cours de conjoints ou d'enfants de moins de 20 ans
@@ -329,7 +333,7 @@ namespace EyeChat.Families
                 l.Strength = LinkStrength.Forte;
                 if (l.VitaleSeparated) l.SameHouseholdNow = false;
                 else if (l.VitaleCurrent && l.VitaleHousehold) l.SameHouseholdNow = true;
-                else l.SameHouseholdNow = l.SharedContactNow || recent;
+                else l.SameHouseholdNow = contactHousehold || recent;
             }
 
             var reasons = new List<string>();
