@@ -53,11 +53,18 @@ Row(12, new(2026, 4, 1), 9, 15, "LOUP", "B", "", "0602000011", "chaine2@example.
 Row(12, new(2026, 5, 6), 14, 0, "LOUP", "B", "", "0602000011", "chaine2@example.fr", created: new(2026, 4, 2, 10, 0, 0));
 Row(13, new(2026, 5, 6), 14, 15, "RENARD", "C", "", "0602000013", "conjointe : chaine2@example.fr", created: new(2026, 4, 9, 16, 0, 0));
 
+// Habitués du même créneau : arrivés à la même heure 3 fois, sans aucun autre point commun → aucun lien.
+foreach (var d in new[] { new DateTime(2015, 3, 2), new DateTime(2016, 3, 7), new DateTime(2017, 3, 6) })
+{
+    Row(30, d, 9, 0, "GAMMA", "G", "12 rue G", "0600000030", created: d.AddDays(-30).AddHours(9), arrivalHour: 8, arrivalMinute: 55);
+    Row(31, d, 9, 15, "DELTA", "D", "13 rue H", "0600000031", created: d.AddDays(-20).AddHours(15), arrivalHour: 8, arrivalMinute: 58);
+}
+
 // Rendez-vous annulé : ne compte pas comme venue commune.
 Row(14, new(2026, 2, 2), 9, 0, "ANNUL", "A", "8 rue F", created: new(2026, 1, 1, 9, 0, 0));
 Row(15, new(2026, 2, 2), 9, 15, "ANNUL", "B", "8 rue F", created: new(2026, 1, 1, 9, 0, 0), cancelled: true);
 
-var scanner = new FamilyScanner();
+var scanner = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
 foreach (var row in rows.OrderBy(r => r.Day).ThenBy(r => r.Time)) scanner.Add(row);
 var result = scanner.Finish();
 PatientLink? L(int a, int b) => result.Links.FirstOrDefault(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
@@ -72,11 +79,27 @@ Check(Enumerable.Range(20, 8).All(a => Enumerable.Range(20, 8).All(b => a >= b |
 Check(L(11, 13) == null && L(11, 12) != null && L(12, 13) != null, "Chaîne : pas de lien direct entre les extrémités");
 var chain = result.Families.Single(f => f.Members.Contains(11));
 Check(chain.Members.SequenceEqual(new[] { 11, 12, 13 }) && chain.HasChain && chain.ToReview, "Chaîne regroupée mais marquée à vérifier");
+Check(L(30, 31) == null, "Arrivés à la même heure sans autre indice (habitués du créneau) : aucun lien");
 Check(L(14, 15) == null || L(14, 15)!.CovisitDays == 0, "Annulation : pas de venue commune");
 Check(result.Families.Single(f => f.Members.Contains(1)).Members.SequenceEqual(new[] { 1, 2 }), "Famille MARTIN");
 Check(!result.Families.Any(f => f.Members.Contains(3)), "Parenté ancienne : pas de famille pour les rappels");
 Check(result.PatientsById[1].Phones.SetEquals(new[] { "0612000001" }), "Coordonnées les plus récentes");
 Check(result.Years.Single(y => y.Year == 2003).WithNoSS == 2 && result.Years.Single(y => y.Year == 2026).WithCreated > 0, "Statistiques par année");
+
+// RDV futurs : « récent » se compte depuis aujourd'hui, pas depuis le dernier RDV de l'agenda (2028).
+var future = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+future.Add(new ScanRow(70, new DateTime(2024, 1, 10), new DateTime(2024, 1, 10, 9, 0, 0), null, null, "", "OMEGA", "", "A", "", "", new[] { "0600000070" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(71, new DateTime(2024, 1, 10), new DateTime(2024, 1, 10, 9, 15, 0), null, null, "", "OMEGA", "", "B", "", "", new[] { "0600000071" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(70, new DateTime(2024, 6, 10), new DateTime(2024, 6, 10, 9, 0, 0), null, null, "", "OMEGA", "", "A", "", "", new[] { "0600000070" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(71, new DateTime(2024, 6, 10), new DateTime(2024, 6, 10, 9, 15, 0), null, null, "", "OMEGA", "", "B", "", "", new[] { "0600000071" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(99, new DateTime(2028, 7, 8), new DateTime(2028, 7, 8, 9, 0, 0), null, null, "", "FUTUR", "", "Z", "", "", Array.Empty<string>(), Array.Empty<string>(), false));
+var futureResult = future.Finish();
+var stale = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+foreach (var row in new[] { (70, 2020, 9, 0), (71, 2020, 9, 15), (70, 2021, 9, 0), (71, 2021, 9, 15) })
+    stale.Add(new ScanRow(row.Item1, new DateTime(row.Item2, 3, 1), new DateTime(row.Item2, 3, 1, row.Item3, row.Item4, 0), null, null, "", "OMEGA", "", "A", "", "", new[] { "06000000" + row.Item1 }, Array.Empty<string>(), false));
+stale.Add(new ScanRow(99, new DateTime(2028, 7, 8), new DateTime(2028, 7, 8, 9, 0, 0), null, null, "", "FUTUR", "", "Z", "", "", Array.Empty<string>(), Array.Empty<string>(), false));
+Check(stale.Finish().Links.Single(l => l.A == 70) is { Strength: LinkStrength.Moyenne, SameHouseholdNow: false }, "Venus ensemble en 2021 seulement : plus le même foyer aujourd'hui (2028 n'est pas « aujourd'hui »)");
+Check(futureResult.Links.Single(l => l.A == 70) is { Strength: LinkStrength.Moyenne, SameHouseholdNow: true }, "Venus ensemble en 2024 : récent par rapport à aujourd'hui malgré des RDV en 2028");
 
 try { var s2 = new FamilyScanner(); s2.Add(rows[2]); s2.Add(rows[0]); Check(false, "Ordre chronologique exigé"); }
 catch (InvalidOperationException) { checks++; }

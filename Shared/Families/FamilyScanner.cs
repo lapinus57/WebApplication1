@@ -187,7 +187,9 @@ namespace EyeChat.Families
                     && Math.Abs((va.Arrival.Value.TimeOfDay - vb.Arrival.Value.TimeOfDay).TotalMinutes) <= ArrivedTogetherMinutes;
                 var near = va.Time.HasValue && vb.Time.HasValue && Math.Abs((va.Time.Value - vb.Time.Value).TotalMinutes) <= CovisitWindowMinutes;
                 // Deux inconnus peuvent avoir des créneaux voisins par hasard : il faut en plus un indice d'identité ou de réservation.
-                var clue = booked || arrived || SameNoSS(va, vb) || Shares(va.Phones, vb.Phones, NormalizePhone) || Shares(va.Emails, vb.Emails, NormalizeEmail)
+                // L'heure d'arrivée seule n'en est pas un : dans un cabinet chargé, beaucoup de patients arrivent
+                // dans les mêmes minutes (mesuré : 660 000 paires « arrivées ensemble »). Elle ne fait que renforcer.
+                var clue = booked || SameNoSS(va, vb) || Shares(va.Phones, vb.Phones, NormalizePhone) || Shares(va.Emails, vb.Emails, NormalizeEmail)
                     || SurnameTokens(va.Surname, va.MaidenName).Overlaps(SurnameTokens(vb.Surname, vb.MaidenName))
                     || (NormalizeAddress(va.Address, va.City) is { Length: > 0 } ad && ad == NormalizeAddress(vb.Address, vb.City));
                 if (!clue || !(near || booked)) continue;
@@ -206,10 +208,13 @@ namespace EyeChat.Families
         private static bool Shares(IEnumerable<string> a, IEnumerable<string> b, Func<string, string> normalize)
             => a.Select(normalize).Where(x => x.Length > 0).Intersect(b.Select(normalize).Where(x => x.Length > 0)).Any();
 
+        /// <summary>Date de référence pour « récent » : aujourd'hui (l'agenda contient des RDV futurs).</summary>
+        public DateTime Today { get; set; } = DateTime.Today;
+
         public ScanResult Finish()
         {
             FlushDay();
-            var end = _lastDay ?? DateTime.Today;
+            var end = _lastDay is { } lastDay && lastDay < Today ? lastDay : Today;
 
             // NoSS commun : lien, avec la période où il a été constaté. Le numéro lui-même n'est pas conservé.
             foreach (var owners in _noss.Values.Where(o => o.Count is > 1 and <= CollectiveThreshold))
@@ -269,7 +274,7 @@ namespace EyeChat.Families
         public static void Classify(PatientLink l, DateTime end)
         {
             var contactEver = l.SharedPhoneEver || l.SharedEmailEver;
-            if (l.SharedNoSS || (l.BookedTogetherDays >= 1 && l.CovisitDays >= 1) || l.ArrivedTogetherDays >= 2
+            if (l.SharedNoSS || (l.BookedTogetherDays >= 1 && l.CovisitDays >= 1) || (l.ArrivedTogetherDays >= 2 && l.CovisitDays >= 2)
                 || (l.CovisitDays >= 2 && contactEver) || (l.SharedContactNow && (l.SameSurname || l.SameAddressNow)))
                 l.Strength = LinkStrength.Forte;
             else if (l.CovisitDays >= 2 || (l.CovisitDays >= 1 && contactEver) || (contactEver && l.SameSurname))

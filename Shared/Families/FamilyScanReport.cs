@@ -51,6 +51,20 @@ namespace EyeChat.Families
             sb.AppendLine($"  À vérifier : {r.Families.Count(f => f.ToReview):N0} (chaîne sans lien direct : {r.Families.Count(f => f.HasChain):N0}, plus de 6 personnes : {r.Families.Count(f => f.Members.Count > 6):N0}, lien faible : {r.Families.Count(f => f.Weakest < LinkStrength.Moyenne):N0})");
             sb.AppendLine();
 
+            sb.AppendLine("Exemples de familles à vérifier (anonymes : taille et liens internes) :");
+            var household = r.Links.Where(l => l.SameHouseholdNow).ToList();
+            var byPatient = household.SelectMany(l => new[] { (Id: l.A, Link: l), (Id: l.B, Link: l) }).ToLookup(x => x.Id, x => x.Link);
+            foreach (var family in r.Families.Where(f => f.ToReview).OrderByDescending(f => f.Members.Count).Take(5)
+                .Concat(r.Families.Where(f => f.HasChain && f.Members.Count <= 4).Take(5)))
+            {
+                var members = family.Members.ToHashSet();
+                var inside = family.Members.SelectMany(id => byPatient[id]).Distinct().Where(l => members.Contains(l.A) && members.Contains(l.B)).ToList();
+                sb.AppendLine($"  {family.Members.Count} personnes, {inside.Count} liens directs sur {family.Members.Count * (family.Members.Count - 1) / 2} possibles :");
+                foreach (var reason in inside.GroupBy(l => l.Reasons).OrderByDescending(g => g.Count()).Take(4))
+                    sb.AppendLine($"      {reason.Count()} × {reason.Key}");
+            }
+            sb.AppendLine();
+
             sb.AppendLine("Exemples de liens à examiner (anonymes) :");
             var examples = r.Links.Where(l => l.Strength == LinkStrength.Moyenne).Take(10)
                 .Concat(r.Links.Where(l => l.SharedNoSS && !l.SameHouseholdNow).Take(5))
