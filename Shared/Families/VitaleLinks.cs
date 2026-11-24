@@ -115,17 +115,17 @@ namespace EyeChat.Families
 
         /// <summary>
         /// Lit l'export CSV de la requête Vitale (en-tête : PAT_ID, NOM, NOM_NAISSANCE, PRENOM, NAISSANCE, CARTE, QUALITE,
-        /// ACTIVE, CREATION, FIN_VALIDITE). Séparateur « , » ou « ; », guillemets acceptés.
+        /// ACTIF, CREATION, FIN_VALIDITE ; « ACTIVE » est un mot réservé de Firebird). Séparateur « , » ou « ; », guillemets acceptés.
         /// </summary>
         public static List<VitaleRow> ReadCsv(TextReader reader)
         {
             var header = reader.ReadLine() ?? throw new InvalidDataException("Export Vitale vide.");
             var separator = header.Count(c => c == ';') > header.Count(c => c == ',') ? ';' : ',';
             var names = SplitCsv(header, separator).Select(n => n.Trim().Trim('﻿').ToUpperInvariant()).ToList();
-            int Col(string name) => names.IndexOf(name) is var i and >= 0 ? i
-                : throw new InvalidDataException($"Colonne « {name} » absente de l'export Vitale. Colonnes : {string.Join(", ", names)}. Utilisez la requête fournie.");
+            int Col(params string[] accepted) => accepted.Select(a => names.IndexOf(a)).FirstOrDefault(i => i >= 0, -1) is var i and >= 0 ? i
+                : throw new InvalidDataException($"Colonne « {accepted[0]} » absente de l'export Vitale. Colonnes : {string.Join(", ", names)}. Utilisez la requête fournie.");
             int id = Col("PAT_ID"), nom = Col("NOM"), naissanceNom = Col("NOM_NAISSANCE"), prenom = Col("PRENOM"), naissance = Col("NAISSANCE"),
-                carte = Col("CARTE"), qualite = Col("QUALITE"), active = Col("ACTIVE"), creation = Col("CREATION"), fin = Col("FIN_VALIDITE");
+                carte = Col("CARTE"), qualite = Col("QUALITE"), active = Col("ACTIF", "ACTIVE"), creation = Col("CREATION"), fin = Col("FIN_VALIDITE");
             var rows = new List<VitaleRow>();
             string? line;
             while ((line = reader.ReadLine()) != null)
