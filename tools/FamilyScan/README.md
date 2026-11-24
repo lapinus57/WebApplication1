@@ -13,7 +13,10 @@ c'est un outil de **mesure**, avant d'intégrer la base des familles au serveur 
 | fin 2007 → aujourd'hui | en plus : **RDV pris à la même minute** (« Pris le ») et **arrivés ensemble** (« Arrivé à ») |
 
 Deux personnes à des créneaux voisins ne sont liées que si un autre indice les rapproche (même NoSS, même
-réservation, même arrivée, téléphone, mail, nom ou adresse). Une même adresse seule ne suffit jamais. Un
+réservation, téléphone, mail, nom ou adresse). L'heure d'arrivée seule ne suffit pas (beaucoup de patients
+arrivent dans les mêmes minutes), et un RDV pris à la même minute **une seule fois**, sans nom, adresse ni contact
+commun, reste un lien faible (report de RDV en série). Une famille est « à vérifier » si deux membres sont à trois
+liens ou plus l'un de l'autre, si elle compte plus de 6 personnes, ou si un lien est faible. Une même adresse seule ne suffit jamais. Un
 téléphone ou un mail présent chez plus de 6 patients (EHPAD, foyer, taxi…) est ignoré.
 
 Pour chaque paire, l'outil donne une **force** (forte / moyenne / faible) et sa **raison**, sans nommer la

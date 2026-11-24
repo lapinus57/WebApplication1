@@ -274,7 +274,11 @@ namespace EyeChat.Families
         public static void Classify(PatientLink l, DateTime end)
         {
             var contactEver = l.SharedPhoneEver || l.SharedEmailEver;
-            if (l.SharedNoSS || (l.BookedTogetherDays >= 1 && l.CovisitDays >= 1) || (l.ArrivedTogetherDays >= 2 && l.CovisitDays >= 2)
+            // RDV pris à la même minute : fort s'il se répète, ou s'il s'ajoute à un nom, une adresse ou un contact commun.
+            // Une seule fois sans rien d'autre peut venir d'un report de RDV en série (mesuré : familles de 21 « personnes »).
+            var identity = l.SameSurname || l.SameAddressNow || contactEver;
+            if (l.SharedNoSS || l.BookedTogetherDays >= 2 || (l.BookedTogetherDays >= 1 && l.CovisitDays >= 1 && identity)
+                || (l.ArrivedTogetherDays >= 2 && l.CovisitDays >= 2)
                 || (l.CovisitDays >= 2 && contactEver) || (l.SharedContactNow && (l.SameSurname || l.SameAddressNow)))
                 l.Strength = LinkStrength.Forte;
             else if (l.CovisitDays >= 2 || (l.CovisitDays >= 1 && contactEver) || (contactEver && l.SameSurname))
@@ -317,13 +321,38 @@ namespace EyeChat.Families
                 family.Members.AddRange(group.OrderBy(x => x));
                 var internalLinks = household.Where(l => group.Contains(l.A) && group.Contains(l.B)).ToList();
                 family.Weakest = internalLinks.Min(l => l.Strength);
-                var n = family.Members.Count;
-                family.HasChain = n >= 3 && internalLinks.Count < n * (n - 1) / 2;
+                // Chaîne : deux membres à trois liens ou plus l'un de l'autre (A–B, B–C, C–D, rien entre A et D).
+                // Un parent relié à chacun de ses enfants (distance 2) est une famille normale.
+                family.HasChain = Diameter(family.Members, internalLinks) >= 3;
                 families.Add(family);
             }
             families = families.OrderByDescending(f => f.Members.Count).ThenBy(f => f.Members[0]).ToList();
             for (int i = 0; i < families.Count; i++) families[i].Number = i + 1;
             return families;
+        }
+
+        private static int Diameter(IReadOnlyList<int> members, IReadOnlyList<PatientLink> links)
+        {
+            if (members.Count < 4) return members.Count - 1;
+            var neighbours = members.ToDictionary(m => m, _ => new List<int>());
+            foreach (var l in links) { neighbours[l.A].Add(l.B); neighbours[l.B].Add(l.A); }
+            int diameter = 0;
+            foreach (var start in members)
+            {
+                var distance = new Dictionary<int, int> { [start] = 0 };
+                var queue = new Queue<int>(new[] { start });
+                while (queue.Count > 0)
+                {
+                    var current = queue.Dequeue();
+                    foreach (var next in neighbours[current].Where(n => !distance.ContainsKey(n)))
+                    {
+                        distance[next] = distance[current] + 1;
+                        queue.Enqueue(next);
+                    }
+                }
+                diameter = Math.Max(diameter, distance.Values.Max());
+            }
+            return diameter;
         }
 
         // ---------- Normalisations ----------

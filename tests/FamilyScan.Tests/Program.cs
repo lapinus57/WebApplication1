@@ -60,6 +60,20 @@ foreach (var d in new[] { new DateTime(2015, 3, 2), new DateTime(2016, 3, 7), ne
     Row(31, d, 9, 15, "DELTA", "D", "13 rue H", "0600000031", created: d.AddDays(-20).AddHours(15), arrivalHour: 8, arrivalMinute: 58);
 }
 
+// Report de RDV en série : 6 patients sans rapport recréés à la même minute, à des créneaux voisins → pas de famille.
+for (int i = 0; i < 6; i++) Row(40 + i, new DateTime(2027, 2, 3), 14, i * 15, "SERIE" + (char)('A' + i), "X", $"{i} rue S", "060000004" + i, created: new DateTime(2026, 11, 20, 16, 12, i * 5));
+
+// Famille de 4 : un parent relié à chacun (distance 2 entre enfants) → normale, pas « à vérifier ».
+Row(50, new(2026, 6, 1), 9, 0, "ROSE", "Mère", "4 rue R", "0603000050", created: new(2026, 5, 1, 9, 0, 0));
+Row(51, new(2026, 6, 1), 9, 15, "ROSE", "E1", "4 rue R", "0603000050", created: new(2026, 5, 1, 9, 0, 10));
+Row(52, new(2026, 6, 8), 9, 0, "ROSE", "Mère", "4 rue R", "0603000050", created: new(2026, 5, 2, 9, 0, 0));
+Row(53, new(2026, 6, 8), 9, 15, "ROSE", "E2", "4 rue R", "0603000050", created: new(2026, 5, 2, 9, 0, 10));
+
+// Vraie chaîne longue : A–B (téléphone), B–C (mail), C–D (téléphone), rien d'autre → à vérifier.
+Row(60, new(2026, 7, 1), 9, 0, "UN", "A", "", "0604000060", "a60@example.fr"); Row(61, new(2026, 7, 1), 9, 15, "DEUX", "B", "", "0604000060", "b61@example.fr");
+Row(61, new(2026, 7, 2), 9, 0, "DEUX", "B", "", "0604000060", "b61@example.fr"); Row(62, new(2026, 7, 2), 9, 15, "TROIS", "C", "", "0604000062", "b61@example.fr");
+Row(62, new(2026, 7, 3), 9, 0, "TROIS", "C", "", "0604000062", "b61@example.fr"); Row(63, new(2026, 7, 3), 9, 15, "QUATRE", "D", "", "0604000062", "d63@example.fr");
+
 // Rendez-vous annulé : ne compte pas comme venue commune.
 Row(14, new(2026, 2, 2), 9, 0, "ANNUL", "A", "8 rue F", created: new(2026, 1, 1, 9, 0, 0));
 Row(15, new(2026, 2, 2), 9, 15, "ANNUL", "B", "8 rue F", created: new(2026, 1, 1, 9, 0, 0), cancelled: true);
@@ -78,8 +92,14 @@ Check(L(9, 10) is { Strength: LinkStrength.Forte, SameHouseholdNow: true }, "RDV
 Check(Enumerable.Range(20, 8).All(a => Enumerable.Range(20, 8).All(b => a >= b || L(a, b) == null)) && result.CollectivePhones == 1, "Numéro collectif ignoré");
 Check(L(11, 13) == null && L(11, 12) != null && L(12, 13) != null, "Chaîne : pas de lien direct entre les extrémités");
 var chain = result.Families.Single(f => f.Members.Contains(11));
-Check(chain.Members.SequenceEqual(new[] { 11, 12, 13 }) && chain.HasChain && chain.ToReview, "Chaîne regroupée mais marquée à vérifier");
+Check(chain.Members.SequenceEqual(new[] { 11, 12, 13 }) && !chain.HasChain, "Trois personnes A–B–C : famille normale");
+Check(Enumerable.Range(40, 6).All(a => Enumerable.Range(40, 6).All(b => a >= b || L(a, b) is null or { SameHouseholdNow: false })) && !result.Families.Any(f => f.Members.Contains(40)),
+    "Report de RDV en série (même minute, rien d'autre en commun) : pas de famille");
 Check(L(30, 31) == null, "Arrivés à la même heure sans autre indice (habitués du créneau) : aucun lien");
+var longChain = result.Families.Single(f => f.Members.Contains(60));
+Check(longChain.Members.Count == 4 && longChain.HasChain && longChain.ToReview, "Chaîne A–B–C–D : à vérifier");
+var rose = result.Families.Single(f => f.Members.Contains(50));
+Check(rose.Members.Count == 4 && !rose.HasChain && !rose.ToReview, "Parent relié à chaque enfant : famille de 4 non signalée");
 Check(L(14, 15) == null || L(14, 15)!.CovisitDays == 0, "Annulation : pas de venue commune");
 Check(result.Families.Single(f => f.Members.Contains(1)).Members.SequenceEqual(new[] { 1, 2 }), "Famille MARTIN");
 Check(!result.Families.Any(f => f.Members.Contains(3)), "Parenté ancienne : pas de famille pour les rappels");
