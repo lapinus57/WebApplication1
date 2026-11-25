@@ -22,7 +22,9 @@ téléphone ou un mail présent chez plus de 6 patients (EHPAD, foyer, taxi…) 
 Pour chaque paire, l'outil donne une **force** (forte / moyenne / faible) et sa **raison**, sans nommer la
 relation (conjoint, enfant…). **Même foyer aujourd'hui** = lien au moins moyen **et** venue commune depuis
 moins de 3 ans, ou téléphone / mail actuel commun avec la même adresse ou une venue commune (un téléphone commun
-seul est souvent celui d'un grand-parent noté sur plusieurs foyers : il lie sans faire un foyer). Une parenté ancienne (NoSS commun en 2003, jamais revenus
+seul est souvent celui d'un grand-parent noté sur plusieurs foyers : il lie sans faire un foyer). **Confidentialité** : sans aucun indice d'identité commun (nom, adresse, téléphone ou mail, NoSS, carte Vitale), des
+personnes qui réservent et viennent ensemble (résidents d'un EHPAD, voisins, amis) restent liées mais ne forment
+jamais un foyer : les regrouper annoncerait le RDV de l'une au contact de l'autre. Une parenté ancienne (NoSS commun en 2003, jamais revenus
 ensemble) reste un lien, mais ne regroupe pas les rappels.
 
 ## Données sensibles

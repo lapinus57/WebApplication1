@@ -80,6 +80,13 @@ Row(80, new(2026, 1, 5), 9, 0, "MAMIE", "Rose", "1 rue M", "0607000080"); Row(81
 // Même téléphone, même nom ET même adresse, jamais venus ensemble → même foyer.
 Row(82, new(2026, 1, 6), 9, 0, "MAISON", "Ana", "3 rue O", "0607000082"); Row(83, new(2026, 3, 9), 15, 0, "MAISON", "Eva", "3 rue O", "0607000082");
 
+// Résidents d'un EHPAD réservés et venus ensemble 3 fois, sans nom, adresse ni contact commun → liés, pas même foyer.
+foreach (var d in new[] { new DateTime(2025, 2, 3), new DateTime(2025, 9, 8), new DateTime(2026, 4, 6) })
+{
+    Row(85, d, 10, 0, "RESA", "A", "Chambre 12", "0608000085", created: d.AddDays(-40).AddHours(14), arrivalHour: 9, arrivalMinute: 40);
+    Row(86, d, 10, 15, "RESB", "B", "Chambre 14", "0608000086", created: d.AddDays(-40).AddHours(14).AddSeconds(30), arrivalHour: 9, arrivalMinute: 41);
+}
+
 // Rendez-vous annulé : ne compte pas comme venue commune.
 Row(14, new(2026, 2, 2), 9, 0, "ANNUL", "A", "8 rue F", created: new(2026, 1, 1, 9, 0, 0));
 Row(15, new(2026, 2, 2), 9, 15, "ANNUL", "B", "8 rue F", created: new(2026, 1, 1, 9, 0, 0), cancelled: true);
@@ -105,6 +112,7 @@ Check(L(30, 31) == null, "Arrivés à la même heure sans autre indice (habitué
 var longChain = result.Families.Single(f => f.Members.Contains(60));
 Check(longChain.Members.Count == 4 && longChain.HasChain && longChain.ToReview, "Chaîne A–B–C–D : à vérifier");
 Check(L(80, 81) is { Strength: LinkStrength.Forte, SharedContactNow: true, SameHouseholdNow: false }, "Téléphone commun seul (autre adresse, jamais venus ensemble) : lié, pas même foyer");
+Check(L(85, 86) is { Strength: LinkStrength.Forte, SameHouseholdNow: false }, "Réservés et venus ensemble sans aucun indice d'identité : liés, jamais même foyer (confidentialité)");
 Check(L(82, 83) is { SameHouseholdNow: true }, "Même téléphone, même nom, même adresse : même foyer");
 var rose = result.Families.Single(f => f.Members.Contains(50));
 Check(rose.Members.Count == 4 && !rose.HasChain && !rose.ToReview, "Parent relié à chaque enfant : famille de 4 non signalée");

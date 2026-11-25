@@ -322,7 +322,11 @@ namespace EyeChat.Families
             // grand-parent noté sur les fiches de plusieurs foyers (mesuré : groupes de 13 à 17 personnes). Il lie, mais
             // ne fait pas un foyer ; les rappels du jour regroupent de toute façon les personnes d'un même contact.
             var contactHousehold = l.SharedContactNow && (l.SameAddressNow || l.CovisitDays > 0);
-            l.SameHouseholdNow = l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent);
+            // Confidentialité : regrouper deux personnes, c'est annoncer le RDV de l'une au contact de l'autre.
+            // Sans aucun indice d'identité commun (nom, adresse, contact, NoSS, carte Vitale), des personnes qui viennent
+            // et réservent ensemble (résidents d'un EHPAD, voisins, amis) restent liées mais ne forment pas un foyer.
+            var anyIdentity = identity || l.SharedNoSS || l.VitaleRelation != null;
+            l.SameHouseholdNow = anyIdentity && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent);
             l.AgendaHouseholdNow = l.SameHouseholdNow;
 
             // Carte Vitale : lien déclaré, donc fort. Rattachement en cours de conjoints ou d'enfants de moins de 20 ans
