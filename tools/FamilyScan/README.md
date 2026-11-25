@@ -21,7 +21,7 @@ téléphone ou un mail présent chez plus de 6 patients (EHPAD, foyer, taxi…) 
 
 Pour chaque paire, l'outil donne une **force** (forte / moyenne / faible) et sa **raison**, sans nommer la
 relation (conjoint, enfant…). **Même foyer aujourd'hui** = lien au moins moyen **et** venue commune depuis
-moins de 3 ans, ou téléphone / mail actuel commun avec la même adresse ou une venue commune (un téléphone commun
+moins de 3 ans, ou téléphone / mail actuel commun (« actuel » : les deux patients sont venus depuis moins de 5 ans) avec la même adresse ou une venue commune (un téléphone commun
 seul est souvent celui d'un grand-parent noté sur plusieurs foyers : il lie sans faire un foyer). **Confidentialité** : sans aucun indice d'identité commun (nom, adresse, téléphone ou mail, NoSS, carte Vitale), des
 personnes qui réservent et viennent ensemble (résidents d'un EHPAD, voisins, amis) restent liées mais ne forment
 jamais un foyer : les regrouper annoncerait le RDV de l'une au contact de l'autre. Une parenté ancienne (NoSS commun en 2003, jamais revenus
@@ -95,7 +95,9 @@ n'est regroupé que si l'agenda le confirme (venue commune récente, téléphone
 divorcés ou veufs ne sont plus regroupés.
 
 Aucun numéro n'est commun aux deux logiciels : chaque patient Vitale est rapproché d'un **Code Patient** de l'agenda par
-**date de naissance + premier prénom + nom** (d'usage ou de naissance). En cas d'homonymes, il n'est pas rapproché.
+**date de naissance + prénom + nom** : l'un des prénoms Vitale (liste complète) égal au premier prénom de l'agenda, et
+un nom commun (nom, nom de naissance ou nom d'usage). Des homonymes sont départagés par le sexe (civilité de l'agenda) ;
+sinon, ils ne sont pas rapprochés. Les colonnes `NOM_USUEL`, `PRENOMS`, `SEXE` sont facultatives (anciens exports).
 
 ### 1. Exporter depuis DBeaver
 
@@ -104,7 +106,8 @@ numéro de l'assuré n'est **jamais exporté**, seulement une empreinte (`HASH`)
 la carte.
 
 ```sql
-SELECT p.PAT_ID, p.PAT_NOM AS NOM, p.PAT_NOMNAISSANCE AS NOM_NAISSANCE, p.PAT_PRENOM AS PRENOM,
+SELECT p.PAT_ID, p.PAT_NOM AS NOM, p.PAT_NOMNAISSANCE AS NOM_NAISSANCE, p.PAT_NOMUSUEL AS NOM_USUEL,
+       p.PAT_PRENOM AS PRENOM, p.PAT_LISTEPRENOM AS PRENOMS, p.PAT_SEXE AS SEXE,
        p.PAT_DATEHNAISSANCE AS NAISSANCE, HASH('mot-secret' || TRIM(b.BEN_NUMIMMATRI)) AS CARTE,
        b.BEN_QUALITE AS QUALITE, b.BEN_ISACTIVE AS ACTIF, b.BEN_DATEHCREATION AS CREATION,
        b.BEN_DATEFINVALIDITE AS FIN_VALIDITE

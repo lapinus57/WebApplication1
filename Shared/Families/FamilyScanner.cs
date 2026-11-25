@@ -107,6 +107,11 @@ namespace EyeChat.Families
         /// <summary>Un téléphone ou un mail présent chez plus de patients que cela est collectif (EHPAD, foyer, taxi…).</summary>
         public const int CollectiveThreshold = 6;
         public static readonly TimeSpan RecentPeriod = TimeSpan.FromDays(3 * 365);
+        /// <summary>
+        /// Téléphone, mail et adresse ne sont « actuels » que si les deux patients sont venus depuis moins de 5 ans :
+        /// sinon c'est la coordonnée d'un dossier ancien (patient parti, décédé), pas la preuve d'un foyer aujourd'hui.
+        /// </summary>
+        public static readonly TimeSpan CurrentContactPeriod = TimeSpan.FromDays(5 * 365);
 
         private readonly List<ScanRow> _day = new();
         private DateTime? _currentDay, _firstDay, _lastDay;
@@ -263,7 +268,8 @@ namespace EyeChat.Families
                             var link = Link(list[i], list[j]);
                             if (phone) link.SharedPhoneEver = true; else link.SharedEmailEver = true;
                             var pa = _patients[list[i]]; var pb = _patients[list[j]];
-                            if ((phone ? pa.Phones : pa.Emails).Contains(value) && (phone ? pb.Phones : pb.Emails).Contains(value)) link.SharedContactNow = true;
+                            if ((phone ? pa.Phones : pa.Emails).Contains(value) && (phone ? pb.Phones : pb.Emails).Contains(value)
+                                && SeenRecently(pa, end) && SeenRecently(pb, end)) link.SharedContactNow = true;
                         }
                 }
             }
@@ -286,7 +292,7 @@ namespace EyeChat.Families
             {
                 var pa = _patients[link.A]; var pb = _patients[link.B];
                 link.SameSurname = pa.SurnameTokens.Overlaps(pb.SurnameTokens);
-                link.SameAddressNow = pa.Address.Length > 0 && pa.Address == pb.Address;
+                link.SameAddressNow = pa.Address.Length > 0 && pa.Address == pb.Address && SeenRecently(pa, end) && SeenRecently(pb, end);
                 Classify(link, end);
             }
             var links = _links.Values.Where(l => l.Strength > 0).OrderByDescending(l => l.Strength).ThenBy(l => l.A).ThenBy(l => l.B).ToList();
@@ -298,6 +304,8 @@ namespace EyeChat.Families
                 DeclaredLinks = declared, DeclaredLinksWithoutAgenda = withoutAgenda
             };
         }
+
+        private static bool SeenRecently(PatientInfo p, DateTime end) => end - p.LastSeen <= CurrentContactPeriod;
 
         /// <summary>Force du lien et « même foyer aujourd'hui ». Règles volontairement simples et expliquées.</summary>
         public static void Classify(PatientLink l, DateTime end)

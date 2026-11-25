@@ -87,6 +87,9 @@ foreach (var d in new[] { new DateTime(2025, 2, 3), new DateTime(2025, 9, 8), ne
     Row(86, d, 10, 15, "RESB", "B", "Chambre 14", "0608000086", created: d.AddDays(-40).AddHours(14).AddSeconds(30), arrivalHour: 9, arrivalMinute: 41);
 }
 
+// Coordonnée périmée : même téléphone, même nom, même adresse, mais l'un n'est plus venu depuis 2012 → pas « actuel ».
+Row(87, new(2012, 5, 2), 9, 0, "ANCIEN", "Parti", "6 rue Z", "0609000087"); Row(88, new(2026, 5, 2), 9, 0, "ANCIEN", "Reste", "6 rue Z", "0609000087");
+
 // Rendez-vous annulé : ne compte pas comme venue commune.
 Row(14, new(2026, 2, 2), 9, 0, "ANNUL", "A", "8 rue F", created: new(2026, 1, 1, 9, 0, 0));
 Row(15, new(2026, 2, 2), 9, 15, "ANNUL", "B", "8 rue F", created: new(2026, 1, 1, 9, 0, 0), cancelled: true);
@@ -113,6 +116,7 @@ var longChain = result.Families.Single(f => f.Members.Contains(60));
 Check(longChain.Members.Count == 4 && longChain.HasChain && longChain.ToReview, "Chaîne A–B–C–D : à vérifier");
 Check(L(80, 81) is { Strength: LinkStrength.Forte, SharedContactNow: true, SameHouseholdNow: false }, "Téléphone commun seul (autre adresse, jamais venus ensemble) : lié, pas même foyer");
 Check(L(85, 86) is { Strength: LinkStrength.Forte, SameHouseholdNow: false }, "Réservés et venus ensemble sans aucun indice d'identité : liés, jamais même foyer (confidentialité)");
+Check(L(87, 88) is { SharedContactNow: false, SameAddressNow: false, SameHouseholdNow: false }, "Patient plus venu depuis 2012 : téléphone et adresse ne sont plus « actuels »");
 Check(L(82, 83) is { SameHouseholdNow: true }, "Même téléphone, même nom, même adresse : même foyer");
 var rose = result.Families.Single(f => f.Members.Contains(50));
 Check(rose.Members.Count == 4 && !rose.HasChain && !rose.ToReview, "Parent relié à chaque enfant : famille de 4 non signalée");
@@ -201,6 +205,23 @@ var identities = new List<AgendaIdentity>
 var vmatch = VitaleLinks.Match(vitaleRows, identities);
 Check(vmatch.CodeByVitaleId[501] == 801 && vmatch.CodeByVitaleId[502] == 802 && vmatch.CodeByVitaleId[503] == 803, "Rapprochement par nom (ou nom de naissance), premier prénom et naissance");
 Check(vmatch.Matched == 5 && vmatch.NotFound == 1 && vmatch.Ambiguous == 1 && !vmatch.CodeByVitaleId.ContainsKey(507), "Inconnu non trouvé, homonymes ambigus non rapprochés");
+// Nom d'usage, liste des prénoms, sexe.
+var extended = VitaleLinks.ReadCsv(new StringReader("PAT_ID;NOM;NOM_NAISSANCE;NOM_USUEL;PRENOM;PRENOMS;SEXE;NAISSANCE;CARTE;QUALITE;ACTIF;CREATION;FIN_VALIDITE\n"
+    + "601;LEROY;LEROY;MARCHAL;Marie;Marie Thérèse;2;1960-04-05;77;0;1;2010-01-01;\n"
+    + "602;PETIT;;;Jean;Jean Claude;1;1955-06-07;88;0;1;2010-01-01;\n"
+    + "603;GEMEAU;;;Camille;Camille;2;2001-09-09;99;6;1;2010-01-01;\n"));
+Check(extended[0].UsualName == "MARCHAL" && extended[0].AllFirstNames == "Marie Thérèse" && extended[0].Sex == "F" && extended[1].Sex == "M", "Colonnes facultatives lues");
+var extMatch = VitaleLinks.Match(extended, new[]
+{
+    new AgendaIdentity(701, "MARCHAL", "", "Marie-Thérèse", new DateTime(1960, 4, 5)),        // nom d'épouse côté agenda
+    new AgendaIdentity(702, "PETIT", "", "Claude", new DateTime(1955, 6, 7)),                  // second prénom d'usage
+    new AgendaIdentity(703, "GEMEAU", "", "Camille", new DateTime(2001, 9, 9)) { Sex = "F" },  // jumeaux homonymes
+    new AgendaIdentity(704, "GEMEAU", "", "Camille", new DateTime(2001, 9, 9)) { Sex = "M" }
+});
+Check(extMatch.CodeByVitaleId.GetValueOrDefault(601) == 701 && extMatch.CodeByVitaleId.GetValueOrDefault(602) == 702, "Nom d'usage et second prénom : rapprochés");
+Check(extMatch.CodeByVitaleId.GetValueOrDefault(603) == 703, "Homonymes départagés par le sexe");
+Check(VitaleLinks.Sex("Monsieur") == "M" && VitaleLinks.Sex("Mme") == "F" && VitaleLinks.Sex("Enfant") == "", "Sexe d'après la civilité");
+
 var declaredLinks = VitaleLinks.Links(vitaleRows, vmatch, new DateTime(2026, 11, 24));
 DeclaredLink D(int a, int b) => declaredLinks.Single(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
 Check(D(801, 802) is { Relation: "parent et enfant", Current: true } && D(801, 803).Relation == "conjoints" && D(802, 803).Relation == "parent et enfant", "Nature du lien d'après la qualité");

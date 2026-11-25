@@ -12,10 +12,22 @@ namespace EyeChat.Families
     /// <see cref="Card"/> est une empreinte du numéro de l'assuré (HASH dans la requête d'export) : jamais le numéro lui-même.
     /// </summary>
     public sealed record VitaleRow(int PatientId, string Surname, string BirthName, string FirstName, DateTime? BirthDate,
-        string Card, int? Quality, bool? Active, DateTime? Created, DateTime? ValidUntil);
+        string Card, int? Quality, bool? Active, DateTime? Created, DateTime? ValidUntil)
+    {
+        /// <summary>Nom d'usage (PAT_NOMUSUEL), souvent le nom d'épouse.</summary>
+        public string UsualName { get; init; } = "";
+        /// <summary>Tous les prénoms (PAT_LISTEPRENOM).</summary>
+        public string AllFirstNames { get; init; } = "";
+        /// <summary>« M », « F » ou vide.</summary>
+        public string Sex { get; init; } = "";
+    }
 
     /// <summary>Identité d'un patient de l'agenda (Code Patient), pour le rapprochement.</summary>
-    public sealed record AgendaIdentity(int Code, string Surname, string MaidenName, string FirstName, DateTime? BirthDate);
+    public sealed record AgendaIdentity(int Code, string Surname, string MaidenName, string FirstName, DateTime? BirthDate)
+    {
+        /// <summary>« M », « F » ou vide, d'après la civilité (Monsieur, Madame…).</summary>
+        public string Sex { get; init; } = "";
+    }
 
     /// <summary>Lien déclaré : deux patients de l'agenda sur la même carte Vitale.</summary>
     /// <param name="Household">Le rattachement suffit à dire « même foyer » : conjoints, ou enfant(s) de moins de 20 ans.</param>
@@ -55,17 +67,38 @@ namespace EyeChat.Families
             {
                 match.VitalePatients++;
                 if (person.BirthDate is not { } birth) { match.WithoutBirthDate++; continue; }
-                var first = FirstToken(person.FirstName);
-                var surnames = FamilyScanner.SurnameTokens(person.Surname, person.BirthName);
+                // Noms : nom, nom de naissance et nom d'usage (nom d'épouse). Prénoms : premier prénom ou n'importe lequel
+                // de la liste des prénoms (prénoms composés, second prénom d'usage).
+                var surnames = FamilyScanner.SurnameTokens(person.Surname + " " + person.UsualName, person.BirthName);
+                var firstNames = FirstNameTokens(person.FirstName + " " + person.AllFirstNames);
                 var candidates = byBirth.TryGetValue(birth.Date, out var list)
-                    ? list.Where(a => FirstToken(a.FirstName) == first && first.Length > 0 && FamilyScanner.SurnameTokens(a.Surname, a.MaidenName).Overlaps(surnames))
-                        .Select(a => a.Code).Distinct().ToList()
-                    : new List<int>();
-                if (candidates.Count == 1) { match.CodeByVitaleId[person.PatientId] = candidates[0]; match.Matched++; }
+                    ? list.Where(a => FirstToken(a.FirstName) is { Length: > 0 } f && firstNames.Contains(f)
+                            && FamilyScanner.SurnameTokens(a.Surname, a.MaidenName).Overlaps(surnames))
+                        .GroupBy(a => a.Code).Select(g => g.First()).ToList()
+                    : new List<AgendaIdentity>();
+                // Homonymes : le sexe (civilité de l'agenda) peut les départager.
+                if (candidates.Count > 1 && person.Sex.Length > 0)
+                {
+                    var sameSex = candidates.Where(c => c.Sex == person.Sex).ToList();
+                    if (sameSex.Count == 1) candidates = sameSex;
+                }
+                if (candidates.Count == 1) { match.CodeByVitaleId[person.PatientId] = candidates[0].Code; match.Matched++; }
                 else if (candidates.Count > 1) match.Ambiguous++;
                 else match.NotFound++;
             }
             return match;
+        }
+
+        private static HashSet<string> FirstNameTokens(string? names)
+            => FamilyScanner.SurnameTokens(names, null).Union(new[] { FirstToken(names) }).Where(t => t.Length > 0).ToHashSet();
+
+        /// <summary>Sexe d'après un code (1/2, M/F, H/F) ou une civilité (Monsieur, Madame, Mademoiselle…).</summary>
+        public static string Sex(string? value)
+        {
+            var v = (value ?? string.Empty).Trim().ToUpperInvariant().TrimEnd('.');
+            if (v is "1" or "M" or "H" or "MASCULIN" or "HOMME" or "MONSIEUR" or "MR") return "M";
+            if (v is "2" or "F" or "FEMININ" or "FÉMININ" or "FEMME" or "MADAME" or "MME" or "MADEMOISELLE" or "MLLE") return "F";
+            return "";
         }
 
         private static string FirstToken(string? firstName)
@@ -148,6 +181,9 @@ namespace EyeChat.Families
             var names = SplitCsv(header, separator).Select(n => n.Trim().Trim('﻿').ToUpperInvariant()).ToList();
             int Col(params string[] accepted) => accepted.Select(a => names.IndexOf(a)).FirstOrDefault(i => i >= 0, -1) is var i and >= 0 ? i
                 : throw new InvalidDataException($"Colonne « {accepted[0]} » absente de l'export Vitale. Colonnes : {string.Join(", ", names)}. Utilisez la requête fournie.");
+            int Optional(string name) => names.IndexOf(name);
+            int usuel = Optional("NOM_USUEL"), prenoms = Optional("PRENOMS"), sexe = Optional("SEXE");
+            string Get(List<string> f, int i) => i >= 0 && i < f.Count ? f[i] : "";
             int id = Col("PAT_ID"), nom = Col("NOM"), naissanceNom = Col("NOM_NAISSANCE"), prenom = Col("PRENOM"), naissance = Col("NAISSANCE"),
                 carte = Col("CARTE"), qualite = Col("QUALITE"), active = Col("ACTIF", "ACTIVE"), creation = Col("CREATION"), fin = Col("FIN_VALIDITE");
             var rows = new List<VitaleRow>();
@@ -160,7 +196,10 @@ namespace EyeChat.Families
                 if (!int.TryParse(f[id], NumberStyles.Integer, CultureInfo.InvariantCulture, out var patientId)) continue;
                 rows.Add(new VitaleRow(patientId, f[nom], f[naissanceNom], f[prenom], Date(f[naissance]), f[carte].Trim(),
                     int.TryParse(f[qualite], NumberStyles.Integer, CultureInfo.InvariantCulture, out var q) ? q : null,
-                    Bool(f[active]), Date(f[creation]), Date(f[fin])));
+                    Bool(f[active]), Date(f[creation]), Date(f[fin]))
+                {
+                    UsualName = Get(f, usuel), AllFirstNames = Get(f, prenoms), Sex = Sex(Get(f, sexe))
+                });
             }
             return rows;
         }

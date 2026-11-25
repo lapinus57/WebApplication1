@@ -26,6 +26,7 @@ public static class Schema
         ["email"] = new[] { "EmailPatient", "E-mail", "Email", "PatientEmail" },
         ["email2"] = new[] { "E-mail 2", "Email 2", "EmailCopie" },
         ["annule"] = new[] { "Annulé", "Annule", "Cancelled" },
+        ["titre"] = new[] { "Titre", "Civilité", "Civilite" },
         ["naissance"] = new[] { "Date de naissance", "DateNaissance", "Date naissance", "Naissance", "DDN", "Né le" },
     };
 
@@ -72,7 +73,7 @@ public static class Schema
             throw new InvalidOperationException($"Pas de date de naissance dans « {table} ». Indiquez la table des patients avec --patients NomDeLaTable.");
         string Col(string role) => map[role] is { } c ? Q(c) : "NULL";
         using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT DISTINCT {Col("patient")}, {Col("nom")}, {Col("nomjf")}, {Col("prenom")}, {Col("naissance")} FROM {Q(table)}";
+        command.CommandText = $"SELECT DISTINCT {Col("patient")}, {Col("nom")}, {Col("nomjf")}, {Col("prenom")}, {Col("naissance")}, {Col("titre")} FROM {Q(table)}";
         using var reader = command.ExecuteReader()!;
         var result = new List<AgendaIdentity>();
         string Text(int i) => reader.IsDBNull(i) ? "" : Convert.ToString(reader.GetValue(i), CultureInfo.InvariantCulture)?.Trim() ?? "";
@@ -80,7 +81,7 @@ public static class Schema
         {
             if (!int.TryParse(Text(0), out var code) || code <= 0) continue;
             DateTime? birth = reader.IsDBNull(4) ? null : reader.GetValue(4) is DateTime d ? d : VitaleLinks.Date(Text(4));
-            result.Add(new AgendaIdentity(code, Text(1), Text(2), Text(3), birth));
+            result.Add(new AgendaIdentity(code, Text(1), Text(2), Text(3), birth) { Sex = VitaleLinks.Sex(Text(5)) });
         }
         return result;
     }
