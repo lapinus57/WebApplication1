@@ -48,6 +48,7 @@ namespace EyeChat.Families
             {
                 sb.AppendLine("Carte Vitale (logiciel Vitale) :");
                 sb.AppendLine($"  {v.VitalePatients:N0} patients Vitale : {v.Matched:N0} rapprochés d'un Code Patient, {v.Ambiguous:N0} ambigus, {v.NotFound:N0} non trouvés, {v.WithoutBirthDate:N0} sans date de naissance.");
+                sb.AppendLine($"  Dont rapprochés grâce à la dernière consultation (homonymes, nom ou prénom écrit autrement) : {v.MatchedByConsultation:N0}.");
                 var vit = r.Links.Where(l => l.VitaleRelation != null).ToList();
                 sb.AppendLine($"  {r.DeclaredLinks:N0} liens déclarés entre patients de l'agenda ({r.DeclaredLinksWithoutAgenda:N0} ignorés : patients sans RDV).");
                 foreach (var g in vit.GroupBy(l => l.VitaleRelation).OrderByDescending(g => g.Count()))

@@ -20,6 +20,8 @@ namespace EyeChat.Families
         public string AllFirstNames { get; init; } = "";
         /// <summary>« M », « F » ou vide.</summary>
         public string Sex { get; init; } = "";
+        /// <summary>Date de la dernière consultation (PAT_DATDERNCONSULT) : le bon dossier de l'agenda a un RDV ce jour-là.</summary>
+        public DateTime? LastConsultation { get; init; }
     }
 
     /// <summary>Identité d'un patient de l'agenda (Code Patient), pour le rapprochement.</summary>
@@ -41,6 +43,8 @@ namespace EyeChat.Families
         public int Ambiguous { get; set; }
         public int WithoutBirthDate { get; set; }
         public int NotFound { get; set; }
+        /// <summary>Dont rapprochés grâce à la dernière consultation (homonymes départagés, nom ou prénom écrit autrement).</summary>
+        public int MatchedByConsultation { get; set; }
     }
 
     public static class VitaleLinks
@@ -59,7 +63,8 @@ namespace EyeChat.Families
         /// Rapproche chaque patient Vitale d'un Code Patient de l'agenda : même date de naissance, même premier prénom,
         /// et un nom commun (nom d'usage ou de naissance). Plusieurs candidats : ambigu, non rapproché.
         /// </summary>
-        public static VitaleMatch Match(IEnumerable<VitaleRow> vitale, IEnumerable<AgendaIdentity> agenda)
+        /// <param name="visitedOn">Le patient (Code Patient) avait-il un RDV ce jour-là dans l'agenda ?</param>
+        public static VitaleMatch Match(IEnumerable<VitaleRow> vitale, IEnumerable<AgendaIdentity> agenda, Func<int, DateTime, bool>? visitedOn = null)
         {
             var byBirth = agenda.Where(a => a.BirthDate.HasValue).GroupBy(a => a.BirthDate!.Value.Date).ToDictionary(g => g.Key, g => g.ToList());
             var match = new VitaleMatch();
@@ -82,7 +87,23 @@ namespace EyeChat.Families
                     var sameSex = candidates.Where(c => c.Sex == person.Sex).ToList();
                     if (sameSex.Count == 1) candidates = sameSex;
                 }
-                if (candidates.Count == 1) { match.CodeByVitaleId[person.PatientId] = candidates[0].Code; match.Matched++; }
+                // Dernière consultation : le bon dossier avait un RDV ce jour-là.
+                bool SeenThatDay(AgendaIdentity a) => visitedOn != null && person.LastConsultation is { } day && visitedOn(a.Code, day.Date);
+                var byConsultation = false;
+                if (candidates.Count > 1 && candidates.Count(SeenThatDay) == 1) { candidates = candidates.Where(SeenThatDay).ToList(); byConsultation = true; }
+                if (candidates.Count == 0 && list != null)
+                {
+                    // Nom OU prénom écrit autrement : même naissance, l'un des deux concorde, et venu le jour de la dernière consultation.
+                    var relaxed = list.Where(a => SeenThatDay(a)
+                            && ((FirstToken(a.FirstName) is { Length: > 0 } f && firstNames.Contains(f)) || FamilyScanner.SurnameTokens(a.Surname, a.MaidenName).Overlaps(surnames)))
+                        .GroupBy(a => a.Code).Select(g => g.First()).ToList();
+                    if (relaxed.Count == 1) { candidates = relaxed; byConsultation = true; }
+                }
+                if (candidates.Count == 1)
+                {
+                    match.CodeByVitaleId[person.PatientId] = candidates[0].Code; match.Matched++;
+                    if (byConsultation) match.MatchedByConsultation++;
+                }
                 else if (candidates.Count > 1) match.Ambiguous++;
                 else match.NotFound++;
             }
@@ -182,7 +203,7 @@ namespace EyeChat.Families
             int Col(params string[] accepted) => accepted.Select(a => names.IndexOf(a)).FirstOrDefault(i => i >= 0, -1) is var i and >= 0 ? i
                 : throw new InvalidDataException($"Colonne « {accepted[0]} » absente de l'export Vitale. Colonnes : {string.Join(", ", names)}. Utilisez la requête fournie.");
             int Optional(string name) => names.IndexOf(name);
-            int usuel = Optional("NOM_USUEL"), prenoms = Optional("PRENOMS"), sexe = Optional("SEXE");
+            int usuel = Optional("NOM_USUEL"), prenoms = Optional("PRENOMS"), sexe = Optional("SEXE"), consult = Optional("DERNIERE_CONSULT");
             string Get(List<string> f, int i) => i >= 0 && i < f.Count ? f[i] : "";
             int id = Col("PAT_ID"), nom = Col("NOM"), naissanceNom = Col("NOM_NAISSANCE"), prenom = Col("PRENOM"), naissance = Col("NAISSANCE"),
                 carte = Col("CARTE"), qualite = Col("QUALITE"), active = Col("ACTIF", "ACTIVE"), creation = Col("CREATION"), fin = Col("FIN_VALIDITE");
@@ -198,7 +219,7 @@ namespace EyeChat.Families
                     int.TryParse(f[qualite], NumberStyles.Integer, CultureInfo.InvariantCulture, out var q) ? q : null,
                     Bool(f[active]), Date(f[creation]), Date(f[fin]))
                 {
-                    UsualName = Get(f, usuel), AllFirstNames = Get(f, prenoms), Sex = Sex(Get(f, sexe))
+                    UsualName = Get(f, usuel), AllFirstNames = Get(f, prenoms), Sex = Sex(Get(f, sexe)), LastConsultation = Date(Get(f, consult))
                 });
             }
             return rows;

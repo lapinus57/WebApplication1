@@ -220,6 +220,22 @@ var extMatch = VitaleLinks.Match(extended, new[]
 });
 Check(extMatch.CodeByVitaleId.GetValueOrDefault(601) == 701 && extMatch.CodeByVitaleId.GetValueOrDefault(602) == 702, "Nom d'usage et second prénom : rapprochés");
 Check(extMatch.CodeByVitaleId.GetValueOrDefault(603) == 703, "Homonymes départagés par le sexe");
+// Dernière consultation : homonymes départagés, prénom écrit autrement retrouvé, rien sans RDV ce jour-là.
+var consultRows = VitaleLinks.ReadCsv(new StringReader("PAT_ID;NOM;NOM_NAISSANCE;PRENOM;NAISSANCE;CARTE;QUALITE;ACTIF;CREATION;FIN_VALIDITE;DERNIERE_CONSULT\n"
+    + "611;HOMO;;Luc;1980-01-01;1;0;1;2010-01-01;;2024-03-12 00:00:00.000\n"
+    + "612;DUBOIS;;Jeannine;1950-02-02;2;0;1;2010-01-01;;2023-06-01\n"
+    + "613;AUTRE;;Paul;1950-02-02;3;0;1;2010-01-01;;2022-01-01\n"));
+var visits = new HashSet<(int, DateTime)> { (812, new DateTime(2024, 3, 12)), (813, new DateTime(2023, 6, 1)) };
+var consultMatch = VitaleLinks.Match(consultRows, new[]
+{
+    new AgendaIdentity(811, "HOMO", "", "Luc", new DateTime(1980, 1, 1)), new AgendaIdentity(812, "HOMO", "", "Luc", new DateTime(1980, 1, 1)),
+    new AgendaIdentity(813, "DUBOIS", "", "Jeanine", new DateTime(1950, 2, 2)),   // prénom écrit autrement
+    new AgendaIdentity(814, "DURAND", "", "Pierre", new DateTime(1950, 2, 2))      // même naissance, rien d'autre
+}, (code, day) => visits.Contains((code, day)));
+Check(consultRows[0].LastConsultation == new DateTime(2024, 3, 12) && consultMatch.CodeByVitaleId.GetValueOrDefault(611) == 812, "Homonymes départagés par la dernière consultation");
+Check(consultMatch.CodeByVitaleId.GetValueOrDefault(612) == 813 && consultMatch.MatchedByConsultation == 2, "Prénom écrit autrement : retrouvé par le nom et la dernière consultation");
+Check(!consultMatch.CodeByVitaleId.ContainsKey(613), "Ni nom ni prénom concordant : jamais rapproché, même avec une date");
+
 Check(VitaleLinks.Sex("Monsieur") == "M" && VitaleLinks.Sex("Mme") == "F" && VitaleLinks.Sex("Enfant") == "", "Sexe d'après la civilité");
 
 var declaredLinks = VitaleLinks.Links(vitaleRows, vmatch, new DateTime(2026, 11, 24));

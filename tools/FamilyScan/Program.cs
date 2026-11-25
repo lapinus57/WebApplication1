@@ -58,7 +58,7 @@ try
         var identitiesTable = options.Patients ?? (map["naissance"] != null ? table : Schema.FindTable(connection, "Patients"));
         var identitiesMap = identitiesTable == table ? map : Schema.Map(Schema.Columns(connection, identitiesTable), options.Overrides);
         var identities = Schema.ReadIdentities(connection, identitiesTable, identitiesMap);
-        vitaleMatch = VitaleLinks.Match(vitale, identities);
+        vitaleMatch = VitaleLinks.Match(vitale, identities, scanner.Visited);
         var declared = VitaleLinks.Links(vitale, vitaleMatch, DateTime.Today);
         scanner.AddDeclared(declared);
         Console.WriteLine($"  {vitale.Count:N0} fiches, {vitaleMatch.VitalePatients:N0} patients Vitale, {vitaleMatch.Matched:N0} rapprochés (table « {identitiesTable} », {identities.Count:N0} identités), {declared.Count:N0} liens déclarés.");

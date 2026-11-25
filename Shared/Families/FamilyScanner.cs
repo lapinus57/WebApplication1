@@ -122,6 +122,10 @@ namespace EyeChat.Families
         private readonly Dictionary<string, HashSet<int>> _phoneOwners = new(), _emailOwners = new();
         private readonly Dictionary<int, PatientInfo> _patients = new();
         private readonly List<DeclaredLink> _declared = new();
+        private readonly HashSet<(int, DateTime)> _visits = new();
+
+        /// <summary>Le patient avait-il un RDV (non annulé) ce jour-là ? Sert au rapprochement avec la carte Vitale.</summary>
+        public bool Visited(int patientId, DateTime day) => _visits.Contains((patientId, day.Date));
 
         /// <summary>Liens déclarés par la carte Vitale (codes patients de l'agenda), pris en compte à la fin.</summary>
         public void AddDeclared(IEnumerable<DeclaredLink> links) => _declared.AddRange(links);
@@ -136,6 +140,7 @@ namespace EyeChat.Families
             if (_currentDay != day) { FlushDay(); _currentDay = day; }
             _day.Add(row);
             _rows++;
+            if (!row.Cancelled) _visits.Add((row.PatientId, day));
             _firstDay ??= day;
             _lastDay = day;
 
