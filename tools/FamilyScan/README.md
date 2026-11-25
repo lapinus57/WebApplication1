@@ -34,6 +34,22 @@ ensemble) reste un lien, mais ne regroupe pas les rappels.
 - `detail-familles-NE-PAS-DIFFUSER.csv` : nominatif (code patient, nom, téléphones et mails actuels,
   raisons). **À garder au cabinet**, à ouvrir dans Excel pour vérifier quelques familles.
 
+## Vérifier les familles (page d'aide)
+
+L'outil écrit aussi `verification-familles-NE-PAS-DIFFUSER.html`, à ouvrir **au cabinet** dans Edge ou Chrome
+(double-clic ; elle fonctionne sans Internet et ne contient aucun lien vers l'extérieur) :
+
+- **Échantillon** de 40 familles préparé (grandes familles et chaînes, familles venant de la carte Vitale, de
+  l'agenda seul, couples), ou **recherche** d'une famille connue par nom ou code patient ;
+- pour chaque famille : membres (code, nom, dernière venue, téléphones, mails) et **liens avec leur raison** ;
+- un clic pour noter : *Famille juste*, *Membre(s) en trop*, *Il manque quelqu'un*, *Plusieurs foyers à séparer*,
+  *Je ne sais pas* ; une case **lien faux** par lien ; une remarque libre ;
+- les vérifications sont gardées dans le navigateur de ce PC (on peut fermer et reprendre plus tard) ;
+- **Exporter le bilan anonyme** : verdicts, tailles et raisons des liens, **sans** nom, code, coordonnée ni
+  remarque. C'est ce fichier qu'on peut transmettre pour régler les règles ;
+- **Exporter mes décisions** : codes patients, verdicts et liens faux (nominatif, à garder) : ils pourront être
+  repris comme décisions validées lors de l'intégration au serveur.
+
 ## Compiler
 
 ```bash

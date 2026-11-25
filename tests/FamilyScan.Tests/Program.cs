@@ -238,4 +238,13 @@ var vreport = FamilyScanReport.Anonymous(vres);
 Check(vreport.Contains("5 rapprochés d'un Code Patient") && vreport.Contains("nouveaux grâce à Vitale : 1") && vreport.Contains("regroupés à tort par l'agenda seul : 1")
     && !vreport.Contains("DUPONT") && !vreport.Contains("-77123"), "Rapport Vitale anonymisé");
 
+// Page de vérification : autonome (aucune ressource externe), données intégrées, échantillon.
+var page = FamilyVerificationPage.Build(result, sampleSize: 4);
+Check(page.Contains("const FAMILLES = [{") && !page.Contains("http://") && !page.Contains("https://") && !page.Contains("src=") && page.Contains("default-src 'none'"),
+    "Page de vérification autonome, sans ressource externe");
+Check(!page.Contains("1550357463012") && page.Split("</script>").Length == 2, "Pas de NoSS ; une seule balise script fermante (données échappées)");
+Check(FamilyVerificationPage.Sample(result, 4).Count == Math.Min(4, result.Families.Count), "Échantillon de la taille demandée");
+var pagePath = Environment.GetEnvironmentVariable("FAMILYSCAN_PAGE");
+if (!string.IsNullOrEmpty(pagePath)) File.WriteAllText(pagePath, page);
+
 Console.WriteLine($"{checks} vérifications réussies.");

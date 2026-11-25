@@ -73,10 +73,13 @@ try
     var detailPath = Path.Combine(folder, "detail-familles-NE-PAS-DIFFUSER.csv");
     File.WriteAllText(reportPath, FamilyScanReport.Anonymous(result), new UTF8Encoding(true));
     File.WriteAllText(detailPath, FamilyScanReport.DetailCsv(result), new UTF8Encoding(true));
+    var verificationPath = Path.Combine(folder, "verification-familles-NE-PAS-DIFFUSER.html");
+    File.WriteAllText(verificationPath, FamilyVerificationPage.Build(result), new UTF8Encoding(false));
     Console.WriteLine();
     Console.WriteLine(FamilyScanReport.Anonymous(result));
     Console.WriteLine($"Rapport anonymisé (transmissible) : {reportPath}");
     Console.WriteLine($"Détail nominatif (à garder au cabinet) : {detailPath}");
+    Console.WriteLine($"Page de vérification (à ouvrir dans le navigateur, au cabinet) : {verificationPath}");
     Console.WriteLine($"Durée : {clock.Elapsed:mm\\:ss}. La base Access n'a pas été modifiée.");
 }
 catch (Exception ex)
