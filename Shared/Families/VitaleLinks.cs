@@ -33,7 +33,11 @@ namespace EyeChat.Families
 
     /// <summary>Lien déclaré : deux patients de l'agenda sur la même carte Vitale.</summary>
     /// <param name="Household">Le rattachement suffit à dire « même foyer » : conjoints, ou enfant(s) de moins de 20 ans.</param>
-    public sealed record DeclaredLink(int A, int B, string Relation, bool Current, bool Separated, DateTime? Since, bool Household = true);
+    public sealed record DeclaredLink(int A, int B, string Relation, bool Current, bool Separated, DateTime? Since, bool Household = true)
+    {
+        /// <summary>Pour « parent et enfant » : le Code Patient de l'enfant (qualité 6).</summary>
+        public int? Child { get; init; }
+    }
 
     public sealed class VitaleMatch
     {
@@ -146,7 +150,10 @@ namespace EyeChat.Families
                         var key = a.PatientId < b.PatientId ? (a.PatientId, b.PatientId) : (b.PatientId, a.PatientId);
                         var relation = Relation(a.Quality, b.Quality);
                         var link = new DeclaredLink(key.Item1, key.Item2, relation, current, separated, since == default ? null : since,
-                            Household: PresumedHousehold(relation, a, b, today));
+                            Household: PresumedHousehold(relation, a, b, today))
+                        {
+                            Child = relation == "parent et enfant" ? (a.Quality == 6 ? a.PatientId : b.Quality == 6 ? b.PatientId : null) : null
+                        };
                         // Deux cartes communes : on garde la plus parlante (actuelle d'abord).
                         if (!links.TryGetValue(key, out var existing) || (link.Current && !existing.Current)) links[key] = link;
                     }

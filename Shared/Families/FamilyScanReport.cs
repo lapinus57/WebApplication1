@@ -84,6 +84,7 @@ namespace EyeChat.Families
             }
 
             sb.AppendLine("Familles « même foyer aujourd'hui » :");
+            sb.AppendLine($"  Parentés entre foyers distincts (adulte qui a fondé son foyer : conjoint ou enfants mineurs) : {r.Links.Count(l => l.OtherHousehold):N0} liens séparés.");
             sb.AppendLine($"  {r.Families.Count:N0} familles, {r.Families.Sum(f => f.Members.Count):N0} patients regroupés.");
             foreach (var size in r.Families.GroupBy(f => Math.Min(f.Members.Count, 7)).OrderBy(g => g.Key))
                 sb.AppendLine($"  {(size.Key >= 7 ? "7 personnes ou plus" : size.Key + " personnes"),-22} {size.Count(),6:N0}");
@@ -118,7 +119,10 @@ namespace EyeChat.Families
         {
             static string Cell(string v) => "\"" + (v ?? string.Empty).Replace("\"", "\"\"") + "\"";
             var sb = new StringBuilder();
-            sb.AppendLine("Famille;À vérifier;Code patient;Nom;Dernière venue;Téléphones actuels;Mails actuels;Liens dans la famille");
+            sb.AppendLine("Famille;À vérifier;Code patient;Nom;Dernière venue;Téléphones actuels;Mails actuels;Liens dans la famille;Parenté dans un autre foyer");
+            var familyOf = r.Families.SelectMany(f => f.Members.Select(m => (m, f.Number))).ToDictionary(x => x.m, x => x.Number);
+            var kin = r.Links.Where(l => l.OtherHousehold).SelectMany(l => new[] { (Id: l.A, Other: l.B, Link: l), (Id: l.B, Other: l.A, Link: l) })
+                .ToLookup(x => x.Id);
             var byPatient = r.Links.Where(l => l.SameHouseholdNow).SelectMany(l => new[] { (Id: l.A, Link: l), (Id: l.B, Link: l) })
                 .ToLookup(x => x.Id, x => x.Link);
             foreach (var f in r.Families)
@@ -131,7 +135,8 @@ namespace EyeChat.Families
                     {
                         f.Number.ToString(CultureInfo.InvariantCulture), f.ToReview ? "oui" : "", id.ToString(CultureInfo.InvariantCulture),
                         p.Name, p.LastSeen.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
-                        string.Join(" ", p.Phones), string.Join(" ", p.Emails), string.Join(" | ", reasons)
+                        string.Join(" ", p.Phones), string.Join(" ", p.Emails), string.Join(" | ", reasons),
+                        string.Join(" | ", kin[id].Select(k => $"{k.Other}" + (familyOf.TryGetValue(k.Other, out var n) ? $" (famille {n})" : "") + $" : {k.Link.Reasons}"))
                     }.Select(Cell)));
                 }
             return sb.ToString();

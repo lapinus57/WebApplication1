@@ -354,4 +354,34 @@ var cardDetail = FamilyScanReport.DetailCsv(cres);
 Check(cardReport.Contains("Carte Vitale à la facturation") && !cardReport.Contains("2850357463012") && !cardReport.Contains(cardRows[0].Card)
     && !cardDetail.Contains("2850357463012") && !cardDetail.Contains(cardRows[0].Card), "Ni NIR ni empreinte dans le rapport et le détail");
 
+// ---------- Adulte qui a fondé son foyer ----------
+// 10072 maman de 37536 et 18390 ; 18390 papa de 57043 et 43675 ; 23779 conjointe de 18390.
+var fs = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+ScanRow FV(int id, DateTime day, int minute, string first, string address, string phone) =>
+    new(id, day, day.AddHours(10).AddMinutes(minute), null, null, "", "KLEIN", "", first, address, "Metz", new[] { phone }, Array.Empty<string>(), false);
+for (int y = 2024; y <= 2026; y++)
+{
+    var d1 = new DateTime(y, 3, 2);   // la mère, son fils 18390 et sa fille 37536 viennent ensemble
+    fs.Add(FV(10072, d1, 0, "Monique", "1 rue M", "0387010072")); fs.Add(FV(18390, d1, 0, "Marc", "9 rue N", "0612018390")); fs.Add(FV(37536, d1, 0, "Julie", "1 rue M", "0387010072"));
+    var d2 = new DateTime(y, 6, 8);   // 18390 avec sa conjointe et ses enfants
+    fs.Add(FV(18390, d2, 0, "Marc", "9 rue N", "0612018390")); fs.Add(FV(23779, d2, 0, "Sarah", "9 rue N", "0612018390"));
+    fs.Add(FV(43675, d2, 0, "Léo", "9 rue N", "0612018390")); fs.Add(FV(57043, d2, 0, "Emma", "9 rue N", "0612018390"));
+}
+fs.AddDeclared(new[]
+{
+    new DeclaredLink(10072, 18390, "parent et enfant", true, false, null, false) { Child = 18390 },
+    new DeclaredLink(10072, 37536, "parent et enfant", true, false, null, true) { Child = 37536 },
+    new DeclaredLink(18390, 37536, "enfants de la même carte", true, false, null, false),
+    new DeclaredLink(18390, 23779, "conjoints", true, false, null),
+    new DeclaredLink(18390, 43675, "parent et enfant", true, false, null) { Child = 43675 },
+    new DeclaredLink(18390, 57043, "parent et enfant", true, false, null) { Child = 57043 },
+});
+var fres = fs.Finish();
+var fam = fres.Families.Select(f => string.Join(",", f.Members)).ToList();
+Check(fam.Contains("10072,37536") && fam.Contains("18390,23779,43675,57043") && fres.Families.Count == 2,
+    "Mère + fille d'un côté, le fils avec sa conjointe et ses enfants de l'autre : " + string.Join(" / ", fam));
+Check(fres.Links.Single(l => l.A == 10072 && l.B == 18390) is { OtherHousehold: true, SameHouseholdNow: false }, "Le lien mère–fils devient une parenté entre deux foyers");
+var fdetail = FamilyScanReport.DetailCsv(fres);
+Check(fdetail.Contains("Parenté dans un autre foyer") && fdetail.Split('\n').Any(line => line.Contains("\"18390\"") && line.Contains("10072 (famille")), "Parenté visible dans le détail");
+
 Console.WriteLine($"{checks} vérifications réussies.");

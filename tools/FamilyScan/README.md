@@ -134,6 +134,13 @@ La date de naissance des patients de l'agenda est lue dans `AG_rdv` si elle y es
 (autre nom : `--patients NomDeLaTable`). Le rapport ajoute une partie **Carte Vitale** : patients rapprochés, liens
 déclarés par nature, liens **nouveaux grâce à Vitale**, et couples séparés que l'agenda seul **regroupait à tort**.
 
+### Adulte qui a fondé son foyer
+
+Un adulte qui a un **conjoint** ou des **enfants mineurs** sur sa carte Vitale a son propre foyer. Le lien avec ses
+parents ou ses frères et sœurs, s'il est le seul pont entre les deux groupes, devient une **parenté entre deux foyers** :
+chacun reçoit ses rappels de son côté. Exception : même adresse aujourd'hui (plusieurs générations sous le même toit).
+Ces parentés restent visibles dans la dernière colonne du détail nominatif (« Parenté dans un autre foyer »).
+
 ## Ajouter les règlements (qui paie pour qui)
 
 Export **« suivi des paiements »** de CGM e-Vitale (une ligne par facture, séparateur `;`). Colonnes lues :

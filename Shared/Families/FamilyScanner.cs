@@ -33,6 +33,10 @@ namespace EyeChat.Families
         public bool SameAddressNow { get; set; }
         public LinkStrength Strength { get; set; }
         public bool SameHouseholdNow { get; set; }
+        /// <summary>Parenté entre deux foyers : l'un a fondé son propre foyer (conjoint, enfants mineurs) ailleurs.</summary>
+        public bool OtherHousehold { get; set; }
+        /// <summary>Pour un lien Vitale « parent et enfant » : l'enfant.</summary>
+        public int? VitaleChild { get; set; }
         public bool SharedNoSS => NoSSFirst.HasValue;
         /// <summary>Lien déclaré par la carte Vitale (« parent et enfant », « conjoints »…), ou null.</summary>
         public string? VitaleRelation { get; set; }
@@ -409,6 +413,7 @@ namespace EyeChat.Families
                 link.VitaleCurrent = d.Current;
                 link.VitaleSeparated = d.Separated;
                 link.VitaleHousehold = d.Household;
+                link.VitaleChild = d.Child;
                 // Facturés récemment chacun sous sa propre carte : le rattachement Vitale « actif » d'un enfant est périmé
                 // (carte à lui, ou carte de l'autre parent). Pour des conjoints, chacun sa carte est normal : rien n'est contredit.
                 if (d.Current && !d.Relation.StartsWith("conjoints") && _latestCard.TryGetValue(d.A, out var ca) && _latestCard.TryGetValue(d.B, out var cb) && ca.Card != cb.Card
@@ -424,6 +429,7 @@ namespace EyeChat.Families
                 link.SameAddressNow = pa.Address.Length > 0 && pa.Address == pb.Address && SeenRecently(pa, end) && SeenRecently(pb, end);
                 Classify(link, end);
             }
+            SplitFoundedHouseholds(_links.Values.Where(l => l.SameHouseholdNow).ToList());
             var links = _links.Values.Where(l => l.Strength > 0).OrderByDescending(l => l.Strength).ThenBy(l => l.A).ThenBy(l => l.B).ToList();
             return new ScanResult
             {
@@ -432,6 +438,47 @@ namespace EyeChat.Families
                 PatientsById = _patients, CollectivePhones = collectivePhones, CollectiveEmails = collectiveEmails,
                 DeclaredLinks = declared, DeclaredLinksWithoutAgenda = withoutAgenda, Payments = _payments
             };
+        }
+
+        /// <summary>
+        /// Un adulte qui a fondé son foyer (conjoint, ou enfants mineurs, d'après la carte Vitale) n'est plus dans celui de
+        /// ses parents ou de ses frères et sœurs : le lien qui ne passe que par lui devient une parenté entre deux foyers,
+        /// sauf s'ils habitent à la même adresse aujourd'hui.
+        /// </summary>
+        private static void SplitFoundedHouseholds(List<PatientLink> household)
+        {
+            var nucleus = new Dictionary<int, HashSet<int>>();
+            void Add(int founder, int member)
+            {
+                if (!nucleus.TryGetValue(founder, out var set)) nucleus[founder] = set = new HashSet<int> { founder };
+                set.Add(member);
+            }
+            foreach (var l in household)
+            {
+                if (l.VitaleRelation == "conjoints" && l.VitaleCurrent) { Add(l.A, l.B); Add(l.B, l.A); }
+                else if (l.VitaleRelation == "parent et enfant" && l.VitaleCurrent && l.VitaleHousehold && l.VitaleChild is { } child)
+                    Add(child == l.A ? l.B : l.A, child);
+            }
+            if (nucleus.Count == 0) return;
+            var neighbours = household.SelectMany(l => new[] { (l.A, l.B), (l.B, l.A) }).ToLookup(x => x.Item1, x => x.Item2);
+            var cut = new List<PatientLink>();
+            foreach (var l in household.Where(l => !l.SameAddressNow))
+                foreach (var (founder, other) in new[] { (l.A, l.B), (l.B, l.A) })
+                {
+                    if (!nucleus.TryGetValue(founder, out var own) || own.Contains(other)) continue;
+                    // L'autre n'est relié à personne du foyer fondé, sauf au fondateur…
+                    if (neighbours[other].Any(n => n != founder && own.Contains(n))) continue;
+                    // …et il a son propre entourage (parent, frère ou sœur) : deux foyers reliés par une seule personne.
+                    if (!neighbours[other].Any(n => n != founder && !own.Contains(n))) continue;
+                    cut.Add(l);
+                    break;
+                }
+            foreach (var l in cut)
+            {
+                l.SameHouseholdNow = false;
+                l.OtherHousehold = true;
+                l.Reasons += ", a fondé son propre foyer";
+            }
         }
 
         private static bool SeenRecently(PatientInfo p, DateTime end) => end - p.LastSeen <= CurrentContactPeriod;
