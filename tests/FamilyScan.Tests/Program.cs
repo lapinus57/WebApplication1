@@ -128,10 +128,10 @@ Check(result.Years.Single(y => y.Year == 2003).WithNoSS == 2 && result.Years.Sin
 
 // RDV futurs : « récent » se compte depuis aujourd'hui, pas depuis le dernier RDV de l'agenda (2028).
 var future = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
-future.Add(new ScanRow(70, new DateTime(2024, 1, 10), new DateTime(2024, 1, 10, 9, 0, 0), null, null, "", "OMEGA", "", "A", "", "", new[] { "0600000070" }, Array.Empty<string>(), false));
-future.Add(new ScanRow(71, new DateTime(2024, 1, 10), new DateTime(2024, 1, 10, 9, 15, 0), null, null, "", "OMEGA", "", "B", "", "", new[] { "0600000071" }, Array.Empty<string>(), false));
-future.Add(new ScanRow(70, new DateTime(2024, 6, 10), new DateTime(2024, 6, 10, 9, 0, 0), null, null, "", "OMEGA", "", "A", "", "", new[] { "0600000070" }, Array.Empty<string>(), false));
-future.Add(new ScanRow(71, new DateTime(2024, 6, 10), new DateTime(2024, 6, 10, 9, 15, 0), null, null, "", "OMEGA", "", "B", "", "", new[] { "0600000071" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(70, new DateTime(2024, 1, 10), new DateTime(2024, 1, 10, 9, 0, 0), null, null, "", "OMEGA", "", "A", "3 rue O", "Metz", new[] { "0600000070" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(71, new DateTime(2024, 1, 10), new DateTime(2024, 1, 10, 9, 15, 0), null, null, "", "OMEGA", "", "B", "3 rue O", "Metz", new[] { "0600000071" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(70, new DateTime(2024, 6, 10), new DateTime(2024, 6, 10, 9, 0, 0), null, null, "", "OMEGA", "", "A", "3 rue O", "Metz", new[] { "0600000070" }, Array.Empty<string>(), false));
+future.Add(new ScanRow(71, new DateTime(2024, 6, 10), new DateTime(2024, 6, 10, 9, 15, 0), null, null, "", "OMEGA", "", "B", "3 rue O", "Metz", new[] { "0600000071" }, Array.Empty<string>(), false));
 future.Add(new ScanRow(99, new DateTime(2028, 7, 8), new DateTime(2028, 7, 8, 9, 0, 0), null, null, "", "FUTUR", "", "Z", "", "", Array.Empty<string>(), Array.Empty<string>(), false));
 var futureResult = future.Finish();
 var stale = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
@@ -383,5 +383,15 @@ Check(fam.Contains("10072,37536") && fam.Contains("18390,23779,43675,57043") && 
 Check(fres.Links.Single(l => l.A == 10072 && l.B == 18390) is { OtherHousehold: true, SameHouseholdNow: false }, "Le lien mère–fils devient une parenté entre deux foyers");
 var fdetail = FamilyScanReport.DetailCsv(fres);
 Check(fdetail.Contains("Parenté dans un autre foyer") && fdetail.Split('\n').Any(line => line.Contains("\"18390\"") && line.Contains("10072 (famille")), "Parenté visible dans le détail");
+
+// ---------- Même nom et venus ensemble, sans lien actuel (vérifié faux au cabinet) ----------
+var nameOnly = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+foreach (var day in new[] { new DateTime(2023, 5, 2), new DateTime(2024, 9, 3) })
+{
+    nameOnly.Add(new ScanRow(401, day, day.AddHours(9), null, null, "", "WEBER", "", "Luc", "1 rue L", "Metz", new[] { "0601000401" }, Array.Empty<string>(), false));
+    nameOnly.Add(new ScanRow(402, day, day.AddHours(9).AddMinutes(15), null, null, "", "WEBER", "", "Paul", "2 rue P", "Metz", new[] { "0601000402" }, Array.Empty<string>(), false));
+}
+Check(nameOnly.Finish().Links.Single(l => l.A == 401) is { Strength: LinkStrength.Moyenne, SameHouseholdNow: false },
+    "Même nom, venus ensemble 2 fois, ni adresse ni contact commun : parents peut-être, pas même foyer");
 
 Console.WriteLine($"{checks} vérifications réussies.");

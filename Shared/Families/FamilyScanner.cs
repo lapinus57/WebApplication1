@@ -509,7 +509,12 @@ namespace EyeChat.Families
             // Confidentialité : regrouper deux personnes, c'est annoncer le RDV de l'une au contact de l'autre.
             // Sans aucun indice d'identité commun (nom, adresse, contact, NoSS, carte Vitale), des personnes qui viennent
             // et réservent ensemble (résidents d'un EHPAD, voisins, amis) restent liées mais ne forment pas un foyer.
-            l.AgendaHouseholdNow = (identity || l.SharedNoSS) && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent);
+            // Venus ensemble récemment, mais seulement le même nom (ou un contact d'autrefois) : souvent deux foyers de la même
+            // famille (vérifié au cabinet). Il faut un lien actuel : même adresse, même contact, NoSS, ou RDV pris ensemble
+            // à la même minute au moins deux fois.
+            var currentTie = l.SameAddressNow || l.SharedContactNow || l.SharedNoSS || (l.SameSurname && l.BookedTogetherDays >= 2);
+            var recentTogether = recent && currentTie;
+            l.AgendaHouseholdNow = (identity || l.SharedNoSS) && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recentTogether);
 
             // Règlements : payer pour quelqu'un (parent, conjoint, aidant) est un lien déclaré par un acte réel.
             var payments = l.PaidForCount + l.SamePayerCount;
@@ -524,7 +529,7 @@ namespace EyeChat.Families
             var recentCard = l.SameBillingCard > 0 && l.BillingCardLast is { } cardDate && end - cardDate <= RecentPeriod;
             if (l.SameBillingCard > 0) l.Strength = LinkStrength.Forte;
             var anyIdentity = identity || l.SharedNoSS || l.VitaleRelation != null || payments > 0 || l.SameBillingCard > 0;
-            l.SameHouseholdNow = anyIdentity && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent || recentPayment || recentCard);
+            l.SameHouseholdNow = anyIdentity && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recentTogether || recentPayment || recentCard);
 
             // Carte Vitale : lien déclaré, donc fort. Rattachement en cours de conjoints ou d'enfants de moins de 20 ans
             // = même foyer ; conjoints séparés, divorcés ou veufs = jamais regroupés. Sinon (ancien rattachement, enfant
