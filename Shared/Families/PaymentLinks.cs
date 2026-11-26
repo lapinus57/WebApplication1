@@ -8,10 +8,15 @@ namespace EyeChat.Families
 {
     /// <summary>
     /// Une facture de l'export « suivi des paiements » du logiciel Vitale (une ligne par facture).
-    /// Seules les colonnes utiles sont lues : jamais le NIR du bénéficiaire, ni les numéros de chèque ou de banque.
+    /// Seules les colonnes utiles sont lues, jamais les numéros de chèque ou de banque. Le NIR de facturation (celui de
+    /// l'assuré : le parent pour un enfant) n'est gardé que sous forme d'empreinte salée (<see cref="Card"/>), jamais en clair.
     /// </summary>
     public sealed record PaymentRow(string PayerId, string PayerSurname, string PayerFirstName,
-        string BeneficiarySurname, string BeneficiaryFirstName, DateTime? InvoiceDate);
+        string BeneficiarySurname, string BeneficiaryFirstName, DateTime? InvoiceDate)
+    {
+        /// <summary>Empreinte du NIR de facturation (carte Vitale lue à la consultation), ou vide.</summary>
+        public string Card { get; init; } = "";
+    }
 
     public sealed class PaymentStats
     {
@@ -22,6 +27,10 @@ namespace EyeChat.Families
         public int BeneficiaryFound { get; set; }
         public int PayerFound { get; set; }
         public int CollectivePayers { get; set; }
+        /// <summary>Factures avec un NIR de facturation, et dont le bénéficiaire a été retrouvé.</summary>
+        public int CardInvoices { get; set; }
+        /// <summary>Cartes facturées pour plusieurs patients de l'agenda.</summary>
+        public int SharedCards { get; set; }
     }
 
     public static class PaymentLinks
@@ -68,6 +77,16 @@ namespace EyeChat.Families
             var names = VitaleLinks.SplitCsv(header, separator).Select(n => n.Trim().Trim('﻿').ToUpperInvariant()).ToList();
             int Col(string name) => names.IndexOf(name.ToUpperInvariant()) is var i and >= 0 ? i
                 : throw new InvalidDataException($"Colonne « {name} » absente de l'export des règlements. Colonnes : {string.Join(", ", names)}.");
+            int nir = names.IndexOf("NIRBENEFICIAIRE");
+            // Sel aléatoire propre à ce lancement : l'empreinte ne permet pas de retrouver le numéro.
+            var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+            string Card(string value)
+            {
+                var normalized = FamilyScanner.NormalizeNoSS(value);
+                if (normalized.Length == 0) return "";
+                using var hmac = new System.Security.Cryptography.HMACSHA256(salt);
+                return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(normalized)), 0, 12);
+            }
             int payerId = names.IndexOf("IDPAYEUR"), payerSurname = Col("NomPayeur"), payerFirst = Col("PrenomPayeur"),
                 benefSurname = Col("NomBeneficiaire"), benefFirst = Col("PrenomBeneficiaire"), date = Col("DateFacture");
             var rows = new List<PaymentRow>();
@@ -77,7 +96,10 @@ namespace EyeChat.Families
                 if (line.Trim().Length == 0) continue;
                 var f = VitaleLinks.SplitCsv(line, separator);
                 string Get(int i) => i >= 0 && i < f.Count ? f[i].Trim() : "";
-                rows.Add(new PaymentRow(Get(payerId), Get(payerSurname), Get(payerFirst), Get(benefSurname), Get(benefFirst), VitaleLinks.Date(Get(date))));
+                rows.Add(new PaymentRow(Get(payerId), Get(payerSurname), Get(payerFirst), Get(benefSurname), Get(benefFirst), VitaleLinks.Date(Get(date)))
+                {
+                    Card = Card(Get(nir))
+                });
             }
             return rows;
         }

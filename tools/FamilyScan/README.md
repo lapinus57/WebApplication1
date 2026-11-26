@@ -137,8 +137,18 @@ déclarés par nature, liens **nouveaux grâce à Vitale**, et couples séparés
 ## Ajouter les règlements (qui paie pour qui)
 
 Export **« suivi des paiements »** de CGM e-Vitale (une ligne par facture, séparateur `;`). Colonnes lues :
-`IdPayeur`, `NomPayeur`, `PrenomPayeur`, `NomBeneficiaire`, `PrenomBeneficiaire`, `DateFacture`. Les autres colonnes,
-dont `NIRBeneficiaire` et `NumeroChequeNomBanque`, ne sont **jamais lues**.
+`IdPayeur`, `NomPayeur`, `PrenomPayeur`, `NomBeneficiaire`, `PrenomBeneficiaire`, `DateFacture`, et `NIRBeneficiaire`
+(facultative). Les autres colonnes, dont `NumeroChequeNomBanque`, ne sont **jamais lues**.
+
+`NIRBeneficiaire` est le NIR de l'assuré dont la carte Vitale a été lue (le parent pour un enfant). Il n'est gardé
+qu'en mémoire, sous forme d'**empreinte salée** (HMAC-SHA256 avec un sel aléatoire différent à chaque lancement) : impossible
+de retrouver le numéro, et il n'est **écrit nulle part** (ni rapport, ni détail, ni page de vérification).
+
+- **« Facturés sous la même carte Vitale »** : deux patients facturés sous le même NIR (quel que soit le payeur, CPAM
+  compris) sont liés fortement ; même foyer si c'était il y a moins de 3 ans. Une carte facturée pour plus de 10 patients
+  est ignorée.
+- Un rattachement Vitale « actif » est **contredit** si les deux patients ont été facturés récemment, chacun sous sa propre
+  carte : ils ne sont alors plus regroupés d'office (seulement si l'agenda ou les contacts le confirment).
 
 - Règlements par un organisme (sans prénom, ou nom contenant CPAM, MUTUELLE, MSA…) et par le patient lui-même : ignorés.
 - Bénéficiaire retrouvé par **nom + prénom + RDV le jour de la facture** ; payeur aussi s'il était là ce jour-là,

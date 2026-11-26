@@ -44,6 +44,13 @@ namespace EyeChat.Families
         public int PaidForCount { get; set; }
         /// <summary>Factures des deux réglées par le même payeur (parent, conjoint, aidant).</summary>
         public int SamePayerCount { get; set; }
+        /// <summary>Factures des deux sous le même NIR d'assuré (même carte Vitale lue à la consultation).</summary>
+        public int SameBillingCard { get; set; }
+        public DateTime? BillingCardFirst { get; set; }
+        /// <summary>Dernière date où les deux étaient encore facturés sous cette carte.</summary>
+        public DateTime? BillingCardLast { get; set; }
+        /// <summary>Facturés récemment sous des cartes différentes : contredit un rattachement Vitale « actif » périmé.</summary>
+        public bool BillingSeparateCards { get; set; }
         public DateTime? FirstPayment { get; set; }
         public DateTime? LastPayment { get; set; }
         /// <summary>Même foyer d'après l'agenda seul (avant la carte Vitale), pour comparer les deux sources.</summary>
@@ -133,6 +140,8 @@ namespace EyeChat.Families
         private readonly HashSet<(int, DateTime)> _visits = new();
         private readonly Dictionary<DateTime, List<int>> _visitorsByDay = new();
         private PaymentStats? _payments;
+        /// <summary>Dernière carte de facturation de chaque patient, avec sa date.</summary>
+        private readonly Dictionary<int, (string Card, DateTime Date)> _latestCard = new();
 
         /// <summary>Le patient avait-il un RDV (non annulé) ce jour-là ? Sert au rapprochement avec la carte Vitale.</summary>
         public bool Visited(int patientId, DateTime day) => _visits.Contains((patientId, day.Date));
@@ -272,9 +281,20 @@ namespace EyeChat.Families
                 => Unique(SurnameTokens(surname, null).SelectMany(t => bySurname.TryGetValue(t, out var l) ? l : new List<int>()).Where(id => Matches(id, surname, firstName)));
 
             var payers = new Dictionary<string, Dictionary<int, (DateTime First, DateTime Last, int Count)>>();
+            var cards = new Dictionary<string, Dictionary<int, (DateTime First, DateTime Last, int Count)>>();
             foreach (var row in rows)
             {
                 stats.Lines++;
+                // Carte de facturation : toutes les factures comptent, quel que soit le payeur.
+                if (row.Card.Length > 0 && row.InvoiceDate is { } billed && Visitor(billed, row.BeneficiarySurname, row.BeneficiaryFirstName) is { } patient)
+                {
+                    stats.CardInvoices++;
+                    if (!cards.TryGetValue(row.Card, out var onCard)) cards[row.Card] = onCard = new();
+                    onCard[patient] = onCard.TryGetValue(patient, out var c)
+                        ? (c.First < billed.Date ? c.First : billed.Date, c.Last > billed.Date ? c.Last : billed.Date, c.Count + 1)
+                        : (billed.Date, billed.Date, 1);
+                    if (!_latestCard.TryGetValue(patient, out var latest) || billed.Date >= latest.Date) _latestCard[patient] = (row.Card, billed.Date);
+                }
                 if (!PaymentLinks.IsPersonPayer(row) || row.InvoiceDate is not { } date) { stats.Organisms++; continue; }
                 if (PaymentLinks.SamePerson(row)) { stats.SelfPaid++; continue; }
                 stats.PaidForSomeoneElse++;
@@ -296,6 +316,23 @@ namespace EyeChat.Families
                 benefs[b] = benefs.TryGetValue(b, out var seen)
                     ? (seen.First < date.Date ? seen.First : date.Date, seen.Last > date.Date ? seen.Last : date.Date, seen.Count + 1)
                     : (date.Date, date.Date, 1);
+            }
+            foreach (var onCard in cards.Values.Where(x => x.Count >= 2))
+            {
+                if (onCard.Count > VitaleLinks.MaxPatientsPerCard) continue;
+                stats.SharedCards++;
+                var ids = onCard.Keys.ToList();
+                for (int i = 0; i < ids.Count; i++)
+                    for (int j = i + 1; j < ids.Count; j++)
+                    {
+                        var a = onCard[ids[i]]; var c = onCard[ids[j]];
+                        var link = Link(ids[i], ids[j]);
+                        link.SameBillingCard += Math.Min(a.Count, c.Count);
+                        var first = a.First < c.First ? a.First : c.First;
+                        var last = a.Last < c.Last ? a.Last : c.Last; // les deux étaient encore sur la carte à cette date
+                        if (link.BillingCardFirst is null || first < link.BillingCardFirst) link.BillingCardFirst = first;
+                        if (link.BillingCardLast is null || last > link.BillingCardLast) link.BillingCardLast = last;
+                    }
             }
             foreach (var benefs in payers.Values.Where(x => x.Count >= 2))
             {
@@ -372,6 +409,10 @@ namespace EyeChat.Families
                 link.VitaleCurrent = d.Current;
                 link.VitaleSeparated = d.Separated;
                 link.VitaleHousehold = d.Household;
+                // Facturés récemment chacun sous sa propre carte : le rattachement Vitale « actif » est périmé.
+                if (_latestCard.TryGetValue(d.A, out var ca) && _latestCard.TryGetValue(d.B, out var cb) && ca.Card != cb.Card
+                    && end - ca.Date <= RecentPeriod && end - cb.Date <= RecentPeriod)
+                    link.BillingSeparateCards = true;
                 declared++;
             }
 
@@ -431,8 +472,11 @@ namespace EyeChat.Families
                 else if (l.Strength < LinkStrength.Moyenne) l.Strength = LinkStrength.Moyenne;
             }
             var recentPayment = l.LastPayment is { } paid && end - paid <= RecentPeriod;
-            var anyIdentity = identity || l.SharedNoSS || l.VitaleRelation != null || payments > 0;
-            l.SameHouseholdNow = anyIdentity && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent || recentPayment);
+            // Même carte Vitale à la facturation (lue à chaque consultation) : lien déclaré et daté.
+            var recentCard = l.SameBillingCard > 0 && l.BillingCardLast is { } cardDate && end - cardDate <= RecentPeriod;
+            if (l.SameBillingCard > 0) l.Strength = LinkStrength.Forte;
+            var anyIdentity = identity || l.SharedNoSS || l.VitaleRelation != null || payments > 0 || l.SameBillingCard > 0;
+            l.SameHouseholdNow = anyIdentity && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent || recentPayment || recentCard);
 
             // Carte Vitale : lien déclaré, donc fort. Rattachement en cours de conjoints ou d'enfants de moins de 20 ans
             // = même foyer ; conjoints séparés, divorcés ou veufs = jamais regroupés. Sinon (ancien rattachement, enfant
@@ -441,8 +485,8 @@ namespace EyeChat.Families
             {
                 l.Strength = LinkStrength.Forte;
                 if (l.VitaleSeparated) l.SameHouseholdNow = false;
-                else if (l.VitaleCurrent && l.VitaleHousehold) l.SameHouseholdNow = true;
-                else l.SameHouseholdNow = contactHousehold || recent || recentPayment;
+                else if (l.VitaleCurrent && l.VitaleHousehold && !l.BillingSeparateCards) l.SameHouseholdNow = true;
+                else l.SameHouseholdNow = contactHousehold || recent || recentPayment || recentCard;
             }
 
             var reasons = new List<string>();
@@ -452,6 +496,8 @@ namespace EyeChat.Families
             if (l.CovisitDays > 0) reasons.Add($"venus ensemble {l.CovisitDays} fois ({l.FirstCovisit:yyyy}" + (l.LastCovisit?.Year != l.FirstCovisit?.Year ? $"-{l.LastCovisit:yyyy}" : "") + ")");
             if (l.BookedTogetherDays > 0) reasons.Add($"RDV pris à la même minute {l.BookedTogetherDays} fois");
             if (l.ArrivedTogetherDays > 0) reasons.Add($"arrivés ensemble {l.ArrivedTogetherDays} fois");
+            if (l.SameBillingCard > 0) reasons.Add($"facturés sous la même carte Vitale {l.BillingCardFirst:yyyy}" + (l.BillingCardLast?.Year != l.BillingCardFirst?.Year ? $"-{l.BillingCardLast:yyyy}" : ""));
+            if (l.BillingSeparateCards) reasons.Add("chacun facturé sous sa propre carte récemment");
             if (l.PaidForCount > 0) reasons.Add($"l'un règle les soins de l'autre ({l.PaidForCount} factures)");
             if (l.SamePayerCount > 0) reasons.Add($"soins réglés par le même payeur ({l.SamePayerCount} fois)");
             if (payments > 0) reasons[^1] += $" {l.FirstPayment:yyyy}" + (l.LastPayment?.Year != l.FirstPayment?.Year ? $"-{l.LastPayment:yyyy}" : "");
