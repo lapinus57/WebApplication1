@@ -165,16 +165,16 @@ foreach (var (name, type) in new[] { ("Code Patient", typeof(int)), ("Date", typ
 agenda.Rows.Add(42, new DateTime(2010, 5, 3), new DateTime(1899, 12, 30, 9, 15, 0), new DateTime(2010, 4, 1, 10, 2, 0), new DateTime(1899, 12, 30, 9, 5, 0), "1 55 03", "MARTIN", "Paul", "06 12 00 00 01", "p@example.fr", false);
 agenda.Rows.Add(DBNull.Value, new DateTime(2010, 5, 3), DBNull.Value, DBNull.Value, DBNull.Value, "", "", "", "", "", true);
 var columnsFound = agenda.Columns.Cast<System.Data.DataColumn>().Select(c => c.ColumnName).ToList();
-var map = Schema.Map(columnsFound, new Dictionary<string, string>());
+var map = AgendaSchema.Map(columnsFound, new Dictionary<string, string>());
 Check(map["patient"] == "Code Patient" && map["creation"] == "Pris le" && map["arrivee"] == "Arrivé à" && map["noss"] == "NoSS" && map["prenom"] == "Prénom" && map["adresse"] == null,
     "Colonnes d'AG_rdv reconnues (accents compris), absentes signalées");
-Check(Schema.Map(columnsFound, new Dictionary<string, string> { ["noss"] = "nOsS" })["noss"] == "NoSS", "Colonne imposée avec --colonne");
+Check(AgendaSchema.Map(columnsFound, new Dictionary<string, string> { ["noss"] = "nOsS" })["noss"] == "NoSS", "Colonne imposée avec --colonne");
 var cabinetColumns = new List<string> { "Code Patient", "Date", "Heure", "Tel 1", "Tel Bureau", "EmailPatient", "Email" };
-var cabinetMap = Schema.Map(cabinetColumns, new Dictionary<string, string>());
+var cabinetMap = AgendaSchema.Map(cabinetColumns, new Dictionary<string, string>());
 Check(cabinetMap["tel2"] == "Tel Bureau" && cabinetMap["email"] == "EmailPatient", "Colonnes du cabinet : Tel Bureau et EmailPatient");
 using (var agendaReader = agenda.CreateDataReader())
 {
-    var rowReader = new RowReader(agendaReader, map);
+    var rowReader = new AgendaRowReader(agendaReader, map);
     agendaReader.Read();
     var first = rowReader.Row()!;
     Check(first.PatientId == 42 && first.Time == new DateTime(2010, 5, 3, 9, 15, 0) && first.Arrival == new DateTime(2010, 5, 3, 9, 5, 0) && first.Created == new DateTime(2010, 4, 1, 10, 2, 0),
@@ -393,5 +393,27 @@ foreach (var day in new[] { new DateTime(2023, 5, 2), new DateTime(2024, 9, 3) }
 }
 Check(nameOnly.Finish().Links.Single(l => l.A == 401) is { Strength: LinkStrength.Moyenne, SameHouseholdNow: false },
     "Même nom, venus ensemble 2 fois, ni adresse ni contact commun : parents peut-être, pas même foyer");
+
+// ---------- Décisions prises à la main ----------
+ScanResult WithDecisions(params FamilyDecision[] decisions)
+{
+    var sc = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+    foreach (var day in new[] { new DateTime(2025, 3, 2), new DateTime(2026, 3, 2) })
+    {
+        sc.Add(new ScanRow(501, day, day.AddHours(9), null, null, "", "BRUN", "", "Ana", "4 rue B", "Metz", new[] { "0601000501" }, Array.Empty<string>(), false));
+        sc.Add(new ScanRow(502, day, day.AddHours(9), null, null, "", "BRUN", "", "Eli", "4 rue B", "Metz", new[] { "0601000501" }, Array.Empty<string>(), false));
+        sc.Add(new ScanRow(503, day, day.AddHours(11), null, null, "", "ROSE", "", "Ines", "8 rue R", "Metz", new[] { "0601000503" }, Array.Empty<string>(), false));
+    }
+    sc.AddDecisions(decisions);
+    return sc.Finish();
+}
+Check(WithDecisions().Families.Single().Members.SequenceEqual(new[] { 501, 502 }), "Sans décision : famille 501-502");
+Check(WithDecisions(new FamilyDecision(FamilyDecisionKind.Separate, 501, 502)).Families.Count == 0, "Séparés à la main : plus de famille");
+var joined = WithDecisions(new FamilyDecision(FamilyDecisionKind.Join, 502, 503));
+Check(joined.Families.Single().Members.SequenceEqual(new[] { 501, 502, 503 }) && joined.Links.Single(l => l.A == 502 && l.B == 503).Reasons.Contains("regroupés à la main"),
+    "Regroupés à la main : 503 rejoint la famille");
+Check(WithDecisions(new FamilyDecision(FamilyDecisionKind.Validate, 0, 0, "1,2")).Families.Single().Validated == false
+    && WithDecisions(new FamilyDecision(FamilyDecisionKind.Validate, 0, 0, FamilyDecision.Signature(new[] { 502, 501 }))).Families.Single().Validated,
+    "Validation : seulement pour exactement les mêmes membres");
 
 Console.WriteLine($"{checks} vérifications réussies.");

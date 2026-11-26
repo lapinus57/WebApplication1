@@ -1,11 +1,14 @@
-// Lecture d'AG_rdv : repérage des colonnes et conversion d'une ligne (séparé de Program.cs pour être testé sans Access).
+// Lecture d'AG_rdv : repérage des colonnes et conversion d'une ligne. Partagé par l'outil FamilyScan et le serveur.
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Data.OleDb;
 using System.Globalization;
 using System.Text;
-using EyeChat.Families;
+namespace EyeChat.Families;
 
-public static class Schema
+public static class AgendaSchema
 {
     // Noms de colonnes connus d'AG_rdv (mêmes que l'onglet SMS et mail), du plus probable au moins probable.
     public static readonly Dictionary<string, string[]> Candidates = new()
@@ -37,7 +40,7 @@ public static class Schema
         var tables = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object?[] { null, null, null, null })!.Rows.Cast<DataRow>()
             .Where(r => Convert.ToString(r["TABLE_TYPE"]) is "TABLE" or "LINK").Select(r => Convert.ToString(r["TABLE_NAME"]) ?? "").ToList();
         return tables.FirstOrDefault(t => string.Equals(t, wanted, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException($"Table « {wanted} » introuvable. Tables : {string.Join(", ", tables.Where(t => !t.StartsWith("MSys")))}. Utilisez --table.");
+            ?? throw new InvalidOperationException($"Table « {wanted} » introuvable. Tables : {string.Join(", ", tables.Where(t => !t.StartsWith("MSys")))}. Indiquez la table de l'agenda.");
     }
 
     public static List<string> Columns(OleDbConnection connection, string table)
@@ -97,12 +100,12 @@ public static class Schema
     }
 }
 
-public sealed class RowReader
+public sealed class AgendaRowReader
 {
     private readonly IDataRecord _record;
     private readonly Dictionary<string, int> _ordinal = new();
 
-    public RowReader(IDataRecord record, Dictionary<string, string?> map)
+    public AgendaRowReader(IDataRecord record, Dictionary<string, string?> map)
     {
         _record = record;
         var byName = Enumerable.Range(0, record.FieldCount).GroupBy(i => record.GetName(i), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);

@@ -35,6 +35,8 @@ namespace EyeChat.Families
         public bool SameHouseholdNow { get; set; }
         /// <summary>Parenté entre deux foyers : l'un a fondé son propre foyer (conjoint, enfants mineurs) ailleurs.</summary>
         public bool OtherHousehold { get; set; }
+        /// <summary>« séparés à la main » ou « regroupés à la main », sinon vide.</summary>
+        public string ManualDecision { get; set; } = "";
         /// <summary>Pour un lien Vitale « parent et enfant » : l'enfant.</summary>
         public int? VitaleChild { get; set; }
         public bool SharedNoSS => NoSSFirst.HasValue;
@@ -91,7 +93,9 @@ namespace EyeChat.Families
         public LinkStrength Weakest { get; set; } = LinkStrength.Forte;
         /// <summary>Membres reliés seulement par l'intermédiaire d'un autre (A–B, B–C, mais rien entre A et C).</summary>
         public bool HasChain { get; set; }
-        public bool ToReview => HasChain || Members.Count > 6 || Weakest < LinkStrength.Moyenne;
+        /// <summary>Validée à la main sur la page d'administration (mêmes membres) : plus à vérifier.</summary>
+        public bool Validated { get; set; }
+        public bool ToReview => !Validated && (HasChain || Members.Count > 6 || Weakest < LinkStrength.Moyenne);
     }
 
     public sealed class ScanResult
@@ -145,7 +149,11 @@ namespace EyeChat.Families
         private readonly Dictionary<DateTime, List<int>> _visitorsByDay = new();
         private PaymentStats? _payments;
         /// <summary>Dernière carte de facturation de chaque patient, avec sa date.</summary>
-        private readonly Dictionary<int, (string Card, DateTime Date)> _latestCard = new();
+        private readonly Dictionary<int, (string Batch, string Card, DateTime Date)> _latestCard = new();
+        private readonly List<FamilyDecision> _decisions = new();
+
+        /// <summary>Décisions prises à la main (page d'administration) : appliquées après le calcul.</summary>
+        public void AddDecisions(IEnumerable<FamilyDecision> decisions) => _decisions.AddRange(decisions);
 
         /// <summary>Le patient avait-il un RDV (non annulé) ce jour-là ? Sert au rapprochement avec la carte Vitale.</summary>
         public bool Visited(int patientId, DateTime day) => _visits.Contains((patientId, day.Date));
@@ -297,7 +305,7 @@ namespace EyeChat.Families
                     onCard[patient] = onCard.TryGetValue(patient, out var c)
                         ? (c.First < billed.Date ? c.First : billed.Date, c.Last > billed.Date ? c.Last : billed.Date, c.Count + 1)
                         : (billed.Date, billed.Date, 1);
-                    if (!_latestCard.TryGetValue(patient, out var latest) || billed.Date >= latest.Date) _latestCard[patient] = (row.Card, billed.Date);
+                    if (!_latestCard.TryGetValue(patient, out var latest) || billed.Date >= latest.Date) _latestCard[patient] = (row.Batch, row.Card, billed.Date);
                 }
                 if (!PaymentLinks.IsPersonPayer(row) || row.InvoiceDate is not { } date) { stats.Organisms++; continue; }
                 if (PaymentLinks.SamePerson(row)) { stats.SelfPaid++; continue; }
@@ -416,7 +424,7 @@ namespace EyeChat.Families
                 link.VitaleChild = d.Child;
                 // Facturés récemment chacun sous sa propre carte : le rattachement Vitale « actif » d'un enfant est périmé
                 // (carte à lui, ou carte de l'autre parent). Pour des conjoints, chacun sa carte est normal : rien n'est contredit.
-                if (d.Current && !d.Relation.StartsWith("conjoints") && _latestCard.TryGetValue(d.A, out var ca) && _latestCard.TryGetValue(d.B, out var cb) && ca.Card != cb.Card
+                if (d.Current && !d.Relation.StartsWith("conjoints") && _latestCard.TryGetValue(d.A, out var ca) && _latestCard.TryGetValue(d.B, out var cb) && ca.Batch == cb.Batch && ca.Card != cb.Card
                     && end - ca.Date <= RecentPeriod && end - cb.Date <= RecentPeriod)
                     link.BillingSeparateCards = true;
                 declared++;
@@ -430,11 +438,12 @@ namespace EyeChat.Families
                 Classify(link, end);
             }
             SplitFoundedHouseholds(_links.Values.Where(l => l.SameHouseholdNow).ToList());
+            ApplyDecisions();
             var links = _links.Values.Where(l => l.Strength > 0).OrderByDescending(l => l.Strength).ThenBy(l => l.A).ThenBy(l => l.B).ToList();
             return new ScanResult
             {
                 FirstDay = _firstDay, LastDay = _lastDay, Rows = _rows, Patients = _patients.Count,
-                Years = _years.Values.OrderBy(y => y.Year).ToList(), Links = links, Families = BuildFamilies(links),
+                Years = _years.Values.OrderBy(y => y.Year).ToList(), Links = links, Families = MarkValidated(BuildFamilies(links)),
                 PatientsById = _patients, CollectivePhones = collectivePhones, CollectiveEmails = collectiveEmails,
                 DeclaredLinks = declared, DeclaredLinksWithoutAgenda = withoutAgenda, Payments = _payments
             };
@@ -479,6 +488,35 @@ namespace EyeChat.Families
                 l.OtherHousehold = true;
                 l.Reasons += ", a fondé son propre foyer";
             }
+        }
+
+        private void ApplyDecisions()
+        {
+            foreach (var d in _decisions)
+            {
+                if (d.Kind == FamilyDecisionKind.Validate || d.A == d.B || !_patients.ContainsKey(d.A) || !_patients.ContainsKey(d.B)) continue;
+                var link = Link(d.A, d.B);
+                if (d.Kind == FamilyDecisionKind.Separate)
+                {
+                    link.SameHouseholdNow = false;
+                    link.ManualDecision = "séparés à la main";
+                }
+                else
+                {
+                    link.SameHouseholdNow = true;
+                    if (link.Strength < LinkStrength.Forte) link.Strength = LinkStrength.Forte;
+                    link.ManualDecision = "regroupés à la main";
+                }
+                link.Reasons = string.IsNullOrEmpty(link.Reasons) ? link.ManualDecision : link.Reasons + ", " + link.ManualDecision;
+            }
+        }
+
+        /// <summary>Une famille validée à la main (mêmes membres) n'est plus « à vérifier ».</summary>
+        private List<ScanFamily> MarkValidated(List<ScanFamily> families)
+        {
+            var validated = _decisions.Where(d => d.Kind == FamilyDecisionKind.Validate).Select(d => d.Members).ToHashSet(StringComparer.Ordinal);
+            foreach (var f in families) f.Validated = validated.Contains(FamilyDecision.Signature(f.Members));
+            return families;
         }
 
         private static bool SeenRecently(PatientInfo p, DateTime end) => end - p.LastSeen <= CurrentContactPeriod;

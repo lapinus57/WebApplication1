@@ -16,6 +16,8 @@ namespace EyeChat.Families
     {
         /// <summary>Empreinte du NIR de facturation (carte Vitale lue à la consultation), ou vide.</summary>
         public string Card { get; init; } = "";
+        /// <summary>Export d'origine : deux cartes ne se comparent qu'à l'intérieur d'un même export.</summary>
+        public string Batch { get; init; } = "";
     }
 
     public sealed class PaymentStats

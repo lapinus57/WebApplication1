@@ -8,7 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Shared/Families/*.cs" LinkBase="Families" />
-    <Compile Include="../../tools/FamilyScan/AgendaReader.cs" Link="AgendaReader.cs" />
     <PackageReference Include="System.Data.OleDb" Version="8.0.0" />
   </ItemGroup>
 </Project>

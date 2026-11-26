@@ -1,7 +1,5 @@
 // Outil de mesure : reconstitue les familles à partir de tout l'historique de l'agenda (AG_rdv), en lecture seule.
 // Produit un rapport anonymisé (transmissible) et un détail nominatif (à garder au cabinet). Ne modifie rien.
-using System.Data;
-using System.Data.OleDb;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -16,66 +14,23 @@ try
     if (!File.Exists(options.Database)) throw new FileNotFoundException("Base Access introuvable.", options.Database);
 
     using var connection = ReadOnlyAccess.Open(new AccessReadOptions(options.Database, "", options.Workgroup, options.User, options.Password));
-    var table = Schema.FindTable(connection, options.Table);
-    var columns = Schema.Columns(connection, table);
-    var map = Schema.Map(columns, options.Overrides);
     Console.WriteLine($"Base : {options.Database}");
-    Console.WriteLine($"Table : {table} ({columns.Count} colonnes), pilote {connection.Provider}");
-    foreach (var (role, column) in map.OrderBy(m => m.Key)) Console.WriteLine($"  {role,-10} → {column ?? "(absente)"}");
-    foreach (var required in new[] { "patient", "date" })
-        if (map[required] == null) throw new InvalidOperationException($"Colonne « {required} » introuvable. Indiquez-la avec --colonne {required}=NomDeLaColonne. Colonnes : {string.Join(", ", columns)}");
-
-    var (first, last) = Schema.DateRange(connection, table, map["date"]!);
-    Console.WriteLine($"Rendez-vous du {first:dd/MM/yyyy} au {last:dd/MM/yyyy}.");
-    var scanner = new FamilyScanner();
     var clock = Stopwatch.StartNew();
-    for (var year = first.Year; year <= last.Year; year++)
-    {
-        int count = 0;
-        using var command = connection.CreateCommand();
-        var order = map["heure"] is { } h ? $"{Schema.Q(map["date"]!)}, {Schema.Q(h)}" : Schema.Q(map["date"]!);
-        command.CommandText = $"SELECT * FROM {Schema.Q(table)} WHERE {Schema.Q(map["date"]!)} >= ? AND {Schema.Q(map["date"]!)} < ? ORDER BY {order}";
-        command.Parameters.Add("?", OleDbType.Date).Value = new DateTime(year, 1, 1);
-        command.Parameters.Add("?", OleDbType.Date).Value = new DateTime(year + 1, 1, 1);
-        using var reader = command.ExecuteReader()!;
-        var read = new RowReader(reader, map);
-        while (reader.Read())
-        {
-            var row = read.Row();
-            if (row == null) continue;
-            scanner.Add(row);
-            count++;
-        }
-        Console.WriteLine($"  {year} : {count,7:N0} rendez-vous lus ({clock.Elapsed:mm\\:ss})");
-    }
-
+    var pipeline = new FamilyPipelineOptions { Table = options.Table, PatientsTable = options.Patients };
+    foreach (var (role, column) in options.Overrides) pipeline.Overrides[role] = column;
     if (options.Payments != null)
     {
         Console.WriteLine($"Règlements : lecture de {options.Payments}…");
-        List<PaymentRow> payments;
-        using (var csv = PaymentLinks.Open(options.Payments)) payments = PaymentLinks.ReadCsv(csv);
-        var stats = scanner.AddPayments(payments);
-        Console.WriteLine($"  {stats.Lines:N0} factures, {stats.PaidForSomeoneElse:N0} réglées par une autre personne, {stats.BeneficiaryFound:N0} bénéficiaires retrouvés.");
+        using var csv = PaymentLinks.Open(options.Payments);
+        pipeline.Payments = PaymentLinks.ReadCsv(csv);
     }
-
-    VitaleMatch? vitaleMatch = null;
     if (options.Vitale != null)
     {
         Console.WriteLine($"Carte Vitale : lecture de {options.Vitale}…");
-        List<VitaleRow> vitale;
-        using (var csv = new StreamReader(options.Vitale, Encoding.UTF8, detectEncodingFromByteOrderMarks: true)) vitale = VitaleLinks.ReadCsv(csv);
-        var identitiesTable = options.Patients ?? (map["naissance"] != null ? table : Schema.FindTable(connection, "Patients"));
-        var identitiesMap = identitiesTable == table ? map : Schema.Map(Schema.Columns(connection, identitiesTable), options.Overrides);
-        var identities = Schema.ReadIdentities(connection, identitiesTable, identitiesMap);
-        vitaleMatch = VitaleLinks.Match(vitale, identities, scanner.Visited);
-        var declared = VitaleLinks.Links(vitale, vitaleMatch, DateTime.Today);
-        scanner.AddDeclared(declared);
-        Console.WriteLine($"  {vitale.Count:N0} fiches, {vitaleMatch.VitalePatients:N0} patients Vitale, {vitaleMatch.Matched:N0} rapprochés (table « {identitiesTable} », {identities.Count:N0} identités), {declared.Count:N0} liens déclarés.");
+        using var csv = new StreamReader(options.Vitale, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        pipeline.Vitale = VitaleLinks.ReadCsv(csv);
     }
-
-    Console.WriteLine("Calcul des liens et des familles…");
-    var result = scanner.Finish();
-    result.Vitale = vitaleMatch;
+    var result = FamilyPipeline.Run(connection, pipeline, Console.WriteLine);
     var folder = options.Output ?? Path.Combine(Environment.CurrentDirectory, $"Familles-{DateTime.Now:yyyy-MM-dd-HHmm}");
     Directory.CreateDirectory(folder);
     var reportPath = Path.Combine(folder, "rapport-anonymise.txt");
