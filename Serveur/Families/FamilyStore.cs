@@ -293,6 +293,21 @@ public sealed class FamilyStore
         return latestPair.Values.Concat(all.Where(d => d.Kind == FamilyDecisionKind.Validate)).ToList();
     }
 
+    /// <summary>Réponse d'un poste à « Famille à vérifier » : chaque paire de personnes présentes est notée ensemble ou séparée.</summary>
+    public async Task<int> RecordAnswerAsync(IReadOnlyList<int> patientIds, bool together, string author)
+    {
+        var ids = patientIds.Where(i => i > 0).Distinct().OrderBy(i => i).ToList();
+        if (ids.Count < 2 || ids.Count > 50) return 0;
+        int count = 0;
+        for (int i = 0; i < ids.Count; i++)
+            for (int j = i + 1; j < ids.Count; j++)
+            {
+                await AddDecisionAsync(new FamilyDecision(together ? FamilyDecisionKind.Join : FamilyDecisionKind.Separate, ids[i], ids[j]), author);
+                count++;
+            }
+        return count;
+    }
+
     public int DecisionCount()
     {
         using var c = Open();
@@ -426,14 +441,32 @@ public sealed class FamilyStore
             using var r = cmd.ExecuteReader();
             while (r.Read()) numbers[r.GetInt32(0)] = r.GetInt32(1);
         }
+        // Réponses données aux postes (« Regrouper » / « Garder séparés ») : la plus récente pour chaque paire.
+        var answers = LoadDecisions().Where(d => d.Kind != FamilyDecisionKind.Validate)
+            .ToDictionary(d => (d.A, d.B), d => d.Kind == FamilyDecisionKind.Join);
+        bool? Answer(int a, int b) => answers.TryGetValue((Math.Min(a, b), Math.Max(a, b)), out var together) ? together : null;
         var result = new List<FamilyMembershipDto>();
         foreach (var family in numbers.Values.Distinct().Chunk(200).SelectMany(chunk => FamiliesByNumbers(c, chunk)))
         {
             var why = string.Join(Environment.NewLine, family.Links.Select(l =>
                 $"{Name(family, l.A)} et {Name(family, l.B)} : {l.Reasons}"));
-            if (family.ToReview) why = "À vérifier (" + family.ReviewReason + ")" + Environment.NewLine + why;
-            foreach (var m in family.Members.Where(m => numbers.ContainsKey(m.PatientId)))
-                result.Add(new FamilyMembershipDto { PatientId = m.PatientId, FamilyNumber = family.Number, ToReview = family.ToReview, Why = why });
+            // Personnes « gardées séparées » : jamais dans le même groupe, même avant le prochain calcul.
+            var groups = new List<List<int>>();
+            foreach (var id in family.Members.Select(m => m.PatientId).Where(numbers.ContainsKey))
+            {
+                var group = groups.FirstOrDefault(g => g.All(other => Answer(id, other) != false));
+                if (group == null) groups.Add(group = new List<int>());
+                group.Add(id);
+            }
+            for (int g = 0; g < groups.Count; g++)
+            {
+                // Déjà confirmés ensemble au poste (toutes les paires présentes) : plus de question.
+                var confirmed = groups[g].Count > 1 && groups[g].SelectMany(a => groups[g].Where(b => b > a).Select(b => Answer(a, b) == true)).All(x => x);
+                var toReview = family.ToReview && !confirmed;
+                var groupWhy = toReview ? "À vérifier (" + family.ReviewReason + ")" + Environment.NewLine + why : why;
+                foreach (var id in groups[g])
+                    result.Add(new FamilyMembershipDto { PatientId = id, FamilyNumber = family.Number, SubGroup = g, ToReview = toReview, Why = groupWhy });
+            }
         }
         return result;
 

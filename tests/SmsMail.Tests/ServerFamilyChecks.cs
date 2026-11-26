@@ -23,7 +23,7 @@ static class ServerFamilyChecks
             new() { PatientId = 18390, FamilyNumber = 12, Why = "Monique Klein et Marc Klein : carte Vitale : parent et enfant" },
         };
         var rows = new List<RdvInfo> { mother, son, stranger };
-        Check(ServerFamilies.Apply(rows, day, known, null) == 1 && mother.ReferenceFamilyNumber == ServerFamilies.NumberOffset + 12
+        Check(ServerFamilies.Apply(rows, day, known, null) == 1 && mother.ReferenceFamilyNumber == ServerFamilies.NumberOffset + 1200
             && son.ReferenceFamilyNumber == mother.ReferenceFamilyNumber && stranger.ReferenceFamilyNumber == 0, "Sure server family applied without asking");
         var families = EyeEmailFamilyGrouping.Build(rows);
         var together = families.Single(f => f.RDVs.Contains(mother));
@@ -36,13 +36,20 @@ static class ServerFamilyChecks
         foreach (var r in rows) { r.ReferenceFamilyNumber = 0; r.ReferenceFamilyWhy = ""; }
         foreach (var m in known) { m.ToReview = true; m.Why = "À vérifier (certains membres ne sont reliés que par l'intermédiaire d'un autre)\n" + m.Why; }
         string? asked = null;
-        Check(ServerFamilies.Apply(rows, day, known, (message, title) => { asked = message; return false; }) == 0 && mother.ReferenceFamilyNumber == 0,
+        var answers = new List<ServerFamilies.Answer>();
+        Check(ServerFamilies.Apply(rows, day, known, (message, title) => { asked = message; return false; }, answers) == 0 && mother.ReferenceFamilyNumber == 0,
             "Family to review, answer no: not grouped");
+        Check(answers.Single() is { Together: false } a0 && a0.PatientIds.SequenceEqual(new[] { 10072, 18390 }), "The answer is kept to be sent to the server");
         Check(asked != null && asked.Contains("Monique Klein (09:00)") && asked.Contains("Marc Klein (10:30)") && asked.Contains("Pourquoi") && asked.Contains("n° 12"),
             "The question shows who, when and why");
-        Check(ServerFamilies.Apply(rows, day, known, (_, _) => true) == 1 && son.ReferenceFamilyNumber == ServerFamilies.NumberOffset + 12, "Answer yes: grouped");
+        Check(ServerFamilies.Apply(rows, day, known, (_, _) => true) == 1 && son.ReferenceFamilyNumber == ServerFamilies.NumberOffset + 1200, "Answer yes: grouped");
         foreach (var r in rows) r.ReferenceFamilyNumber = 0;
         Check(ServerFamilies.Apply(rows, day, known, null) == 0, "Family to review without a way to ask: never grouped");
+        // Le serveur a gardé « séparés » : deux groupes, plus de famille à proposer
+        foreach (var r in rows) r.ReferenceFamilyNumber = 0;
+        known[1].SubGroup = 1;
+        Check(ServerFamilies.Apply(rows, day, known, (_, _) => throw new Exception("asked again")) == 0 && mother.ReferenceFamilyNumber == 0, "Kept apart on the server: not asked again");
+        known[1].SubGroup = 0;
 
         // Une seule personne de la famille ce jour-là, ou famille EyeEmail déjà connue : rien ne change
         Check(ServerFamilies.Apply(new List<RdvInfo> { P(10072, "Monique", "Klein", 0, "0611111111") }, day, known, (_, _) => true) == 0, "Alone today: nothing to group");

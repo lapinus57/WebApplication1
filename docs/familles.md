@@ -32,7 +32,10 @@ Avec « Utiliser les familles » coché, le poste demande au serveur la famille 
 - **famille sûre** : rappels regroupés, même si les personnes n'ont pas de téléphone en commun ; l'explication du regroupement
   indique « Famille connue du serveur » et les raisons ;
 - **famille à vérifier** : une fenêtre montre qui, à quelle heure et pourquoi, et demande « Regrouper » ou « Garder séparés ».
-  Pour ne plus avoir la question, valider ou corriger la famille sur la page « Familles ».
+  **La réponse est envoyée au serveur** et gardée : « Regrouper » note ces personnes comme étant ensemble, « Garder séparés »
+  comme n'étant pas ensemble. La question n'est plus posée pour ces personnes, sur aucun poste, dès maintenant et après
+  chaque recalcul. Si une autre personne de la famille a aussi rendez-vous ce jour-là, la question est reposée pour le groupe.
+  Valider la famille entière reste possible sur la page « Familles ».
 
 Si le serveur ne répond pas, l'onglet fonctionne comme avant (la ligne d'état indique « familles du serveur indisponibles »).
 Les familles de la base EyeEmail, si elle est utilisée, gardent la priorité.

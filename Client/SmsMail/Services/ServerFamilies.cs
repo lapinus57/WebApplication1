@@ -16,12 +16,18 @@ public static class ServerFamilies
     /// <summary>Numéros à part de ceux de la base EyeEmail, pour ne jamais mélanger les deux.</summary>
     public const int NumberOffset = 1_000_000;
 
-    public static int Apply(IReadOnlyList<RdvInfo> rows, DateTime day, IReadOnlyList<FamilyMembershipDto> memberships, Func<string, string, bool>? confirm)
+    /// <summary>Réponse donnée à une famille à vérifier, à transmettre au serveur pour ne plus poser la question.</summary>
+    public sealed record Answer(IReadOnlyList<int> PatientIds, bool Together);
+
+    public static int ReferenceNumber(FamilyMembershipDto m) => NumberOffset + m.FamilyNumber * 100 + Math.Clamp(m.SubGroup, 0, 99);
+
+    public static int Apply(IReadOnlyList<RdvInfo> rows, DateTime day, IReadOnlyList<FamilyMembershipDto> memberships, Func<string, string, bool>? confirm,
+        List<Answer>? answers = null)
     {
         var byPatient = memberships.GroupBy(m => m.PatientId).ToDictionary(g => g.Key, g => g.First());
         var today = rows.Where(r => r.DateRDV.Date == day.Date && !r.IsCancelled && r.Id > 0 && byPatient.ContainsKey(r.Id)).ToList();
         int applied = 0;
-        foreach (var family in today.GroupBy(r => byPatient[r.Id].FamilyNumber))
+        foreach (var family in today.GroupBy(r => ReferenceNumber(byPatient[r.Id])))
         {
             var people = family.GroupBy(r => r.Id).Select(g => g.First()).ToList();
             if (people.Count < 2) continue;
@@ -33,13 +39,17 @@ public static class ServerFamilies
                 var names = string.Join(", ", people.Select(r => $"{r.Prenom} {r.Nom} ({r.HeureRDV:HH:mm})".Trim()));
                 var message = $"Le serveur range ces personnes dans la même famille : {names}." + Environment.NewLine + Environment.NewLine
                     + "Pourquoi :" + Environment.NewLine + info.Why + Environment.NewLine + Environment.NewLine
-                    + "Regrouper leurs rappels dans un seul message ? (Pour ne plus avoir la question, validez ou corrigez la famille "
-                    + $"n° {info.FamilyNumber} sur la page « Familles » de l'administration du serveur.)";
-                if (confirm == null || !confirm(message, "Famille à vérifier")) continue;
+                    + "Regrouper leurs rappels dans un seul message ? Votre réponse est enregistrée sur le serveur : "
+                    + "la question ne sera plus posée pour ces personnes, sur aucun poste. "
+                    + $"(Famille n° {info.FamilyNumber} sur la page « Familles » de l'administration du serveur.)";
+                if (confirm == null) continue;
+                var together = confirm(message, "Famille à vérifier");
+                answers?.Add(new Answer(people.Select(p => p.Id).OrderBy(id => id).ToList(), together));
+                if (!together) continue;
             }
             foreach (var row in rows.Where(r => people.Any(p => p.Id == r.Id)))
             {
-                if (row.ReferenceFamilyNumber == 0) row.ReferenceFamilyNumber = NumberOffset + info.FamilyNumber;
+                if (row.ReferenceFamilyNumber == 0) row.ReferenceFamilyNumber = ReferenceNumber(info);
                 row.ReferenceFamilyWhy = info.Why;
             }
             applied++;

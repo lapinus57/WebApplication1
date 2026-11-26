@@ -73,6 +73,26 @@ try
     await store.SaveResultAsync(result, "");
     Check(store.FamilyCount() == 1, "Un nouveau calcul remplace le précédent");
 
+    // Réponses des postes à « Famille à vérifier »
+    var chain = new ScanFamily { Number = 1, HasChain = true };
+    chain.Members.AddRange(new[] { 701, 702, 703 });
+    var chainResult = new ScanResult
+    {
+        Families = new[] { chain },
+        PatientsById = new[] { 701, 702, 703 }.ToDictionary(id => id, id => new PatientInfo { Id = id, Name = "Patient " + id, LastSeen = new DateTime(2026, 1, 1) }),
+    };
+    var answerStore = new FamilyStore(Path.Combine(folder, "answers.db"));
+    await answerStore.SaveResultAsync(chainResult, "");
+    Check(answerStore.Memberships(new[] { 701, 702 }).All(m => m.ToReview && m.SubGroup == 0 && m.Why.StartsWith("À vérifier")), "Famille à vérifier : la question sera posée");
+    Check(await answerStore.RecordAnswerAsync(new[] { 702, 701 }, together: true, "poste ACCUEIL") == 1, "Réponse « Regrouper » enregistrée");
+    Check(answerStore.Memberships(new[] { 701, 702 }).All(m => !m.ToReview && m.SubGroup == 0), "Confirmés ensemble : plus de question, sur aucun poste");
+    Check(answerStore.Memberships(new[] { 701, 702, 703 }).All(m => m.ToReview), "Une autre personne de la famille ce jour-là : on redemande");
+    await answerStore.RecordAnswerAsync(new[] { 702, 703 }, together: false, "poste ACCUEIL");
+    var apart = answerStore.Memberships(new[] { 702, 703 });
+    Check(apart.Single(m => m.PatientId == 702).SubGroup != apart.Single(m => m.PatientId == 703).SubGroup, "Gardés séparés : groupes différents, immédiatement");
+    Check(answerStore.LoadDecisions().Count == 2 && answerStore.FamilyCount(toReviewOnly: true) == 1, "Réponses gardées pour le prochain calcul ; la famille reste à vérifier sur la page");
+    Check(await answerStore.RecordAnswerAsync(new[] { 702 }, together: true, "x") == 0, "Une seule personne : rien à enregistrer");
+
 
 // ---------- Page d'administration, servie pour de vrai ----------
 {

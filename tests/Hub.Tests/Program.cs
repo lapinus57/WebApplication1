@@ -239,6 +239,9 @@ try
     await familyStore.SaveResultAsync(familyScan.Finish(), "");
     var known = await posteA.InvokeAsync<List<EyeChat.SmsMail.FamilyMembershipDto>>("SmsMailFamilies", new List<int> { 601, 602, 603 });
     Check(known.Count == 2 && known.All(k => k.FamilyNumber == 1 && !k.ToReview && k.Why.Contains("Ana BRUN et Eli BRUN")), "Familles du serveur reçues par le poste, avec le pourquoi");
+    Check(await posteA.InvokeAsync<int>("SmsMailFamilyAnswer", new List<int> { 602, 601 }, false, "ACCUEIL") == 1
+        && (await posteB.InvokeAsync<List<EyeChat.SmsMail.FamilyMembershipDto>>("SmsMailFamilies", new List<int> { 601, 602 })).Select(k => k.SubGroup).Distinct().Count() == 2,
+        "Réponse d'un poste gardée par le serveur et vue par les autres postes");
     var mail = new EyeChat.SmsMail.HistoryRecord { Key = "mail-ancien", Channel = "Mail", Contact = "Lea@Example.fr", Body = "<p>" + new string('x', 400_000) + "</p>", Status = "Accepté", CreatedAtUtc = "2026-10-20T08:00:00.0000000+00:00", ProviderService = "smtp.test" };
     Check(await posteA.InvokeAsync<int>("SmsMailImport", new List<EyeChat.SmsMail.HistoryRecord> { mail, mail }, new List<EyeChat.SmsMail.HistoryReservationKey>()) == 1, "Import : une seule ligne ajoutée pour une clé en double");
     Check(await posteB.InvokeAsync<DateTimeOffset?>("SmsMailEarliestMail", "smtp.test") == new DateTimeOffset(2026, 10, 20, 8, 0, 0, TimeSpan.Zero), "Date du premier mail");

@@ -194,6 +194,14 @@ namespace ChatServeur
             return Task.Run(() => _families.Memberships(patientIds));
         }
 
+        /// <summary>Réponse du poste à « Famille à vérifier » : gardée par le serveur, la question n'est plus posée.</summary>
+        public Task<int> SmsMailFamilyAnswer(List<int> patientIds, bool together, string station)
+        {
+            if (patientIds is not { Count: >= 2 } || patientIds.Count > 50) return Task.FromResult(0);
+            var author = "poste " + (string.IsNullOrWhiteSpace(station) ? "inconnu" : station.Trim()[..Math.Min(station.Trim().Length, 64)]);
+            return _families.RecordAnswerAsync(patientIds, together, author);
+        }
+
         /// <summary>Adresse du service de réponse « Confirmer / Annuler », ou vide s'il n'est pas configuré.</summary>
         public string SmsMailReplyLinkBase()
         {

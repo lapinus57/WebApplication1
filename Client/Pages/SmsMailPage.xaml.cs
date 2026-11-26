@@ -191,6 +191,22 @@ namespace Client.Pages
             }
         }
 
+        /// <summary>Réponses « Regrouper / Garder séparés » : gardées par le serveur, la question n'est plus posée sur aucun poste.</summary>
+        private async Task SendFamilyAnswersAsync(IReadOnlyList<ServerFamilies.Answer> answers)
+        {
+            if (answers.Count == 0) return;
+            try
+            {
+                var connection = App.ChatService.GetSmsMailHistoryConnection();
+                foreach (var answer in answers)
+                    await connection.InvokeAsync<int>("SmsMailFamilyAnswer", answer.PatientIds.ToList(), answer.Together, Environment.MachineName);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or Microsoft.AspNetCore.SignalR.HubException or System.Net.Http.HttpRequestException or TimeoutException)
+            {
+                _serverFamiliesNote += " (réponse non transmise au serveur : la question sera reposée)";
+            }
+        }
+
         private bool ConfirmHistoricalFamily(string message, string title)
         {
             if (_familyDecisions.TryGetValue(message, out bool answer)) return answer;
@@ -306,14 +322,16 @@ namespace Client.Pages
                 await EyeEmailFamilyDatabase.ApplyAsync(_settings.FamilyDatabasePath, MachineConfig.Load(), working, day);
             var serverFamilies = _settings.UseEyeEmailFamilies ? await LoadServerFamiliesAsync(working, day) : new();
             int serverApplied = 0;
+            var familyAnswers = new List<ServerFamilies.Answer>();
             _families = _settings.UseEyeEmailFamilies
                 ? await Task.Run(() =>
                 {
                     // Familles du serveur (page « Familles ») : une famille à vérifier n'est regroupée qu'après accord, en voyant pourquoi.
-                    serverApplied = ServerFamilies.Apply(working, day, serverFamilies, ConfirmHistoricalFamily);
+                    serverApplied = ServerFamilies.Apply(working, day, serverFamilies, ConfirmHistoricalFamily, familyAnswers);
                     return EyeEmailFamilyGrouping.Build(working.Where(r => r.DateRDV.Date == day), _appointmentHistory,
                         _appointmentHistory.Count > 0 ? ConfirmHistoricalFamily : null);
                 }) : new();
+            await SendFamilyAnswersAsync(familyAnswers);
             FilterFamilies();
             AppointmentsList.ItemsSource = working;
             _messages = MessagePreparation.Prepare(working, day, _settings, _families);
