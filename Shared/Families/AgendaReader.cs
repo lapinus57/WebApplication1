@@ -31,6 +31,8 @@ public static class AgendaSchema
         ["annule"] = new[] { "Annulé", "Annule", "Cancelled" },
         ["titre"] = new[] { "Titre", "Civilité", "Civilite" },
         ["naissance"] = new[] { "Date de naissance", "DateNaissance", "Date naissance", "Naissance", "DDN", "Né le" },
+        ["remarque"] = new[] { "Remarque", "Remarques", "Commentaire", "Commentaires", "Note", "Notes", "Observation" },
+        ["passage"] = new[] { "Passé à", "Passe a", "Heure passage", "HeurePassage", "Heure de passage", "Passage", "Vu à", "Vu a", "Heure vu", "Pris en charge", "Entré à", "Entre a" },
     };
 
     public static string Q(string name) => "[" + name.Replace("]", "]]") + "]";
@@ -132,6 +134,10 @@ public sealed class AgendaRowReader
         DateTime? OnDay(DateTime? t) => t.HasValue ? day.Value.Date + t.Value.TimeOfDay : null;
         return new ScanRow(id, day.Value.Date, OnDay(Date("heure")), Date("creation") is { Year: > 1900 } c ? c : null, OnDay(Date("arrivee")),
             Text("noss"), Text("nom"), Text("nomjf"), Text("prenom"), Text("adresse"), Text("ville"),
-            new[] { Text("tel1"), Text("tel2") }, new[] { Text("email"), Text("email2") }, Bool("annule"));
+            new[] { Text("tel1"), Text("tel2") }, new[] { Text("email"), Text("email2") }, Bool("annule"))
+        {
+            Remark = Text("remarque"),
+            Passage = OnDay(Date("passage")),
+        };
     }
 }

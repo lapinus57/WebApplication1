@@ -416,4 +416,30 @@ Check(WithDecisions(new FamilyDecision(FamilyDecisionKind.Validate, 0, 0, "1,2")
     && WithDecisions(new FamilyDecision(FamilyDecisionKind.Validate, 0, 0, FamilyDecision.Signature(new[] { 502, 501 }))).Families.Single().Validated,
     "Validation : seulement pour exactement les mêmes membres");
 
+// ---------- Remarque et heure de passage ----------
+var rs = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+var rday = new DateTime(2026, 2, 3);
+// Passés ensemble en consultation, deux fois
+void Passed(DateTime d)
+{
+    rs.Add(new ScanRow(811, d, d.AddHours(10), null, null, "", "ROTH", "", "Paul", "5 rue R", "Metz", new[] { "0601000811" }, Array.Empty<string>(), false) { Passage = d.AddHours(10).AddMinutes(20) });
+    rs.Add(new ScanRow(812, d, d.AddHours(10).AddMinutes(15), null, null, "", "ROTH", "", "Zoé", "", "", new[] { "0601000812" }, Array.Empty<string>(), false) { Passage = d.AddHours(10).AddMinutes(25), Remark = "avec son père" });
+}
+Passed(new DateTime(2025, 5, 6));
+// La mère prend RDV à 9 h pour elle, la remarque cite sa fille Léa venue à 16 h (autre nom de famille, autre adresse)
+rs.Add(new ScanRow(801, rday, rday.AddHours(9), null, null, "", "WEISS", "", "Anne", "1 rue A", "Metz", new[] { "0601000801" }, Array.Empty<string>(), false) { Remark = "vient avec sa fille Léa" });
+rs.Add(new ScanRow(802, rday, rday.AddHours(16), null, null, "", "MULLER", "", "Léa", "2 rue B", "Metz", new[] { "0601000802" }, Array.Empty<string>(), false));
+// Un autre patient prénommé Léon, sans lien : la remarque ne le cite pas
+rs.Add(new ScanRow(803, rday, rday.AddHours(9).AddMinutes(15), null, null, "", "NOIR", "", "Léon", "3 rue C", "Metz", new[] { "0601000803" }, Array.Empty<string>(), false));
+Passed(new DateTime(2026, 5, 5));
+var rres = rs.Finish();
+PatientLink? RL(int a, int b) => rres.Links.SingleOrDefault(l => l.A == a && l.B == b);
+Check(RL(801, 802) is { RemarkNamesDays: 1, Strength: LinkStrength.Moyenne } && RL(801, 802)!.Reasons.Contains("remarque citant l'autre 1 fois (2026)"),
+    "Remarque « avec sa fille Léa » : lien avec Léa, même sans autre indice");
+Check(RL(801, 803) is null or { RemarkNamesDays: 0 }, "Prénom différent (Léon) : pas cité");
+Check(RL(811, 812) is { PassedTogetherDays: 2, RemarkFamilyWordDays: 2, Strength: LinkStrength.Forte } && RL(811, 812)!.Reasons.Contains("passés ensemble en consultation 2 fois")
+    && RL(811, 812)!.Reasons.Contains("remarque familiale"), "Passés ensemble en consultation 2 fois, remarque familiale : lien fort");
+var rreport = FamilyScanReport.Anonymous(rres);
+Check(rreport.Contains("Remarque  Passage") && rreport.Contains("remarque citant l'autre") && !rreport.Contains("Léa"), "Rapport : remplissage et indices, sans nom");
+
 Console.WriteLine($"{checks} vérifications réussies.");

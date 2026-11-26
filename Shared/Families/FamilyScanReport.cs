@@ -25,9 +25,9 @@ namespace EyeChat.Families
                 : $"Carte Vitale : lue ({r.Vitale.VitalePatients:N0} patients).");
             sb.AppendLine();
             sb.AppendLine("Remplissage des colonnes par année (en % des rendez-vous) :");
-            sb.AppendLine("Année    RDV   NoSS  Création  Arrivée  Heure");
+            sb.AppendLine("Année    RDV   NoSS  Création  Arrivée  Heure  Remarque  Passage");
             foreach (var y in r.Years)
-                sb.AppendLine($"{y.Year}  {y.Rows,6}  {Pct(y.WithNoSS, y.Rows),4}  {Pct(y.WithCreated, y.Rows),8}  {Pct(y.WithArrival, y.Rows),7}  {Pct(y.WithTime, y.Rows),5}");
+                sb.AppendLine($"{y.Year}  {y.Rows,6}  {Pct(y.WithNoSS, y.Rows),4}  {Pct(y.WithCreated, y.Rows),8}  {Pct(y.WithArrival, y.Rows),7}  {Pct(y.WithTime, y.Rows),5}  {Pct(y.WithRemark, y.Rows),8}  {Pct(y.WithPassage, y.Rows),7}");
             sb.AppendLine();
 
             sb.AppendLine("Liens entre patients :");
@@ -42,6 +42,9 @@ namespace EyeChat.Families
             Line("même NoSS (agenda, jusqu'en 2005)", l => l.SharedNoSS);
             Line("RDV pris à la même minute", l => l.BookedTogetherDays > 0);
             Line("arrivés ensemble", l => l.ArrivedTogetherDays > 0);
+            Line("passés ensemble en consultation", l => l.PassedTogetherDays > 0);
+            Line("remarque citant l'autre", l => l.RemarkNamesDays > 0);
+            Line("remarque familiale (venus ensemble)", l => l.RemarkFamilyWordDays > 0);
             Line("venus ensemble au moins 2 fois", l => l.CovisitDays >= 2);
             Line("venus ensemble une seule fois", l => l.CovisitDays == 1);
             Line("même téléphone ou mail actuel", l => l.SharedContactNow);

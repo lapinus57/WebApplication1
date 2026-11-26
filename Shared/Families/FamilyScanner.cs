@@ -10,7 +10,13 @@ namespace EyeChat.Families
     public sealed record ScanRow(
         int PatientId, DateTime Day, DateTime? Time, DateTime? Created, DateTime? Arrival,
         string NoSS, string Surname, string MaidenName, string FirstName, string Address, string City,
-        IReadOnlyList<string> Phones, IReadOnlyList<string> Emails, bool Cancelled);
+        IReadOnlyList<string> Phones, IReadOnlyList<string> Emails, bool Cancelled)
+    {
+        /// <summary>Remarque du RDV (« avec sa fille Léa »…).</summary>
+        public string Remark { get; init; } = "";
+        /// <summary>Heure de passage en consultation.</summary>
+        public DateTime? Passage { get; init; }
+    }
 
     public enum LinkStrength { Faible = 1, Moyenne = 2, Forte = 3 }
 
@@ -22,6 +28,14 @@ namespace EyeChat.Families
         public int CovisitDays { get; set; }
         public int BookedTogetherDays { get; set; }
         public int ArrivedTogetherDays { get; set; }
+        /// <summary>Passés en consultation à moins de 10 minutes d'écart, le même jour.</summary>
+        public int PassedTogetherDays { get; set; }
+        /// <summary>Jours où la remarque de l'un cite le prénom de l'autre (avec son nom ou un mot de famille).</summary>
+        public int RemarkNamesDays { get; set; }
+        public DateTime? FirstRemarkName { get; set; }
+        public DateTime? LastRemarkName { get; set; }
+        /// <summary>Venus ensemble, avec une remarque familiale (« avec », mère, fille…) sans prénom reconnu.</summary>
+        public int RemarkFamilyWordDays { get; set; }
         public DateTime? FirstCovisit { get; set; }
         public DateTime? LastCovisit { get; set; }
         public DateTime? NoSSFirst { get; set; }
@@ -84,6 +98,8 @@ namespace EyeChat.Families
         public int WithCreated { get; set; }
         public int WithArrival { get; set; }
         public int WithTime { get; set; }
+        public int WithRemark { get; set; }
+        public int WithPassage { get; set; }
     }
 
     public sealed class ScanFamily
@@ -186,6 +202,8 @@ namespace EyeChat.Families
             if (row.Created.HasValue) stats.WithCreated++;
             if (row.Arrival.HasValue) stats.WithArrival++;
             if (row.Time.HasValue) stats.WithTime++;
+            if (row.Remark.Trim().Length > 0) stats.WithRemark++;
+            if (row.Passage.HasValue) stats.WithPassage++;
 
             if (noss.Length > 0)
             {
@@ -260,10 +278,46 @@ namespace EyeChat.Families
                 link.CovisitDays++;
                 if (booked) link.BookedTogetherDays++;
                 if (arrived) link.ArrivedTogetherDays++;
+                if (va.Passage.HasValue && vb.Passage.HasValue
+                    && Math.Abs((va.Passage.Value.TimeOfDay - vb.Passage.Value.TimeOfDay).TotalMinutes) <= PassedTogetherMinutes)
+                    link.PassedTogetherDays++;
+                if (HasFamilyWord(va.Remark) || HasFamilyWord(vb.Remark)) link.RemarkFamilyWordDays++;
                 link.FirstCovisit ??= day;
                 link.LastCovisit = day;
             }
+
+            // Remarque qui cite un autre patient du jour : son prénom, avec son nom ou un mot de famille (« avec sa fille Léa »).
+            foreach (var v in visits.Where(v => v.Remark.Trim().Length > 0))
+            {
+                var words = FirstNameTokens(v.Remark);
+                var family = words.Overlaps(FamilyWords);
+                var surnames = SurnameTokens(v.Surname, v.MaidenName);
+                foreach (var w in visits)
+                {
+                    if (w.PatientId == v.PatientId) continue;
+                    var first = FirstNameTokens(w.FirstName).Where(t => t.Length >= 3).ToList();
+                    if (first.Count == 0 || !first.Any(words.Contains)) continue;
+                    var otherSurnames = SurnameTokens(w.Surname, w.MaidenName);
+                    if (!(family || otherSurnames.Overlaps(words) || otherSurnames.Overlaps(surnames))) continue;
+                    var link = Link(v.PatientId, w.PatientId);
+                    if (link.LastRemarkName == day) continue;
+                    link.RemarkNamesDays++;
+                    link.FirstRemarkName ??= day;
+                    link.LastRemarkName = day;
+                }
+            }
         }
+
+        public const int PassedTogetherMinutes = 10;
+
+        private static readonly HashSet<string> FamilyWords = new(StringComparer.Ordinal)
+        {
+            "AVEC", "ACCOMPAGNE", "ACCOMPAGNEE", "ACCOMPAGNANT", "MERE", "MAMAN", "PERE", "PAPA", "FILLE", "FILS", "MARI", "EPOUSE",
+            "FEMME", "FRERE", "SOEUR", "ENFANT", "ENFANTS", "BEBE", "JUMEAU", "JUMELLE", "JUMEAUX", "JUMELLES", "CONJOINT", "CONJOINTE",
+            "COMPAGNON", "COMPAGNE", "GRAND", "GRANDS", "PETIT", "PETITE", "NEVEU", "NIECE", "ONCLE", "TANTE", "BELLE", "BEAU", "FAMILLE",
+        };
+
+        private static bool HasFamilyWord(string remark) => remark.Length > 0 && FirstNameTokens(remark).Overlaps(FamilyWords);
 
         private static (int, int) Key(int a, int b) => a < b ? (a, b) : (b, a);
         private static DateTime Minute(DateTime d) => new(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0);
@@ -527,19 +581,20 @@ namespace EyeChat.Families
             var contactEver = l.SharedPhoneEver || l.SharedEmailEver;
             // RDV pris à la même minute : fort s'il se répète, ou s'il s'ajoute à un nom, une adresse ou un contact commun.
             // Une seule fois sans rien d'autre peut venir d'un report de RDV en série (mesuré : familles de 21 « personnes »).
-            var identity = l.SameSurname || l.SameAddressNow || contactEver;
-            if (l.SharedNoSS || l.BookedTogetherDays >= 2 || (l.BookedTogetherDays >= 1 && l.CovisitDays >= 1 && identity)
+            var identity = l.SameSurname || l.SameAddressNow || contactEver || l.RemarkNamesDays > 0;
+            if (l.SharedNoSS || (l.RemarkNamesDays >= 1 && (l.CovisitDays >= 1 || l.SameSurname)) || (l.PassedTogetherDays >= 2 && l.CovisitDays >= 2) || l.BookedTogetherDays >= 2 || (l.BookedTogetherDays >= 1 && l.CovisitDays >= 1 && identity)
                 || (l.ArrivedTogetherDays >= 2 && l.CovisitDays >= 2)
                 || (l.CovisitDays >= 2 && contactEver) || (l.SharedContactNow && (l.SameSurname || l.SameAddressNow)))
                 l.Strength = LinkStrength.Forte;
-            else if (l.CovisitDays >= 2 || (l.CovisitDays >= 1 && contactEver) || (contactEver && l.SameSurname))
+            else if (l.CovisitDays >= 2 || l.RemarkNamesDays >= 1 || (l.CovisitDays >= 1 && contactEver) || (contactEver && l.SameSurname))
                 l.Strength = LinkStrength.Moyenne;
             else if (l.CovisitDays >= 1 || contactEver)
                 l.Strength = LinkStrength.Faible;
             else
                 l.Strength = 0;
 
-            var recent = l.LastCovisit is { } last && end - last <= RecentPeriod;
+            var recent = (l.LastCovisit is { } last && end - last <= RecentPeriod)
+                || (l.LastRemarkName is { } named && end - named <= RecentPeriod);
             // Un téléphone ou mail actuel commun, sans même adresse ni aucune venue commune, est souvent celui d'un
             // grand-parent noté sur les fiches de plusieurs foyers (mesuré : groupes de 13 à 17 personnes). Il lie, mais
             // ne fait pas un foyer ; les rappels du jour regroupent de toute façon les personnes d'un même contact.
@@ -588,6 +643,9 @@ namespace EyeChat.Families
             if (l.CovisitDays > 0) reasons.Add($"venus ensemble {l.CovisitDays} fois ({l.FirstCovisit:yyyy}" + (l.LastCovisit?.Year != l.FirstCovisit?.Year ? $"-{l.LastCovisit:yyyy}" : "") + ")");
             if (l.BookedTogetherDays > 0) reasons.Add($"RDV pris à la même minute {l.BookedTogetherDays} fois");
             if (l.ArrivedTogetherDays > 0) reasons.Add($"arrivés ensemble {l.ArrivedTogetherDays} fois");
+            if (l.PassedTogetherDays > 0) reasons.Add($"passés ensemble en consultation {l.PassedTogetherDays} fois");
+            if (l.RemarkNamesDays > 0) reasons.Add($"remarque citant l'autre {l.RemarkNamesDays} fois ({l.FirstRemarkName:yyyy}" + (l.LastRemarkName?.Year != l.FirstRemarkName?.Year ? $"-{l.LastRemarkName:yyyy}" : "") + ")");
+            if (l.RemarkFamilyWordDays > 0) reasons.Add($"remarque familiale (« avec », mère, fille…) {l.RemarkFamilyWordDays} fois");
             if (l.SameBillingCard > 0) reasons.Add($"facturés sous la même carte Vitale {l.BillingCardFirst:yyyy}" + (l.BillingCardLast?.Year != l.BillingCardFirst?.Year ? $"-{l.BillingCardLast:yyyy}" : ""));
             if (l.BillingSeparateCards) reasons.Add("chacun facturé sous sa propre carte récemment");
             if (l.PaidForCount > 0) reasons.Add($"l'un règle les soins de l'autre ({l.PaidForCount} factures)");
