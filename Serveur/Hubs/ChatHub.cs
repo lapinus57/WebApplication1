@@ -162,10 +162,13 @@ namespace ChatServeur
         private readonly StationAccess _access;
         private readonly EyeChat.SmsMail.SmsMailHistoryStore _smsMailHistory;
         private readonly ChatServeur.Replies.ReplyLinkServiceFactory _replies;
+        private readonly ChatServeur.Families.FamilyStore _families;
 
         public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, StationAccess access,
-            EyeChat.SmsMail.SmsMailHistoryStore smsMailHistory, ChatServeur.Replies.ReplyLinkServiceFactory replies)
+            EyeChat.SmsMail.SmsMailHistoryStore smsMailHistory, ChatServeur.Replies.ReplyLinkServiceFactory replies,
+            ChatServeur.Families.FamilyStore families)
         {
+            _families = families;
             _replies = replies;
             _db = db;
             _env = env;
@@ -183,6 +186,13 @@ namespace ChatServeur
             => _smsMailHistory.ApplyReportAsync(messageKey, recipient, status, smtpHost);
         public Task<DateTimeOffset?> SmsMailEarliestMail(string smtpHost) => _smsMailHistory.EarliestMailAsync(smtpHost);
         public Task<List<EyeChat.SmsMail.HistoryRecord>> SmsMailLoad() => _smsMailHistory.LoadAsync();
+
+        /// <summary>Familles calculées par le serveur pour les patients d'un jour de rappels (vide si aucun calcul).</summary>
+        public Task<List<EyeChat.SmsMail.FamilyMembershipDto>> SmsMailFamilies(List<int> patientIds)
+        {
+            if (patientIds is not { Count: > 0 } || patientIds.Count > 5000) return Task.FromResult(new List<EyeChat.SmsMail.FamilyMembershipDto>());
+            return Task.Run(() => _families.Memberships(patientIds));
+        }
 
         /// <summary>Adresse du service de réponse « Confirmer / Annuler », ou vide s'il n'est pas configuré.</summary>
         public string SmsMailReplyLinkBase()

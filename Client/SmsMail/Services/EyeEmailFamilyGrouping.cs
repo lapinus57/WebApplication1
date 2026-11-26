@@ -29,7 +29,7 @@ namespace Client.SmsMail.Services
                 foreach (var row in known)
                 {
                     FamilyUtilities.AddAppointmentToFamily(family, row);
-                    row.TriedMethodRound1 = "Famille EyeEmail";
+                    row.TriedMethodRound1 = row.ReferenceFamilyNumber >= ServerFamilies.NumberOffset ? "Famille connue du serveur" : "Famille EyeEmail";
                 }
             }
             // Known families stay in the pool: a new member sharing their phone, address or

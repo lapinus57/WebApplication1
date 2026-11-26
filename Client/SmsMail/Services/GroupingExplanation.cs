@@ -17,8 +17,10 @@ public static class GroupingExplanation
         if (persons.Count < 2) return Alone;
         var reasons = new List<string>();
 
-        if (persons.Where(p => p.ReferenceFamilyNumber > 0).GroupBy(p => p.ReferenceFamilyNumber).Any(g => g.Count() > 1))
-            reasons.Add("Famille EyeEmail");
+        var known = persons.Where(p => p.ReferenceFamilyNumber > 0).GroupBy(p => p.ReferenceFamilyNumber).Where(g => g.Count() > 1).ToList();
+        if (known.Any(g => g.Key < ServerFamilies.NumberOffset)) reasons.Add("Famille EyeEmail");
+        foreach (var g in known.Where(g => g.Key >= ServerFamilies.NumberOffset))
+            reasons.Add("Famille connue du serveur : " + (g.First().ReferenceFamilyWhy is { Length: > 0 } why ? why.Replace(Environment.NewLine, " ; ") : "historique de l'agenda"));
 
         var phones = Shared(persons, p => new[] { p.Tel1, p.Tel2 }.Select(FamilyUtilities.GroupingPhone)).Select(FormatPhone).ToList();
         if (phones.Count > 0) reasons.Add((phones.Count == 1 ? "Même téléphone : " : "Mêmes téléphones : ") + string.Join(", ", phones));

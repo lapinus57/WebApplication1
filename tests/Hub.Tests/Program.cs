@@ -29,6 +29,8 @@ try
     var access = new StationAccess("cle-de-test", "mot-de-passe-test");
     builder.Services.AddSingleton(access);
     builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(folder, "sms-mail-history.db")));
+    var familyStore = new ChatServeur.Families.FamilyStore(Path.Combine(folder, "families.db"));
+    builder.Services.AddSingleton(familyStore);
     // Réponses des patients : service externe et envoi de mail simulés (aucun appel réseau réel).
     var relay = new FakeRelay();
     var mailer = new FakeMailer();
@@ -229,6 +231,14 @@ try
     var shared = await posteB.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad");
     Check(shared.Single() is { Key: "sms-test-1", Status: "Accepté par OVH", ProviderId: 123 }, "Le second poste voit l'envoi et son statut");
     Check((await posteB.InvokeAsync<List<string>>("SmsMailReservedKeys")).Contains("famille-80|2026-10-23"), "Les réservations sont partagées");
+    Check((await posteA.InvokeAsync<List<EyeChat.SmsMail.FamilyMembershipDto>>("SmsMailFamilies", new List<int> { 1, 2 })).Count == 0, "Aucun calcul de familles : liste vide");
+    var familyScan = new EyeChat.Families.FamilyScanner { Today = new DateTime(2026, 11, 24) };
+    foreach (var day in new[] { new DateTime(2025, 3, 2), new DateTime(2026, 3, 2) })
+        foreach (var (id, first) in new[] { (601, "Ana"), (602, "Eli") })
+            familyScan.Add(new EyeChat.Families.ScanRow(id, day, day.AddHours(9), null, null, "", "BRUN", "", first, "4 rue B", "Metz", new[] { "0601000601" }, Array.Empty<string>(), false));
+    await familyStore.SaveResultAsync(familyScan.Finish(), "");
+    var known = await posteA.InvokeAsync<List<EyeChat.SmsMail.FamilyMembershipDto>>("SmsMailFamilies", new List<int> { 601, 602, 603 });
+    Check(known.Count == 2 && known.All(k => k.FamilyNumber == 1 && !k.ToReview && k.Why.Contains("Ana BRUN et Eli BRUN")), "Familles du serveur reçues par le poste, avec le pourquoi");
     var mail = new EyeChat.SmsMail.HistoryRecord { Key = "mail-ancien", Channel = "Mail", Contact = "Lea@Example.fr", Body = "<p>" + new string('x', 400_000) + "</p>", Status = "Accepté", CreatedAtUtc = "2026-10-20T08:00:00.0000000+00:00", ProviderService = "smtp.test" };
     Check(await posteA.InvokeAsync<int>("SmsMailImport", new List<EyeChat.SmsMail.HistoryRecord> { mail, mail }, new List<EyeChat.SmsMail.HistoryReservationKey>()) == 1, "Import : une seule ligne ajoutée pour une clé en double");
     Check(await posteB.InvokeAsync<DateTimeOffset?>("SmsMailEarliestMail", "smtp.test") == new DateTimeOffset(2026, 10, 20, 8, 0, 0, TimeSpan.Zero), "Date du premier mail");

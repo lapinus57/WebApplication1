@@ -186,6 +186,7 @@ checks += AppointmentQueryChecks.Run();
 checks += HomonymChecks.Run();
 checks += await RemarkAndPrintChecks.RunAsync();
 checks += GroupingChecks.Run();
+checks += ServerFamilyChecks.Run();
 checks += ExportChecks.Run();
 checks += PostItChecks.Run();
 checks += PostItLinkChecks.Run();

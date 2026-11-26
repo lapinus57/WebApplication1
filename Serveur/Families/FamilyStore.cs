@@ -1,5 +1,6 @@
 using System.Globalization;
 using EyeChat.Families;
+using EyeChat.SmsMail;
 using Microsoft.Data.Sqlite;
 
 namespace ChatServeur.Families;
@@ -25,16 +26,6 @@ public sealed class StoredFamily
         Members.Count > 6 ? $"{Members.Count} personnes" : null,
         Links.Any(l => l.Strength == nameof(LinkStrength.Faible)) ? "un lien faible" : null,
     }.Where(x => x != null));
-}
-
-/// <summary>Appartenance d'un patient à une famille, telle que l'envoi des rappels la reçoit.</summary>
-public sealed class FamilyMembershipDto
-{
-    public int PatientId { get; set; }
-    public int FamilyNumber { get; set; }
-    public bool ToReview { get; set; }
-    /// <summary>Pourquoi ces personnes sont regroupées (liens internes), et pourquoi la famille est à vérifier.</summary>
-    public string Why { get; set; } = "";
 }
 
 public sealed record PaymentBatch(int Id, DateTime ImportedUtc, string FileName, int Lines, DateTime? First, DateTime? Last);

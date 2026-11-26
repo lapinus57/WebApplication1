@@ -171,6 +171,26 @@ namespace Client.Pages
             }
         }
 
+        private string _serverFamiliesNote = "";
+
+        /// <summary>Familles calculées par le serveur pour les patients du jour ; liste vide si le serveur ne répond pas.</summary>
+        private async Task<List<EyeChat.SmsMail.FamilyMembershipDto>> LoadServerFamiliesAsync(IReadOnlyList<RdvInfo> rows, DateTime day)
+        {
+            _serverFamiliesNote = "";
+            var ids = rows.Where(r => r.DateRDV.Date == day && !r.IsCancelled && r.Id > 0).Select(r => r.Id).Distinct().ToList();
+            if (ids.Count == 0) return new();
+            try
+            {
+                var connection = App.ChatService.GetSmsMailHistoryConnection();
+                return await connection.InvokeAsync<List<EyeChat.SmsMail.FamilyMembershipDto>>("SmsMailFamilies", ids) ?? new();
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or Microsoft.AspNetCore.SignalR.HubException or System.Net.Http.HttpRequestException or TimeoutException)
+            {
+                _serverFamiliesNote = " (familles du serveur indisponibles)";
+                return new();
+            }
+        }
+
         private bool ConfirmHistoricalFamily(string message, string title)
         {
             if (_familyDecisions.TryGetValue(message, out bool answer)) return answer;
@@ -284,9 +304,16 @@ namespace Client.Pages
             _working = working;
             if (_settings.UseEyeEmailFamilies && !string.IsNullOrWhiteSpace(_settings.FamilyDatabasePath))
                 await EyeEmailFamilyDatabase.ApplyAsync(_settings.FamilyDatabasePath, MachineConfig.Load(), working, day);
+            var serverFamilies = _settings.UseEyeEmailFamilies ? await LoadServerFamiliesAsync(working, day) : new();
+            int serverApplied = 0;
             _families = _settings.UseEyeEmailFamilies
-                ? await Task.Run(() => EyeEmailFamilyGrouping.Build(working.Where(r => r.DateRDV.Date == day), _appointmentHistory,
-                    _appointmentHistory.Count > 0 ? ConfirmHistoricalFamily : null)) : new();
+                ? await Task.Run(() =>
+                {
+                    // Familles du serveur (page « Familles ») : une famille à vérifier n'est regroupée qu'après accord, en voyant pourquoi.
+                    serverApplied = ServerFamilies.Apply(working, day, serverFamilies, ConfirmHistoricalFamily);
+                    return EyeEmailFamilyGrouping.Build(working.Where(r => r.DateRDV.Date == day), _appointmentHistory,
+                        _appointmentHistory.Count > 0 ? ConfirmHistoricalFamily : null);
+                }) : new();
             FilterFamilies();
             AppointmentsList.ItemsSource = working;
             _messages = MessagePreparation.Prepare(working, day, _settings, _families);
@@ -308,7 +335,7 @@ namespace Client.Pages
             }
             FilterMessages();
             SummaryText.Text = $"{_messages.Count(m => m.Channel == "Mail")} mail(s), {_messages.Count(m => m.Channel == "SMS")} SMS";
-            StatusText.Text = $"{_families.Count} famille(s) EyeEmail ; {_appointments.Count} RDV chargés, {_appointments.Count(r => r.IsCancelled)} annulé(s) exclus. Vérifiez les destinataires et les messages avant l'envoi.";
+            StatusText.Text = $"{_families.Count} famille(s) EyeEmail{(serverApplied > 0 ? $", dont {serverApplied} connue(s) du serveur" : "")}{_serverFamiliesNote} ; {_appointments.Count} RDV chargés, {_appointments.Count(r => r.IsCancelled)} annulé(s) exclus. Vérifiez les destinataires et les messages avant l'envoi.";
         }
 
         private void ReminderTimes_Click(object sender, RoutedEventArgs e)

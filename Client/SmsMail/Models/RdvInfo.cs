@@ -45,6 +45,8 @@ namespace Client.SmsMail.Models
         public int? FamilyMethodRound6 { get; set; }
         public int NumeroFamille { get; set; }
         public int ReferenceFamilyNumber { get; set; }
+        /// <summary>Pourquoi le serveur range ce patient dans sa famille (page « Familles »), sinon vide.</summary>
+        public string ReferenceFamilyWhy { get; set; } = string.Empty;
         public string Media { get; set; } = string.Empty;
         public bool IsCancelled { get; set; }
 
