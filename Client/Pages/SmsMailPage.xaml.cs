@@ -69,6 +69,8 @@ namespace Client.Pages
                 SmsOnlyNoEmail.IsChecked = _settings.SmsOnlyWhenNoEmail;
                 SmsFamilySizeFilter.SelectedIndex = Math.Clamp(_settings.SmsMinimumFamilySize, 1, 3) - 1;
                 UseFamiliesCheck.IsChecked = _settings.UseEyeEmailFamilies;
+                LogFamilyQuestionsCheck.IsChecked = _settings.LogFamilyQuestions;
+                FamilyLogPathText.Text = SmsMailSettingsStore.FamilyQuestionsLogPath;
                 ShowPostItTabCheck.IsChecked = _settings.ShowPostItTab;
                 SetPostItTabVisible(_settings.ShowPostItTab);
                 PostItFromPicker.Date = DateTimeOffset.Now.Date.AddMonths(-6);
@@ -127,6 +129,7 @@ namespace Client.Pages
                 AdjustReminderTimes = AdjustTimesCheck.IsChecked == true,
                 ReminderTimeRules = _timeRules.Select(r => new AppointmentTimeRule { From = r.From, To = r.To }).ToList(),
                 UseEyeEmailFamilies = UseFamiliesCheck.IsChecked == true, FamilyDatabasePath = FamilyDatabaseText.Text.Trim(),
+                LogFamilyQuestions = LogFamilyQuestionsCheck.IsChecked == true,
                 ShowPostItTab = ShowPostItTabCheck.IsChecked == true,
                 SendCalendarInvites = CalendarInviteCheck.IsChecked == true,
                 SendCalendarAlarms = CalendarAlarmsCheck.IsChecked == true, CalendarIsBusy = CalendarBusyCheck.IsChecked == true,
@@ -189,6 +192,30 @@ namespace Client.Pages
                 _serverFamiliesNote = " (familles du serveur indisponibles)";
                 return new();
             }
+        }
+
+        private static readonly object FamilyLogGate = new();
+
+        /// <summary>Journal anonymisé (numéros patients, pas de noms) : à transmettre pour améliorer les questions.</summary>
+        private static void WriteFamilyLog(string entry)
+        {
+            try
+            {
+                lock (FamilyLogGate)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(SmsMailSettingsStore.FamilyQuestionsLogPath)!);
+                    File.AppendAllText(SmsMailSettingsStore.FamilyQuestionsLogPath, entry + Environment.NewLine, new UTF8Encoding(true));
+                }
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
+        private void OpenFamilyLog_Click(object sender, RoutedEventArgs e)
+        {
+            var folder = Path.GetDirectoryName(SmsMailSettingsStore.FamilyQuestionsLogPath)!;
+            Directory.CreateDirectory(folder);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + folder + "\"") { UseShellExecute = true });
         }
 
         /// <summary>Réponses « Regrouper / Garder séparés » : gardées par le serveur, la question n'est plus posée sur aucun poste.</summary>
@@ -327,7 +354,8 @@ namespace Client.Pages
                 ? await Task.Run(() =>
                 {
                     // Familles du serveur (page « Familles ») : une famille à vérifier n'est regroupée qu'après accord, en voyant pourquoi.
-                    serverApplied = ServerFamilies.Apply(working, day, serverFamilies, ConfirmHistoricalFamily, familyAnswers);
+                    serverApplied = ServerFamilies.Apply(working, day, serverFamilies, ConfirmHistoricalFamily, familyAnswers,
+                        _settings.LogFamilyQuestions ? WriteFamilyLog : null);
                     return EyeEmailFamilyGrouping.Build(working.Where(r => r.DateRDV.Date == day), _appointmentHistory,
                         _appointmentHistory.Count > 0 ? ConfirmHistoricalFamily : null);
                 }) : new();

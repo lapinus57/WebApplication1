@@ -36,6 +36,13 @@ Avec « Utiliser les familles » coché, le poste demande au serveur la famille 
   comme n'étant pas ensemble. La question n'est plus posée pour ces personnes, sur aucun poste, dès maintenant et après
   chaque recalcul. Si une autre personne de la famille a aussi rendez-vous ce jour-là, la question est reposée pour le groupe.
   Valider la famille entière reste possible sur la page « Familles ».
+- le **pourquoi** ne cite que les personnes de la question ; quand elles ne sont reliées que par un autre membre de la
+  famille, celui-ci apparaît comme « une autre personne de la famille (absente ce jour) ».
+
+**Journal anonymisé** (Paramètres › Préparation des rappels et familles) : chaque question « Famille à vérifier » est notée
+dans `%LocalAppData%\EyeChat\SmsMail\familles-questions.log` avec les **numéros patients au lieu des noms**, les heures, le
+pourquoi affiché, tous les membres et toutes les relations de la famille, et la réponse. Aucun nom, téléphone ni mail :
+ce fichier peut être transmis pour améliorer les questions.
 
 Si le serveur ne répond pas, l'onglet fonctionne comme avant (la ligne d'état indique « familles du serveur indisponibles »).
 Les familles de la base EyeEmail, si elle est utilisée, gardent la priorité.

@@ -68,6 +68,8 @@ try
     var members = store.Memberships(new[] { 501, 502, 503, 999 });
     Check(members.Count == 2 && members.All(m => m.FamilyNumber == 1 && !m.ToReview) && members[0].Why.Contains("Ana BRUN et Eli BRUN") && members[0].Why.Contains("même adresse"),
         "Familles des patients du jour, avec le pourquoi");
+    Check(members[0].Members.SequenceEqual(new[] { 501, 502 }) && members[0].Links.Single() is { A: 501, B: 502 } link0 && link0.Reasons.Contains("même adresse")
+        && !link0.Reasons.Contains("BRUN"), "Membres et relations transmis au poste, sans nom dans les raisons");
     Check(store.FamilyCount() == 1 && store.FamilyCount(toReviewOnly: true) == 0 && store.Families(patientId: 502).Single().Members.Count == 2, "Recherche d'une famille par patient");
     Check(store.Meta("last_report")!.Contains("Familles") && store.Meta("last_run_utc") != null, "Rapport anonymisé conservé");
     await store.SaveResultAsync(result, "");

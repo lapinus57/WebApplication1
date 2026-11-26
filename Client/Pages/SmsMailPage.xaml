@@ -326,6 +326,11 @@
                     </Expander>
                     <Expander x:Name="PreparationExpander" Header="Préparation des rappels et familles" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
                         <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par famille" Checked="Options_Changed" Unchecked="Options_Changed" />
+                        <CheckBox x:Name="LogFamilyQuestionsCheck" Content="Journal anonymisé des questions « Famille à vérifier » (numéros patients au lieu des noms, relations et réponse)" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Ouvrir le dossier du journal" Click="OpenFamilyLog_Click" />
+                            <TextBlock x:Name="FamilyLogPathText" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </StackPanel>
                         <CheckBox x:Name="ShowPostItTabCheck" Content="Afficher l’onglet Post-it (extraction pour analyse)" Checked="ShowPostItTab_Changed" Unchecked="ShowPostItTab_Changed" />
                         <TextBlock Text="Le seuil de personnes et l’option SMS sans mail se règlent directement dans Envois." TextWrapping="Wrap" />
                         <TextBlock Text="Un seul SMS par famille et par jour de rendez-vous. Le numéro retenu est visible dans le tableau." TextWrapping="Wrap" />

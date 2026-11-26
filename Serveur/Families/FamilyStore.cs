@@ -465,7 +465,13 @@ public sealed class FamilyStore
                 var toReview = family.ToReview && !confirmed;
                 var groupWhy = toReview ? "À vérifier (" + family.ReviewReason + ")" + Environment.NewLine + why : why;
                 foreach (var id in groups[g])
-                    result.Add(new FamilyMembershipDto { PatientId = id, FamilyNumber = family.Number, SubGroup = g, ToReview = toReview, Why = groupWhy });
+                    result.Add(new FamilyMembershipDto
+                    {
+                        PatientId = id, FamilyNumber = family.Number, SubGroup = g, ToReview = toReview, Why = groupWhy,
+                        ReviewReason = toReview ? family.ReviewReason : "",
+                        Members = family.Members.Select(m => m.PatientId).ToList(),
+                        Links = family.Links.Select(l => new FamilyLinkDto { A = l.A, B = l.B, Strength = l.Strength, Reasons = l.Reasons }).ToList(),
+                    });
             }
         }
         return result;

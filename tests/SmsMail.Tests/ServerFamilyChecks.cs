@@ -56,6 +56,39 @@ static class ServerFamilyChecks
         var a = P(10072, "Monique", "Klein", 0, "0611111111"); var b = P(18390, "Marc", "Klein", 90, "0622222222");
         a.ReferenceFamilyNumber = b.ReferenceFamilyNumber = 7;
         Check(ServerFamilies.Apply(new List<RdvInfo> { a, b }, day, known, (_, _) => true) == 0 && a.ReferenceFamilyNumber == 7, "EyeEmail family kept");
+
+        // Pourquoi : seulement les personnes de la question ; l'intermédiaire absent n'est pas nommé
+        var chainInfo = new FamilyMembershipDto
+        {
+            PatientId = 1, FamilyNumber = 40, ToReview = true, ReviewReason = "certains membres ne sont reliés que par l'intermédiaire d'un autre",
+            Members = new() { 1, 2, 3, 4 },
+            Links = new()
+            {
+                new() { A = 1, B = 2, Strength = "Forte", Reasons = "carte Vitale : parent et enfant" },
+                new() { A = 2, B = 3, Strength = "Forte", Reasons = "même téléphone ou mail actuel, même adresse" },
+                new() { A = 3, B = 4, Strength = "Moyenne", Reasons = "venus ensemble 2 fois" },
+            },
+            Why = "Absent NOM et Autre NOM : ancien texte",
+        };
+        var whyChain = ServerFamilies.Explain(new[] { 1, 3 }, chainInfo, id => id == 1 ? "Alice Klein" : "Chloé Klein");
+        Check(whyChain.Contains("Alice Klein et une autre personne de la famille (absente ce jour) : carte Vitale : parent et enfant")
+            && whyChain.Contains("une autre personne de la famille (absente ce jour) et Chloé Klein : même téléphone")
+            && !whyChain.Contains("venus ensemble 2 fois") && !whyChain.Contains("Absent") && whyChain.Contains("que par l'intermédiaire de quelqu'un d'autre"),
+            "Why mentions only the people asked about; the go-between is anonymous; unrelated links are left out");
+        var whyDirect = ServerFamilies.Explain(new[] { 1, 2 }, chainInfo, id => id == 1 ? "Alice Klein" : "Bob Klein");
+        Check(whyDirect.Split(Environment.NewLine).Length == 2 && whyDirect.Contains("Alice Klein et Bob Klein : carte Vitale"), "Direct link only");
+        Check(ServerFamilies.Explain(new[] { 1, 2 }, new FamilyMembershipDto { Why = "ancien" }, _ => "") == "ancien", "Older server: its text is kept");
+
+        // Journal anonymisé : numéros, relations de toute la famille, réponse ; aucun nom
+        var p1 = P(1, "Alice", "Klein", 0, "0611111111"); var p3 = P(3, "Chloé", "Klein", 45, "0633333333");
+        var logInfo1 = new FamilyMembershipDto { PatientId = 1, FamilyNumber = 40, ToReview = true, ReviewReason = chainInfo.ReviewReason, Members = chainInfo.Members, Links = chainInfo.Links };
+        var logInfo3 = new FamilyMembershipDto { PatientId = 3, FamilyNumber = 40, ToReview = true, ReviewReason = chainInfo.ReviewReason, Members = chainInfo.Members, Links = chainInfo.Links };
+        var logs = new List<string>();
+        ServerFamilies.Apply(new List<RdvInfo> { p1, p3 }, day, new List<FamilyMembershipDto> { logInfo1, logInfo3 }, (_, _) => false, null, logs.Add);
+        var entry = logs.Single();
+        Check(entry.Contains("Question : n° 1 (09:00), n° 3 (09:45)") && entry.Contains("Réponse : Garder séparés") && entry.Contains("n° 3 – n° 4 (moyenne) : venus ensemble 2 fois")
+            && entry.Contains("Membres de la famille : n° 1, n° 2, n° 3, n° 4") && !entry.Contains("Klein") && !entry.Contains("Alice") && !entry.Contains("0611111111"),
+            "Anonymous log: codes, all relations, answer, no names or phones");
         return count;
     }
 }

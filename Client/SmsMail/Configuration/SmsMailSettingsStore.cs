@@ -20,6 +20,8 @@ namespace Client.SmsMail.Configuration
         public bool AdjustReminderTimes { get; set; }
         public List<AppointmentTimeRule> ReminderTimeRules { get; set; } = new() { new(), new() { From = new TimeSpan(18, 0, 0), To = new TimeSpan(17, 50, 0) } };
         public bool UseEyeEmailFamilies { get; set; } = true;
+        /// <summary>Journal anonymisé des questions « Famille à vérifier » (numéros patients, relations, réponse), pour l'analyse.</summary>
+        public bool LogFamilyQuestions { get; set; }
         public bool ShowPostItTab { get; set; } = true;
         public string FamilyDatabasePath { get; set; } = string.Empty;
         public bool SendCalendarInvites { get; set; } = true;
@@ -72,6 +74,7 @@ namespace Client.SmsMail.Configuration
     [SupportedOSPlatform("windows")]
     public static class SmsMailSettingsStore
     {
+        public static string FamilyQuestionsLogPath => Path.Combine(DirectoryPath, "familles-questions.log");
         public static string DirectoryPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EyeChat", "SmsMail");
         private static string FilePath => Path.Combine(DirectoryPath, "settings.dat");
 
