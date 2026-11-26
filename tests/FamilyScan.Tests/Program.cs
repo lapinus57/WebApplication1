@@ -152,7 +152,8 @@ var report = FamilyScanReport.Anonymous(result);
 var names = rows.SelectMany(r => new[] { r.Surname, r.FirstName }).Where(n => n.Length > 2).Distinct();
 Check(!names.Any(n => report.Contains(n, StringComparison.OrdinalIgnoreCase)), "Rapport anonymisé : aucun nom");
 Check(!report.Contains("0612000001") && !report.Contains("1550357463012") && !report.Contains("@"), "Rapport anonymisé : ni téléphone, ni NoSS, ni mail");
-Check(report.Contains("même numéro d'assuré") && report.Contains("Remplissage des colonnes"), "Rapport : indices et remplissage");
+Check(report.Contains("même numéro d'assuré") && report.Contains("Remplissage des colonnes") && report.Contains("Patients actifs") && report.Contains("Carte Vitale : NON LUE"),
+    "Rapport : indices, remplissage, patients actifs, Vitale absente signalée");
 var detail = FamilyScanReport.DetailCsv(result);
 Check(detail.Contains("Paul MARTIN") && !detail.Contains("1550357463012"), "Détail nominatif sans NoSS");
 

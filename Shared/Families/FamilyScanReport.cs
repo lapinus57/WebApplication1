@@ -17,6 +17,12 @@ namespace EyeChat.Families
             var sb = new StringBuilder();
             sb.AppendLine("Reconstitution des familles — rapport anonymisé");
             sb.AppendLine($"Historique : {r.FirstDay:dd/MM/yyyy} → {r.LastDay:dd/MM/yyyy}, {r.Rows:N0} rendez-vous, {r.Patients:N0} patients.");
+            var reference = r.LastDay is { } last && last < DateTime.Today ? last : DateTime.Today;
+            var active = r.PatientsById.Values.Count(p => reference - p.LastSeen <= FamilyScanner.CurrentContactPeriod);
+            sb.AppendLine($"Patients actifs (venus depuis moins de 5 ans, ou RDV à venir) : {active:N0}. Seuls leurs téléphones, mails et adresses comptent comme « actuels ».");
+            sb.AppendLine(r.Vitale == null
+                ? "Carte Vitale : NON LUE (aucun export *vitale*.csv à côté de FamilyScan.exe, ou option --vitale absente)."
+                : $"Carte Vitale : lue ({r.Vitale.VitalePatients:N0} patients).");
             sb.AppendLine();
             sb.AppendLine("Remplissage des colonnes par année (en % des rendez-vous) :");
             sb.AppendLine("Année    RDV   NoSS  Création  Arrivée  Heure");
