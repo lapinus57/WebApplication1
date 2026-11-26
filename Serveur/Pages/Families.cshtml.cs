@@ -33,6 +33,10 @@ public sealed class FamiliesModel(FamilyStore store, FamilyRebuild rebuild, ICon
     public string LastReport { get; private set; } = "";
     public IReadOnlyList<PaymentBatch> Batches { get; private set; } = Array.Empty<PaymentBatch>();
     public IReadOnlyList<StoredFamily> Shown { get; private set; } = Array.Empty<StoredFamily>();
+    public IReadOnlyList<StoredQuestion> Questions { get; private set; } = Array.Empty<StoredQuestion>();
+    public Dictionary<int, StoredFamily> QuestionFamilies { get; } = new();
+    public (int Pending, int Answered) QuestionCounts { get; private set; }
+    public string AgendaColumns { get; private set; } = "";
     public Dictionary<int, List<StoredKinship>> Kin { get; } = new();
     public int Pages => Math.Max(1, (ToReviewCount + PageSize - 1) / PageSize);
     public string NightlyHour => configuration["Families:NightlyHour"] is { Length: > 0 } h ? h : "3";
@@ -134,6 +138,30 @@ public sealed class FamiliesModel(FamilyStore store, FamilyRebuild rebuild, ICon
         return Page();
     }
 
+    public async Task<IActionResult> OnPostAnswerAsync(int a, int b, string answer)
+    {
+        await GuardAsync(async () =>
+        {
+            if (a <= 0 || b <= 0 || a == b) throw new InvalidDataException("Question invalide.");
+            bool? together = answer switch { "oui" => true, "non" => false, "?" => null, _ => throw new InvalidDataException("Réponse invalide.") };
+            await store.AnswerQuestionAsync(a, b, together, Author);
+            Notice = together switch
+            {
+                true => $"Noté : {a} et {b} vivent ensemble. Pris en compte tout de suite pour les rappels, et à chaque calcul.",
+                false => $"Noté : {a} et {b} ne vivent pas ensemble. Rappels séparés tout de suite ; la famille sera coupée au prochain calcul.",
+                null => "Noté : vous ne savez pas. La question ne sera plus proposée ; la famille ne change pas.",
+            };
+        });
+        return Page();
+    }
+
+    public IActionResult OnGetLog()
+    {
+        NoCache();
+        var bytes = new UTF8Encoding(true).GetBytes(store.AnonymousLog());
+        return File(bytes, "text/plain; charset=utf-8", $"familles-journal-anonymise-{DateTime.Now:yyyy-MM-dd}.txt");
+    }
+
     private string Author => User.Identity?.Name ?? "";
 
     private static List<int> ParseIds(string? text) => (text ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -153,6 +181,11 @@ public sealed class FamiliesModel(FamilyStore store, FamilyRebuild rebuild, ICon
         LastRunMessage = store.Meta("last_run_message") ?? "";
         LastReport = store.Meta("last_report") ?? "";
         Batches = store.PaymentBatches();
+        QuestionCounts = store.QuestionCounts();
+        AgendaColumns = store.Meta("agenda_columns") ?? "";
+        Questions = Patient is > 0 ? Array.Empty<StoredQuestion>() : store.PendingQuestions(10);
+        foreach (var number in Questions.Select(q => q.Family).Distinct())
+            if (store.Families(number: number).FirstOrDefault() is { } family) QuestionFamilies[number] = family;
         Shown = Patient is > 0
             ? store.Families(patientId: Patient)
             : store.Families(toReviewOnly: true, limit: 100_000).Skip((Math.Min(PageNumber, Pages) - 1) * PageSize).Take(PageSize).ToList();

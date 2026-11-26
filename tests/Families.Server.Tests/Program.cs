@@ -78,6 +78,7 @@ try
     // Réponses des postes à « Famille à vérifier »
     var chain = new ScanFamily { Number = 1, HasChain = true };
     chain.Members.AddRange(new[] { 701, 702, 703 });
+    chain.Questions.Add(new FamilyQuestion(701, 702, LinkStrength.Moyenne, true, new[] { 701 }, new[] { 702, 703 }));
     var chainResult = new ScanResult
     {
         Families = new[] { chain },
@@ -87,6 +88,7 @@ try
     var weakLink = new PatientLink { A = 704, B = 705, Strength = LinkStrength.Moyenne, SameHouseholdNow = true, Reasons = "même nom" };
     var big = new ScanFamily { Number = 2, HasChain = true };
     big.Members.AddRange(new[] { 703, 704, 705 });
+    big.Questions.Add(new FamilyQuestion(704, 705, LinkStrength.Moyenne, true, new[] { 703, 704 }, new[] { 705 }));
     var bigResult = new ScanResult
     {
         Families = new[] { big }, Links = new[] { solidLink, weakLink },
@@ -108,6 +110,23 @@ try
     Check(apart.Single(m => m.PatientId == 702).SubGroup != apart.Single(m => m.PatientId == 703).SubGroup, "Gardés séparés : groupes différents, immédiatement");
     Check(answerStore.LoadDecisions().Count == 2 && answerStore.FamilyCount(toReviewOnly: true) == 1, "Réponses gardées pour le prochain calcul ; la famille reste à vérifier sur la page");
     Check(await answerStore.RecordAnswerAsync(new[] { 702 }, together: true, "x") == 0, "Une seule personne : rien à enregistrer");
+
+    // Questions simples de la page et journal anonymisé
+    var qStore = new FamilyStore(Path.Combine(folder, "questions.db"));
+    await qStore.SaveResultAsync(bigResult, "");
+    var pending = qStore.PendingQuestions();
+    Check(pending.Single() is { Family: 2, A: 704, B: 705, Bridge: true } q1 && q1.SideB.SequenceEqual(new[] { 705 }) && q1.Reasons == "même nom" && qStore.QuestionCounts().Pending == 1,
+        "Question en attente : le lien qui décide, avec la séparation si non");
+    await qStore.AnswerQuestionAsync(704, 705, together: false, "admin");
+    Check(qStore.PendingQuestions().Count == 0 && qStore.Memberships(new[] { 704, 705 }).Select(m => m.SubGroup).Distinct().Count() == 2,
+        "Réponse « non » : plus de question, rappels séparés tout de suite");
+    await qStore.SaveResultAsync(bigResult, "");
+    Check(qStore.PendingQuestions().Count == 0, "Après un nouveau calcul, la question répondue n'est pas reposée");
+    await qStore.RecordAnswerAsync(new[] { 703, 704 }, together: true, "poste ACCUEIL");
+    var log = qStore.AnonymousLog();
+    Check(log.Contains("Question : n° 704 et n° 705 vivent-ils ensemble aujourd'hui ?") && log.Contains("Réponse : Non") && log.Contains("Si non, la famille se sépare en : n° 703, n° 704 | n° 705")
+        && log.Contains("n° 703 – n° 704 (forte) : même adresse") && log.Contains("[poste] ") && log.Contains("Réponse : Regrouper") && !log.Contains("Patient 70"),
+        "Journal anonymisé : questions de la page et des postes, relations, réponses, sans nom");
 
 
 // ---------- Page d'administration, servie pour de vrai ----------
@@ -165,6 +184,33 @@ try
     });
     await http.PostAsync("/Families?handler=Remove", remove);
     Check(pageStore.LoadDecisions().Any(d => d is { Kind: FamilyDecisionKind.Separate, A: 501, B: 502 }), "Retrait du foyer enregistré");
+    // Question simple sur la page
+    var chainLink = new PatientLink { A = 901, B = 902, Strength = LinkStrength.Moyenne, SameHouseholdNow = true, Reasons = "venus ensemble 2 fois" };
+    var pageFamily = new ScanFamily { Number = 1, HasChain = true };
+    pageFamily.Members.AddRange(new[] { 901, 902 });
+    pageFamily.Questions.Add(new FamilyQuestion(901, 902, LinkStrength.Moyenne, true, new[] { 901 }, new[] { 902 }));
+    await pageStore.SaveResultAsync(new ScanResult
+    {
+        Families = new[] { pageFamily }, Links = new[] { chainLink },
+        PatientsById = new Dictionary<int, PatientInfo>
+        {
+            [901] = new() { Id = 901, Name = "Jeanne FICTIVE", LastSeen = new DateTime(2026, 2, 2), Address = "1 RUE DES TESTS METZ" },
+            [902] = new() { Id = 902, Name = "Hugo FICTIF", LastSeen = new DateTime(2026, 3, 3) },
+        },
+    }, "");
+    var questions = System.Net.WebUtility.HtmlDecode(await http.GetStringAsync("/Families"));
+    Check(questions.Contains("Jeanne FICTIVE et Hugo FICTIF vivent-ils ensemble aujourd'hui ?") && questions.Contains("venus ensemble 2 fois") && questions.Contains("1 RUE DES TESTS METZ")
+        && questions.Contains("Si non, la famille se sépare en"), "Page : question simple avec coordonnées et séparation");
+    var answer = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        ["__RequestVerificationToken"] = Token(questions), ["a"] = "901", ["b"] = "902", ["answer"] = "oui"
+    });
+    var answered = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/Families?handler=Answer", answer)).Content.ReadAsStringAsync());
+    Check(answered.Contains("Noté : 901 et 902 vivent ensemble") && answered.Contains("Aucune question en attente"), "Page : réponse enregistrée");
+    var download = await http.GetAsync("/Families?handler=Log");
+    var logText = await download.Content.ReadAsStringAsync();
+    Check(download.Content.Headers.ContentDisposition?.FileName?.Contains("journal-anonymise") == true && logText.Contains("Réponse : Oui") && !logText.Contains("FICTIVE") && !logText.Contains("RUE DES TESTS"),
+        "Page : journal anonymisé téléchargé, sans nom ni adresse");
     var progress = await http.GetStringAsync("/Families?handler=Progress");
     Check(progress.Contains("\"running\":false"), "Suivi du calcul en JSON");
     await app.StopAsync();

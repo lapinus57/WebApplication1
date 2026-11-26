@@ -21,6 +21,18 @@ Access n'est jamais modifié. Tout est dans `data\families.db` sur le serveur.
   - **Regrouper** deux codes patient : ils seront mis ensemble.
   Les corrections sont gardées et appliquées à chaque calcul (prises en compte au prochain calcul).
 - **Famille d'un patient** : saisir son code patient.
+- **Questions simples** : pour chaque famille à vérifier, le serveur choisit les liens qui décident (le « pont » qui, s'il est
+  faux, coupe la famille en deux ; les liens moyens) et pose la question « A et B vivent-ils ensemble aujourd'hui ? », avec
+  leurs coordonnées, ce qui les relie et, pour un pont, les deux morceaux de la famille si la réponse est non.
+  **Oui** / **Non** valent tout de suite pour les rappels et à chaque calcul ; **Je ne sais pas** ne change rien et retire la
+  question. Une famille dont toutes les questions ont une réponse n'est plus à vérifier.
+- **Journal anonymisé** (lien sous les questions) : toutes les questions et réponses, de la page et des postes, avec les
+  numéros patients, l'année de dernière venue, toutes les relations de la famille et les colonnes de l'agenda reconnues.
+  Aucun nom, téléphone ni adresse : à transmettre pour améliorer le moteur.
+
+Indices pris dans l'agenda : venues communes, RDV pris à la même minute, heure d'arrivée, **heure de passage** en consultation
+(colonnes « Passé à », « Heure passage »…), et **remarque** du RDV : une remarque qui cite le prénom d'un autre patient du
+jour avec son nom ou un mot de famille (« avec sa fille Léa ») relie les deux.
 
 Options facultatives (`appsettings.json`, section `Families`) : `AgendaTable` (sinon la table des paramètres RDV),
 `PatientsTable` (table qui contient la date de naissance, si l'agenda n'en a pas ; sinon `Patients`).

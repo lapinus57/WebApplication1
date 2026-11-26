@@ -114,6 +114,21 @@ Check(Enumerable.Range(40, 6).All(a => Enumerable.Range(40, 6).All(b => a >= b |
 Check(L(30, 31) == null, "Arrivés à la même heure sans autre indice (habitués du créneau) : aucun lien");
 var longChain = result.Families.Single(f => f.Members.Contains(60));
 Check(longChain.Members.Count == 4 && longChain.HasChain && longChain.ToReview, "Chaîne A–B–C–D : à vérifier");
+Check(longChain.Questions.Count > 0 && longChain.Questions.All(q => longChain.Members.Contains(q.A) && longChain.Members.Contains(q.B))
+    && longChain.Questions.First() is { Bridge: true } firstQ && firstQ.SideA.Count + firstQ.SideB.Count == 4 && !firstQ.SideA.Intersect(firstQ.SideB).Any(),
+    "Chaîne : questions sur les liens « pont », avec les deux morceaux si la réponse est non");
+{
+    var again = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+    foreach (var row in rows.OrderBy(r => r.Day).ThenBy(r => r.Time)) again.Add(row);
+    again.AddDecisions(longChain.Questions.Select(q => new FamilyDecision(FamilyDecisionKind.Join, q.A, q.B)).ToList());
+    var after = again.Finish().Families.Single(f => f.Members.Contains(60));
+    Check(after.Members.Count == 4 && (after.Questions.Count == 0 || after.Questions.All(q => !longChain.Questions.Any(o => o.A == q.A && o.B == q.B))),
+        "Liens confirmés : plus demandés");
+    var unsure = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+    foreach (var row in rows.OrderBy(r => r.Day).ThenBy(r => r.Time)) unsure.Add(row);
+    unsure.AddDecisions(new[] { new FamilyDecision(FamilyDecisionKind.Unsure, longChain.Questions[0].A, longChain.Questions[0].B) });
+    Check(unsure.Finish().Families.Single(f => f.Members.Contains(60)).Members.Count == 4, "« Je ne sais pas » ne change pas la famille");
+}
 Check(L(80, 81) is { Strength: LinkStrength.Forte, SharedContactNow: true, SameHouseholdNow: false }, "Téléphone commun seul (autre adresse, jamais venus ensemble) : lié, pas même foyer");
 Check(L(85, 86) is { Strength: LinkStrength.Forte, SameHouseholdNow: false }, "Réservés et venus ensemble sans aucun indice d'identité : liés, jamais même foyer (confidentialité)");
 Check(L(87, 88) is { SharedContactNow: false, SameAddressNow: false, SameHouseholdNow: false }, "Patient plus venu depuis 2012 : téléphone et adresse ne sont plus « actuels »");

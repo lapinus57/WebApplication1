@@ -5,7 +5,8 @@ using System.Linq;
 
 namespace EyeChat.Families
 {
-    public enum FamilyDecisionKind { Separate = 1, Join = 2, Validate = 3 }
+    /// <summary>Unsure : « je ne sais pas » à une question ; gardé pour ne pas la reposer tout de suite, sans effet sur les familles.</summary>
+    public enum FamilyDecisionKind { Separate = 1, Join = 2, Validate = 3, Unsure = 4 }
 
     /// <summary>
     /// Décision prise à la main sur la page d'administration, conservée d'un recalcul à l'autre.

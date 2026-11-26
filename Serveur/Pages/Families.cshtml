@@ -51,6 +51,45 @@
     </section>
 
     <section class="registry-card">
+        <h2>Questions simples (@Model.QuestionCounts.Pending.ToString("N0", fr) en attente)</h2>
+        <p class="registry-help">Chaque question porte sur un lien qui décide d'une famille à vérifier. Répondez quand vous savez ;
+            « Je ne sais pas » ne change rien et la question n'est plus proposée. Les réponses valent tout de suite pour les rappels.</p>
+        @foreach (var q in Model.Questions)
+        {
+            var f = Model.QuestionFamilies.GetValueOrDefault(q.Family);
+            if (f == null) { continue; }
+            var ma = f.Members.FirstOrDefault(m => m.PatientId == q.A);
+            var mb = f.Members.FirstOrDefault(m => m.PatientId == q.B);
+            <article class="registry-card">
+                <p><strong>@(ma?.Name ?? q.A.ToString()) et @(mb?.Name ?? q.B.ToString()) vivent-ils ensemble aujourd'hui ?</strong>
+                    <small> — famille <a href="?Patient=@q.A">@q.Family</a> (@f.Members.Count personnes)</small></p>
+                <table class="registry-list"><tbody>
+                @foreach (var m in new[] { ma, mb }.Where(m => m != null))
+                {
+                    <tr><td><strong>@m!.Name</strong><small>Code @m.PatientId · vu le @m.LastSeen.ToString("dd/MM/yyyy", fr)</small></td>
+                        <td>@m.Address</td><td>@m.Phones</td></tr>
+                }
+                </tbody></table>
+                <p>Ce qui les relie (@q.Strength.ToLowerInvariant()) : @q.Reasons</p>
+                @if (q.Bridge)
+                {
+                    <p class="registry-help">Si non, la famille se sépare en :
+                        <strong>@string.Join(", ", q.SideA.Select(f.NameOf))</strong> | <strong>@string.Join(", ", q.SideB.Select(f.NameOf))</strong></p>
+                }
+                <form method="post" asp-page-handler="Answer" class="registry-filters">
+                    <input type="hidden" name="a" value="@q.A" /><input type="hidden" name="b" value="@q.B" />
+                    <button type="submit" name="answer" value="oui">Oui, ensemble</button>
+                    <button type="submit" name="answer" value="non">Non</button>
+                    <button class="secondary" type="submit" name="answer" value="?">Je ne sais pas</button>
+                </form>
+            </article>
+        }
+        @if (Model.Questions.Count == 0) { <p>Aucune question en attente.</p> }
+        <p><a href="?handler=Log">Télécharger le journal anonymisé</a> (@Model.QuestionCounts.Answered réponse(s) : numéros patients, relations et réponses, sans nom ni coordonnées — à transmettre pour améliorer le moteur).</p>
+        @if (Model.AgendaColumns.Length > 0) { <p class="registry-help">Colonnes de l'agenda reconnues : @Model.AgendaColumns</p> }
+    </section>
+
+    <section class="registry-card">
         <h2>Corriger</h2>
         <form method="get" class="registry-filters">
             <label>Famille d'un patient<input type="number" name="Patient" value="@Model.Patient" min="1" placeholder="Code patient" /></label>

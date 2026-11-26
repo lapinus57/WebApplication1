@@ -111,8 +111,18 @@ namespace EyeChat.Families
         public bool HasChain { get; set; }
         /// <summary>Validée à la main sur la page d'administration (mêmes membres) : plus à vérifier.</summary>
         public bool Validated { get; set; }
-        public bool ToReview => !Validated && (HasChain || Members.Count > 6 || Weakest < LinkStrength.Moyenne);
+        /// <summary>Liens qui décident de la famille (ponts, liens moyens ou faibles), pas encore confirmés : une question simple chacun.</summary>
+        public List<FamilyQuestion> Questions { get; } = new();
+        public bool Doubtful => HasChain || Members.Count > 6 || Weakest < LinkStrength.Moyenne;
+        /// <summary>À vérifier tant qu'il reste une question sans réponse (ou une famille douteuse non validée).</summary>
+        public bool ToReview => !Validated && Doubtful && Questions.Count > 0;
     }
+
+    /// <summary>
+    /// « A et B vivent-ils ensemble aujourd'hui ? » Pour un lien « pont », la famille se sépare en <see cref="SideA"/> et
+    /// <see cref="SideB"/> si la réponse est non.
+    /// </summary>
+    public sealed record FamilyQuestion(int A, int B, LinkStrength Strength, bool Bridge, IReadOnlyList<int> SideA, IReadOnlyList<int> SideB);
 
     public sealed class ScanResult
     {
@@ -548,7 +558,7 @@ namespace EyeChat.Families
         {
             foreach (var d in _decisions)
             {
-                if (d.Kind == FamilyDecisionKind.Validate || d.A == d.B || !_patients.ContainsKey(d.A) || !_patients.ContainsKey(d.B)) continue;
+                if (d.Kind is FamilyDecisionKind.Validate or FamilyDecisionKind.Unsure || d.A == d.B || !_patients.ContainsKey(d.A) || !_patients.ContainsKey(d.B)) continue;
                 var link = Link(d.A, d.B);
                 if (d.Kind == FamilyDecisionKind.Separate)
                 {
@@ -679,11 +689,56 @@ namespace EyeChat.Families
                 // Chaîne : deux membres à trois liens ou plus l'un de l'autre (A–B, B–C, C–D, rien entre A et D).
                 // Un parent relié à chacun de ses enfants (distance 2) est une famille normale.
                 family.HasChain = Diameter(family.Members, internalLinks) >= 3;
+                if (family.Doubtful) family.Questions.AddRange(Questions(family, internalLinks));
                 families.Add(family);
             }
             families = families.OrderByDescending(f => f.Members.Count).ThenBy(f => f.Members[0]).ToList();
             for (int i = 0; i < families.Count; i++) families[i].Number = i + 1;
             return families;
+        }
+
+        public const int MaxQuestionsPerFamily = 3;
+
+        /// <summary>
+        /// Les liens qui décident : d'abord les ponts (sans eux la famille se coupe en deux), puis les liens moyens ou faibles ;
+        /// les plus faibles et ceux qui coupent la famille le plus au milieu en premier. Un lien confirmé à la main n'est plus demandé.
+        /// </summary>
+        private static List<FamilyQuestion> Questions(ScanFamily family, IReadOnlyList<PatientLink> links)
+        {
+            var open = links.Where(l => l.ManualDecision != "regroupés à la main").ToList();
+            var candidates = new List<(FamilyQuestion Question, int Balance)>();
+            foreach (var l in open)
+            {
+                var sideA = Reach(l.A, links, l);
+                var bridge = !sideA.Contains(l.B);
+                if (!bridge && l.Strength >= LinkStrength.Forte) continue;
+                var sideB = bridge ? family.Members.Where(m => !sideA.Contains(m)).ToList() : new List<int>();
+                candidates.Add((new FamilyQuestion(l.A, l.B, l.Strength, bridge, bridge ? sideA.OrderBy(x => x).ToList() : new List<int>(), sideB),
+                    bridge ? Math.Min(sideA.Count, sideB.Count) : 0));
+            }
+            // Longue boucle sans pont ni lien faible : on demande quand même les liens les moins étayés.
+            if (candidates.Count == 0 && family.HasChain)
+                candidates.AddRange(open.OrderBy(l => l.Reasons.Split(',').Length).Take(1)
+                    .Select(l => (new FamilyQuestion(l.A, l.B, l.Strength, false, new List<int>(), new List<int>()), 0)));
+            return candidates.OrderBy(c => c.Question.Strength).ThenByDescending(c => c.Question.Bridge).ThenByDescending(c => c.Balance)
+                .Select(c => c.Question).Take(MaxQuestionsPerFamily).ToList();
+        }
+
+        private static HashSet<int> Reach(int start, IReadOnlyList<PatientLink> links, PatientLink without)
+        {
+            var seen = new HashSet<int> { start };
+            var queue = new Queue<int>(seen);
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                foreach (var l in links)
+                {
+                    if (ReferenceEquals(l, without)) continue;
+                    var next = l.A == current ? l.B : l.B == current ? l.A : 0;
+                    if (next != 0 && seen.Add(next)) queue.Enqueue(next);
+                }
+            }
+            return seen;
         }
 
         private static int Diameter(IReadOnlyList<int> members, IReadOnlyList<PatientLink> links)

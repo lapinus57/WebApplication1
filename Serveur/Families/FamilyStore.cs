@@ -5,7 +5,14 @@ using Microsoft.Data.Sqlite;
 
 namespace ChatServeur.Families;
 
-public sealed record StoredFamilyMember(int PatientId, string Name, DateTime LastSeen);
+public sealed record StoredFamilyMember(int PatientId, string Name, DateTime LastSeen)
+{
+    public string Address { get; init; } = "";
+    public string Phones { get; init; } = "";
+}
+
+/// <summary>Question simple de la page « Familles » : A et B vivent-ils ensemble aujourd'hui ?</summary>
+public sealed record StoredQuestion(int Family, int A, int B, string Strength, bool Bridge, IReadOnlyList<int> SideA, IReadOnlyList<int> SideB, string Reasons);
 public sealed record StoredFamilyLink(int A, int B, string Strength, string Reasons);
 public sealed record StoredKinship(int PatientId, int OtherId, int? OtherFamily, string Reasons);
 
@@ -46,6 +53,14 @@ public sealed class FamilyStore
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         _connectionString = new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString();
         using var c = Open();
+        // Les tables du résultat sont recalculées à chaque fois : on les recrée quand leur forme change.
+        const string ResultSchema = "2";
+        Exec(c, "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);");
+        if (MetaOn(c, "result_schema") != ResultSchema)
+        {
+            Exec(c, "DROP TABLE IF EXISTS family; DROP TABLE IF EXISTS family_member; DROP TABLE IF EXISTS family_link; DROP TABLE IF EXISTS family_kin; DROP TABLE IF EXISTS family_question;");
+            SetMeta(c, null, "result_schema", ResultSchema);
+        }
         Exec(c, """
             PRAGMA journal_mode=WAL;
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -60,7 +75,11 @@ public sealed class FamilyStore
                 members TEXT NOT NULL DEFAULT '', created_utc TEXT NOT NULL, author TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS family (number INTEGER PRIMARY KEY, to_review INTEGER NOT NULL, validated INTEGER NOT NULL,
                 has_chain INTEGER NOT NULL, signature TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS family_member (patient_id INTEGER PRIMARY KEY, number INTEGER NOT NULL, name TEXT NOT NULL, last_seen TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS family_member (patient_id INTEGER PRIMARY KEY, number INTEGER NOT NULL, name TEXT NOT NULL, last_seen TEXT NOT NULL,
+                address TEXT NOT NULL DEFAULT '', phones TEXT NOT NULL DEFAULT '');
+            CREATE TABLE IF NOT EXISTS family_question (number INTEGER NOT NULL, rank INTEGER NOT NULL, a INTEGER NOT NULL, b INTEGER NOT NULL,
+                strength TEXT NOT NULL, bridge INTEGER NOT NULL, side_a TEXT NOT NULL, side_b TEXT NOT NULL, reasons TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS question_log (id INTEGER PRIMARY KEY AUTOINCREMENT, created_utc TEXT NOT NULL, origin TEXT NOT NULL, text TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS family_member_number ON family_member(number);
             CREATE TABLE IF NOT EXISTS family_link (number INTEGER NOT NULL, a INTEGER NOT NULL, b INTEGER NOT NULL, strength TEXT NOT NULL, reasons TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS family_link_number ON family_link(number);
@@ -91,6 +110,11 @@ public sealed class FamilyStore
     public string? Meta(string key)
     {
         using var c = Open();
+        return MetaOn(c, key);
+    }
+
+    private static string? MetaOn(SqliteConnection c, string key)
+    {
         using var cmd = c.CreateCommand();
         cmd.CommandText = "SELECT value FROM meta WHERE key = $k";
         cmd.Parameters.AddWithValue("$k", key);
@@ -300,6 +324,9 @@ public sealed class FamilyStore
     {
         var ids = patientIds.Where(i => i > 0).Distinct().OrderBy(i => i).ToList();
         if (ids.Count < 2 || ids.Count > 50) return 0;
+        if (Families(patientId: ids[0]).FirstOrDefault() is { } family)
+            await LogAsync("poste", AnonymousEntry(family, $"Question au poste (envoi des rappels) : {string.Join(", ", ids.Select(Code))} — même rappel ?",
+                null, together ? "Regrouper" : "Garder séparés"));
         int count = 0;
         for (int i = 0; i < ids.Count; i++)
             for (int j = i + 1; j < ids.Count; j++)
@@ -308,6 +335,124 @@ public sealed class FamilyStore
                 count++;
             }
         return count;
+    }
+
+    // ---------- Questions simples (page « Familles ») et journal anonymisé ----------
+
+    /// <summary>Questions sans réponse, des familles à vérifier, dans l'ordre (plus utile d'abord).</summary>
+    public List<StoredQuestion> PendingQuestions(int limit = 20)
+    {
+        var answered = LoadDecisions().Where(d => d.Kind != FamilyDecisionKind.Validate).Select(d => (d.A, d.B)).ToHashSet();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT q.number, q.a, q.b, q.strength, q.bridge, q.side_a, q.side_b, q.reasons FROM family_question q
+            JOIN family f ON f.number = q.number WHERE f.to_review = 1 ORDER BY q.rank, q.number
+            """;
+        using var r = cmd.ExecuteReader();
+        var list = new List<StoredQuestion>();
+        while (r.Read() && list.Count < limit)
+        {
+            int a = r.GetInt32(1), b = r.GetInt32(2);
+            if (answered.Contains((Math.Min(a, b), Math.Max(a, b)))) continue;
+            list.Add(new StoredQuestion(r.GetInt32(0), a, b, r.GetString(3), r.GetInt32(4) == 1, Ids(r.GetString(5)), Ids(r.GetString(6)), r.GetString(7)));
+        }
+        return list;
+    }
+
+    public (int Pending, int Answered) QuestionCounts()
+    {
+        var answered = LoadDecisions().Where(d => d.Kind != FamilyDecisionKind.Validate).Select(d => (d.A, d.B)).ToHashSet();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT q.a, q.b FROM family_question q JOIN family f ON f.number = q.number WHERE f.to_review = 1";
+        using var r = cmd.ExecuteReader();
+        int pending = 0;
+        while (r.Read()) if (!answered.Contains((Math.Min(r.GetInt32(0), r.GetInt32(1)), Math.Max(r.GetInt32(0), r.GetInt32(1))))) pending++;
+        using var log = c.CreateCommand();
+        log.CommandText = "SELECT COUNT(*) FROM question_log";
+        return (pending, Convert.ToInt32(log.ExecuteScalar(), CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Réponse à une question simple : Oui = ensemble, Non = séparés, null = je ne sais pas (rien ne change).</summary>
+    public async Task AnswerQuestionAsync(int a, int b, bool? together, string author)
+    {
+        var family = Families(patientId: a).FirstOrDefault();
+        var question = family == null ? null : FamilyQuestionsOf(family.Number).FirstOrDefault(q => (q.A == a && q.B == b) || (q.A == b && q.B == a));
+        await AddDecisionAsync(new FamilyDecision(together switch { true => FamilyDecisionKind.Join, false => FamilyDecisionKind.Separate, null => FamilyDecisionKind.Unsure }, a, b), author);
+        if (family != null)
+            await LogAsync("page", AnonymousEntry(family, $"Question : {Code(a)} et {Code(b)} vivent-ils ensemble aujourd'hui ?", question,
+                together switch { true => "Oui", false => "Non", null => "Je ne sais pas" }));
+    }
+
+    private List<StoredQuestion> FamilyQuestionsOf(int number)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT number, a, b, strength, bridge, side_a, side_b, reasons FROM family_question WHERE number = $n ORDER BY rank";
+        cmd.Parameters.AddWithValue("$n", number);
+        using var r = cmd.ExecuteReader();
+        var list = new List<StoredQuestion>();
+        while (r.Read()) list.Add(new StoredQuestion(r.GetInt32(0), r.GetInt32(1), r.GetInt32(2), r.GetString(3), r.GetInt32(4) == 1, Ids(r.GetString(5)), Ids(r.GetString(6)), r.GetString(7)));
+        return list;
+    }
+
+    private static List<int> Ids(string text) => text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .Select(t => int.Parse(t, CultureInfo.InvariantCulture)).ToList();
+
+    private static string Code(int id) => "n° " + id.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Entrée du journal sans aucun nom, téléphone ni adresse : numéros patients, année de dernière venue, relations de toute la
+    /// famille (les raisons ne contiennent pas de nom), question posée et réponse.
+    /// </summary>
+    public static string AnonymousEntry(StoredFamily family, string question, StoredQuestion? detail, string answer)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"=== {DateTime.Now:yyyy-MM-dd HH:mm} — famille {family.Number} ({family.Members.Count} personnes){(family.ToReview ? " — à vérifier : " + family.ReviewReason : "")} ===");
+        sb.AppendLine(question);
+        if (detail != null)
+        {
+            sb.AppendLine($"Lien demandé ({detail.Strength.ToLowerInvariant()}{(detail.Bridge ? ", pont" : "")}) : {detail.Reasons}");
+            if (detail.Bridge) sb.AppendLine($"Si non, la famille se sépare en : {string.Join(", ", detail.SideA.Select(Code))} | {string.Join(", ", detail.SideB.Select(Code))}");
+        }
+        sb.AppendLine("Membres : " + string.Join(", ", family.Members.Select(m => $"{Code(m.PatientId)} (vu en {m.LastSeen:yyyy})")));
+        sb.AppendLine("Relations :");
+        foreach (var l in family.Links) sb.AppendLine($"  {Code(l.A)} – {Code(l.B)} ({l.Strength.ToLowerInvariant()}) : {l.Reasons}");
+        sb.AppendLine("Réponse : " + answer);
+        return sb.ToString();
+    }
+
+    private async Task LogAsync(string origin, string text)
+    {
+        await WriteGate.WaitAsync();
+        try
+        {
+            using var c = Open();
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "INSERT INTO question_log(created_utc, origin, text) VALUES($u, $o, $t)";
+            cmd.Parameters.AddWithValue("$u", DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+            cmd.Parameters.AddWithValue("$o", origin);
+            cmd.Parameters.AddWithValue("$t", text);
+            cmd.ExecuteNonQuery();
+        }
+        finally { WriteGate.Release(); }
+    }
+
+    /// <summary>Journal anonymisé à transmettre : colonnes de l'agenda reconnues, puis toutes les questions et réponses.</summary>
+    public string AnonymousLog()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Journal anonymisé des questions sur les familles (numéros patients, aucun nom, téléphone ni adresse)");
+        sb.AppendLine($"Exporté le {DateTime.Now:yyyy-MM-dd HH:mm} ; {FamilyCount():N0} familles, {FamilyCount(toReviewOnly: true):N0} à vérifier, {QuestionCounts().Pending:N0} questions en attente.");
+        if (Meta("agenda_columns") is { Length: > 0 } columns) sb.AppendLine("Colonnes de l'agenda : " + columns);
+        sb.AppendLine();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT origin, text FROM question_log ORDER BY id";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) sb.AppendLine($"[{(r.GetString(0) == "poste" ? "poste" : "page Familles")}] " + r.GetString(1));
+        return sb.ToString();
     }
 
     public int DecisionCount()
@@ -327,13 +472,13 @@ public sealed class FamilyStore
         {
             using var c = Open();
             using var t = c.BeginTransaction();
-            Exec(c, "DELETE FROM family; DELETE FROM family_member; DELETE FROM family_link; DELETE FROM family_kin;", t);
+            Exec(c, "DELETE FROM family; DELETE FROM family_member; DELETE FROM family_link; DELETE FROM family_kin; DELETE FROM family_question;", t);
             using var fam = c.CreateCommand(); fam.Transaction = t;
             fam.CommandText = "INSERT INTO family VALUES($n, $r, $v, $c, $s)";
             var fp = new[] { "$n", "$r", "$v", "$c", "$s" }.Select(n => fam.Parameters.Add(n, SqliteType.Text)).ToArray();
             using var mem = c.CreateCommand(); mem.Transaction = t;
-            mem.CommandText = "INSERT INTO family_member VALUES($p, $n, $name, $seen)";
-            var mp = new[] { "$p", "$n", "$name", "$seen" }.Select(n => mem.Parameters.Add(n, SqliteType.Text)).ToArray();
+            mem.CommandText = "INSERT INTO family_member VALUES($p, $n, $name, $seen, $addr, $phones)";
+            var mp = new[] { "$p", "$n", "$name", "$seen", "$addr", "$phones" }.Select(n => mem.Parameters.Add(n, SqliteType.Text)).ToArray();
             using var lnk = c.CreateCommand(); lnk.Transaction = t;
             lnk.CommandText = "INSERT INTO family_link VALUES($n, $a, $b, $s, $r)";
             var lp = new[] { "$n", "$a", "$b", "$s", "$r" }.Select(n => lnk.Parameters.Add(n, SqliteType.Text)).ToArray();
@@ -348,7 +493,7 @@ public sealed class FamilyStore
                 {
                     numberOf[id] = f.Number;
                     var p = result.PatientsById[id];
-                    object[] mv = { id, f.Number, p.Name, D(p.LastSeen) };
+                    object[] mv = { id, f.Number, p.Name, D(p.LastSeen), p.Address, string.Join(" ", p.Phones.OrderBy(x => x)) };
                     for (int i = 0; i < mp.Length; i++) mp[i].Value = mv[i];
                     mem.ExecuteNonQuery();
                 }
@@ -358,6 +503,22 @@ public sealed class FamilyStore
                 object[] lv = { numberOf[l.A], l.A, l.B, l.Strength.ToString(), l.Reasons };
                 for (int i = 0; i < lp.Length; i++) lp[i].Value = lv[i];
                 lnk.ExecuteNonQuery();
+            }
+            using (var q = c.CreateCommand())
+            {
+                q.Transaction = t;
+                q.CommandText = "INSERT INTO family_question VALUES($n, $rank, $a, $b, $s, $bridge, $sa, $sb, $r)";
+                var qp = new[] { "$n", "$rank", "$a", "$b", "$s", "$bridge", "$sa", "$sb", "$r" }.Select(n => q.Parameters.Add(n, SqliteType.Text)).ToArray();
+                var reasonsOf = result.Links.ToDictionary(l => (l.A, l.B), l => l.Reasons);
+                foreach (var f in result.Families)
+                    for (int i = 0; i < f.Questions.Count; i++)
+                    {
+                        var x = f.Questions[i];
+                        object[] qv = { f.Number, i, x.A, x.B, x.Strength.ToString(), x.Bridge ? 1 : 0, FamilyDecision.Signature(x.SideA), FamilyDecision.Signature(x.SideB),
+                            reasonsOf.GetValueOrDefault((Math.Min(x.A, x.B), Math.Max(x.A, x.B)), "") };
+                        for (int k = 0; k < qp.Length; k++) qp[k].Value = qv[k];
+                        q.ExecuteNonQuery();
+                    }
             }
             using var kin = c.CreateCommand(); kin.Transaction = t;
             kin.CommandText = "INSERT INTO family_kin VALUES($p, $o, $r)";
@@ -404,9 +565,10 @@ public sealed class FamilyStore
         var list = string.Join(",", families.Keys);
         using (var m = c.CreateCommand())
         {
-            m.CommandText = $"SELECT number, patient_id, name, last_seen FROM family_member WHERE number IN ({list}) ORDER BY patient_id";
+            m.CommandText = $"SELECT number, patient_id, name, last_seen, address, phones FROM family_member WHERE number IN ({list}) ORDER BY patient_id";
             using var r = m.ExecuteReader();
-            while (r.Read()) families[r.GetInt32(0)].Members.Add(new StoredFamilyMember(r.GetInt32(1), r.GetString(2), P(r.GetString(3)) ?? DateTime.MinValue));
+            while (r.Read()) families[r.GetInt32(0)].Members.Add(new StoredFamilyMember(r.GetInt32(1), r.GetString(2), P(r.GetString(3)) ?? DateTime.MinValue)
+                { Address = r.GetString(4), Phones = r.GetString(5) });
         }
         using (var l = c.CreateCommand())
         {
@@ -444,7 +606,7 @@ public sealed class FamilyStore
             while (r.Read()) numbers[r.GetInt32(0)] = r.GetInt32(1);
         }
         // Réponses données aux postes (« Regrouper » / « Garder séparés ») : la plus récente pour chaque paire.
-        var answers = LoadDecisions().Where(d => d.Kind != FamilyDecisionKind.Validate)
+        var answers = LoadDecisions().Where(d => d.Kind is FamilyDecisionKind.Join or FamilyDecisionKind.Separate)
             .ToDictionary(d => (d.A, d.B), d => d.Kind == FamilyDecisionKind.Join);
         bool? Answer(int a, int b) => answers.TryGetValue((Math.Min(a, b), Math.Max(a, b)), out var together) ? together : null;
         var result = new List<FamilyMembershipDto>();

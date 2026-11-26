@@ -68,11 +68,17 @@ public sealed class FamilyRebuild(IServiceScopeFactory scopes, FamilyStore store
                 Payments = store.LoadPayments(),
                 Decisions = store.LoadDecisions(),
             };
+            var columns = new List<string>();
             var result = await Task.Run(() =>
             {
                 using var connection = ReadOnlyAccess.Open(access.AccessOptions());
-                return FamilyPipeline.Run(connection, options, line => { lock (_gate) _status = _status with { Message = line.Trim() }; }, ct);
+                return FamilyPipeline.Run(connection, options, line =>
+                {
+                    if (line.Contains('→')) columns.Add(string.Join(" ", line.Split(' ', StringSplitOptions.RemoveEmptyEntries)));
+                    lock (_gate) _status = _status with { Message = line.Trim() };
+                }, ct);
             }, ct);
+            store.SetMeta("agenda_columns", string.Join(" ; ", columns));
             lock (_gate) _status = _status with { Message = "Enregistrement des familles…" };
             await store.SaveResultAsync(result, FamilyScanReport.Anonymous(result));
             var message = $"Calcul terminé : {result.Families.Count} familles ({result.Families.Sum(f => f.Members.Count)} patients), "
