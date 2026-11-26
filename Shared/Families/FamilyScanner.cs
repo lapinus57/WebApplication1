@@ -409,8 +409,9 @@ namespace EyeChat.Families
                 link.VitaleCurrent = d.Current;
                 link.VitaleSeparated = d.Separated;
                 link.VitaleHousehold = d.Household;
-                // Facturés récemment chacun sous sa propre carte : le rattachement Vitale « actif » est périmé.
-                if (_latestCard.TryGetValue(d.A, out var ca) && _latestCard.TryGetValue(d.B, out var cb) && ca.Card != cb.Card
+                // Facturés récemment chacun sous sa propre carte : le rattachement Vitale « actif » d'un enfant est périmé
+                // (carte à lui, ou carte de l'autre parent). Pour des conjoints, chacun sa carte est normal : rien n'est contredit.
+                if (d.Current && !d.Relation.StartsWith("conjoints") && _latestCard.TryGetValue(d.A, out var ca) && _latestCard.TryGetValue(d.B, out var cb) && ca.Card != cb.Card
                     && end - ca.Date <= RecentPeriod && end - cb.Date <= RecentPeriod)
                     link.BillingSeparateCards = true;
                 declared++;

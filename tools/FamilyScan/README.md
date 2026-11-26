@@ -147,8 +147,9 @@ de retrouver le numéro, et il n'est **écrit nulle part** (ni rapport, ni déta
 - **« Facturés sous la même carte Vitale »** : deux patients facturés sous le même NIR (quel que soit le payeur, CPAM
   compris) sont liés fortement ; même foyer si c'était il y a moins de 3 ans. Une carte facturée pour plus de 10 patients
   est ignorée.
-- Un rattachement Vitale « actif » est **contredit** si les deux patients ont été facturés récemment, chacun sous sa propre
-  carte : ils ne sont alors plus regroupés d'office (seulement si l'agenda ou les contacts le confirment).
+- Le rattachement Vitale « actif » d’un **enfant** est **contredit** si l’enfant et le parent ont été facturés récemment, chacun sous sa propre
+  carte (carte à lui, ou carte de l’autre parent) : ils ne sont plus regroupés d’office, seulement si l’agenda ou les
+  contacts le confirment. Pour des conjoints, chacun sa carte est normal : rien n’est contredit.
 
 - Règlements par un organisme (sans prénom, ou nom contenant CPAM, MUTUELLE, MSA…) et par le patient lui-même : ignorés.
 - Bénéficiaire retrouvé par **nom + prénom + RDV le jour de la facture** ; payeur aussi s'il était là ce jour-là,

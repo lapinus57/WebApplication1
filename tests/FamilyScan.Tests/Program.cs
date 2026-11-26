@@ -327,7 +327,8 @@ var cardCsv = "IdPayeur;DateFacture;NomPayeur;PrenomPayeur;NomBeneficiaire;Preno
     + ";2025-02-03;CPAM;;ROUX;Léa;2 85 03 57 463 012 45\n"     // enfant facturée sous la carte de sa mère (organisme payeur)
     + ";2025-02-10;CPAM;;ROUX;Claire;2850357463012\n"         // la mère, autre jour
     + ";2024-05-06;CPAM;;GRIS;Marc;1700357000111\n"           // déclarés conjoints sur Vitale…
-    + ";2026-01-12;CPAM;;GRIS;Sophie;2720357000222\n";        // …mais chacun facturé sous sa propre carte
+    + ";2026-01-12;CPAM;;GRIS;Sophie;2720357000222\n"         // …chacun sa carte : normal pour des conjoints
+    + ";2026-02-02;CPAM;;GRIS;Tom;1050357000333\n";           // enfant déclaré sur la carte du père, facturé sous une autre
 var cardRows = PaymentLinks.ReadCsv(new StringReader(cardCsv));
 Check(cardRows[0].Card.Length == 24 && cardRows[0].Card == cardRows[1].Card && cardRows[2].Card != cardRows[3].Card
     && !cardRows[0].Card.Contains("2850357463012"), "NIR de facturation : empreinte identique pour le même numéro, jamais en clair");
@@ -337,15 +338,17 @@ cs.Add(Visit(301, new DateTime(2024, 5, 6), "GRIS", "Marc", "5 rue G", "06100003
 cs.Add(Visit(311, new DateTime(2025, 2, 3), "ROUX", "Léa", "", "0610000311"));
 cs.Add(Visit(310, new DateTime(2025, 2, 10), "ROUX", "Claire", "8 rue R", "0610000310"));
 cs.Add(Visit(302, new DateTime(2026, 1, 12), "GRIS", "Sophie", "6 rue H", "0610000302"));
-cs.AddDeclared(new[] { new DeclaredLink(301, 302, "conjoints", true, false, null) });
+cs.Add(Visit(303, new DateTime(2026, 2, 2), "GRIS", "Tom", "7 rue T", "0610000303"));
+cs.AddDeclared(new[] { new DeclaredLink(301, 302, "conjoints", true, false, null), new DeclaredLink(301, 303, "parent et enfant", true, false, null) });
 var cardStats = cs.AddPayments(cardRows);
-Check(cardStats is { CardInvoices: 4, SharedCards: 1 }, "Statistiques des cartes de facturation");
+Check(cardStats is { CardInvoices: 5, SharedCards: 1 }, "Statistiques des cartes de facturation");
 var cres = cs.Finish();
 PatientLink CL(int a, int b) => cres.Links.Single(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
 Check(CL(310, 311) is { SameBillingCard: 1, Strength: LinkStrength.Forte, SameHouseholdNow: true } && CL(310, 311).Reasons.Contains("facturés sous la même carte Vitale 2025"),
     "Mère et enfant facturées sous la même carte, jours différents : lien fort, même foyer");
-Check(CL(301, 302) is { BillingSeparateCards: true, SameHouseholdNow: false } && CL(301, 302).Reasons.Contains("chacun facturé sous sa propre carte récemment"),
-    "Conjoints Vitale « actifs » facturés chacun sous sa carte : pas regroupés d'office");
+Check(CL(301, 302) is { BillingSeparateCards: false, SameHouseholdNow: true }, "Conjoints facturés chacun sous sa carte : normal, toujours même foyer");
+Check(CL(301, 303) is { BillingSeparateCards: true, SameHouseholdNow: false } && CL(301, 303).Reasons.Contains("chacun facturé sous sa propre carte récemment"),
+    "Enfant déclaré sur la carte du père mais facturé sous une autre : pas regroupé d'office");
 var cardReport = FamilyScanReport.Anonymous(cres);
 var cardDetail = FamilyScanReport.DetailCsv(cres);
 Check(cardReport.Contains("Carte Vitale à la facturation") && !cardReport.Contains("2850357463012") && !cardReport.Contains(cardRows[0].Card)

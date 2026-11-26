@@ -74,7 +74,10 @@ namespace EyeChat.Families
                 var billed = r.Links.Where(l => l.SameBillingCard > 0).ToList();
                 sb.AppendLine($"  Carte Vitale à la facturation (NIR de l'assuré, jamais conservé) : {pay.CardInvoices:N0} factures rattachées à un patient, {pay.SharedCards:N0} cartes facturées pour plusieurs patients.");
                 sb.AppendLine($"    {billed.Count:N0} liens « même carte à la facturation », dont récents (moins de 3 ans) : {billed.Count(l => l.BillingCardLast is { } d && (DateTime.Today - d).TotalDays <= 3 * 365):N0} ; même foyer : {billed.Count(l => l.SameHouseholdNow):N0}, dont nouveaux (ni agenda ni carte Vitale) : {billed.Count(l => l.SameHouseholdNow && !l.AgendaHouseholdNow && l.VitaleRelation == null):N0}.");
-                sb.AppendLine($"    Rattachements Vitale « actifs » contredits (chacun facturé sous sa propre carte récemment) : {r.Links.Count(l => l.BillingSeparateCards):N0}.");
+                var contradicted = r.Links.Where(l => l.BillingSeparateCards).ToList();
+                sb.AppendLine($"    Rattachements Vitale « actifs » d'enfants contredits (chacun facturé sous sa propre carte récemment) : {contradicted.Count:N0}, dont plus regroupés d'office : {contradicted.Count(l => l.VitaleHousehold):N0}, dont restés même foyer grâce à l'agenda : {contradicted.Count(l => l.VitaleHousehold && l.SameHouseholdNow):N0}.");
+                foreach (var g in contradicted.GroupBy(l => l.VitaleRelation).OrderByDescending(g => g.Count()))
+                    sb.AppendLine($"      {g.Key,-36} {g.Count(),7:N0}");
                 var paid = r.Links.Where(l => l.PaidForCount + l.SamePayerCount > 0).ToList();
                 sb.AppendLine($"  Liens : {paid.Count(l => l.PaidForCount > 0):N0} « l'un règle pour l'autre », {paid.Count(l => l.SamePayerCount > 0):N0} « même payeur » ; même foyer : {paid.Count(l => l.SameHouseholdNow):N0}, dont nouveaux (ni agenda ni carte Vitale) : {paid.Count(l => l.SameHouseholdNow && !l.AgendaHouseholdNow && l.VitaleRelation == null):N0}.");
                 sb.AppendLine();
