@@ -51,7 +51,7 @@ namespace EyeChat.Families
                     s = sample.Contains(f.Number) ? 1 : 0,
                     m = f.Members.Select(id => r.PatientsById[id]).Select(p => new object[]
                     {
-                        p.Id, p.Name, p.LastSeen.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
+                        p.Id, p.Name, p.LastSeen == DateTime.MinValue ? "jamais venu" : p.LastSeen.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
                         string.Join(" ", p.Phones), string.Join(" ", p.Emails)
                     }),
                     l = links

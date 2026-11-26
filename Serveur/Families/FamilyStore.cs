@@ -416,7 +416,7 @@ public sealed class FamilyStore
             sb.AppendLine($"Lien demandé ({detail.Strength.ToLowerInvariant()}{(detail.Bridge ? ", pont" : "")}) : {detail.Reasons}");
             if (detail.Bridge) sb.AppendLine($"Si non, la famille se sépare en : {string.Join(", ", detail.SideA.Select(Code))} | {string.Join(", ", detail.SideB.Select(Code))}");
         }
-        sb.AppendLine("Membres : " + string.Join(", ", family.Members.Select(m => $"{Code(m.PatientId)} (vu en {m.LastSeen:yyyy})")));
+        sb.AppendLine("Membres : " + string.Join(", ", family.Members.Select(m => $"{Code(m.PatientId)} ({(m.LastSeen == DateTime.MinValue ? "jamais venu" : $"vu en {m.LastSeen:yyyy}")})")));
         sb.AppendLine("Relations :");
         foreach (var l in family.Links) sb.AppendLine($"  {Code(l.A)} – {Code(l.B)} ({l.Strength.ToLowerInvariant()}) : {l.Reasons}");
         sb.AppendLine("Réponse : " + answer);
@@ -493,7 +493,7 @@ public sealed class FamilyStore
                 {
                     numberOf[id] = f.Number;
                     var p = result.PatientsById[id];
-                    object[] mv = { id, f.Number, p.Name, D(p.LastSeen), p.Address, string.Join(" ", p.Phones.OrderBy(x => x)) };
+                    object[] mv = { id, f.Number, p.Name, p.LastSeen == DateTime.MinValue ? "" : D(p.LastSeen), p.Address, string.Join(" ", p.Phones.OrderBy(x => x)) };
                     for (int i = 0; i < mp.Length; i++) mp[i].Value = mv[i];
                     mem.ExecuteNonQuery();
                 }

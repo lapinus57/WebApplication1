@@ -82,7 +82,12 @@ namespace EyeChat.Families
     {
         public int Id { get; init; }
         public string Name { get; set; } = string.Empty;
+        /// <summary>Dernière venue : RDV passé (jusqu'à aujourd'hui) et non annulé. DateTime.MinValue si aucune.</summary>
         public DateTime LastSeen { get; set; }
+        /// <summary>Prochain RDV à venir non annulé, s'il y en a un.</summary>
+        public DateTime? Upcoming { get; set; }
+        /// <summary>Date de la ligne d'agenda d'où viennent les coordonnées (annulée ou à venir comprise).</summary>
+        public DateTime ContactsDate { get; set; }
         public HashSet<string> Phones { get; } = new();
         public HashSet<string> Emails { get; } = new();
         public string Address { get; set; } = string.Empty;
@@ -177,6 +182,8 @@ namespace EyeChat.Families
         /// <summary>Dernière carte de facturation de chaque patient, avec sa date.</summary>
         private readonly Dictionary<int, (string Batch, string Card, DateTime Date)> _latestCard = new();
         private readonly List<FamilyDecision> _decisions = new();
+        /// <summary>Paires « séparées à la main » : jamais dans le même foyer, même par l'intermédiaire d'autres membres.</summary>
+        private readonly HashSet<(int, int)> _separated = new();
 
         /// <summary>Décisions prises à la main (page d'administration) : appliquées après le calcul.</summary>
         public void AddDecisions(IEnumerable<FamilyDecision> decisions) => _decisions.AddRange(decisions);
@@ -227,9 +234,16 @@ namespace EyeChat.Families
             var emails = row.Emails.Select(NormalizeEmail).Where(e => e.Length > 0).ToList();
             foreach (var p in phones) Owners(_phoneOwners, p).Add(row.PatientId);
             foreach (var e in emails) Owners(_emailOwners, e).Add(row.PatientId);
-            if (day >= patient.LastSeen)
+            // Dernière venue : seulement un RDV passé et non annulé. Un RDV annulé ne dit pas que le patient est venu ;
+            // un RDV à venir non annulé le rend actif (il va venir), sans être une venue.
+            if (!row.Cancelled)
             {
-                patient.LastSeen = day;
+                if (day <= Today.Date) { if (day > patient.LastSeen) patient.LastSeen = day; }
+                else if (patient.Upcoming is null || day < patient.Upcoming) patient.Upcoming = day;
+            }
+            if (day >= patient.ContactsDate)
+            {
+                patient.ContactsDate = day;
                 patient.Name = $"{row.FirstName} {row.Surname}".Trim();
                 if (phones.Count > 0) { patient.Phones.Clear(); patient.Phones.UnionWith(phones); }
                 if (emails.Count > 0) { patient.Emails.Clear(); patient.Emails.UnionWith(emails); }
@@ -252,52 +266,54 @@ namespace EyeChat.Families
         }
 
         // Une journée : paires de patients venus à des créneaux voisins, ou ayant pris leurs RDV à la même minute.
+        // Tous les créneaux de la journée comptent (un patient peut avoir deux RDV), mais une paire ne compte qu'une venue par jour.
         private void FlushDay()
         {
             if (_day.Count == 0) return;
             var day = _currentDay!.Value;
-            var visits = _day.Where(r => !r.Cancelled).GroupBy(r => r.PatientId)
-                .Select(g => g.OrderBy(r => r.Time ?? DateTime.MaxValue).First()).ToList();
+            var rows = _day.Where(r => !r.Cancelled).ToList();
             _day.Clear();
-            var timed = visits.Where(v => v.Time.HasValue).OrderBy(v => v.Time).ToList();
+            var byPatient = rows.GroupBy(r => r.PatientId).ToDictionary(g => g.Key, g => g.ToList());
+            var visits = byPatient.Values.Select(g => g.OrderBy(r => r.Time ?? DateTime.MaxValue).First()).ToList();
+            var timed = rows.Where(v => v.Time.HasValue).OrderBy(v => v.Time).ToList();
             var pairs = new HashSet<(int, int)>();
             for (int i = 0; i < timed.Count; i++)
                 for (int j = i + 1; j < timed.Count && (timed[j].Time!.Value - timed[i].Time!.Value).TotalMinutes <= CovisitWindowMinutes; j++)
-                    pairs.Add(Key(timed[i].PatientId, timed[j].PatientId));
-            foreach (var bucket in visits.Where(v => v.Created.HasValue).GroupBy(v => Minute(v.Created!.Value)).Where(g => g.Count() > 1))
+                    if (timed[i].PatientId != timed[j].PatientId) pairs.Add(Key(timed[i].PatientId, timed[j].PatientId));
+            foreach (var bucket in rows.Where(v => v.Created.HasValue).GroupBy(v => Minute(v.Created!.Value)))
             {
-                var ids = bucket.Select(v => v.PatientId).ToList();
+                var ids = bucket.Select(v => v.PatientId).Distinct().ToList();
                 for (int i = 0; i < ids.Count; i++) for (int j = i + 1; j < ids.Count; j++) pairs.Add(Key(ids[i], ids[j]));
             }
-            var byId = visits.ToDictionary(v => v.PatientId);
             foreach (var (a, b) in pairs)
             {
-                var va = byId[a]; var vb = byId[b];
-                var booked = va.Created.HasValue && vb.Created.HasValue && Minute(va.Created.Value) == Minute(vb.Created.Value);
-                var arrived = va.Arrival.HasValue && vb.Arrival.HasValue
-                    && Math.Abs((va.Arrival.Value.TimeOfDay - vb.Arrival.Value.TimeOfDay).TotalMinutes) <= ArrivedTogetherMinutes;
-                var near = va.Time.HasValue && vb.Time.HasValue && Math.Abs((va.Time.Value - vb.Time.Value).TotalMinutes) <= CovisitWindowMinutes;
+                var ra = byPatient[a]; var rb = byPatient[b];
+                var combos = ra.SelectMany(x => rb.Select(y => (A: x, B: y))).ToList();
+                var booked = combos.Any(c => c.A.Created.HasValue && c.B.Created.HasValue && Minute(c.A.Created.Value) == Minute(c.B.Created.Value));
+                var arrived = combos.Any(c => c.A.Arrival.HasValue && c.B.Arrival.HasValue
+                    && Math.Abs((c.A.Arrival.Value.TimeOfDay - c.B.Arrival.Value.TimeOfDay).TotalMinutes) <= ArrivedTogetherMinutes);
+                var near = combos.Any(c => c.A.Time.HasValue && c.B.Time.HasValue && Math.Abs((c.A.Time.Value - c.B.Time.Value).TotalMinutes) <= CovisitWindowMinutes);
+                var passed = combos.Any(c => c.A.Passage.HasValue && c.B.Passage.HasValue
+                    && Math.Abs((c.A.Passage.Value.TimeOfDay - c.B.Passage.Value.TimeOfDay).TotalMinutes) <= PassedTogetherMinutes);
                 // Deux inconnus peuvent avoir des créneaux voisins par hasard : il faut en plus un indice d'identité ou de réservation.
                 // L'heure d'arrivée seule n'en est pas un : dans un cabinet chargé, beaucoup de patients arrivent
                 // dans les mêmes minutes (mesuré : 660 000 paires « arrivées ensemble »). Elle ne fait que renforcer.
-                var clue = booked || SameNoSS(va, vb) || Shares(va.Phones, vb.Phones, NormalizePhone) || Shares(va.Emails, vb.Emails, NormalizeEmail)
-                    || SurnameTokens(va.Surname, va.MaidenName).Overlaps(SurnameTokens(vb.Surname, vb.MaidenName))
-                    || (NormalizeAddress(va.Address, va.City) is { Length: > 0 } ad && ad == NormalizeAddress(vb.Address, vb.City));
+                var clue = booked || combos.Any(c => SameNoSS(c.A, c.B) || Shares(c.A.Phones, c.B.Phones, NormalizePhone) || Shares(c.A.Emails, c.B.Emails, NormalizeEmail)
+                    || SurnameTokens(c.A.Surname, c.A.MaidenName).Overlaps(SurnameTokens(c.B.Surname, c.B.MaidenName))
+                    || (NormalizeAddress(c.A.Address, c.A.City) is { Length: > 0 } ad && ad == NormalizeAddress(c.B.Address, c.B.City)));
                 if (!clue || !(near || booked)) continue;
                 var link = Link(a, b);
                 link.CovisitDays++;
                 if (booked) link.BookedTogetherDays++;
                 if (arrived) link.ArrivedTogetherDays++;
-                if (va.Passage.HasValue && vb.Passage.HasValue
-                    && Math.Abs((va.Passage.Value.TimeOfDay - vb.Passage.Value.TimeOfDay).TotalMinutes) <= PassedTogetherMinutes)
-                    link.PassedTogetherDays++;
-                if (HasFamilyWord(va.Remark) || HasFamilyWord(vb.Remark)) link.RemarkFamilyWordDays++;
+                if (passed) link.PassedTogetherDays++;
+                if (ra.Concat(rb).Any(r => HasFamilyWord(r.Remark))) link.RemarkFamilyWordDays++;
                 link.FirstCovisit ??= day;
                 link.LastCovisit = day;
             }
 
             // Remarque qui cite un autre patient du jour : son prénom, avec son nom ou un mot de famille (« avec sa fille Léa »).
-            foreach (var v in visits.Where(v => v.Remark.Trim().Length > 0))
+            foreach (var v in rows.Where(v => v.Remark.Trim().Length > 0))
             {
                 var words = FirstNameTokens(v.Remark);
                 var family = words.Overlaps(FamilyWords);
@@ -507,7 +523,7 @@ namespace EyeChat.Families
             return new ScanResult
             {
                 FirstDay = _firstDay, LastDay = _lastDay, Rows = _rows, Patients = _patients.Count,
-                Years = _years.Values.OrderBy(y => y.Year).ToList(), Links = links, Families = MarkValidated(BuildFamilies(links)),
+                Years = _years.Values.OrderBy(y => y.Year).ToList(), Links = links, Families = MarkValidated(BuildFamilies(links, _separated)),
                 PatientsById = _patients, CollectivePhones = collectivePhones, CollectiveEmails = collectiveEmails,
                 DeclaredLinks = declared, DeclaredLinksWithoutAgenda = withoutAgenda, Payments = _payments
             };
@@ -562,6 +578,7 @@ namespace EyeChat.Families
                 var link = Link(d.A, d.B);
                 if (d.Kind == FamilyDecisionKind.Separate)
                 {
+                    _separated.Add(Key(d.A, d.B));
                     link.SameHouseholdNow = false;
                     link.ManualDecision = "séparés à la main";
                 }
@@ -583,7 +600,8 @@ namespace EyeChat.Families
             return families;
         }
 
-        private static bool SeenRecently(PatientInfo p, DateTime end) => end - p.LastSeen <= CurrentContactPeriod;
+        /// <summary>Patient actif : venu (RDV passé non annulé) depuis moins de 5 ans, ou RDV à venir non annulé.</summary>
+        public static bool SeenRecently(PatientInfo p, DateTime end) => p.Upcoming.HasValue || end - p.LastSeen <= CurrentContactPeriod;
 
         /// <summary>Force du lien et « même foyer aujourd'hui ». Règles volontairement simples et expliquées.</summary>
         public static void Classify(PatientLink l, DateTime end)
@@ -668,19 +686,39 @@ namespace EyeChat.Families
             l.Reasons = string.Join(", ", reasons);
         }
 
-        private static List<ScanFamily> BuildFamilies(IReadOnlyList<PatientLink> links)
+        private static List<ScanFamily> BuildFamilies(IReadOnlyList<PatientLink> links, IReadOnlySet<(int, int)>? separated = null)
         {
-            var household = links.Where(l => l.SameHouseholdNow).ToList();
+            // Liens les plus sûrs d'abord : si une séparation manuelle empêche une réunion, c'est le lien le plus faible qui cède.
+            var candidates = links.Where(l => l.SameHouseholdNow)
+                .OrderByDescending(l => l.ManualDecision == "regroupés à la main").ThenByDescending(l => l.Strength)
+                .ThenByDescending(l => l.CovisitDays).ThenBy(l => l.A).ThenBy(l => l.B).ToList();
             var parent = new Dictionary<int, int>();
+            var members = new Dictionary<int, List<int>>();
             int Find(int x) { while (parent[x] != x) x = parent[x] = parent[parent[x]]; return x; }
-            foreach (var l in household)
+            var household = new List<PatientLink>();
+            foreach (var l in candidates)
             {
-                parent.TryAdd(l.A, l.A); parent.TryAdd(l.B, l.B);
+                foreach (var id in new[] { l.A, l.B })
+                    if (parent.TryAdd(id, id)) members[id] = new List<int> { id };
                 var ra = Find(l.A); var rb = Find(l.B);
-                if (ra != rb) parent[ra] = rb;
+                if (ra != rb)
+                {
+                    // Une séparation explicite vaut pour le foyer entier : A séparé de C, A–B et B–C ne les réunissent pas.
+                    if (separated is { Count: > 0 } && members[ra].Any(x => members[rb].Any(y => separated.Contains(x < y ? (x, y) : (y, x)))))
+                    {
+                        l.SameHouseholdNow = false;
+                        l.ManualDecision = l.ManualDecision.Length > 0 ? l.ManualDecision : "écarté : réunirait des personnes séparées à la main";
+                        l.Reasons += ", écarté : réunirait des personnes séparées à la main";
+                        continue;
+                    }
+                    parent[ra] = rb;
+                    members[rb].AddRange(members[ra]);
+                    members.Remove(ra);
+                }
+                household.Add(l);
             }
             var families = new List<ScanFamily>();
-            foreach (var group in parent.Keys.GroupBy(Find))
+            foreach (var group in parent.Keys.GroupBy(Find).Where(g => g.Count() > 1))
             {
                 var family = new ScanFamily();
                 family.Members.AddRange(group.OrderBy(x => x));

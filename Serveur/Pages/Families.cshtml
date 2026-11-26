@@ -66,7 +66,7 @@
                 <table class="registry-list"><tbody>
                 @foreach (var m in new[] { ma, mb }.Where(m => m != null))
                 {
-                    <tr><td><strong>@m!.Name</strong><small>Code @m.PatientId · vu le @m.LastSeen.ToString("dd/MM/yyyy", fr)</small></td>
+                    <tr><td><strong>@m!.Name</strong><small>Code @m.PatientId · @(m.LastSeen == DateTime.MinValue ? "jamais venu" : "vu le " + m.LastSeen.ToString("dd/MM/yyyy", fr))</small></td>
                         <td>@m.Address</td><td>@m.Phones</td></tr>
                 }
                 </tbody></table>
@@ -125,7 +125,7 @@
                 {
                     <tr>
                         <td><strong>@m.Name</strong><small>Code @m.PatientId</small></td>
-                        <td>@m.LastSeen.ToString("dd/MM/yyyy", fr)</td>
+                        <td>@(m.LastSeen == DateTime.MinValue ? "jamais venu" : m.LastSeen.ToString("dd/MM/yyyy", fr))</td>
                         <td>@foreach (var k in Model.Kin.GetValueOrDefault(m.PatientId) ?? new())
                             { <div><a href="?Patient=@k.OtherId">@k.OtherId</a>@(k.OtherFamily is { } n ? $" (famille {n})" : "") : <small>@k.Reasons</small></div> }</td>
                         <td><form method="post" asp-page-handler="Remove"><input type="hidden" name="patient" value="@m.PatientId" /><input type="hidden" name="members" value="@signature" />

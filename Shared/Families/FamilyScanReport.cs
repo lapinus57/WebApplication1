@@ -18,7 +18,7 @@ namespace EyeChat.Families
             sb.AppendLine("Reconstitution des familles — rapport anonymisé");
             sb.AppendLine($"Historique : {r.FirstDay:dd/MM/yyyy} → {r.LastDay:dd/MM/yyyy}, {r.Rows:N0} rendez-vous, {r.Patients:N0} patients.");
             var reference = r.LastDay is { } last && last < DateTime.Today ? last : DateTime.Today;
-            var active = r.PatientsById.Values.Count(p => reference - p.LastSeen <= FamilyScanner.CurrentContactPeriod);
+            var active = r.PatientsById.Values.Count(p => FamilyScanner.SeenRecently(p, reference));
             sb.AppendLine($"Patients actifs (venus depuis moins de 5 ans, ou RDV à venir) : {active:N0}. Seuls leurs téléphones, mails et adresses comptent comme « actuels ».");
             sb.AppendLine(r.Vitale == null
                 ? "Carte Vitale : NON LUE (aucun export *vitale*.csv à côté de FamilyScan.exe, ou option --vitale absente)."
@@ -137,7 +137,7 @@ namespace EyeChat.Families
                     sb.AppendLine(string.Join(";", new[]
                     {
                         f.Number.ToString(CultureInfo.InvariantCulture), f.ToReview ? "oui" : "", id.ToString(CultureInfo.InvariantCulture),
-                        p.Name, p.LastSeen.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
+                        p.Name, p.LastSeen == DateTime.MinValue ? "jamais venu" : p.LastSeen.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
                         string.Join(" ", p.Phones), string.Join(" ", p.Emails), string.Join(" | ", reasons),
                         string.Join(" | ", kin[id].Select(k => $"{k.Other}" + (familyOf.TryGetValue(k.Other, out var n) ? $" (famille {n})" : "") + $" : {k.Link.Reasons}"))
                     }.Select(Cell)));

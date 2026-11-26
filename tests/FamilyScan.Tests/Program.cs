@@ -457,4 +457,51 @@ Check(RL(811, 812) is { PassedTogetherDays: 2, RemarkFamilyWordDays: 2, Strength
 var rreport = FamilyScanReport.Anonymous(rres);
 Check(rreport.Contains("Remarque  Passage") && rreport.Contains("remarque citant l'autre") && !rreport.Contains("Léa"), "Rapport : remplissage et indices, sans nom");
 
+// ---------- Revue de code : séparation pour tout le foyer, dernière venue, plusieurs créneaux ----------
+{
+    // 1. A séparé de C à la main, alors que A–B et B–C restent : A et C ne sont jamais dans le même foyer.
+    ScanResult Trio(params FamilyDecision[] decisions)
+    {
+        var sc = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+        foreach (var d in new[] { new DateTime(2025, 3, 2), new DateTime(2026, 3, 2) })
+        {
+            sc.Add(new ScanRow(1001, d, d.AddHours(9), null, null, "", "HAAS", "", "Ana", "4 rue H", "Metz", new[] { "0601001001" }, Array.Empty<string>(), false));
+            sc.Add(new ScanRow(1002, d, d.AddHours(9).AddMinutes(15), null, null, "", "HAAS", "", "Bea", "4 rue H", "Metz", new[] { "0601001001" }, Array.Empty<string>(), false));
+            sc.Add(new ScanRow(1003, d, d.AddHours(9).AddMinutes(30), null, null, "", "HAAS", "", "Cyr", "4 rue H", "Metz", new[] { "0601001001" }, Array.Empty<string>(), false));
+        }
+        sc.AddDecisions(decisions);
+        return sc.Finish();
+    }
+    Check(Trio().Families.Single().Members.Count == 3, "Trois personnes du même foyer");
+    var split = Trio(new FamilyDecision(FamilyDecisionKind.Separate, 1001, 1003));
+    Check(!split.Families.Any(f => f.Members.Contains(1001) && f.Members.Contains(1003)), "Séparés à la main : jamais réunis par un troisième (A–B, B–C)");
+    Check(split.Links.Any(l => l.Reasons.Contains("écarté : réunirait des personnes séparées à la main")), "Le lien écarté le dit");
+
+    // 2. Un RDV annulé ne rend pas un patient « actuel » ; un RDV à venir non annulé, si.
+    var stale2 = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+    var old = new DateTime(2012, 4, 2);
+    stale2.Add(new ScanRow(1101, old, old.AddHours(9), null, null, "", "OLD", "", "Max", "9 rue O", "Metz", new[] { "0601001101" }, Array.Empty<string>(), false));
+    stale2.Add(new ScanRow(1102, new DateTime(2025, 1, 6), new DateTime(2025, 1, 6, 9, 0, 0), null, null, "", "NEW", "", "Eve", "8 rue N", "Metz", new[] { "0601001101" }, Array.Empty<string>(), false));
+    var cancelled = new DateTime(2025, 6, 2);
+    stale2.Add(new ScanRow(1101, cancelled, cancelled.AddHours(9), null, null, "", "OLD", "", "Max", "", "", Array.Empty<string>(), Array.Empty<string>(), true));
+    var staleResult = stale2.Finish();
+    var max = staleResult.PatientsById[1101];
+    Check(max.LastSeen == old && max.Upcoming == null && !FamilyScanner.SeenRecently(max, new DateTime(2026, 11, 24)), "RDV annulé : dernière venue inchangée (2012), pas actif");
+    Check(staleResult.Links.SingleOrDefault(l => l.A == 1101 && l.B == 1102) is null or { SharedContactNow: false }, "Son ancien téléphone n'est pas « actuel »");
+    var future2 = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+    future2.Add(new ScanRow(1201, old, old.AddHours(9), null, null, "", "OLD", "", "Max", "", "", Array.Empty<string>(), Array.Empty<string>(), false));
+    future2.Add(new ScanRow(1201, new DateTime(2027, 2, 1), new DateTime(2027, 2, 1, 9, 0, 0), null, null, "", "OLD", "", "Max", "", "", Array.Empty<string>(), Array.Empty<string>(), false));
+    var futurePatient = future2.Finish().PatientsById[1201];
+    Check(futurePatient.LastSeen == old && futurePatient.Upcoming == new DateTime(2027, 2, 1) && FamilyScanner.SeenRecently(futurePatient, new DateTime(2026, 11, 24)),
+        "RDV à venir : actif, mais la dernière venue reste la vraie (2012)");
+
+    // 3. Deuxième RDV du même jour : la venue commune de l'après-midi compte.
+    var twice = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+    var td = new DateTime(2026, 3, 9);
+    twice.Add(new ScanRow(1301, td, td.AddHours(9), null, null, "", "KAHN", "", "Ida", "", "", new[] { "0601001301" }, Array.Empty<string>(), false));
+    twice.Add(new ScanRow(1301, td, td.AddHours(16), null, null, "", "KAHN", "", "Ida", "", "", new[] { "0601001301" }, Array.Empty<string>(), false));
+    twice.Add(new ScanRow(1302, td, td.AddHours(16).AddMinutes(15), null, null, "", "KAHN", "", "Teo", "", "", new[] { "0601001302" }, Array.Empty<string>(), false));
+    Check(twice.Finish().Links.Single(l => l.A == 1301 && l.B == 1302).CovisitDays == 1, "Deux RDV le même jour : le créneau voisin de l'après-midi compte, une seule fois");
+}
+
 Console.WriteLine($"{checks} vérifications réussies.");
