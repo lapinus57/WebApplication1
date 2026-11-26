@@ -134,6 +134,10 @@ builder.Services.AddScoped<IEyeMailSource, EyeMailAccessSource>();
 builder.Services.AddSingleton<EyeMailImport>();
 // Historique des SMS et mails, commun à tous les postes.
 builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(dbFolder, "sms-mail-history.db")));
+// Familles reconstituées (agenda, photo Vitale, exports des paiements, décisions manuelles) : data/families.db.
+builder.Services.AddSingleton(new ChatServeur.Families.FamilyStore(Path.Combine(dbFolder, "families.db")));
+builder.Services.AddSingleton<ChatServeur.Families.FamilyRebuild>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ChatServeur.Families.FamilyRebuild>());
 // Réponses des patients (lien « Confirmer / Annuler » des rappels, service externe Cloudflare Worker).
 builder.Services.AddHttpClient("replies", c => c.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddSingleton<ChatServeur.Replies.IReplyMailer, ChatServeur.Replies.SmtpReplyMailer>();
@@ -181,6 +185,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/EyeMail") ||
         context.Request.Path.StartsWithSegments("/AccessSettings") ||
         context.Request.Path.StartsWithSegments("/Replies") ||
+        context.Request.Path.StartsWithSegments("/Families") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)

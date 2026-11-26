@@ -28,6 +28,7 @@ on:
       - 'tests/MdbCompare.Tests/**'
       - 'tests/Server.Deployment/**'
       - 'tests/FamilyScan.Tests/**'
+      - 'tests/Families.Server.Tests/**'
       - 'tests/FbExplore.Tests/**'
       - 'tools/FbExplore/**'
       - 'tools/FamilyScan/**'
@@ -69,6 +70,8 @@ jobs:
         run: ./tests/Server.Deployment/Test-CopyRelease.ps1
       - name: Verify family reconstruction from the appointment history
         run: dotnet run --project tests/FamilyScan.Tests --configuration Release
+      - name: Verify server families store and administration page
+        run: dotnet run --project tests/Families.Server.Tests --configuration Release
       - name: Compile family reconstruction tool (x86)
         run: dotnet build tools/FamilyScan/FamilyScan.csproj --configuration Release -p:Platform=x86
       - name: Verify Firebird structure explorer

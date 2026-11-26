@@ -1,0 +1,124 @@
+@page
+@model Serveur.Pages.FamiliesModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Familles";
+    var fr = CultureInfo.GetCultureInfo("fr-FR");
+}
+<link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
+<section class="registry">
+    <header class="registry-heading">
+        <div><p class="registry-eyebrow">RAPPELS · FAMILLES</p><h1>Familles reconstituées</h1>
+            <p>Calculées à partir de tout l'historique de l'agenda, de la photo de la carte Vitale et des exports des paiements, dans <code>data/families.db</code>.
+               Access n'est jamais modifié. Les rappels SMS et mail d'une même famille sont regroupés.</p></div>
+    </header>
+    @if (Model.Error.Length > 0) { <div class="registry-error" role="alert">@Model.Error</div> }
+    @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+
+    <section class="registry-card registry-import">
+        <div><strong>@Model.FamilyCount.ToString("N0", fr) famille(s), dont @Model.ToReviewCount.ToString("N0", fr) à vérifier</strong>
+            <p>Dernier calcul : @Model.LastRun — @Model.LastRunMessage</p>
+            <p class="registry-help">Recalcul automatique chaque nuit à @Model.NightlyHour h (réglage <code>Families:NightlyHour</code>). @Model.DecisionCount décision(s) prise(s) à la main, appliquée(s) à chaque calcul.</p></div>
+        <form method="post" asp-page-handler="Rebuild"><button type="submit" disabled="@Model.RebuildStatus.Running">Recalculer maintenant</button></form>
+        @if (Model.RebuildStatus.Running) { <form method="post" asp-page-handler="Cancel"><button class="secondary" type="submit">Interrompre</button></form> }
+        <p id="registry-progress" class="@(Model.RebuildStatus.Failed ? "registry-error" : "")" data-running="@((Model.WatchRebuild || Model.RebuildStatus.Running) ? "true" : "false")" role="status">@Model.RebuildStatus.Message</p>
+    </section>
+
+    <section class="registry-card">
+        <h2>Sources</h2>
+        <p><strong>Photo de la carte Vitale</strong> (ancienne base, importée une fois) :
+            @(Model.VitaleCount > 0 ? $"{Model.VitaleCount.ToString("N0", fr)} fiches, fichier « {Model.VitaleFile} », importé le {Model.VitaleImported}" : "aucune")</p>
+        <form method="post" asp-page-handler="Vitale" enctype="multipart/form-data">
+            <label>Remplacer par <input type="file" name="file" accept=".csv" required /></label>
+            <button type="submit">Importer export-vitale.csv</button>
+        </form>
+        <p><strong>Exports « suivi des paiements »</strong> (CGM e-Vitale) : le NIR sert seulement à savoir qui est facturé sous la même carte ; il n'est jamais conservé.</p>
+        @if (Model.Batches.Count > 0)
+        {
+            <ul>
+            @foreach (var b in Model.Batches)
+            {
+                <li>@b.FileName — @b.Lines.ToString("N0", fr) factures du @(b.First?.ToString("dd/MM/yyyy", fr)) au @(b.Last?.ToString("dd/MM/yyyy", fr))
+                    <form method="post" asp-page-handler="DeleteBatch" style="display:inline"><input type="hidden" name="id" value="@b.Id" />
+                        <button class="secondary" type="submit" onclick="return confirm('Supprimer cet export ?')">Supprimer</button></form></li>
+            }
+            </ul>
+        }
+        <form method="post" asp-page-handler="Payments" enctype="multipart/form-data">
+            <label>Ajouter un export <input type="file" name="file" accept=".csv" required /></label>
+            <button type="submit">Ajouter</button>
+        </form>
+    </section>
+
+    <section class="registry-card">
+        <h2>Corriger</h2>
+        <form method="get" class="registry-filters">
+            <label>Famille d'un patient<input type="number" name="Patient" value="@Model.Patient" min="1" placeholder="Code patient" /></label>
+            <button type="submit">Afficher</button>
+            @if (Model.Patient is > 0) { <a href="?">Revenir aux familles à vérifier</a> }
+        </form>
+        <form method="post" asp-page-handler="Join" class="registry-filters">
+            <label>Regrouper le patient<input type="number" name="first" min="1" required /></label>
+            <label>avec le patient<input type="number" name="second" min="1" required /></label>
+            <button type="submit">Regrouper</button>
+        </form>
+        <p class="registry-help">Les corrections sont conservées et appliquées à chaque calcul. Elles prennent effet au prochain calcul (cette nuit, ou « Recalculer maintenant »).</p>
+    </section>
+
+    <h2>@(Model.Patient is > 0 ? $"Famille du patient {Model.Patient}" : $"Familles à vérifier ({Model.ToReviewCount.ToString("N0", fr)}) · page {Model.PageNumber} sur {Model.Pages}")</h2>
+    @if (Model.Patient is not > 0)
+    {
+        <p class="registry-help">Tant qu'une famille est à vérifier, l'envoi des rappels affiche pourquoi ces personnes sont regroupées et vous laisse choisir.
+            « Valider » la garde telle quelle ; « Retirer » sort une personne du foyer.</p>
+    }
+    @foreach (var f in Model.Shown)
+    {
+        var signature = string.Join(",", f.Members.Select(m => m.PatientId));
+        <article class="registry-card">
+            <header><strong>Famille @f.Number — @f.Members.Count personnes</strong>
+                @if (f.ToReview) { <span> · à vérifier : @f.ReviewReason</span> }
+                @if (f.Validated) { <span> · validée</span> }
+            </header>
+            <table class="registry-list">
+                <thead><tr><th>Patient</th><th>Dernière venue</th><th>Parenté dans un autre foyer</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var m in f.Members)
+                {
+                    <tr>
+                        <td><strong>@m.Name</strong><small>Code @m.PatientId</small></td>
+                        <td>@m.LastSeen.ToString("dd/MM/yyyy", fr)</td>
+                        <td>@foreach (var k in Model.Kin.GetValueOrDefault(m.PatientId) ?? new())
+                            { <div><a href="?Patient=@k.OtherId">@k.OtherId</a>@(k.OtherFamily is { } n ? $" (famille {n})" : "") : <small>@k.Reasons</small></div> }</td>
+                        <td><form method="post" asp-page-handler="Remove"><input type="hidden" name="patient" value="@m.PatientId" /><input type="hidden" name="members" value="@signature" />
+                            <button class="secondary" type="submit">Retirer du foyer</button></form></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            <details><summary>Pourquoi ces personnes sont regroupées (@f.Links.Count lien(s))</summary>
+                <ul>
+                @foreach (var l in f.Links)
+                {
+                    <li><strong>@f.NameOf(l.A)</strong> et <strong>@f.NameOf(l.B)</strong> (@l.Strength.ToLowerInvariant()) : @l.Reasons</li>
+                }
+                </ul>
+            </details>
+            @if (f.ToReview)
+            {
+                <form method="post" asp-page-handler="Validate"><input type="hidden" name="members" value="@signature" /><button type="submit">Valider cette famille</button></form>
+            }
+        </article>
+    }
+    @if (Model.Patient is not > 0 && Model.Pages > 1)
+    {
+        <form method="get" class="registry-pagination">
+            <button type="submit" name="PageNumber" value="@(Model.PageNumber - 1)" disabled="@(Model.PageNumber == 1)">Précédente</button>
+            <button type="submit" name="PageNumber" value="@(Model.PageNumber + 1)" disabled="@(Model.PageNumber >= Model.Pages)">Suivante</button>
+        </form>
+    }
+    @if (Model.LastReport.Length > 0)
+    {
+        <details class="registry-card"><summary>Rapport anonymisé du dernier calcul</summary><pre style="white-space:pre-wrap">@Model.LastReport</pre></details>
+    }
+</section>
+<script src="~/js/patient-registry.js" asp-append-version="true"></script>
