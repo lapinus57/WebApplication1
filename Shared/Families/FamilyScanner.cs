@@ -510,9 +510,10 @@ namespace EyeChat.Families
             // Sans aucun indice d'identité commun (nom, adresse, contact, NoSS, carte Vitale), des personnes qui viennent
             // et réservent ensemble (résidents d'un EHPAD, voisins, amis) restent liées mais ne forment pas un foyer.
             // Venus ensemble récemment, mais seulement le même nom (ou un contact d'autrefois) : souvent deux foyers de la même
-            // famille (vérifié au cabinet). Il faut un lien actuel : même adresse, même contact, NoSS, ou RDV pris ensemble
-            // à la même minute au moins deux fois.
-            var currentTie = l.SameAddressNow || l.SharedContactNow || l.SharedNoSS || (l.SameSurname && l.BookedTogetherDays >= 2);
+            // famille (vérifié au cabinet). Il faut un lien actuel : même adresse, même contact, ou RDV pris ensemble à la
+            // même minute au moins deux fois. Le NoSS n'en est pas un : l'agenda ne le note plus après 2005 (seule la carte
+            // Vitale et la facturation disent qui est rattaché à qui aujourd'hui).
+            var currentTie = l.SameAddressNow || l.SharedContactNow || (l.SameSurname && l.BookedTogetherDays >= 2);
             var recentTogether = recent && currentTie;
             l.AgendaHouseholdNow = (identity || l.SharedNoSS) && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recentTogether);
 

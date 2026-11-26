@@ -39,14 +39,14 @@ namespace EyeChat.Families
             sb.AppendLine();
             sb.AppendLine("Indices rencontrés (un lien peut en cumuler plusieurs) :");
             void Line(string label, Func<PatientLink, bool> test) => sb.AppendLine($"  {label,-45} {r.Links.Count(test),7:N0}");
-            Line("même numéro d'assuré (NoSS)", l => l.SharedNoSS);
+            Line("même NoSS (agenda, jusqu'en 2005)", l => l.SharedNoSS);
             Line("RDV pris à la même minute", l => l.BookedTogetherDays > 0);
             Line("arrivés ensemble", l => l.ArrivedTogetherDays > 0);
             Line("venus ensemble au moins 2 fois", l => l.CovisitDays >= 2);
             Line("venus ensemble une seule fois", l => l.CovisitDays == 1);
             Line("même téléphone ou mail actuel", l => l.SharedContactNow);
             Line("téléphone ou mail commun seulement par le passé", l => !l.SharedContactNow && (l.SharedPhoneEver || l.SharedEmailEver));
-            Line("NoSS commun, sans venue commune depuis 3 ans", l => l.SharedNoSS && !l.SameHouseholdNow);
+            Line("NoSS commun, pas même foyer aujourd'hui", l => l.SharedNoSS && !l.SameHouseholdNow);
             sb.AppendLine($"  Téléphones collectifs ignorés (plus de {FamilyScanner.CollectiveThreshold} patients) : {r.CollectivePhones:N0} ; mails collectifs : {r.CollectiveEmails:N0}");
             sb.AppendLine();
 
