@@ -28,6 +28,8 @@ public sealed class StoredFamily
     }.Where(x => x != null));
 }
 
+internal delegate string? LinkStrengthOf(int a, int b);
+
 public sealed record PaymentBatch(int Id, DateTime ImportedUtc, string FileName, int Lines, DateTime? First, DateTime? Last);
 
 /// <summary>
@@ -461,14 +463,22 @@ public sealed class FamilyStore
             for (int g = 0; g < groups.Count; g++)
             {
                 // Déjà confirmés ensemble au poste (toutes les paires présentes) : plus de question.
-                var confirmed = groups[g].Count > 1 && groups[g].SelectMany(a => groups[g].Where(b => b > a).Select(b => Answer(a, b) == true)).All(x => x);
-                var toReview = family.ToReview && !confirmed;
-                var groupWhy = toReview ? "À vérifier (" + family.ReviewReason + ")" + Environment.NewLine + why : why;
+                var pairs = groups[g].SelectMany(a => groups[g].Where(b => b > a).Select(b => (a, b))).ToList();
+                var confirmed = pairs.Count > 0 && pairs.All(p => Answer(p.a, p.b) == true);
+                // La famille est à vérifier, mais ces personnes-là sont toutes reliées directement par un lien fort :
+                // la chaîne douteuse passe par d'autres membres, absents ce jour (vérifié au cabinet : 4 questions sur 4 inutiles).
+                LinkStrengthOf strengthOf = (a, b) => family.Links.FirstOrDefault(l => (l.A == a && l.B == b) || (l.A == b && l.B == a))?.Strength;
+                var solid = pairs.Count > 0 && pairs.All(p => strengthOf(p.a, p.b) == nameof(LinkStrength.Forte));
+                var toReview = family.ToReview && !confirmed && !solid;
+                var reviewReason = !toReview ? ""
+                    : pairs.Any(p => strengthOf(p.a, p.b) == null) ? "pas de lien direct entre ces personnes"
+                    : "lien moyen ou faible entre ces personnes";
+                var groupWhy = toReview ? "À vérifier (" + reviewReason + ")" + Environment.NewLine + why : why;
                 foreach (var id in groups[g])
                     result.Add(new FamilyMembershipDto
                     {
                         PatientId = id, FamilyNumber = family.Number, SubGroup = g, ToReview = toReview, Why = groupWhy,
-                        ReviewReason = toReview ? family.ReviewReason : "",
+                        ReviewReason = reviewReason,
                         Members = family.Members.Select(m => m.PatientId).ToList(),
                         Links = family.Links.Select(l => new FamilyLinkDto { A = l.A, B = l.B, Strength = l.Strength, Reasons = l.Reasons }).ToList(),
                     });

@@ -83,6 +83,20 @@ try
         Families = new[] { chain },
         PatientsById = new[] { 701, 702, 703 }.ToDictionary(id => id, id => new PatientInfo { Id = id, Name = "Patient " + id, LastSeen = new DateTime(2026, 1, 1) }),
     };
+    var solidLink = new PatientLink { A = 703, B = 704, Strength = LinkStrength.Forte, SameHouseholdNow = true, Reasons = "même adresse" };
+    var weakLink = new PatientLink { A = 704, B = 705, Strength = LinkStrength.Moyenne, SameHouseholdNow = true, Reasons = "même nom" };
+    var big = new ScanFamily { Number = 2, HasChain = true };
+    big.Members.AddRange(new[] { 703, 704, 705 });
+    var bigResult = new ScanResult
+    {
+        Families = new[] { big }, Links = new[] { solidLink, weakLink },
+        PatientsById = new[] { 703, 704, 705 }.ToDictionary(id => id, id => new PatientInfo { Id = id, Name = "Patient " + id, LastSeen = new DateTime(2026, 1, 1) }),
+    };
+    var solidStore = new FamilyStore(Path.Combine(folder, "solid.db"));
+    await solidStore.SaveResultAsync(bigResult, "");
+    Check(solidStore.Memberships(new[] { 703, 704 }).All(m => !m.ToReview), "Famille à vérifier, mais ces deux-là ont un lien fort direct : pas de question");
+    Check(solidStore.Memberships(new[] { 704, 705 }).All(m => m.ToReview && m.ReviewReason == "lien moyen ou faible entre ces personnes"), "Lien direct moyen : question");
+    Check(solidStore.Memberships(new[] { 703, 705 }).All(m => m.ToReview && m.ReviewReason == "pas de lien direct entre ces personnes"), "Pas de lien direct : question");
     var answerStore = new FamilyStore(Path.Combine(folder, "answers.db"));
     await answerStore.SaveResultAsync(chainResult, "");
     Check(answerStore.Memberships(new[] { 701, 702 }).All(m => m.ToReview && m.SubGroup == 0 && m.Why.StartsWith("À vérifier")), "Famille à vérifier : la question sera posée");
