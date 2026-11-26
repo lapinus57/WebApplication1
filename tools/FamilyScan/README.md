@@ -133,3 +133,20 @@ FamilyScan.exe "D:\FamilyScan\Base.mdb" --mdw "D:\FamilyScan\system.mdw" --utili
 La date de naissance des patients de l'agenda est lue dans `AG_rdv` si elle y est, sinon dans la table `Patients`
 (autre nom : `--patients NomDeLaTable`). Le rapport ajoute une partie **Carte Vitale** : patients rapprochés, liens
 déclarés par nature, liens **nouveaux grâce à Vitale**, et couples séparés que l'agenda seul **regroupait à tort**.
+
+## Ajouter les règlements (qui paie pour qui)
+
+Export **« suivi des paiements »** de CGM e-Vitale (une ligne par facture, séparateur `;`). Colonnes lues :
+`IdPayeur`, `NomPayeur`, `PrenomPayeur`, `NomBeneficiaire`, `PrenomBeneficiaire`, `DateFacture`. Les autres colonnes,
+dont `NIRBeneficiaire` et `NumeroChequeNomBanque`, ne sont **jamais lues**.
+
+- Règlements par un organisme (sans prénom, ou nom contenant CPAM, MUTUELLE, MSA…) et par le patient lui-même : ignorés.
+- Bénéficiaire retrouvé par **nom + prénom + RDV le jour de la facture** ; payeur aussi s'il était là ce jour-là,
+  sinon par nom + prénom s'il est le seul patient de ce nom.
+- Liens : **« l'un règle les soins de l'autre »** et **« réglés par le même payeur »** (même `IdPayeur`). Forts s'ils se
+  répètent ou s'ajoutent à un nom, une adresse ou un contact ; même foyer si le règlement date de moins de 3 ans.
+  Un payeur qui règle pour plus de 8 personnes (tutelle, association) ne crée pas de famille.
+
+Double-clic : un fichier `.csv` dont le nom contient « paiement » ou « reglement », posé à côté de `FamilyScan.exe`,
+est lu automatiquement. Ou `--reglements "D:\FamilyScan\suivi-paiements.csv"`. Ce fichier est nominatif : le garder au
+cabinet.

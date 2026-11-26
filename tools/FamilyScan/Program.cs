@@ -49,6 +49,15 @@ try
         Console.WriteLine($"  {year} : {count,7:N0} rendez-vous lus ({clock.Elapsed:mm\\:ss})");
     }
 
+    if (options.Payments != null)
+    {
+        Console.WriteLine($"Règlements : lecture de {options.Payments}…");
+        List<PaymentRow> payments;
+        using (var csv = PaymentLinks.Open(options.Payments)) payments = PaymentLinks.ReadCsv(csv);
+        var stats = scanner.AddPayments(payments);
+        Console.WriteLine($"  {stats.Lines:N0} factures, {stats.PaidForSomeoneElse:N0} réglées par une autre personne, {stats.BeneficiaryFound:N0} bénéficiaires retrouvés.");
+    }
+
     VitaleMatch? vitaleMatch = null;
     if (options.Vitale != null)
     {
@@ -101,6 +110,8 @@ public sealed class Options
     public string? Vitale { get; set; }
     /// <summary>Table Access des patients (date de naissance), si AG_rdv n'en a pas.</summary>
     public string? Patients { get; set; }
+    /// <summary>Export « suivi des paiements » (une ligne par facture) : qui paie pour qui.</summary>
+    public string? Payments { get; set; }
     public Dictionary<string, string> Overrides { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public static Options Parse(string[] args)
@@ -118,6 +129,7 @@ public sealed class Options
                 case "--sortie": o.Output = Next(); break;
                 case "--vitale": o.Vitale = Next(); break;
                 case "--patients": o.Patients = Next(); break;
+                case "--reglements": o.Payments = Next(); break;
                 case "--colonne":
                     var pair = Next().Split('=', 2);
                     if (pair.Length != 2) throw new ArgumentException("Format attendu : --colonne role=NomDeLaColonne");
@@ -143,6 +155,9 @@ static class Interactive
         o.Database = Choose("Base Access", bases, "Chemin de la base Access (copie de la base du cabinet, .mdb ou .accdb) :");
         var vitale = Directory.GetFiles(folder, "*vitale*.csv").ToList();
         if (vitale.Count == 1) { o.Vitale = vitale[0]; Console.WriteLine($"Export Vitale : {o.Vitale}"); }
+        var payments = Directory.GetFiles(folder, "*.csv").Where(f => Path.GetFileName(f).Contains("paiement", StringComparison.OrdinalIgnoreCase)
+            || Path.GetFileName(f).Contains("reglement", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(f).Contains("règlement", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (payments.Count == 1) { o.Payments = payments[0]; Console.WriteLine($"Export des règlements : {o.Payments}"); }
         var workgroups = Directory.GetFiles(folder, "*.mdw").ToList();
         if (workgroups.Count > 0)
         {

@@ -66,6 +66,16 @@ namespace EyeChat.Families
                 sb.AppendLine();
             }
 
+            if (r.Payments is { } pay)
+            {
+                sb.AppendLine("Règlements (qui paie pour qui) :");
+                sb.AppendLine($"  {pay.Lines:N0} factures : {pay.Organisms:N0} réglées par un organisme, {pay.SelfPaid:N0} par le patient lui-même, {pay.PaidForSomeoneElse:N0} par une autre personne.");
+                sb.AppendLine($"  Bénéficiaire retrouvé (nom, prénom, RDV le jour de la facture) : {pay.BeneficiaryFound:N0} ; payeur retrouvé parmi les patients : {pay.PayerFound:N0} ; payeurs collectifs ignorés (plus de {PaymentLinks.MaxBeneficiariesPerPayer} bénéficiaires) : {pay.CollectivePayers:N0}.");
+                var paid = r.Links.Where(l => l.PaidForCount + l.SamePayerCount > 0).ToList();
+                sb.AppendLine($"  Liens : {paid.Count(l => l.PaidForCount > 0):N0} « l'un règle pour l'autre », {paid.Count(l => l.SamePayerCount > 0):N0} « même payeur » ; même foyer : {paid.Count(l => l.SameHouseholdNow):N0}, dont nouveaux (ni agenda ni carte Vitale) : {paid.Count(l => l.SameHouseholdNow && !l.AgendaHouseholdNow && l.VitaleRelation == null):N0}.");
+                sb.AppendLine();
+            }
+
             sb.AppendLine("Familles « même foyer aujourd'hui » :");
             sb.AppendLine($"  {r.Families.Count:N0} familles, {r.Families.Sum(f => f.Members.Count):N0} patients regroupés.");
             foreach (var size in r.Families.GroupBy(f => Math.Min(f.Members.Count, 7)).OrderBy(g => g.Key))

@@ -40,6 +40,12 @@ namespace EyeChat.Families
         public bool VitaleSeparated { get; set; }
         /// <summary>Le rattachement en cours suffit à dire « même foyer » (conjoints, enfants de moins de 20 ans).</summary>
         public bool VitaleHousehold { get; set; }
+        /// <summary>Factures réglées par l'un pour l'autre (export des paiements).</summary>
+        public int PaidForCount { get; set; }
+        /// <summary>Factures des deux réglées par le même payeur (parent, conjoint, aidant).</summary>
+        public int SamePayerCount { get; set; }
+        public DateTime? FirstPayment { get; set; }
+        public DateTime? LastPayment { get; set; }
         /// <summary>Même foyer d'après l'agenda seul (avant la carte Vitale), pour comparer les deux sources.</summary>
         public bool AgendaHouseholdNow { get; set; }
         public string Reasons { get; set; } = string.Empty;
@@ -54,6 +60,7 @@ namespace EyeChat.Families
         public HashSet<string> Emails { get; } = new();
         public string Address { get; set; } = string.Empty;
         public HashSet<string> SurnameTokens { get; } = new();
+        public HashSet<string> FirstNameTokens { get; } = new();
     }
 
     public sealed class YearStats
@@ -89,6 +96,7 @@ namespace EyeChat.Families
         public int CollectivePhones { get; init; }
         public int CollectiveEmails { get; init; }
         public VitaleMatch? Vitale { get; set; }
+        public PaymentStats? Payments { get; init; }
         public int DeclaredLinks { get; init; }
         /// <summary>Liens Vitale entre patients absents de l'agenda lu (aucun RDV) : ignorés.</summary>
         public int DeclaredLinksWithoutAgenda { get; init; }
@@ -123,6 +131,8 @@ namespace EyeChat.Families
         private readonly Dictionary<int, PatientInfo> _patients = new();
         private readonly List<DeclaredLink> _declared = new();
         private readonly HashSet<(int, DateTime)> _visits = new();
+        private readonly Dictionary<DateTime, List<int>> _visitorsByDay = new();
+        private PaymentStats? _payments;
 
         /// <summary>Le patient avait-il un RDV (non annulé) ce jour-là ? Sert au rapprochement avec la carte Vitale.</summary>
         public bool Visited(int patientId, DateTime day) => _visits.Contains((patientId, day.Date));
@@ -140,7 +150,11 @@ namespace EyeChat.Families
             if (_currentDay != day) { FlushDay(); _currentDay = day; }
             _day.Add(row);
             _rows++;
-            if (!row.Cancelled) _visits.Add((row.PatientId, day));
+            if (!row.Cancelled && _visits.Add((row.PatientId, day)))
+            {
+                if (!_visitorsByDay.TryGetValue(day, out var visitors)) _visitorsByDay[day] = visitors = new List<int>();
+                visitors.Add(row.PatientId);
+            }
             _firstDay ??= day;
             _lastDay = day;
 
@@ -172,6 +186,8 @@ namespace EyeChat.Families
                 if (emails.Count > 0) { patient.Emails.Clear(); patient.Emails.UnionWith(emails); }
                 var address = NormalizeAddress(row.Address, row.City);
                 if (address.Length > 0) patient.Address = address;
+                var firstNames = FirstNameTokens(row.FirstName);
+                if (firstNames.Count > 0) { patient.FirstNameTokens.Clear(); patient.FirstNameTokens.UnionWith(firstNames); }
                 var tokens = SurnameTokens(row.Surname, row.MaidenName);
                 if (tokens.Count > 0) { patient.SurnameTokens.Clear(); patient.SurnameTokens.UnionWith(tokens); }
             }
@@ -233,6 +249,72 @@ namespace EyeChat.Families
         private static bool SameNoSS(ScanRow a, ScanRow b) => NormalizeNoSS(a.NoSS) is { Length: > 0 } n && n == NormalizeNoSS(b.NoSS);
         private static bool Shares(IEnumerable<string> a, IEnumerable<string> b, Func<string, string> normalize)
             => a.Select(normalize).Where(x => x.Length > 0).Intersect(b.Select(normalize).Where(x => x.Length > 0)).Any();
+
+        /// <summary>
+        /// Règlements « qui paie pour qui » : le bénéficiaire est retrouvé par nom + prénom + RDV le jour de la facture ;
+        /// le payeur aussi s'il était là ce jour-là, sinon par nom + prénom s'il est le seul patient de ce nom.
+        /// À appeler après la lecture de l'agenda, avant <see cref="Finish"/>.
+        /// </summary>
+        public PaymentStats AddPayments(IEnumerable<PaymentRow> rows)
+        {
+            FlushDay();
+            var stats = _payments ??= new PaymentStats();
+            var bySurname = new Dictionary<string, List<int>>();
+            foreach (var p in _patients.Values)
+                foreach (var t in p.SurnameTokens) { if (!bySurname.TryGetValue(t, out var l)) bySurname[t] = l = new(); l.Add(p.Id); }
+            bool Matches(int id, string surname, string firstName)
+                => _patients.TryGetValue(id, out var p) && p.SurnameTokens.Overlaps(SurnameTokens(surname, null))
+                   && p.FirstNameTokens.Contains(PaymentLinks.FirstToken(firstName));
+            int? Unique(IEnumerable<int> ids) { var list = ids.Distinct().Take(2).ToList(); return list.Count == 1 ? list[0] : null; }
+            int? Visitor(DateTime day, string surname, string firstName)
+                => _visitorsByDay.TryGetValue(day.Date, out var v) ? Unique(v.Where(id => Matches(id, surname, firstName))) : null;
+            int? ByName(string surname, string firstName)
+                => Unique(SurnameTokens(surname, null).SelectMany(t => bySurname.TryGetValue(t, out var l) ? l : new List<int>()).Where(id => Matches(id, surname, firstName)));
+
+            var payers = new Dictionary<string, Dictionary<int, (DateTime First, DateTime Last, int Count)>>();
+            foreach (var row in rows)
+            {
+                stats.Lines++;
+                if (!PaymentLinks.IsPersonPayer(row) || row.InvoiceDate is not { } date) { stats.Organisms++; continue; }
+                if (PaymentLinks.SamePerson(row)) { stats.SelfPaid++; continue; }
+                stats.PaidForSomeoneElse++;
+                var beneficiary = Visitor(date, row.BeneficiarySurname, row.BeneficiaryFirstName);
+                if (beneficiary is not { } b) continue;
+                stats.BeneficiaryFound++;
+                var payer = Visitor(date, row.PayerSurname, row.PayerFirstName) ?? ByName(row.PayerSurname, row.PayerFirstName);
+                if (payer is { } p && p != b)
+                {
+                    stats.PayerFound++;
+                    var link = Link(p, b);
+                    link.PaidForCount++;
+                    if (link.FirstPayment is null || date < link.FirstPayment) link.FirstPayment = date.Date;
+                    if (link.LastPayment is null || date > link.LastPayment) link.LastPayment = date.Date;
+                }
+                var key = row.PayerId.Length > 0 ? "id:" + row.PayerId
+                    : "nom:" + string.Join(" ", SurnameTokens(row.PayerSurname, null).OrderBy(x => x)) + "|" + PaymentLinks.FirstToken(row.PayerFirstName);
+                if (!payers.TryGetValue(key, out var benefs)) payers[key] = benefs = new();
+                benefs[b] = benefs.TryGetValue(b, out var seen)
+                    ? (seen.First < date.Date ? seen.First : date.Date, seen.Last > date.Date ? seen.Last : date.Date, seen.Count + 1)
+                    : (date.Date, date.Date, 1);
+            }
+            foreach (var benefs in payers.Values.Where(x => x.Count >= 2))
+            {
+                if (benefs.Count > PaymentLinks.MaxBeneficiariesPerPayer) { stats.CollectivePayers++; continue; }
+                var ids = benefs.Keys.ToList();
+                for (int i = 0; i < ids.Count; i++)
+                    for (int j = i + 1; j < ids.Count; j++)
+                    {
+                        var a = benefs[ids[i]]; var c = benefs[ids[j]];
+                        var link = Link(ids[i], ids[j]);
+                        link.SamePayerCount += Math.Min(a.Count, c.Count);
+                        var first = a.First > c.First ? a.First : c.First;
+                        var last = a.Last < c.Last ? a.Last : c.Last;
+                        if (link.FirstPayment is null || first < link.FirstPayment) link.FirstPayment = first;
+                        if (link.LastPayment is null || last > link.LastPayment) link.LastPayment = last;
+                    }
+            }
+            return stats;
+        }
 
         /// <summary>Date de référence pour « récent » : aujourd'hui (l'agenda contient des RDV futurs).</summary>
         public DateTime Today { get; set; } = DateTime.Today;
@@ -306,7 +388,7 @@ namespace EyeChat.Families
                 FirstDay = _firstDay, LastDay = _lastDay, Rows = _rows, Patients = _patients.Count,
                 Years = _years.Values.OrderBy(y => y.Year).ToList(), Links = links, Families = BuildFamilies(links),
                 PatientsById = _patients, CollectivePhones = collectivePhones, CollectiveEmails = collectiveEmails,
-                DeclaredLinks = declared, DeclaredLinksWithoutAgenda = withoutAgenda
+                DeclaredLinks = declared, DeclaredLinksWithoutAgenda = withoutAgenda, Payments = _payments
             };
         }
 
@@ -338,9 +420,19 @@ namespace EyeChat.Families
             // Confidentialité : regrouper deux personnes, c'est annoncer le RDV de l'une au contact de l'autre.
             // Sans aucun indice d'identité commun (nom, adresse, contact, NoSS, carte Vitale), des personnes qui viennent
             // et réservent ensemble (résidents d'un EHPAD, voisins, amis) restent liées mais ne forment pas un foyer.
-            var anyIdentity = identity || l.SharedNoSS || l.VitaleRelation != null;
-            l.SameHouseholdNow = anyIdentity && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent);
-            l.AgendaHouseholdNow = l.SameHouseholdNow;
+            l.AgendaHouseholdNow = (identity || l.SharedNoSS) && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent);
+
+            // Règlements : payer pour quelqu'un (parent, conjoint, aidant) est un lien déclaré par un acte réel.
+            var payments = l.PaidForCount + l.SamePayerCount;
+            if (payments > 0)
+            {
+                var strong = l.PaidForCount >= 2 || l.SamePayerCount >= 2 || identity;
+                if (strong) l.Strength = LinkStrength.Forte;
+                else if (l.Strength < LinkStrength.Moyenne) l.Strength = LinkStrength.Moyenne;
+            }
+            var recentPayment = l.LastPayment is { } paid && end - paid <= RecentPeriod;
+            var anyIdentity = identity || l.SharedNoSS || l.VitaleRelation != null || payments > 0;
+            l.SameHouseholdNow = anyIdentity && l.Strength >= LinkStrength.Moyenne && (contactHousehold || recent || recentPayment);
 
             // Carte Vitale : lien déclaré, donc fort. Rattachement en cours de conjoints ou d'enfants de moins de 20 ans
             // = même foyer ; conjoints séparés, divorcés ou veufs = jamais regroupés. Sinon (ancien rattachement, enfant
@@ -350,7 +442,7 @@ namespace EyeChat.Families
                 l.Strength = LinkStrength.Forte;
                 if (l.VitaleSeparated) l.SameHouseholdNow = false;
                 else if (l.VitaleCurrent && l.VitaleHousehold) l.SameHouseholdNow = true;
-                else l.SameHouseholdNow = contactHousehold || recent;
+                else l.SameHouseholdNow = contactHousehold || recent || recentPayment;
             }
 
             var reasons = new List<string>();
@@ -360,6 +452,9 @@ namespace EyeChat.Families
             if (l.CovisitDays > 0) reasons.Add($"venus ensemble {l.CovisitDays} fois ({l.FirstCovisit:yyyy}" + (l.LastCovisit?.Year != l.FirstCovisit?.Year ? $"-{l.LastCovisit:yyyy}" : "") + ")");
             if (l.BookedTogetherDays > 0) reasons.Add($"RDV pris à la même minute {l.BookedTogetherDays} fois");
             if (l.ArrivedTogetherDays > 0) reasons.Add($"arrivés ensemble {l.ArrivedTogetherDays} fois");
+            if (l.PaidForCount > 0) reasons.Add($"l'un règle les soins de l'autre ({l.PaidForCount} factures)");
+            if (l.SamePayerCount > 0) reasons.Add($"soins réglés par le même payeur ({l.SamePayerCount} fois)");
+            if (payments > 0) reasons[^1] += $" {l.FirstPayment:yyyy}" + (l.LastPayment?.Year != l.FirstPayment?.Year ? $"-{l.LastPayment:yyyy}" : "");
             if (l.SharedContactNow) reasons.Add("même téléphone ou mail actuel");
             else if (contactEver) reasons.Add("téléphone ou mail commun par le passé");
             if (l.SameSurname) reasons.Add("même nom");
@@ -456,6 +551,10 @@ namespace EyeChat.Families
             var a = Simplify(address); var c = Simplify(city);
             return a.Length == 0 || c.Length == 0 ? string.Empty : a + "|" + c;
         }
+
+        /// <summary>Prénoms : tous les mots, même courts (« Jo », « Lou »), contrairement aux noms.</summary>
+        public static HashSet<string> FirstNameTokens(string? firstNames)
+            => Simplify(firstNames).Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
 
         public static HashSet<string> SurnameTokens(string? surname, string? maidenName)
             => Simplify(surname + " " + maidenName).Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t.Length >= 3).ToHashSet();

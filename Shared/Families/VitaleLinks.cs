@@ -110,8 +110,7 @@ namespace EyeChat.Families
             return match;
         }
 
-        private static HashSet<string> FirstNameTokens(string? names)
-            => FamilyScanner.SurnameTokens(names, null).Union(new[] { FirstToken(names) }).Where(t => t.Length > 0).ToHashSet();
+        private static HashSet<string> FirstNameTokens(string? names) => FamilyScanner.FirstNameTokens(names);
 
         /// <summary>Sexe d'après un code (1/2, M/F, H/F) ou une civilité (Monsieur, Madame, Mademoiselle…).</summary>
         public static string Sex(string? value)
@@ -122,9 +121,8 @@ namespace EyeChat.Families
             return "";
         }
 
-        private static string FirstToken(string? firstName)
-            => FamilyScanner.SurnameTokens(firstName, null).FirstOrDefault() is { } token ? token
-                : (firstName ?? string.Empty).Trim().ToUpperInvariant();
+        /// <summary>Premier prénom, même court (« Jo »).</summary>
+        private static string FirstToken(string? firstName) => PaymentLinks.FirstToken(firstName);
 
         /// <summary>Liens entre patients de l'agenda portés par la même carte Vitale, avec la nature du lien.</summary>
         public static List<DeclaredLink> Links(IEnumerable<VitaleRow> rows, VitaleMatch match, DateTime today)

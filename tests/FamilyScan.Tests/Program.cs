@@ -285,4 +285,41 @@ Check(FamilyVerificationPage.Sample(result, 4).Count == Math.Min(4, result.Famil
 var pagePath = Environment.GetEnvironmentVariable("FAMILYSCAN_PAGE");
 if (!string.IsNullOrEmpty(pagePath)) File.WriteAllText(pagePath, page);
 
+// ---------- Règlements (qui paie pour qui) ----------
+var payCsv = "NumeroLigne;MontantTotal;IdPayeur;NumeroDeFacture;DateFacture;OrganismePayeur;NomPayeur;PrenomPayeur;NomBeneficiaire;PrenomBeneficiaire;NIRBeneficiaire;NumeroChequeNomBanque\n"
+    + "1;30;P1;F1;2026-03-02;;BLANC;Anne;BLANC;Hugo;1550357463012;123 BANQUE\n"     // mère paie pour son fils
+    + "2;30;P1;F2;2026-09-07;;BLANC;Anne;BLANC;Hugo;1550357463012;124 BANQUE\n"
+    + "3;30;P1;F3;2026-09-07;;BLANC;Anne;NOIR;Zoé;;\n"                              // même payeuse pour une autre enfant (autre nom)
+    + "4;25;;F4;2026-03-02;CPAM;CPAM DE LA MOSELLE;;BLANC;Hugo;;\n"                // organisme
+    + "5;25;P9;F5;2026-03-02;;BLANC;Hugo;BLANC;Hugo;;\n"                           // le patient paie pour lui-même
+    + "6;25;P2;F6;2026-03-02;;VERT;Paul;INCONNU;Max;;\n";                          // bénéficiaire introuvable
+var payRows = PaymentLinks.ReadCsv(new StringReader(payCsv));
+Check(payRows.Count == 6 && payRows[0].PayerId == "P1" && payRows[0].InvoiceDate == new DateTime(2026, 3, 2) && !PaymentLinks.IsPersonPayer(payRows[3]) && PaymentLinks.SamePerson(payRows[4]),
+    "Export des règlements lu ; organisme et patient payeur reconnus");
+var ps = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+ScanRow Visit(int id, DateTime day, string surname, string first, string address, string phone) =>
+    new(id, day, day.AddHours(10), null, null, "", surname, "", first, address, "Metz", new[] { phone }, Array.Empty<string>(), false);
+ps.Add(Visit(91, new DateTime(2026, 1, 5), "BLANC", "Anne", "1 rue A", "0610000091"));        // la mère, venue un autre jour
+ps.Add(Visit(92, new DateTime(2026, 3, 2), "BLANC", "Hugo", "2 rue B", "0610000092"));
+ps.Add(Visit(93, new DateTime(2026, 9, 7), "NOIR", "Zoé", "3 rue C", "0610000093"));
+ps.Add(Visit(92, new DateTime(2026, 9, 7), "BLANC", "Hugo", "2 rue B", "0610000092"));
+var payStats = ps.AddPayments(payRows);
+Check(payStats is { Lines: 6, Organisms: 1, SelfPaid: 1, PaidForSomeoneElse: 4, BeneficiaryFound: 3, PayerFound: 3 }, "Statistiques des règlements");
+var pres = ps.Finish();
+PatientLink PL(int a, int b) => pres.Links.Single(l => l.A == Math.Min(a, b) && l.B == Math.Max(a, b));
+Check(PL(91, 92) is { PaidForCount: 2, Strength: LinkStrength.Forte, SameHouseholdNow: true } && PL(91, 92).Reasons.Contains("l'un règle les soins de l'autre (2 factures) 2026"),
+    "La mère règle deux fois les soins de son fils : lien fort, même foyer");
+Check(PL(91, 93) is { PaidForCount: 1, Strength: LinkStrength.Moyenne, SameHouseholdNow: true } && PL(92, 93).SamePayerCount == 1, "Autre enfant réglée par la même payeuse : liée aux deux");
+var payReport = FamilyScanReport.Anonymous(pres);
+Check(payReport.Contains("Règlements (qui paie pour qui)") && payReport.Contains("1 réglées par un organisme") && !payReport.Contains("BLANC") && !payReport.Contains("1550357463012"),
+    "Rapport des règlements anonymisé");
+var tutelle = new FamilyScanner { Today = new DateTime(2026, 11, 24) };
+var tutelleRows = new List<PaymentRow>();
+for (int i = 0; i < 10; i++)
+{
+    tutelle.Add(Visit(950 + i, new DateTime(2026, 4, 1 + i), "PROTEGE" + (char)('A' + i), "X", $"{i} rue T", "06200009" + i.ToString("D2")));
+    tutelleRows.Add(new PaymentRow("T1", "TUTEUR", "Jean", "PROTEGE" + (char)('A' + i), "X", new DateTime(2026, 4, 1 + i)));
+}
+Check(tutelle.AddPayments(tutelleRows).CollectivePayers == 1 && !tutelle.Finish().Links.Any(l => l.SamePayerCount > 0), "Tuteur qui paie pour 10 personnes : pas de famille entre elles");
+
 Console.WriteLine($"{checks} vérifications réussies.");
