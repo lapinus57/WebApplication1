@@ -202,6 +202,42 @@ namespace Client.Services
         private void HoldTimeTimer_Tick(DispatcherQueueTimer sender, object args)
         {
             RefreshAllPatientHoldTimes();
+            if (DateTime.Today != _patientsDay) _ = ReloadPatientsForNewDayAsync();
+        }
+
+        /// <summary>Jour de la liste des patients affichée : au changement de jour, celle de la veille est remplacée.</summary>
+        private DateTime _patientsDay = DateTime.Today;
+
+        /// <summary>
+        /// Poste resté ouvert après minuit : les patients de la veille sont retirés tout de suite (même sans serveur),
+        /// puis la liste du jour est relue sur le serveur, qui ne renvoie que les patients du jour.
+        /// </summary>
+        private async Task ReloadPatientsForNewDayAsync()
+        {
+            var today = DateTime.Today;
+            _patientsDay = today;
+            try
+            {
+                foreach (var old in Patients.Where(p => p.HoldTime.Date != today).ToList())
+                    Patients.Remove(old);
+                if (!TryGetActiveConnection(out _)) return;
+                var patients = await GetPatientsAsync();
+                void Replace()
+                {
+                    Patients.Clear();
+                    foreach (var p in patients)
+                    {
+                        PreparePatient(p);
+                        Patients.Add(p);
+                    }
+                }
+                if (Dispatcher is DispatcherQueue dispatcher && !dispatcher.HasThreadAccess) dispatcher.TryEnqueue(Replace);
+                else Replace();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[SignalRService] Erreur rechargement des patients au changement de jour", ex);
+            }
         }
 
         private void RefreshAllPatientHoldTimes()
@@ -375,6 +411,7 @@ namespace Client.Services
                 PreparePatient(p);
                 Patients.Add(p);
             }
+            _patientsDay = DateTime.Today;
 
             await SyncServerConfigurationAsync();
         }
