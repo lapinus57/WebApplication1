@@ -25,7 +25,7 @@
                 </StackPanel>
                 <StackPanel Width="260" Spacing="8">
                     <TextBlock Text="Date de référence" FontWeight="SemiBold" />
-                    <CalendarDatePicker x:Name="ReferenceDatePicker" DateChanged="ReferenceDatePicker_DateChanged" />
+                    <CalendarDatePicker FirstDayOfWeek="Monday" x:Name="ReferenceDatePicker" DateChanged="ReferenceDatePicker_DateChanged" />
                 </StackPanel>
                 <StackPanel Width="220" Spacing="8">
                     <TextBlock Text="Mode" FontWeight="SemiBold" />

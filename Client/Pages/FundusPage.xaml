@@ -25,8 +25,8 @@
                     <ComboBoxItem Content="Aujourd’hui"/><ComboBoxItem Content="Demain"/>
                     <ComboBoxItem Content="7 prochains jours"/><ComboBoxItem Content="Personnalisée"/>
                 </ComboBox>
-                <CalendarDatePicker x:Name="FromDate" Header="Du" Width="155" IsEnabled="False"/>
-                <CalendarDatePicker x:Name="ToDate" Header="Au (inclus)" Width="155" IsEnabled="False"/>
+                <CalendarDatePicker FirstDayOfWeek="Monday" x:Name="FromDate" Header="Du" Width="155" IsEnabled="False"/>
+                <CalendarDatePicker FirstDayOfWeek="Monday" x:Name="ToDate" Header="Au (inclus)" Width="155" IsEnabled="False"/>
                 <Button Content="Rechercher les patients" Click="Search_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom"/>
             </StackPanel>
         </ScrollViewer>
