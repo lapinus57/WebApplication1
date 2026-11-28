@@ -1,26 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using Client.SmsMail.Configuration;
+using Client.SmsMail.Models;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace ChatServeur.SmsMail;
-
-/// <summary>Quels secrets sont enregistrés sur le serveur (leur valeur n'est jamais renvoyée aux postes).</summary>
-public sealed class SmsMailSecretsState
-{
-    public bool SmsApplicationSecret { get; set; }
-    public bool SmsConsumerKey { get; set; }
-    public bool MailPassword { get; set; }
-}
-
-/// <summary>Réglages SMS et mail tels qu'un poste les reçoit : sans mots de passe ni clés secrètes.</summary>
-public sealed class SmsMailStationSettings
-{
-    /// <summary>Faux tant qu'aucun poste n'a enregistré de réglages sur le serveur.</summary>
-    public bool Exists { get; set; }
-    public SmsMailSettings Settings { get; set; } = new();
-    public SmsMailSecretsState Secrets { get; set; } = new();
-}
 
 /// <summary>
 /// Réglages SMS et mail communs à tous les postes, gardés par le serveur (data\sms-mail-settings.dat, chiffré avec les clés

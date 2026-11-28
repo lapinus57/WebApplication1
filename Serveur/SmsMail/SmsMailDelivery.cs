@@ -14,26 +14,6 @@ public interface ISmsMailAgenda
     Task<SmsMailPostIts> PostItsAsync(DateTime from, DateTime to);
 }
 
-public sealed class SmsMailPostIts
-{
-    public List<PostItAnalysis.PostIt> PostIts { get; set; } = new();
-    public List<SmsMailName> Names { get; set; } = new();
-}
-
-public sealed class SmsMailName
-{
-    public string Nom { get; set; } = "";
-    public string Prenom { get; set; } = "";
-}
-
-/// <summary>Résultat d'un envoi, transmis au poste.</summary>
-public sealed class SmsMailSendResult
-{
-    public string Status { get; set; } = "";
-    public long? ProviderId { get; set; }
-    public bool Accepted { get; set; }
-}
-
 /// <summary>
 /// Envoi des SMS (OVH) et des mails (SMTP) par le serveur, avec les réglages du serveur. Un message n'est envoyé que s'il a été
 /// réservé dans l'historique commun et n'a encore aucun résultat : un poste ne peut ni renvoyer un message, ni en envoyer un

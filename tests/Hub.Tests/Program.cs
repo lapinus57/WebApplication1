@@ -323,7 +323,7 @@ try
     // 9. Rappels : réglages communs sur le serveur, agenda lu et messages envoyés par le serveur.
     var secretariat = await Connect();
     await secretariat.InvokeAsync("RegisterUser", "Secretariat", "", "Accueil", "Blue", "PC-ACCUEIL");
-    var none = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailStationSettings>("SmsMailSettingsGet");
+    var none = await secretariat.InvokeAsync<Client.SmsMail.Models.SmsMailStationSettings>("SmsMailSettingsGet");
     Check(!none.Exists, "Aucun réglage SMS/mail sur le serveur au départ");
     var local = new Client.SmsMail.Configuration.SmsMailSettings { Cabinet = "Cabinet Test" };
     local.Sms.ApplicationSecret = "SECRET-OVH"; local.Sms.ConsumerKey = "CONSUMER-OVH"; local.Sms.ServiceName = "sms-test";
@@ -331,7 +331,7 @@ try
     local.Email.FromAddress = "cabinet@example.fr"; local.Email.UserName = "cabinet";
     Check(await secretariat.InvokeAsync<bool>("SmsMailSettingsImport", local) && !await posteB.InvokeAsync<bool>("SmsMailSettingsImport", local),
         "Les réglages du premier poste mis à jour sont importés, une seule fois");
-    var common = await posteB.InvokeAsync<ChatServeur.SmsMail.SmsMailStationSettings>("SmsMailSettingsGet");
+    var common = await posteB.InvokeAsync<Client.SmsMail.Models.SmsMailStationSettings>("SmsMailSettingsGet");
     Check(common.Exists && common.Settings.Cabinet == "Cabinet Test" && common.Secrets is { SmsApplicationSecret: true, SmsConsumerKey: true, MailPassword: true }
         && common.Settings.Sms.ApplicationSecret == "" && common.Settings.Sms.ConsumerKey == "" && common.Settings.Email.Password == "",
         "Les autres postes voient les mêmes réglages, sans aucun secret");
@@ -348,7 +348,7 @@ try
     Check(agendaDay.Single() is { Id: 4242, Nom: "AGENDA", Prenom: "Serveur" } r0 && r0.HeureRDV == new DateTime(2026, 12, 3, 9, 30, 0), "Le serveur lit l'agenda du jour");
     var visits = await secretariat.InvokeAsync<List<Client.SmsMail.Services.AgendaVisit>>("SmsMailAgendaHistory", new DateTime(2026, 12, 3));
     Check(visits.Single() is { PatientId: 4242, ArrivalTime: not null }, "Historique des venues transmis");
-    var postIts = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailPostIts>("SmsMailAgendaPostIts", new DateTime(2026, 1, 1), new DateTime(2026, 12, 31));
+    var postIts = await secretariat.InvokeAsync<Client.SmsMail.Models.SmsMailPostIts>("SmsMailAgendaPostIts", new DateTime(2026, 1, 1), new DateTime(2026, 12, 31));
     Check(postIts.PostIts.Single().Text == "avec sa fille" && postIts.Names.Single().Nom == "AGENDA", "Post-it transmis");
 
     var mailMessage = new Client.SmsMail.Services.PreparedMessage
@@ -357,17 +357,17 @@ try
         ProviderService = "127.0.0.1", AppointmentStart = new DateTime(2026, 12, 3, 9, 30, 0), CalendarStart = new DateTime(2026, 12, 3, 9, 30, 0),
         CalendarEnd = new DateTime(2026, 12, 3, 10, 0, 0), IncludeCalendar = false
     };
-    var notReserved = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false);
+    var notReserved = await secretariat.InvokeAsync<Client.SmsMail.Models.SmsMailSendResult>("SmsMailSend", mailMessage, false);
     Check(!notReserved.Accepted && notReserved.Status == Client.SmsMail.Services.MessageSender.AlreadyHandledStatus, "Message non réservé : jamais envoyé");
     Check(await secretariat.InvokeAsync<bool>("SmsMailReserve", new EyeChat.SmsMail.HistoryReservation
         { Key = mailMessage.Key, Channel = "Mail", Contact = mailMessage.Contact, Body = mailMessage.Body, ProviderService = "127.0.0.1" }), "Réservation du mail");
-    var sent = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false);
+    var sent = await secretariat.InvokeAsync<Client.SmsMail.Models.SmsMailSendResult>("SmsMailSend", mailMessage, false);
     Check(!sent.Accepted && sent.Status == Client.SmsMail.Services.MessageSender.UncertainStatus, "Serveur mail injoignable : résultat « à vérifier »");
     var after = (await secretariat.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad")).Single(h => h.Key == mailMessage.Key);
     Check(after.Status == Client.SmsMail.Services.MessageSender.UncertainStatus, "Le serveur écrit lui-même le résultat dans l'historique");
-    var again = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false);
+    var again = await secretariat.InvokeAsync<Client.SmsMail.Models.SmsMailSendResult>("SmsMailSend", mailMessage, false);
     Check(again.Status == Client.SmsMail.Services.MessageSender.AlreadyHandledStatus, "Un message déjà tenté n'est jamais renvoyé");
-    try { await posteB.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false); Check(false, "Envoi par un poste non identifié refusé"); }
+    try { await posteB.InvokeAsync<Client.SmsMail.Models.SmsMailSendResult>("SmsMailSend", mailMessage, false); Check(false, "Envoi par un poste non identifié refusé"); }
     catch (HubException) { checks++; }
     stored.Sms.ApplicationKey = "";
     await app.Services.GetRequiredService<ChatServeur.SmsMail.SmsMailServerSettings>().SaveAsync(stored);
@@ -444,7 +444,7 @@ sealed class FakeAgenda : ChatServeur.SmsMail.ISmsMailAgenda
     public Task<List<Client.SmsMail.Models.RdvInfo>> RangeAsync(DateTime from, DateTime to) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo> { Row(from) });
     public Task<List<Client.SmsMail.Services.AgendaVisit>> HistoryAsync(DateTime today) => Task.FromResult(new List<Client.SmsMail.Services.AgendaVisit>
         { new() { PatientId = 4242, Date = today.AddYears(-1), RdvTime = today.AddYears(-1).AddHours(9), ArrivalTime = today.AddYears(-1).AddHours(8.9) } });
-    public Task<ChatServeur.SmsMail.SmsMailPostIts> PostItsAsync(DateTime from, DateTime to) => Task.FromResult(new ChatServeur.SmsMail.SmsMailPostIts
+    public Task<Client.SmsMail.Models.SmsMailPostIts> PostItsAsync(DateTime from, DateTime to) => Task.FromResult(new Client.SmsMail.Models.SmsMailPostIts
     {
         PostIts = new() { new() { PatientCode = 4242, Date = from, Text = "avec sa fille", Nom = "AGENDA", Prenom = "Serveur" } },
         Names = new() { new() { Nom = "AGENDA", Prenom = "Serveur" } }

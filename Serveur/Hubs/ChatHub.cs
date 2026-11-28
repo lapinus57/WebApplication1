@@ -197,7 +197,7 @@ namespace ChatServeur
         // ---------- Rappels SMS et mail : réglages communs, agenda et envoi par le serveur ----------
 
         /// <summary>Réglages communs, sans mots de passe ni clés secrètes (seulement s'ils sont enregistrés).</summary>
-        public ChatServeur.SmsMail.SmsMailStationSettings SmsMailSettingsGet() => SmsMailGuard(() => _smsMailSettings.ForStation());
+        public Client.SmsMail.Models.SmsMailStationSettings SmsMailSettingsGet() => SmsMailGuard(() => _smsMailSettings.ForStation());
 
         /// <summary>Enregistre les réglages pour tous les postes ; un secret laissé vide garde la valeur du serveur.</summary>
         public async Task SmsMailSettingsSave(Client.SmsMail.Configuration.SmsMailSettings settings)
@@ -218,7 +218,7 @@ namespace ChatServeur
             return SmsMailGuardAsync(() => _smsMailAgenda.RangeAsync(from.Date, to.Date));
         }
         public Task<List<Client.SmsMail.Services.AgendaVisit>> SmsMailAgendaHistory(DateTime today) => SmsMailGuardAsync(() => _smsMailAgenda.HistoryAsync(today.Date));
-        public Task<ChatServeur.SmsMail.SmsMailPostIts> SmsMailAgendaPostIts(DateTime from, DateTime to) => SmsMailGuardAsync(() => _smsMailAgenda.PostItsAsync(from.Date, to.Date));
+        public Task<Client.SmsMail.Models.SmsMailPostIts> SmsMailAgendaPostIts(DateTime from, DateTime to) => SmsMailGuardAsync(() => _smsMailAgenda.PostItsAsync(from.Date, to.Date));
 
         /// <summary>Vérifie les réglages du serveur avant un envoi ; l'erreur dit ce qui manque.</summary>
         public void SmsMailValidate(List<Client.SmsMail.Services.PreparedMessage> messages) => SmsMailGuard(() => { _smsMailDelivery.Validate(messages); return true; });
@@ -227,7 +227,7 @@ namespace ChatServeur
         public string[] SmsMailServices() => SmsMailGuard(() => { var (sms, smtp) = _smsMailDelivery.Services(); return new[] { sms, smtp }; });
 
         /// <summary>Envoie un message déjà réservé dans l'historique commun (sinon : « déjà traité »).</summary>
-        public Task<ChatServeur.SmsMail.SmsMailSendResult> SmsMailSend(Client.SmsMail.Services.PreparedMessage message, bool test)
+        public Task<Client.SmsMail.Models.SmsMailSendResult> SmsMailSend(Client.SmsMail.Services.PreparedMessage message, bool test)
         {
             if (!TryGetCaller(out _)) throw new HubException("Poste non identifié : reconnectez-vous.");
             return SmsMailGuardAsync(() => _smsMailDelivery.SendAsync(message, test));

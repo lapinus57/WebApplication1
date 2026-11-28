@@ -61,7 +61,7 @@ namespace Client.Pages
             _loaded = true;
             await RunAsync(async () =>
             {
-                _settings = SmsMailSettingsStore.Load();
+                _settings = await LoadServerSettingsAsync();
                 DayPicker.Date = DateTimeOffset.Now.AddDays(1);
                 CabinetText.Text = _settings.Cabinet;
                 CabinetAddressText.Text = _settings.CabinetAddress;
@@ -103,7 +103,8 @@ namespace Client.Pages
                 MailPasswordText.Password = _settings.Email.Password;
                 MailFromText.Text = _settings.Email.FromAddress;
                 MailDisplayText.Text = _settings.Email.FromDisplayName;
-                StatusText.Text = "Sélectionnez un jour et chargez les rendez-vous. Vérifiez vos paramètres avant le premier envoi.";
+                ShowSecretState();
+                StatusText.Text = _settingsNote + "Sélectionnez un jour et chargez les rendez-vous. Vérifiez vos paramètres avant le premier envoi.";
                 try
                 {
                     var migrated = await LocalHistoryMigration.MigrateAsync(LocalHistoryPath, _history);
@@ -117,6 +118,50 @@ namespace Client.Pages
                     StatusText.Text = "Historique des SMS et mails indisponible : " + ex.Message;
                 }
             });
+        }
+
+        private SmsMailSecretsState _secrets = new();
+        private string _settingsNote = "";
+
+        private Microsoft.AspNetCore.SignalR.Client.HubConnection Server() => App.ChatService.GetSmsMailHistoryConnection();
+
+        /// <summary>
+        /// Réglages communs gardés par le serveur (sans les secrets). Le premier poste mis à jour y envoie ses réglages locaux.
+        /// Sans serveur, la page s'ouvre avec des réglages vides : rien ne peut être lu ni envoyé.
+        /// </summary>
+        private async Task<SmsMailSettings> LoadServerSettingsAsync()
+        {
+            _settingsNote = "";
+            try
+            {
+                var connection = Server();
+                var station = await connection.InvokeAsync<SmsMailStationSettings>("SmsMailSettingsGet");
+                if (!station.Exists)
+                {
+                    SmsMailSettings? local = null;
+                    try { local = SmsMailSettingsStore.Load(); } catch (Exception) { }
+                    if (local != null && await connection.InvokeAsync<bool>("SmsMailSettingsImport", local))
+                        _settingsNote = "Réglages SMS et mail de ce poste envoyés au serveur : ils sont maintenant communs à tous les postes. ";
+                    station = await connection.InvokeAsync<SmsMailStationSettings>("SmsMailSettingsGet");
+                }
+                _secrets = station.Secrets;
+                return station.Exists ? station.Settings : new SmsMailSettings();
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or Microsoft.AspNetCore.SignalR.HubException or System.Net.Http.HttpRequestException or TimeoutException)
+            {
+                _settingsNote = "Réglages SMS et mail indisponibles (serveur) : " + ex.Message + " ";
+                return new SmsMailSettings();
+            }
+        }
+
+        /// <summary>Les secrets restent sur le serveur : un champ vide veut dire « garder celui du serveur ».</summary>
+        private void ShowSecretState()
+        {
+            const string kept = "Enregistré sur le serveur — laisser vide pour garder";
+            SmsSecretText.Password = SmsConsumerText.Password = MailPasswordText.Password = string.Empty;
+            SmsSecretText.PlaceholderText = _secrets.SmsApplicationSecret ? kept : "";
+            SmsConsumerText.PlaceholderText = _secrets.SmsConsumerKey ? kept : "";
+            MailPasswordText.PlaceholderText = _secrets.MailPassword ? kept : "";
         }
 
         private SmsMailSettings ReadSettings()
@@ -271,9 +316,7 @@ namespace Client.Pages
         private async void HistoricalFamilies_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             if (_appointments.Count == 0) { StatusText.Text = "Chargez les rendez-vous avant de comparer leur historique."; return; }
-            var config = await App.ChatService.GetAppointmentSearchConfigAsync()
-                ?? throw new InvalidOperationException("Configurez la base Access dans les paramètres RDV.");
-            _appointmentHistory = await AppointmentLoader.LoadHistoryAsync(config, MachineConfig.Load(), DateTime.Today);
+            _appointmentHistory = AppointmentLoader.Group(await Server().InvokeAsync<List<AgendaVisit>>("SmsMailAgendaHistory", DateTime.Today));
             _familyDecisions.Clear(); UseFamiliesCheck.IsChecked = true;
             await PrepareAsync();
         });
@@ -332,9 +375,8 @@ namespace Client.Pages
             AppointmentsList.ItemsSource = null;
             var day = DayPicker.Date?.Date ?? throw new InvalidOperationException("Sélectionnez une date.");
             StatusText.Text = "Chargement des rendez-vous…";
-            var config = await App.ChatService.GetAppointmentSearchConfigAsync()
-                ?? throw new InvalidOperationException("Configurez la base Access dans les paramètres RDV.");
-            _appointments = await AppointmentLoader.LoadAsync(config, MachineConfig.Load(), day);
+            // C'est le serveur qui lit l'agenda (sa base Access, ses paramètres RDV).
+            _appointments = await Server().InvokeAsync<List<RdvInfo>>("SmsMailAgendaDay", day);
             AppointmentsList.ItemsSource = _appointments;
             await PrepareAsync();
         });
@@ -467,15 +509,13 @@ namespace Client.Pages
             if (PostItPasswordBox.Password.Length < DiagnosticPackage.MinimumPasswordLength)
                 throw new InvalidOperationException($"Le mot de passe doit contenir au moins {DiagnosticPackage.MinimumPasswordLength} caractères.");
             if (PostItPasswordBox.Password != PostItConfirmBox.Password) throw new InvalidOperationException("Les deux mots de passe sont différents.");
-            var config = await App.ChatService.GetAppointmentSearchConfigAsync()
-                ?? throw new InvalidOperationException("Configurez la base Access dans les paramètres RDV.");
             List<PostItAnalysis.PostIt> postIts; List<(string Nom, string Prenom)> names; List<RdvInfo> appointments;
             try
             {
                 PostItStatusText.Text = "Lecture des post-it…";
-                (postIts, names) = await AppointmentLoader.LoadPostItsAsync(config, MachineConfig.Load(), from, to);
+                (postIts, names) = await LoadPostItsAsync(from, to);
                 PostItStatusText.Text = $"{postIts.Count} post-it lus. Lecture des rendez-vous de la période…";
-                appointments = await AppointmentLoader.LoadRangeAsync(config, MachineConfig.Load(), from, to);
+                appointments = await Server().InvokeAsync<List<RdvInfo>>("SmsMailAgendaRange", from, to);
             }
             catch (Exception ex) { PostItStatusText.Text = "Échec de la lecture : " + ex.Message; throw; }
             var pseudonymize = PostItPseudonymizeCheck.IsChecked == true;
@@ -500,11 +540,9 @@ namespace Client.Pages
             if (PostItPasswordBox.Password.Length < DiagnosticPackage.MinimumPasswordLength)
                 throw new InvalidOperationException($"Le mot de passe doit contenir au moins {DiagnosticPackage.MinimumPasswordLength} caractères.");
             if (PostItPasswordBox.Password != PostItConfirmBox.Password) throw new InvalidOperationException("Les deux mots de passe sont différents.");
-            var config = await App.ChatService.GetAppointmentSearchConfigAsync()
-                ?? throw new InvalidOperationException("Configurez la base Access dans les paramètres RDV.");
             PostItStatusText.Text = "Lecture des post-it…";
             List<PostItAnalysis.PostIt> postIts; List<(string Nom, string Prenom)> names;
-            try { (postIts, names) = await AppointmentLoader.LoadPostItsAsync(config, MachineConfig.Load(), from, to); }
+            try { (postIts, names) = await LoadPostItsAsync(from, to); }
             catch (Exception ex) { PostItStatusText.Text = "Échec de la lecture : " + ex.Message; throw; }
             var kept = postIts.Count(p => PostItAnalysis.IsConsultationPostIt(p.Text));
             if (kept == 0) { PostItStatusText.Text = $"{postIts.Count} post-it lus, aucun ne ressemble à un post-it de consultation. Rien n’a été enregistré."; return; }
@@ -519,13 +557,20 @@ namespace Client.Pages
             PostItPasswordBox.Password = PostItConfirmBox.Password = string.Empty;
         });
 
+        private async Task<(List<PostItAnalysis.PostIt> PostIts, List<(string Nom, string Prenom)> Names)> LoadPostItsAsync(DateTime from, DateTime to)
+        {
+            var result = await Server().InvokeAsync<SmsMailPostIts>("SmsMailAgendaPostIts", from, to);
+            return (result.PostIts, result.Names.Select(n => (n.Nom, n.Prenom)).ToList());
+        }
+
         private async void Save_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             _settings = ReadSettings();
-            SmsMailSettingsStore.Save(_settings);
+            await Server().InvokeAsync("SmsMailSettingsSave", _settings);
+            _settings = await LoadServerSettingsAsync();
+            ShowSecretState();
             ClearMessages();
-            await Task.CompletedTask;
-            StatusText.Text = "Enregistré. Préparez à nouveau les messages pour appliquer les modifications.";
+            StatusText.Text = "Enregistré sur le serveur, pour tous les postes. Préparez à nouveau les messages pour appliquer les modifications.";
         });
 
         private void ApplyEmailModel_Click(object sender, RoutedEventArgs e)
@@ -537,7 +582,7 @@ namespace Client.Pages
 
         private async void Balance_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
-            var balance = await new SmsService(ReadSettings().Sms).GetSmsBalanceAsync();
+            var balance = await Server().InvokeAsync<decimal>("SmsMailBalance");
             StatusText.Text = $"Solde OVH : {balance} crédit(s) SMS.";
         });
 
@@ -568,21 +613,13 @@ namespace Client.Pages
                     var zone = TimeZoneInfo.FindSystemTimeZoneById(settings.CalendarTimeZone);
                     var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date;
                     prepared = TestMessagePreparation.Create(settings, email.Text, phone.Text, today);
-                    if (prepared.Any(m => m.Channel == "SMS")) new SmsService(settings.Sms).Validate();
-                    if (prepared.Any(m => m.Channel == "Mail"))
-                    {
-                        var mail = new MailService(settings.Email);
-                        mail.Validate();
-                        foreach (var item in prepared.Where(m => m.Channel == "Mail"))
-                            using (mail.CreateMessage(item)) { }
-                    }
                 }
                 catch (Exception ex) { args.Cancel = true; error.Text = ex.Message; }
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary || prepared == null || settings == null) return;
-            var sms = new SmsService(settings.Sms);
-            var mail = new MailService(settings.Email);
-            await SendInBackgroundAsync(prepared, message => SendOneAsync(message, sms, mail, test: true));
+            // Réglages OVH et SMTP du serveur : c'est lui qui vérifie et envoie.
+            await Server().InvokeAsync("SmsMailValidate", prepared);
+            await SendInBackgroundAsync(prepared, message => SendOneAsync(message, test: true));
             var outcomes = prepared.Where(m => !string.IsNullOrEmpty(m.Status)).Select(m => $"{m.Channel} vers {m.Contact} : {m.Status}").ToList();
             await ReloadHistoryAsync();
             StatusText.Text = string.Join(Environment.NewLine, outcomes);
@@ -600,16 +637,8 @@ namespace Client.Pages
             // Require a fresh preparation if a model or the fallback rule changed.
             if (MessagePreparation.PreparationSignature(settings) != _preparedSignature)
                 throw new InvalidOperationException("Les modèles ont changé. Préparez à nouveau les messages.");
-            var sms = new SmsService(settings.Sms);
-            var mail = new MailService(settings.Email);
-            if (selected.Any(m => m.Channel == "SMS")) sms.Validate();
-            if (selected.Any(m => m.Channel == "Mail"))
-            {
-                mail.Validate();
-                foreach (var item in selected.Where(m => m.Channel == "Mail"))
-                    using (mail.CreateMessage(item)) { }
-            }
             if (selected.Any(m => string.IsNullOrWhiteSpace(m.Body))) throw new InvalidOperationException("Un message est vide. Vérifiez les modèles.");
+            await Server().InvokeAsync("SmsMailValidate", selected.ToList());
             var dialog = new ContentDialog
             {
                 Title = "Confirmer l'envoi",
@@ -617,7 +646,7 @@ namespace Client.Pages
                 PrimaryButtonText = "Envoyer", CloseButtonText = "Annuler", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            var outcome = await SendInBackgroundAsync(selected, message => SendOneAsync(message, sms, mail, test: false));
+            var outcome = await SendInBackgroundAsync(selected, message => SendOneAsync(message, test: false));
             FilterMessages();
             await ReloadHistoryAsync();
             StatusText.Text = $"{outcome.Accepted} accepté(s), {outcome.Skipped} déjà traité(s), {outcome.Uncertain} à vérifier."
@@ -661,20 +690,16 @@ namespace Client.Pages
             StatusText.Text = "Arrêt demandé : l'envoi s'arrête après le message en cours.";
         }
 
-        private static async Task<SendResult> SendOneAsync(PreparedMessage message, SmsService sms, MailService mail, bool test)
+        /// <summary>
+        /// Le serveur envoie (ses réglages OVH et SMTP) un message déjà réservé dans l'historique commun, et écrit le résultat.
+        /// Sans réponse du serveur, le résultat reste « à vérifier » : le message ne sera pas renvoyé automatiquement.
+        /// </summary>
+        private async Task<SendResult> SendOneAsync(PreparedMessage message, bool test)
         {
-            var prefix = test ? "[TEST] " : "";
             try
             {
-                if (message.Channel == "SMS")
-                {
-                    var response = await sms.SendSmsAsync(message.Contact, message.Body).ConfigureAwait(false);
-                    return response.Ids.Length > 0 && response.ValidReceivers.Length > 0
-                        ? new SendResult(prefix + "Accepté par OVH — réception en attente", response.Ids[0], true)
-                        : new SendResult(prefix + (test ? "Non accepté par OVH — vérifier le compte" : "Non accepté par OVH — vérifier le compte avant tout nouvel essai"), null, false);
-                }
-                await mail.SendAsync(message).ConfigureAwait(false);
-                return new SendResult(prefix + "Accepté par SMTP — réception non confirmée", null, true);
+                var result = await Server().InvokeAsync<SmsMailSendResult>("SmsMailSend", message, test).ConfigureAwait(false);
+                return new SendResult(result.Status, result.ProviderId, result.Accepted);
             }
             catch (Exception ex)
             {
@@ -790,11 +815,8 @@ namespace Client.Pages
                 throw new InvalidOperationException("Indiquez l’adresse mail qui recevra la réponse du patient.");
             var message = IndividualMessage.Create(settings, channel, IndividualNameText.Text, IndividualPhoneText.Text, IndividualEmailText.Text,
                 start ?? DateTime.Today, IndividualText.Text, IndividualSubjectText.Text);
-            var sms = new SmsService(settings.Sms);
-            var mail = new MailService(settings.Email);
-            if (channel == "SMS") sms.Validate(); else mail.Validate();
-
             var connection = App.ChatService.GetSmsMailHistoryConnection();
+            await connection.InvokeAsync("SmsMailValidate", new List<PreparedMessage> { message });
             if (withLink && string.IsNullOrEmpty(await connection.InvokeAsync<string>("SmsMailReplyLinkBase")))
                 throw new InvalidOperationException("Le service de réponse n’est pas configuré sur le serveur (administration du serveur → Réponses des patients).");
 
@@ -827,7 +849,7 @@ namespace Client.Pages
                 message.Body = IndividualMessage.WithLink(message.Body, IndividualMessage.LinkFor(channel, url));
             }
 
-            var outcome = await SendInBackgroundAsync(new[] { message }, m => SendOneAsync(m, sms, mail, test: false));
+            var outcome = await SendInBackgroundAsync(new[] { message }, m => SendOneAsync(m, test: false));
             await ReloadHistoryAsync();
             IndividualStatus.Text = outcome.Accepted == 1
                 ? $"Message envoyé à {message.Contact}. {message.Status}" + (withLink ? $" La réponse du patient arrivera à {replyEmail} et dans l’historique." : "")
@@ -838,12 +860,9 @@ namespace Client.Pages
 
         private async void MailReports_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
-            var settings = ReadSettings();
-            var since = await _history.EarliestMailAsync(settings.Email.SmtpHost);
-            if (!since.HasValue) { StatusText.Text = "Aucun mail envoyé depuis ce compte dans l'historique local."; return; }
-            var reports = await MailDeliveryReports.ReadAsync(settings.Email, since.Value);
-            int matched = 0;
-            foreach (var report in reports) matched += await _history.ApplyReportAsync(report, settings.Email.SmtpHost);
+            // Le serveur lit la boîte IMAP avec ses réglages.
+            var matched = await Server().InvokeAsync<int>("SmsMailApplyMailReports");
+            if (matched < 0) { StatusText.Text = "Aucun mail envoyé depuis ce compte dans l'historique."; return; }
             await ReloadHistoryAsync();
             StatusText.Text = $"{matched} retour(s) mail rapproché(s). La boîte IMAP est lue sans suppression ni modification des messages.";
         });
@@ -1049,24 +1068,10 @@ namespace Client.Pages
         private async void History_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             await ReloadHistoryAsync();
-            var settings = ReadSettings();
-            var pending = _entries.Where(h => h.ProviderId.HasValue && h.ProviderService == settings.Sms.ServiceName
-                && !h.Status.StartsWith("Reçu", StringComparison.Ordinal)).ToList();
-            if (pending.Count == 0) { StatusText.Text = "Historique à jour. Aucun SMS en attente de statut."; return; }
-            var sms = new SmsService(settings.Sms);
-            int errors = 0;
-            foreach (var entry in pending)
-            {
-                try
-                {
-                    var detail = await sms.GetSmsOutgoingAsync(entry.ProviderId!.Value);
-                    var status = detail.DeliveredAt.HasValue || detail.DeliveryReceipt == 1
-                        ? "Reçu — " + (detail.DeliveredAt?.ToLocalTime().ToString("g") ?? "confirmation OVH")
-                        : "OVH : " + (detail.Status ?? "réception en attente");
-                    await _history.UpdateAsync(entry.Key, status);
-                }
-                catch { errors++; }
-            }
+            // Le serveur interroge OVH avec ses réglages et met à jour l'historique commun.
+            var counts = await Server().InvokeAsync<int[]>("SmsMailRefreshSmsStatuses");
+            if (counts[0] == 0 && counts[1] == 0) { StatusText.Text = "Historique à jour. Aucun SMS en attente de statut."; return; }
+            var errors = counts[1];
             await ReloadHistoryAsync();
             StatusText.Text = $"Statuts SMS actualisés ; {errors} statut(s) indisponible(s). Utilisez Retours mail (IMAP) pour lire les notifications mail.";
         });

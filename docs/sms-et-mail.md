@@ -6,10 +6,22 @@ rendez-vous, la consolidation des doublons, les regroupements de familles,
 l'éditeur HTML local et les options calendrier. Le modèle fourni par le cabinet
 et le bouton de test sont conservés.
 
+## Le serveur lit l'agenda et envoie
+
+Les paramètres SMS et mail (cabinet, modèles, horaires, OVH, SMTP, IMAP) sont **communs à tous les postes** et gardés
+par le serveur (`data\sms-mail-settings.dat`, chiffré avec les clés du serveur). Les mots de passe et clés secrètes
+ne sont jamais renvoyés aux postes : leur champ reste vide (« Enregistré sur le serveur — laisser vide pour garder »).
+Le premier poste mis à jour envoie ses paramètres locaux au serveur, s'il n'en a pas encore.
+
+C'est le **serveur** qui lit l'agenda (sa base Access et ses paramètres RDV) et qui **envoie** les SMS (OVH) et les
+mails (SMTP), lit les statuts OVH et la boîte IMAP. Le serveur doit donc pouvoir joindre `eu.api.ovh.com` et le serveur
+mail. Un message n'est envoyé que s'il est réservé dans l'historique commun et n'a encore aucun résultat ; le serveur
+écrit lui-même le résultat. Le poste prépare, montre et fait choisir les messages, comme avant.
+
 ## Configuration et utilisation
 
-1. Configurer Access dans les paramètres RDV et les identifiants du poste.
-2. Renseigner le cabinet et les comptes OVH / SMTP dans SMS et mail > Paramètres.
+1. Configurer Access dans les réglages Access du serveur et les paramètres RDV.
+2. Renseigner le cabinet et les comptes OVH / SMTP dans SMS et mail > Paramètres (depuis n'importe quel poste).
    SMTP utilise STARTTLS, généralement sur 587 ; le TLS implicite 465 n'est pas
    pris en charge par le transport SMTP actuel.
 3. Adapter les modèles SMS et HTML, les options calendrier et les alarmes.
