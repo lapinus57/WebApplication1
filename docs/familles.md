@@ -10,6 +10,9 @@ Access n'est jamais modifié. Tout est dans `data\families.db` sur le serveur.
 - **Recalculer maintenant** : relit tout l'agenda (quelques minutes). Les familles en service restent utilisées jusqu'à la fin.
   Un recalcul a lieu aussi **chaque nuit à 3 h** ; autre heure : `"Families": { "NightlyHour": 2 }` dans `appsettings.json`
   (`-1` pour le désactiver).
+  Au démarrage du serveur (une minute après), les familles sont aussi recalculées s'il n'y en a pas ou si le serveur a été
+  mis à jour depuis le dernier calcul : les nouvelles règles s'appliquent tout de suite, sans attendre la nuit
+  (`"Families": { "RebuildAtStartup": false }` pour ne pas le faire).
 - **Photo de la carte Vitale** : importer `export-vitale.csv` (même requête DBeaver que pour FamilyScan). Un nouvel import remplace l'ancien.
 - **Exports des paiements** : ajouter chaque nouvel export CSV. Le NIR sert seulement à savoir qui est facturé sous la même
   carte : il est transformé en empreinte en mémoire, puis en simple numéro de groupe propre à l'export. **Il n'est jamais

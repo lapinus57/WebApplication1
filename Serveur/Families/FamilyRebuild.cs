@@ -40,8 +40,27 @@ public sealed class FamilyRebuild(IServiceScopeFactory scopes, FamilyStore store
 
     public void Cancel() { lock (_gate) _cancellation?.Cancel(); }
 
+    /// <summary>Identifiant du moteur installé : change à chaque mise à jour du serveur.</summary>
+    public static string EngineVersion => typeof(FamilyScanner).Assembly.ManifestModule.ModuleVersionId.ToString("N");
+
+    /// <summary>
+    /// Au démarrage : pas de familles (première installation, ou résultat effacé parce que sa forme a changé), ou moteur mis à
+    /// jour depuis le dernier calcul : on recalcule tout de suite, sans attendre la nuit. Les familles en service le restent
+    /// pendant le calcul ; les décisions, réponses, photo Vitale et paiements sont toujours conservés.
+    /// </summary>
+    public bool NeedsRebuildAtStartup()
+        => store.FamilyCount() == 0 || store.Meta("engine_version") != EngineVersion;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        try
+        {
+            // Laisse le serveur finir de démarrer (et Access se libérer) avant de relire tout l'agenda.
+            await Task.Delay(TimeSpan.FromSeconds(configuration.GetValue("Families:StartupDelaySeconds", 60)), stoppingToken);
+            if (configuration.GetValue("Families:RebuildAtStartup", true) && NeedsRebuildAtStartup() && Start())
+                logger.LogInformation("Familles : calcul lancé au démarrage (aucune famille ou serveur mis à jour).");
+        }
+        catch (OperationCanceledException) { return; }
         while (!stoppingToken.IsCancellationRequested)
         {
             var hour = NightlyHour;
@@ -84,6 +103,7 @@ public sealed class FamilyRebuild(IServiceScopeFactory scopes, FamilyStore store
             var message = $"Calcul terminé : {result.Families.Count} familles ({result.Families.Sum(f => f.Members.Count)} patients), "
                 + $"{result.Families.Count(f => f.ToReview)} à vérifier.";
             store.SetMeta("last_run_message", message);
+            store.SetMeta("engine_version", EngineVersion);
             logger.LogInformation("Familles : {Message}", message);
             lock (_gate) _status = new(false, message, false, _status.StartedUtc);
         }

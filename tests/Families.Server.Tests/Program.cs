@@ -250,6 +250,13 @@ try
     var backup = Client.SmsMail.Services.SmsMailConfigFile.Import(await exported.Content.ReadAsByteArrayAsync(), "sauvegarde du serveur");
     Check(exported.Content.Headers.ContentDisposition?.FileName?.EndsWith(".eyeconfig") == true && backup.Sms.ApplicationSecret == "CLE-SECRETE",
         "Page SMS et mail : sauvegarde chiffrée téléchargée, réimportable");
+    // Recalcul au démarrage : sans familles, ou quand le moteur a changé depuis le dernier calcul
+    var rebuild = app.Services.GetRequiredService<FamilyRebuild>();
+    Check(rebuild.NeedsRebuildAtStartup(), "Moteur jamais utilisé pour ce calcul : recalcul au démarrage");
+    pageStore.SetMeta("engine_version", FamilyRebuild.EngineVersion);
+    Check(!rebuild.NeedsRebuildAtStartup(), "Même moteur et familles présentes : pas de recalcul au démarrage");
+    pageStore.SetMeta("engine_version", "ancienne-version");
+    Check(rebuild.NeedsRebuildAtStartup(), "Serveur mis à jour : recalcul au démarrage");
     var progress = await http.GetStringAsync("/Families?handler=Progress");
     Check(progress.Contains("\"running\":false"), "Suivi du calcul en JSON");
     await app.StopAsync();
