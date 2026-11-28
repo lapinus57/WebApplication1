@@ -429,9 +429,9 @@ try
     Check((await secretariat.InvokeAsync<List<Client.SmsMail.Services.FamilyCardCandidate>>("FamilyCardSearch", "ana")).Select(c => c.PatientId).OrderBy(x => x).SequenceEqual(new[] { 601, 777 }),
         "Recherche par prénom seul : plusieurs personnes");
     var card = await secretariat.InvokeAsync<Client.SmsMail.Services.FamilyCard>("FamilyCardGet", 602);
-    Check(card.Members.Select(m => m.PatientId).SequenceEqual(new[] { 602, 601 }) && card.Appointments.Select(a => a.PatientId).SequenceEqual(new[] { 601, 602 })
+    Check(card.Members.Select(m => m.PatientId).SequenceEqual(new[] { 601, 602 }) && card.Appointments.Select(a => a.PatientId).SequenceEqual(new[] { 601, 602 })
         && card.Appointments[0].Name == "Ana BRUN" && card.Emails.SequenceEqual(new[] { "ana@example.fr" }) && card.Cabinet == "Cabinet Modifié",
-        "Fiche : toute la famille, RDV à venir dans l'ordre, mail proposé");
+        "Fiche : toute la famille du plus âgé au plus jeune (recherche faite avec l'enfant), RDV dans l'ordre, mail proposé");
     var html = Client.SmsMail.Services.FamilyCardDocument.Html(card);
     Check(html.Contains("Rendez-vous de la famille") && html.Contains("BRUN Ana") && html.Contains("BRUN Eli") && html.Contains("14:30") && !html.Contains("Remarque"),
         "Fiche imprimable : membres, dates et heures");

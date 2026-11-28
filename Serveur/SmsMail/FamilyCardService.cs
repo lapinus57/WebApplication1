@@ -87,7 +87,8 @@ public sealed class FamilyCardService(EyeMailDbContext patients, FamilyStore fam
                     Title = p?.Civility is { Length: > 0 } c ? c : r?.Titre ?? "",
                     LastName = p?.LastName ?? r?.Nom ?? "", FirstName = p?.FirstName ?? r?.Prenom ?? "",
                 };
-            }).OrderBy(m => m.PatientId == patientId ? 0 : 1).ThenBy(m => m.Name).ToList(),
+            // Du plus âgé au plus jeune ; date de naissance inconnue : à la fin.
+            }).OrderBy(m => m.BirthDate ?? DateTime.MaxValue).ThenBy(m => m.Name).ToList(),
             Appointments = rdvs.GroupBy(r => (r.Id, r.HeureRDV)).Select(g => g.First())
                 .Select(r => new FamilyCardAppointment { PatientId = r.Id, Name = NameOf(r.Id), Start = r.HeureRDV }).OrderBy(a => a.Start).ToList(),
         };
