@@ -433,7 +433,7 @@ try
         && card.Appointments[0].Name == "Ana BRUN" && card.Emails.SequenceEqual(new[] { "ana@example.fr" }) && card.Cabinet == "Cabinet Modifié",
         "Fiche : toute la famille, RDV à venir dans l'ordre, mail proposé");
     var html = Client.SmsMail.Services.FamilyCardDocument.Html(card);
-    Check(html.Contains("Rendez-vous de la famille") && html.Contains("Ana BRUN") && html.Contains("Eli BRUN") && html.Contains("14:30") && !html.Contains("Remarque"),
+    Check(html.Contains("Rendez-vous de la famille") && html.Contains("BRUN Ana") && html.Contains("BRUN Eli") && html.Contains("14:30") && !html.Contains("Remarque"),
         "Fiche imprimable : membres, dates et heures");
     Check(Client.SmsMail.Services.FamilyCardDocument.JoinNames(new[] { "Jacques", "Lucie", "Jeanne" }) == "Jacques, Lucie et Jeanne"
         && Client.SmsMail.Services.FamilyCardDocument.JoinNames(new[] { "Jacques" }) == "Jacques" && html.Contains("Pour Ana") && html.Contains("Pour Eli"),
