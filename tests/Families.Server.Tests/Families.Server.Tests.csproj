@@ -18,6 +18,12 @@
     <Compile Include="../../Serveur/Pages/Families.cshtml.cs" Link="Pages/Families.cshtml.cs" />
     <Content Include="../../Serveur/Pages/Families.cshtml" Link="Pages/Families.cshtml" />
     <Compile Include="../../Serveur/Pages/Clients.cshtml.cs" Link="Pages/Clients.cshtml.cs" />
+    <Compile Include="../../Serveur/Pages/SmsMail.cshtml.cs" Link="Pages/SmsMail.cshtml.cs" />
+    <Content Include="../../Serveur/Pages/SmsMail.cshtml" Link="Pages/SmsMail.cshtml" />
+    <Compile Include="../../Serveur/SmsMail/SmsMailServerSettings.cs" Link="ServerSmsMail/SmsMailServerSettings.cs" />
+    <Compile Include="../../Client/SmsMail/**/*.cs" Exclude="../../Client/SmsMail/Services/EyeEmailFamilyDatabase.cs" LinkBase="ClientSmsMail" />
+    <PackageReference Include="MailKit" Version="4.18.1" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <Content Include="../../Serveur/Pages/Clients.cshtml" Link="Pages/Clients.cshtml" />
     <Compile Include="../../Serveur/ClientUpdate/*.cs" LinkBase="ClientUpdate" />
     <Compile Include="../../Shared/ClientUpdate/*.cs" LinkBase="SharedClientUpdate" />

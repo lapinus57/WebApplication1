@@ -1,0 +1,57 @@
+@page
+@model Serveur.Pages.SmsMailModel
+@{
+    ViewData["Title"] = "SMS et mail";
+    var s = Model.Current;
+}
+<link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
+<section class="registry">
+    <header class="registry-heading">
+        <div><p class="registry-eyebrow">RAPPELS · SMS ET MAIL</p><h1>Configuration SMS et mail</h1>
+            <p>Réglages communs à tous les postes, gardés par le serveur (chiffrés). C'est le serveur qui lit l'agenda et envoie les SMS et les mails.</p></div>
+    </header>
+    @if (Model.Error.Length > 0) { <div class="registry-error" role="alert">@Model.Error</div> }
+    @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+
+    <section class="registry-card">
+        <h2>Configuration actuelle</h2>
+        @if (s == null)
+        {
+            <p>Aucune configuration sur le serveur. Importez le fichier exporté depuis un poste, ou enregistrez les paramètres depuis l'onglet SMS et mail d'un poste.</p>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <dt>Cabinet</dt><dd>@s.Cabinet<small>@s.CabinetAddress</small></dd>
+                <dt>SMS (OVH)</dt><dd>@(s.Sms.ServiceName.Length > 0 ? s.Sms.ServiceName : "non renseigné")
+                    <small>Expéditeur @(s.Sms.Sender.Length > 0 ? s.Sms.Sender : "—") · clés @(s.Sms.ApplicationSecret.Length > 0 && s.Sms.ConsumerKey.Length > 0 ? "enregistrées" : "manquantes")</small></dd>
+                <dt>Mail (SMTP)</dt><dd>@(s.Email.SmtpHost.Length > 0 ? $"{s.Email.SmtpHost}:{s.Email.SmtpPort}" : "non renseigné")
+                    <small>@s.Email.FromAddress · mot de passe @(s.Email.Password.Length > 0 ? "enregistré" : "manquant")</small></dd>
+                <dt>Retours mail (IMAP)</dt><dd>@(s.Email.ImapHost.Length > 0 ? $"{s.Email.ImapHost}:{s.Email.ImapPort}" : "non renseigné")</dd>
+            </dl>
+            <p class="registry-help">Les modèles de texte, horaires et options se modifient depuis l'onglet SMS et mail d'un poste, pour tous les postes.</p>
+        }
+    </section>
+
+    <section class="registry-card">
+        <h2>Importer une configuration</h2>
+        <p class="registry-help">Fichier <code>.eyeconfig</code> exporté depuis un poste (onglet SMS et mail → Paramètres → Exporter la configuration)
+            ou depuis cette page. Une clé ou un mot de passe absent du fichier garde la valeur du serveur.</p>
+        <form method="post" asp-page-handler="Import" enctype="multipart/form-data" class="registry-filters">
+            <label>Fichier<input type="file" name="file" accept=".eyeconfig" required /></label>
+            <label>Mot de passe du fichier<input type="password" name="password" autocomplete="off" required /></label>
+            <button type="submit">Importer</button>
+        </form>
+    </section>
+
+    <section class="registry-card">
+        <h2>Exporter (sauvegarde)</h2>
+        <p class="registry-help">Le fichier contient les clés OVH et le mot de passe SMTP, chiffrés avec ce mot de passe (10 caractères au moins).
+            Gardez-le en lieu sûr et transmettez le mot de passe séparément.</p>
+        <form method="post" asp-page-handler="Export" class="registry-filters">
+            <label>Mot de passe<input type="password" name="password" minlength="10" autocomplete="new-password" required /></label>
+            <label>Confirmer<input type="password" name="confirm" minlength="10" autocomplete="new-password" required /></label>
+            <button type="submit" disabled="@(s == null)">Exporter</button>
+        </form>
+    </section>
+</section>

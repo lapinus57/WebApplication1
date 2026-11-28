@@ -147,6 +147,9 @@ try
     registry.Record("PC-ACCUEIL", "Accueil", "0.1.34.0", DateTime.UtcNow);
     registry.Record("PC-DOCTEUR", "Docteur", "0.1.38.0", DateTime.UtcNow);
     builder.Services.AddSingleton(registry);
+    Microsoft.AspNetCore.DataProtection.DataProtectionBuilderExtensions.SetApplicationName(builder.Services.AddDataProtection(), "EyeChat.Tests");
+    builder.Services.AddSingleton(sp => new ChatServeur.SmsMail.SmsMailServerSettings(
+        sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), Path.Combine(folder, "sms-mail-settings.dat")));
     var app = builder.Build();
     app.UseAuthentication(); app.UseAuthorization();
     app.MapRazorPages();
@@ -221,6 +224,32 @@ try
     var folderForm = new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = Token(clients), ["UpdateFolder"] = @"\\NAS\uptEye" });
     var savedFolder = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/Clients", folderForm)).Content.ReadAsStringAsync());
     Check(savedFolder.Contains("Dossier des mises à jour enregistré") && registry.UpdateFolder == @"\\NAS\uptEye", "Page Postes : dossier des mises à jour enregistré");
+    // Page SMS et mail : import d'un fichier exporté d'un poste, puis sauvegarde
+    var smsPage = System.Net.WebUtility.HtmlDecode(await http.GetStringAsync("/SmsMail"));
+    Check(smsPage.Contains("Aucune configuration sur le serveur"), "Page SMS et mail : vide au départ");
+    var fromStation = new Client.SmsMail.Configuration.SmsMailSettings { Cabinet = "Cabinet du poste" };
+    fromStation.Sms.ServiceName = "sms-xy1"; fromStation.Sms.ApplicationSecret = "CLE-SECRETE"; fromStation.Sms.ConsumerKey = "CONSO";
+    fromStation.Email.SmtpHost = "smtp.example.fr"; fromStation.Email.Password = "MDP-SMTP";
+    var upload = new MultipartFormDataContent();
+    upload.Add(new StringContent(Token(smsPage)), "__RequestVerificationToken");
+    upload.Add(new StringContent("mot de passe du fichier"), "password");
+    upload.Add(new ByteArrayContent(Client.SmsMail.Services.SmsMailConfigFile.Export(fromStation, "mot de passe du fichier")), "file", "config.eyeconfig");
+    var imported = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/SmsMail?handler=Import", upload)).Content.ReadAsStringAsync());
+    var serverSettings = app.Services.GetRequiredService<ChatServeur.SmsMail.SmsMailServerSettings>().Load();
+    Check(imported.Contains("Configuration importée") && imported.Contains("Cabinet du poste") && imported.Contains("clés enregistrées") && !imported.Contains("CLE-SECRETE")
+        && serverSettings!.Sms.ApplicationSecret == "CLE-SECRETE" && serverSettings.Email.Password == "MDP-SMTP", "Page SMS et mail : import, secrets gardés sur le serveur, jamais affichés");
+    var badUpload = new MultipartFormDataContent();
+    badUpload.Add(new StringContent(Token(smsPage)), "__RequestVerificationToken");
+    badUpload.Add(new StringContent("mauvais mot de passe"), "password");
+    badUpload.Add(new ByteArrayContent(Client.SmsMail.Services.SmsMailConfigFile.Export(fromStation, "mot de passe du fichier")), "file", "config.eyeconfig");
+    var refused = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/SmsMail?handler=Import", badUpload)).Content.ReadAsStringAsync());
+    Check(refused.Contains("Mot de passe incorrect"), "Page SMS et mail : mauvais mot de passe refusé");
+    var exportForm = new FormUrlEncodedContent(new Dictionary<string, string>
+        { ["__RequestVerificationToken"] = Token(smsPage), ["password"] = "sauvegarde du serveur", ["confirm"] = "sauvegarde du serveur" });
+    var exported = await http.PostAsync("/SmsMail?handler=Export", exportForm);
+    var backup = Client.SmsMail.Services.SmsMailConfigFile.Import(await exported.Content.ReadAsByteArrayAsync(), "sauvegarde du serveur");
+    Check(exported.Content.Headers.ContentDisposition?.FileName?.EndsWith(".eyeconfig") == true && backup.Sms.ApplicationSecret == "CLE-SECRETE",
+        "Page SMS et mail : sauvegarde chiffrée téléchargée, réimportable");
     var progress = await http.GetStringAsync("/Families?handler=Progress");
     Check(progress.Contains("\"running\":false"), "Suivi du calcul en JSON");
     await app.StopAsync();

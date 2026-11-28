@@ -563,6 +563,50 @@ namespace Client.Pages
             return (result.PostIts, result.Names.Select(n => (n.Nom, n.Prenom)).ToList());
         }
 
+        /// <summary>
+        /// Fichier .eyeconfig chiffré à importer sur le serveur (administration → SMS et mail). Il reprend les réglages locaux
+        /// de ce poste s'il en a encore (clés et mot de passe compris), sinon ceux affichés (sans secret : ils sont sur le serveur).
+        /// </summary>
+        private async void ExportConfig_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            SmsMailSettings? local = null;
+            try { local = SmsMailSettingsStore.Load(); } catch (Exception) { }
+            var hasLocal = local != null && (local.Sms.ApplicationSecret.Length > 0 || local.Email.Password.Length > 0 || local.Email.SmtpHost.Length > 0);
+            var settings = hasLocal ? local! : ReadSettings();
+            var password = new PasswordBox { Header = $"Mot de passe du fichier ({DiagnosticPackage.MinimumPasswordLength} caractères au moins)" };
+            var confirm = new PasswordBox { Header = "Confirmer le mot de passe" };
+            var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            var panel = new StackPanel { Spacing = 12 };
+            panel.Children.Add(new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = (hasLocal
+                    ? "Le fichier reprend les réglages enregistrés sur ce poste, clés OVH et mot de passe SMTP compris : "
+                    : "Ce poste n'a plus de réglages locaux : le fichier reprend les réglages affichés, sans clé ni mot de passe (ils sont gardés par le serveur) : ")
+                    + SmsMailConfigFile.Describe(settings) + ".\n\nImportez-le dans l'administration du serveur, page « SMS et mail »."
+            });
+            panel.Children.Add(password); panel.Children.Add(confirm); panel.Children.Add(error);
+            byte[]? bytes = null;
+            var dialog = new ContentDialog
+            {
+                Title = "Exporter la configuration SMS et mail", Content = panel, PrimaryButtonText = "Exporter", CloseButtonText = "Annuler",
+                DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot
+            };
+            dialog.PrimaryButtonClick += (_, args) =>
+            {
+                try
+                {
+                    if (password.Password != confirm.Password) throw new InvalidOperationException("Les deux mots de passe sont différents.");
+                    bytes = SmsMailConfigFile.Export(settings, password.Password);
+                }
+                catch (Exception ex) { args.Cancel = true; error.Text = ex.Message; }
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary || bytes == null) return;
+            StatusText.Text = await SaveFileAsync($"config-sms-mail-{Environment.MachineName}", "Configuration EyeChat chiffrée", SmsMailConfigFile.Extension, bytes)
+                ? "Configuration exportée. Importez-la sur le serveur (administration → SMS et mail) et transmettez le mot de passe séparément."
+                : "Export annulé.";
+        });
+
         private async void Save_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
             _settings = ReadSettings();

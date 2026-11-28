@@ -381,6 +381,7 @@
                         <TextBox x:Name="BounceFilterText" Header="Expéditeur des retours (ex. mailer-daemon)" />
                     </StackPanel></Expander>
                         <Button Style="{StaticResource AccentButtonStyle}" Content="Enregistrer les paramètres" Click="Save_Click" />
+                        <Button Content="Exporter la configuration (pour le serveur)" Click="ExportConfig_Click" />
                         <Button Content="Tester mail / SMS" Click="TestSend_Click" />
                         <TextBlock Text="Paramètres communs à tous les postes, gardés par le serveur (identifiants chiffrés, jamais renvoyés aux postes). C’est le serveur qui lit l’agenda et envoie les SMS et mails. L’historique est commun." TextWrapping="Wrap" />
                     </StackPanel>

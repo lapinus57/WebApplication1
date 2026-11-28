@@ -194,6 +194,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/Replies") ||
         context.Request.Path.StartsWithSegments("/Families") ||
         context.Request.Path.StartsWithSegments("/Clients") ||
+        context.Request.Path.StartsWithSegments("/SmsMail") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)
