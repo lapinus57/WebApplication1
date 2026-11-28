@@ -245,7 +245,7 @@ nouvelle préparation avant l’envoi.
 
 ## Fiche « RDV de la famille »
 
-Onglet **Fiche famille** : tapez un nom, un prénom (plusieurs mots possibles) ou une date de naissance (`05/03/1980`),
+Page **Fiche famille** (barre latérale) : tapez un nom, un prénom (plusieurs mots possibles) ou une date de naissance (`05/03/1980`),
 puis choisissez la personne. Le serveur assemble la fiche : toute la famille de cette personne (page Familles du serveur ;
 la personne seule si elle n'est dans aucune famille) et les **rendez-vous à venir** de chacun (13 mois), du plus proche
 au plus lointain, sans remarque. **Imprimer la fiche** ouvre l'impression (A4) ; **Envoyer la fiche par mail** l'envoie

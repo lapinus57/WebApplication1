@@ -90,7 +90,7 @@ namespace Client
                     "HistoryPage" => typeof(Pages.HistoryPage),
                     "AppointmentSearchPage" => typeof(Pages.AppointmentSearchPage),
                     "SmsMailPage" => typeof(Pages.SmsMailPage),
-                    "FundusPage" => typeof(Pages.FundusPage),
+                    "FamilyCardPage" => typeof(Pages.FamilyCardPage),
                     _ => null
                 };
                 if (pageType != null && contentFrame.CurrentSourcePageType != pageType)

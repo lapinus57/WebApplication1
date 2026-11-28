@@ -161,33 +161,6 @@
                     </StackPanel>
                 </ScrollViewer>
             </PivotItem>
-            <PivotItem Header="Fiche famille">
-                <Grid ColumnSpacing="20" Padding="0,0,16,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="360" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="12">
-                        <TextBlock TextWrapping="Wrap" Text="Fiche des rendez-vous à venir de toute la famille, à imprimer ou à envoyer par mail. Tapez un nom, un prénom ou une date de naissance, puis choisissez la personne." />
-                        <AutoSuggestBox x:Name="FamilyCardSearchBox" Header="Patient" PlaceholderText="Nom, prénom ou date de naissance (05/03/1980)" QueryIcon="Find"
-                                        TextChanged="FamilyCardSearch_TextChanged" QuerySubmitted="FamilyCardSearch_QuerySubmitted" />
-                        <ListView x:Name="FamilyCardResults" Header="Personnes trouvées" SelectionMode="Single" SelectionChanged="FamilyCardResults_SelectionChanged" MaxHeight="320">
-                            <ListView.ItemTemplate><DataTemplate x:DataType="services:FamilyCardCandidate">
-                                <TextBlock Text="{x:Bind Display}" TextWrapping="Wrap" Margin="0,6" />
-                            </DataTemplate></ListView.ItemTemplate>
-                        </ListView>
-                        <TextBlock x:Name="FamilyCardMembersHeader" Text="Personnes sur la fiche (décochez pour retirer)" FontWeight="SemiBold" Visibility="Collapsed" />
-                        <StackPanel x:Name="FamilyCardMembersPanel" Spacing="2" />
-                        <TextBlock x:Name="FamilyCardStatus" TextWrapping="Wrap" IsTextSelectionEnabled="True" Opacity="0.85" />
-                        <Button x:Name="FamilyCardPrintButton" Style="{StaticResource AccentButtonStyle}" Content="Imprimer la fiche" Click="FamilyCardPrint_Click" IsEnabled="False" />
-                        <ComboBox x:Name="FamilyCardEmailBox" Header="Envoyer par mail à" IsEditable="True" HorizontalAlignment="Stretch" PlaceholderText="adresse@exemple.fr" />
-                        <Button x:Name="FamilyCardMailButton" Content="Envoyer la fiche par mail" Click="FamilyCardMail_Click" IsEnabled="False" />
-                    </StackPanel>
-                    <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8">
-                        <WebView2 x:Name="FamilyCardPreview" MinHeight="520" />
-                    </Border>
-                </Grid>
-            </PivotItem>
             <PivotItem Header="Familles">
                 <Grid RowSpacing="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
