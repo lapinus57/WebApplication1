@@ -141,6 +141,7 @@ builder.Services.AddSingleton(sp => new ChatServeur.SmsMail.SmsMailServerSetting
     sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), Path.Combine(dbFolder, "sms-mail-settings.dat")));
 builder.Services.AddSingleton<ChatServeur.SmsMail.SmsMailDelivery>();
 builder.Services.AddScoped<ChatServeur.SmsMail.ISmsMailAgenda, ChatServeur.SmsMail.SmsMailAccessAgenda>();
+builder.Services.AddScoped<ChatServeur.SmsMail.FamilyCardService>();
 // Familles reconstituées (agenda, photo Vitale, exports des paiements, décisions manuelles) : data/families.db.
 builder.Services.AddSingleton(new ChatServeur.Families.FamilyStore(Path.Combine(dbFolder, "families.db")));
 builder.Services.AddSingleton<ChatServeur.Families.FamilyRebuild>();

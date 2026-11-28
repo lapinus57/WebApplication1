@@ -37,6 +37,8 @@ try
     builder.Services.AddSingleton<ChatServeur.SmsMail.ISmsMailAgenda, FakeAgenda>();
     var versions = new ChatServeur.ClientUpdate.ClientVersionRegistry(folder);
     builder.Services.AddSingleton(versions);
+    builder.Services.AddDbContext<ChatServeur.EyeMail.EyeMailDbContext>(o => o.UseSqlite($"Data Source={Path.Combine(folder, "eyemail.db")}"));
+    builder.Services.AddScoped<ChatServeur.SmsMail.FamilyCardService>();
     // Réponses des patients : service externe et envoi de mail simulés (aucun appel réseau réel).
     var relay = new FakeRelay();
     var mailer = new FakeMailer();
@@ -47,7 +49,16 @@ try
     builder.Services.AddScoped<ChatServeur.Replies.ReplyLinkServiceFactory>();
     await using var app = builder.Build();
     using (var scope = app.Services.CreateScope())
+    {
         scope.ServiceProvider.GetRequiredService<ChatDbContext>().Database.EnsureCreated();
+        var eyeMail = scope.ServiceProvider.GetRequiredService<ChatServeur.EyeMail.EyeMailDbContext>();
+        eyeMail.Database.EnsureCreated();
+        eyeMail.Patients.AddRange(
+            new ChatServeur.EyeMail.EyeMailPatient { AccessPatientId = "601", LastName = "BRUN", FirstName = "Ana", BirthDate = new DateTime(1980, 3, 5), Email = "ana@example.fr", City = "Metz", IsActive = true, SearchName = ChatServeur.EyeMail.EyeMailColumns.SearchText("BRUN", "Ana", "", "601") },
+            new ChatServeur.EyeMail.EyeMailPatient { AccessPatientId = "602", LastName = "BRUN", FirstName = "Eli", BirthDate = new DateTime(2015, 6, 1), City = "Metz", IsActive = true, SearchName = ChatServeur.EyeMail.EyeMailColumns.SearchText("BRUN", "Eli", "", "602") },
+            new ChatServeur.EyeMail.EyeMailPatient { AccessPatientId = "777", LastName = "NOIR", FirstName = "Ana", BirthDate = new DateTime(1990, 1, 1), IsActive = true, SearchName = ChatServeur.EyeMail.EyeMailColumns.SearchText("NOIR", "Ana", "", "777") });
+        eyeMail.SaveChanges();
+    }
     // Même contrôle que Program.cs.
     app.Use(async (context, next) =>
     {
@@ -330,7 +341,7 @@ try
     var local = new Client.SmsMail.Configuration.SmsMailSettings { Cabinet = "Cabinet Test" };
     local.Sms.ApplicationSecret = "SECRET-OVH"; local.Sms.ConsumerKey = "CONSUMER-OVH"; local.Sms.ServiceName = "sms-test";
     local.Email.Password = "MOT-DE-PASSE-SMTP"; local.Email.SmtpHost = "127.0.0.1"; local.Email.SmtpPort = 1; local.Email.EnableSsl = false;
-    local.Email.FromAddress = "cabinet@example.fr"; local.Email.UserName = "cabinet";
+    local.Email.FromAddress = "cabinet@example.fr"; local.Email.SenderAddress = "cabinet@example.fr"; local.Email.UserName = "cabinet";
     Check(await secretariat.InvokeAsync<bool>("SmsMailSettingsImport", local) && !await posteB.InvokeAsync<bool>("SmsMailSettingsImport", local),
         "Les réglages du premier poste mis à jour sont importés, une seule fois");
     var common = await posteB.InvokeAsync<Client.SmsMail.Models.SmsMailStationSettings>("SmsMailSettingsGet");
@@ -410,6 +421,28 @@ try
     try { await oldPc.InvokeAsync<EyeChat.ClientUpdate.ClientUpdateInfo>("ReportClientVersion", "pas une version", "X"); Check(false, "Version invalide refusée"); }
     catch (HubException) { checks++; }
 
+    // 11. Fiche « RDV de la famille » : recherche, fiche des RDV à venir, envoi par mail par le serveur.
+    var byName = await secretariat.InvokeAsync<List<Client.SmsMail.Services.FamilyCardCandidate>>("FamilyCardSearch", "brun ana");
+    Check(byName.Single() is { PatientId: 601, FamilySize: 2 } c601 && c601.Display.Contains("05/03/1980"), "Recherche par nom et prénom : la personne, avec la taille de sa famille");
+    var byBirth = await secretariat.InvokeAsync<List<Client.SmsMail.Services.FamilyCardCandidate>>("FamilyCardSearch", "5/3/1980");
+    Check(byBirth.Single().PatientId == 601, "Recherche par date de naissance");
+    Check((await secretariat.InvokeAsync<List<Client.SmsMail.Services.FamilyCardCandidate>>("FamilyCardSearch", "ana")).Select(c => c.PatientId).OrderBy(x => x).SequenceEqual(new[] { 601, 777 }),
+        "Recherche par prénom seul : plusieurs personnes");
+    var card = await secretariat.InvokeAsync<Client.SmsMail.Services.FamilyCard>("FamilyCardGet", 602);
+    Check(card.Members.Select(m => m.PatientId).SequenceEqual(new[] { 602, 601 }) && card.Appointments.Select(a => a.PatientId).SequenceEqual(new[] { 601, 602 })
+        && card.Appointments[0].Name == "Ana BRUN" && card.Emails.SequenceEqual(new[] { "ana@example.fr" }) && card.Cabinet == "Cabinet Modifié",
+        "Fiche : toute la famille, RDV à venir dans l'ordre, mail proposé");
+    var html = Client.SmsMail.Services.FamilyCardDocument.Html(card);
+    Check(html.Contains("Rendez-vous de la famille") && html.Contains("Ana BRUN") && html.Contains("Eli BRUN") && html.Contains("14:30") && !html.Contains("Remarque"),
+        "Fiche imprimable : membres, dates et heures");
+    var alone = await secretariat.InvokeAsync<Client.SmsMail.Services.FamilyCard>("FamilyCardGet", 777);
+    Check(alone.Members.Single().PatientId == 777 && Client.SmsMail.Services.FamilyCardDocument.Html(alone).Contains("Aucun rendez-vous à venir"), "Personne seule sans RDV");
+    var mailed = await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "ana@example.fr");
+    Check(mailed.StartsWith("Fiche famille — non confirmée") && (await secretariat.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad"))
+        .Any(h => h.Key.StartsWith("fiche-famille-601-") && h.Contact == "ana@example.fr" && h.Status.StartsWith("Fiche famille")), "Envoi par mail : résultat écrit dans l'historique");
+    try { await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "pas-une-adresse"); Check(false, "Adresse invalide refusée"); }
+    catch (HubException) { checks++; }
+
     foreach (var c in connections)
         await c.DisposeAsync();
     await app.StopAsync();
@@ -473,7 +506,13 @@ sealed class FakeAgenda : ChatServeur.SmsMail.ISmsMailAgenda
         Id = 4242, Nom = "AGENDA", Prenom = "Serveur", DateRDV = day, HeureRDV = day.AddHours(9.5), Tel1 = "0612345678"
     };
     public Task<List<Client.SmsMail.Models.RdvInfo>> DayAsync(DateTime day) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo> { Row(day) });
-    public Task<List<Client.SmsMail.Models.RdvInfo>> RangeAsync(DateTime from, DateTime to) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo> { Row(from) });
+    public Task<List<Client.SmsMail.Models.RdvInfo>> RangeAsync(DateTime from, DateTime to) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo>
+    {
+        Row(from.AddDays(2)),
+        new() { Id = 602, Nom = "BRUN", Prenom = "Eli", DateRDV = DateTime.Today.AddDays(10), HeureRDV = DateTime.Today.AddDays(10).AddHours(14.5) },
+        new() { Id = 601, Nom = "BRUN", Prenom = "Ana", DateRDV = DateTime.Today.AddDays(3), HeureRDV = DateTime.Today.AddDays(3).AddHours(10), Email = "ana@example.fr", Remarque = "Remarque privée" },
+        new() { Id = 601, Nom = "BRUN", Prenom = "Ana", DateRDV = DateTime.Today.AddDays(-5), HeureRDV = DateTime.Today.AddDays(-5).AddHours(10) },
+    });
     public Task<List<Client.SmsMail.Services.AgendaVisit>> HistoryAsync(DateTime today) => Task.FromResult(new List<Client.SmsMail.Services.AgendaVisit>
         { new() { PatientId = 4242, Date = today.AddYears(-1), RdvTime = today.AddYears(-1).AddHours(9), ArrivalTime = today.AddYears(-1).AddHours(8.9) } });
     public Task<Client.SmsMail.Models.SmsMailPostIts> PostItsAsync(DateTime from, DateTime to) => Task.FromResult(new Client.SmsMail.Models.SmsMailPostIts

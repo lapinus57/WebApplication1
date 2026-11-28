@@ -266,6 +266,30 @@ namespace ChatServeur
 
         public Task<int> SmsMailApplyMailReports() => SmsMailGuardAsync(() => _smsMailDelivery.ApplyMailReportsAsync());
 
+        // ---------- Fiche « RDV de la famille » ----------
+
+        private ChatServeur.SmsMail.FamilyCardService FamilyCards()
+            => Context.GetHttpContext()!.RequestServices.GetRequiredService<ChatServeur.SmsMail.FamilyCardService>();
+
+        /// <summary>Patients par nom, prénom (plusieurs mots) ou date de naissance (05/03/1980).</summary>
+        public Task<List<Client.SmsMail.Services.FamilyCardCandidate>> FamilyCardSearch(string query)
+        {
+            if ((query ?? "").Length > 80) throw new HubException("Recherche trop longue.");
+            return SmsMailGuardAsync(() => FamilyCards().SearchAsync(query ?? "", DateTime.Today));
+        }
+
+        /// <summary>Fiche des RDV à venir de la famille du patient choisi.</summary>
+        public Task<Client.SmsMail.Services.FamilyCard> FamilyCardGet(int patientId)
+            => SmsMailGuardAsync(() => FamilyCards().BuildAsync(patientId, DateTime.Today));
+
+        /// <summary>Envoie la fiche par mail depuis le serveur ; renvoie le résultat (aussi écrit dans l'historique).</summary>
+        public Task<string> FamilyCardSendMail(int patientId, string email)
+        {
+            if (!TryGetCaller(out var caller)) throw new HubException("Poste non identifié : reconnectez-vous.");
+            _logger.LogInformation("Fiche RDV de famille envoyée par mail par {User}.", caller.Username);
+            return SmsMailGuardAsync(() => FamilyCards().SendMailAsync(patientId, email, DateTime.Today));
+        }
+
         // Les erreurs d'Access, d'OVH ou du serveur mail ne contiennent pas de données patient : elles sont transmises au poste.
         private T SmsMailGuard<T>(Func<T> action)
         {

@@ -242,3 +242,13 @@ refusées. Les rendez-vous hors des créneaux restent inchangés.
 Les clés anti-doublon ne dépendent pas de l’heure : modifier un horaire n’autorise
 pas à renvoyer un rappel déjà traité. Toute modification des règles exige une
 nouvelle préparation avant l’envoi.
+
+## Fiche « RDV de la famille »
+
+Onglet **Fiche famille** : tapez un nom, un prénom (plusieurs mots possibles) ou une date de naissance (`05/03/1980`),
+puis choisissez la personne. Le serveur assemble la fiche : toute la famille de cette personne (page Familles du serveur ;
+la personne seule si elle n'est dans aucune famille) et les **rendez-vous à venir** de chacun (13 mois), du plus proche
+au plus lointain, sans remarque. **Imprimer la fiche** ouvre l'impression (A4) ; **Envoyer la fiche par mail** l'envoie
+depuis le serveur à l'adresse choisie (les mails connus de la famille sont proposés), avec une trace dans l'historique.
+La recherche utilise la base patients du serveur (administration → Base patients → importer) ; sans elle, seuls les
+patients ayant un rendez-vous à venir sont trouvés, par leur nom.

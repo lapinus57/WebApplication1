@@ -751,6 +751,85 @@ namespace Client.Pages
             }
         }
 
+        // ---------- Onglet « Fiche famille » : RDV à venir de toute la famille (le serveur cherche, assemble et envoie) ----------
+
+        private CancellationTokenSource? _familyCardSearch;
+        private FamilyCard? _familyCard;
+
+        private async void FamilyCardSearch_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            // Petite pause pendant la frappe : une seule recherche au serveur quand on s'arrête de taper.
+            _familyCardSearch?.Cancel();
+            var pause = _familyCardSearch = new CancellationTokenSource();
+            try { await Task.Delay(350, pause.Token); } catch (TaskCanceledException) { return; }
+            await SearchFamilyCardAsync(sender.Text);
+        }
+
+        private async void FamilyCardSearch_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        {
+            _familyCardSearch?.Cancel();
+            await SearchFamilyCardAsync(args.QueryText);
+        }
+
+        private async Task SearchFamilyCardAsync(string text)
+        {
+            var query = (text ?? "").Trim();
+            if (query.Length < 2) { FamilyCardResults.ItemsSource = null; FamilyCardStatus.Text = ""; return; }
+            try
+            {
+                var found = await Server().InvokeAsync<List<FamilyCardCandidate>>("FamilyCardSearch", query);
+                if (FamilyCardSearchBox.Text.Trim() != query) return; // une frappe plus récente a pris le relais
+                FamilyCardResults.ItemsSource = found;
+                FamilyCardStatus.Text = found.Count == 0 ? "Personne trouvée. (La recherche utilise la base patients du serveur : pensez à l'importer dans l'administration → Base patients.)"
+                    : found.Count == 1 ? "Choisissez la personne pour créer la fiche." : $"{found.Count} personnes trouvées : choisissez la bonne.";
+                if (found.Count == 1) FamilyCardResults.SelectedIndex = 0;
+            }
+            catch (Exception ex) { FamilyCardStatus.Text = "Recherche impossible : " + ex.Message; }
+        }
+
+        private async void FamilyCardResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FamilyCardResults.SelectedItem is not FamilyCardCandidate chosen) return;
+            FamilyCardPrintButton.IsEnabled = FamilyCardMailButton.IsEnabled = false;
+            FamilyCardStatus.Text = "Création de la fiche…";
+            try
+            {
+                _familyCard = await Server().InvokeAsync<FamilyCard>("FamilyCardGet", chosen.PatientId);
+                await FamilyCardPreview.EnsureCoreWebView2Async();
+                FamilyCardPreview.NavigateToString(FamilyCardDocument.Html(_familyCard));
+                FamilyCardEmailBox.ItemsSource = _familyCard.Emails;
+                FamilyCardEmailBox.Text = _familyCard.Emails.FirstOrDefault() ?? "";
+                FamilyCardStatus.Text = $"{_familyCard.Members.Count} personne(s), {_familyCard.Appointments.Count} rendez-vous à venir.";
+                FamilyCardPrintButton.IsEnabled = FamilyCardMailButton.IsEnabled = true;
+            }
+            catch (Exception ex) { FamilyCardStatus.Text = "Fiche impossible : " + ex.Message; }
+        }
+
+        private async void FamilyCardPrint_Click(object sender, RoutedEventArgs e)
+        {
+            if (_familyCard == null || FamilyCardPreview.CoreWebView2 == null) return;
+            try { FamilyCardPreview.CoreWebView2.ShowPrintUI(Microsoft.Web.WebView2.Core.CoreWebView2PrintDialogKind.Browser); }
+            catch (Exception) { await FamilyCardPreview.CoreWebView2.ExecuteScriptAsync("window.print()"); }
+        }
+
+        private async void FamilyCardMail_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+        {
+            if (_familyCard == null) return;
+            var email = (FamilyCardEmailBox.Text ?? "").Trim();
+            if (!System.Net.Mail.MailAddress.TryCreate(email, out _)) throw new InvalidOperationException("Indiquez une adresse mail valide.");
+            var dialog = new ContentDialog
+            {
+                Title = "Envoyer la fiche par mail ?", XamlRoot = XamlRoot, PrimaryButtonText = "Envoyer", CloseButtonText = "Annuler", DefaultButton = ContentDialogButton.Close,
+                Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = $"Fiche de {string.Join(", ", _familyCard.Members.Select(m => m.Name))} ({_familyCard.Appointments.Count} rendez-vous) à {email}." }
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            FamilyCardStatus.Text = "Envoi par le serveur…";
+            var result = await Server().InvokeAsync<string>("FamilyCardSendMail", _familyCard.PatientId, email);
+            FamilyCardStatus.Text = result + " (visible dans l'historique).";
+            await ReloadHistoryAsync();
+        });
+
         // ---------- Onglet « Message individuel » ----------
 
         private const string ReplyEmailSetting = "SmsMailReplyEmail";
