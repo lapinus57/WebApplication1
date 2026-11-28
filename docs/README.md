@@ -7,6 +7,7 @@ Ce dossier contient des pages d'aide pour l'application **EyeChat**.
 - [Dépannage du démarrage](depannage-demarrage.md) : vérifications à effectuer si EyeChat ne se lance pas.
 - [Application iOS](application-ios.md) : installation de la vue mobile, notifications et recommandations de sécurité.
 - [Base patients EyeMail](eyemail.md) : base EyeChat des patients (`data/eyemail.db`), import depuis Access.
+- [Mise à jour des postes](mise-a-jour-postes.md) : versions des postes, dossier `uptEye`, bandeau « Mettre à jour ».
 - [Familles reconstituées](familles.md) : familles calculées par le serveur (agenda, carte Vitale, paiements), page « Familles » et regroupement des rappels.
 - [Analyse du code](analyse-code.md) : points corrigés et recommandations de sécurité restantes.
 

@@ -166,12 +166,15 @@ namespace ChatServeur
         private readonly ChatServeur.SmsMail.SmsMailServerSettings _smsMailSettings;
         private readonly ChatServeur.SmsMail.SmsMailDelivery _smsMailDelivery;
         private readonly ChatServeur.SmsMail.ISmsMailAgenda _smsMailAgenda;
+        private readonly ChatServeur.ClientUpdate.ClientVersionRegistry _clientVersions;
 
         public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, StationAccess access,
             EyeChat.SmsMail.SmsMailHistoryStore smsMailHistory, ChatServeur.Replies.ReplyLinkServiceFactory replies,
             ChatServeur.Families.FamilyStore families, ChatServeur.SmsMail.SmsMailServerSettings smsMailSettings,
-            ChatServeur.SmsMail.SmsMailDelivery smsMailDelivery, ChatServeur.SmsMail.ISmsMailAgenda smsMailAgenda)
+            ChatServeur.SmsMail.SmsMailDelivery smsMailDelivery, ChatServeur.SmsMail.ISmsMailAgenda smsMailAgenda,
+            ChatServeur.ClientUpdate.ClientVersionRegistry clientVersions)
         {
+            _clientVersions = clientVersions;
             _smsMailSettings = smsMailSettings;
             _smsMailDelivery = smsMailDelivery;
             _smsMailAgenda = smsMailAgenda;
@@ -193,6 +196,26 @@ namespace ChatServeur
             => _smsMailHistory.ApplyReportAsync(messageKey, recipient, status, smtpHost);
         public Task<DateTimeOffset?> SmsMailEarliestMail(string smtpHost) => _smsMailHistory.EarliestMailAsync(smtpHost);
         public Task<List<EyeChat.SmsMail.HistoryRecord>> SmsMailLoad() => _smsMailHistory.LoadAsync();
+
+        // ---------- Versions des postes ----------
+
+        /// <summary>
+        /// Le poste annonce sa version à chaque connexion. Le serveur répond avec la version la plus avancée connue et le dossier
+        /// des mises à jour ; si ce poste est le premier à avoir cette version, les autres postes sont avertis.
+        /// </summary>
+        public async Task<EyeChat.ClientUpdate.ClientUpdateInfo> ReportClientVersion(string version, string machineName)
+        {
+            if (EyeChat.ClientUpdate.ClientVersions.Parse(version) == null) throw new HubException("Version invalide.");
+            var user = TryGetCaller(out var caller) ? caller.Username : "";
+            var before = _clientVersions.Record(machineName, user, version, DateTime.UtcNow);
+            var info = _clientVersions.Info(DateTime.UtcNow);
+            if (EyeChat.ClientUpdate.ClientVersions.IsNewer(version, before.Length > 0 ? before : "0.0.0.0") && before.Length > 0)
+            {
+                _logger.LogInformation("Nouvelle version d'EyeChat sur {Machine} : {Version} (avant : {Before}).", machineName, version, before);
+                await Clients.Others.SendAsync("ClientUpdateAvailable", info);
+            }
+            return info;
+        }
 
         // ---------- Rappels SMS et mail : réglages communs, agenda et envoi par le serveur ----------
 

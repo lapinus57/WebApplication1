@@ -134,6 +134,8 @@ builder.Services.AddScoped<IEyeMailSource, EyeMailAccessSource>();
 builder.Services.AddSingleton<EyeMailImport>();
 // Historique des SMS et mails, commun à tous les postes.
 builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(dbFolder, "sms-mail-history.db")));
+// Versions des postes et dossier des mises à jour (data\client-versions.json, data\client-update.json).
+builder.Services.AddSingleton(new ChatServeur.ClientUpdate.ClientVersionRegistry(dbFolder));
 // Rappels SMS et mail : réglages communs (data\sms-mail-settings.dat, chiffré), agenda lu et messages envoyés par le serveur.
 builder.Services.AddSingleton(sp => new ChatServeur.SmsMail.SmsMailServerSettings(
     sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), Path.Combine(dbFolder, "sms-mail-settings.dat")));
@@ -191,6 +193,7 @@ app.Use(async (context, next) =>
         context.Request.Path.StartsWithSegments("/AccessSettings") ||
         context.Request.Path.StartsWithSegments("/Replies") ||
         context.Request.Path.StartsWithSegments("/Families") ||
+        context.Request.Path.StartsWithSegments("/Clients") ||
         context.Request.Path.StartsWithSegments("/Login") ||
         context.Request.Path.StartsWithSegments("/Logout");
     if (!useDevelopmentHttp && !context.Request.IsHttps && isAdministrationPage)

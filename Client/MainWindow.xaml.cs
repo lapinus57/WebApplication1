@@ -24,6 +24,7 @@ namespace Client
         public MainWindow()
         {
             this.InitializeComponent();
+            App.ChatService.UpdateAvailable += ChatService_UpdateAvailable;
             // Use the custom AppTitleBar element as the window title bar
             this.ExtendsContentIntoTitleBar = true;
             this.SetTitleBar(AppTitleBar);
@@ -198,6 +199,37 @@ namespace Client
             if (Application.Current is App app)
             {
                 app.RefreshAgendaTimer();
+            }
+        }
+    
+        private Client.Services.ClientUpdateNotice? _update;
+
+        /// <summary>Un poste plus récent existe, ou un paquet plus récent est dans le dossier des mises à jour.</summary>
+        private void ChatService_UpdateAvailable(object? sender, Client.Services.ClientUpdateNotice notice)
+        {
+            _update = notice;
+            var where = notice.LatestMachine.Length > 0 ? $" (déjà installée sur {notice.LatestMachine})" : "";
+            UpdateBar.Message = $"Version {notice.LatestVersion} disponible{where} ; ce poste a la version {notice.CurrentVersion}. "
+                + (notice.InstallerPath != null ? "« Mettre à jour » ouvre l'installation ; fermez EyeChat quand l'installeur le demande."
+                   : notice.UpdateFolder.Length > 0 ? $"Paquet introuvable dans {notice.UpdateFolder} : déposez-y le dossier Client_{notice.LatestVersion}_Test."
+                   : "Aucun dossier de mise à jour n'est réglé sur le serveur (administration → Postes).");
+            UpdateButton.Content = notice.InstallerPath != null ? "Mettre à jour" : "Ouvrir le dossier";
+            UpdateButton.IsEnabled = notice.InstallerPath != null || notice.UpdateFolder.Length > 0;
+            UpdateBar.IsOpen = true;
+        }
+
+        private void UpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_update == null) return;
+            try
+            {
+                var target = _update.InstallerPath ?? _update.PackageFolder ?? _update.UpdateFolder;
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                UpdateBar.Severity = InfoBarSeverity.Warning;
+                UpdateBar.Message = "Impossible d'ouvrir la mise à jour : " + ex.Message;
             }
         }
     }

@@ -16,6 +16,8 @@
     <Compile Include="../../Serveur/Hubs/*.cs" LinkBase="Hubs" />
     <Compile Include="../../Serveur/Replies/*.cs" LinkBase="Replies" />
     <Compile Include="../../Serveur/Families/FamilyStore.cs" Link="Families/FamilyStore.cs" />
+    <Compile Include="../../Serveur/ClientUpdate/*.cs" LinkBase="ClientUpdate" />
+    <Compile Include="../../Shared/ClientUpdate/*.cs" LinkBase="SharedClientUpdate" />
     <Compile Include="../../Serveur/SmsMail/*.cs" Exclude="../../Serveur/SmsMail/SmsMailAccessAgenda.cs" LinkBase="ServerSmsMail" />
     <Compile Include="../../Client/SmsMail/**/*.cs" Exclude="../../Client/SmsMail/Services/EyeEmailFamilyDatabase.cs" LinkBase="ClientSmsMail" />
     <PackageReference Include="MailKit" Version="4.18.1" />

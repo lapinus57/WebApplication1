@@ -57,6 +57,7 @@
         </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid x:Name="AppTitleBar" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" Height="48" Grid.Row="0" Loaded="AppTitleBar_Loaded" SizeChanged="AppTitleBar_Loaded">
@@ -98,7 +99,12 @@
                 </Button.Flyout>
             </Button>
         </Grid>
-        <NavigationView x:Name="nvSample" Grid.Row="1" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged" IsBackEnabled="False" MenuItemContainerStyle="{StaticResource NavItemStyle}">
+        <InfoBar x:Name="UpdateBar" Grid.Row="1" IsOpen="False" IsClosable="True" Severity="Informational" Title="Nouvelle version d'EyeChat">
+            <InfoBar.ActionButton>
+                <Button x:Name="UpdateButton" Content="Mettre à jour" Click="UpdateButton_Click" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+        <NavigationView x:Name="nvSample" Grid.Row="2" PaneDisplayMode="LeftCompact" IsPaneToggleButtonVisible="False" SelectionChanged="nvSample_SelectionChanged" IsBackEnabled="False" MenuItemContainerStyle="{StaticResource NavItemStyle}">
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Chat" Tag="ChatPage" Icon="LeaveChat" />
                 <NavigationViewItem Content="Historique" Tag="HistoryPage" Icon="People" />

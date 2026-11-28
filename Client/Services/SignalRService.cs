@@ -414,6 +414,54 @@ namespace Client.Services
             _patientsDay = DateTime.Today;
 
             await SyncServerConfigurationAsync();
+            await ReportClientVersionAsync();
+        }
+
+        // ---------- Version du poste ----------
+
+        /// <summary>Une version plus récente existe (autre poste ou dossier des mises à jour) : la fenêtre affiche un bandeau.</summary>
+        public event EventHandler<ClientUpdateNotice>? UpdateAvailable;
+
+        /// <summary>Version installée de ce poste (paquet MSIX), ou celle du programme hors paquet.</summary>
+        public static string CurrentVersion()
+        {
+            try
+            {
+                var v = Windows.ApplicationModel.Package.Current.Id.Version;
+                return $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+            }
+            catch (Exception)
+            {
+                return typeof(SignalRService).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
+            }
+        }
+
+        private async Task ReportClientVersionAsync()
+        {
+            if (!TryGetActiveConnection(out var connection)) return;
+            try
+            {
+                var info = await connection.InvokeAsync<EyeChat.ClientUpdate.ClientUpdateInfo>("ReportClientVersion", CurrentVersion(), Environment.MachineName);
+                await CheckUpdateAsync(info);
+            }
+            catch (Exception ex)
+            {
+                // Serveur d'une version précédente, ou dossier réseau inaccessible : pas de bandeau, rien d'autre ne change.
+                Logger.LogException("[SignalRService] Vérification de version", ex);
+            }
+        }
+
+        /// <summary>Compare la version de ce poste à celle du serveur et au paquet le plus récent du dossier des mises à jour (lu par le poste).</summary>
+        private async Task CheckUpdateAsync(EyeChat.ClientUpdate.ClientUpdateInfo info)
+        {
+            var mine = CurrentVersion();
+            var package = await Task.Run(() => EyeChat.ClientUpdate.ClientVersions.FindLatest(info.UpdateFolder));
+            var latest = EyeChat.ClientUpdate.ClientVersions.Max(new[] { info.LatestVersion, package?.Version.ToString() ?? "" });
+            if (!EyeChat.ClientUpdate.ClientVersions.IsNewer(latest, mine)) return;
+            var usable = package != null && package.Version.ToString() == latest ? package : null;
+            var notice = new ClientUpdateNotice(mine, latest, info.LatestMachine, info.UpdateFolder, usable?.InstallerPath, usable?.Folder);
+            if (Dispatcher is DispatcherQueue dispatcher && !dispatcher.HasThreadAccess) dispatcher.TryEnqueue(() => UpdateAvailable?.Invoke(this, notice));
+            else UpdateAvailable?.Invoke(this, notice);
         }
 
         public async Task ConnectAsync(string username, string avatar, string room, string color)
@@ -483,6 +531,8 @@ namespace Client.Services
                 if (EnableReconnect)
                     StartReconnectTimer();
             };
+
+            connection.On<EyeChat.ClientUpdate.ClientUpdateInfo>("ClientUpdateAvailable", info => _ = CheckUpdateAsync(info));
 
             connection.On<UserInfo>("UserConnected", user =>
             {
@@ -2617,4 +2667,11 @@ namespace Client.Services
             await SaveUsersToDiskAsync();
         }
     }
+}
+
+namespace Client.Services
+{
+    /// <summary>Mise à jour disponible : version de ce poste, version la plus récente, et le paquet à ouvrir s'il est trouvé.</summary>
+    public sealed record ClientUpdateNotice(string CurrentVersion, string LatestVersion, string LatestMachine, string UpdateFolder,
+        string? InstallerPath, string? PackageFolder);
 }

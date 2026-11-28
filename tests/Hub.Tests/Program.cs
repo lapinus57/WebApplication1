@@ -35,6 +35,8 @@ try
         sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), Path.Combine(folder, "sms-mail-settings.dat")));
     builder.Services.AddSingleton<ChatServeur.SmsMail.SmsMailDelivery>();
     builder.Services.AddSingleton<ChatServeur.SmsMail.ISmsMailAgenda, FakeAgenda>();
+    var versions = new ChatServeur.ClientUpdate.ClientVersionRegistry(folder);
+    builder.Services.AddSingleton(versions);
     // Réponses des patients : service externe et envoi de mail simulés (aucun appel réseau réel).
     var relay = new FakeRelay();
     var mailer = new FakeMailer();
@@ -377,6 +379,36 @@ try
         Check(false, "Réglages SMS incomplets : refusé");
     }
     catch (HubException ex) { Check(ex.Message.Length > 0, "Réglages SMS incomplets : le message d'erreur est transmis au poste"); }
+
+    // 10. Versions des postes : un poste plus récent se connecte, les plus anciens sont avertis.
+    var oldPc = await Connect();
+    await oldPc.InvokeAsync("RegisterUser", "Accueil", "", "Accueil", "Blue", "PC-ANCIEN");
+    var firstReport = await oldPc.InvokeAsync<EyeChat.ClientUpdate.ClientUpdateInfo>("ReportClientVersion", "0.1.34.0", "PC-ANCIEN");
+    Check(firstReport.LatestVersion == "0.1.34.0" && firstReport.LatestMachine == "PC-ANCIEN", "Premier poste : sa version est la plus récente");
+    var warned = Expect<EyeChat.ClientUpdate.ClientUpdateInfo>(oldPc, "ClientUpdateAvailable");
+    var newPc = await Connect();
+    await newPc.InvokeAsync("RegisterUser", "Docteur", "", "Salle 1", "Blue", "PC-NOUVEAU");
+    var secondReport = await newPc.InvokeAsync<EyeChat.ClientUpdate.ClientUpdateInfo>("ReportClientVersion", "0.1.38.0", "PC-NOUVEAU");
+    var notice = await warned.Task.WaitAsync(timeout);
+    Check(secondReport.LatestVersion == "0.1.38.0" && notice.LatestVersion == "0.1.38.0" && notice.LatestMachine == "PC-NOUVEAU",
+        "Un poste plus récent se connecte : les postes plus anciens sont avertis");
+    Check(EyeChat.ClientUpdate.ClientVersions.IsNewer(notice.LatestVersion, "0.1.34.0") && !EyeChat.ClientUpdate.ClientVersions.IsNewer("0.1.38.0", "0.1.38.0"),
+        "Comparaison des versions");
+    var updates = Path.Combine(folder, "uptEye");
+    Directory.CreateDirectory(Path.Combine(updates, "Client_0.1.40.0_Test"));
+    File.WriteAllText(Path.Combine(updates, "Client_0.1.40.0_Test", "Client_0.1.40.0_x64.msixbundle"), "paquet");
+    File.WriteAllText(Path.Combine(updates, "Client_0.1.40.0_Test", "Install.ps1"), "");
+    Directory.CreateDirectory(Path.Combine(updates, "Client_0.1.39.0_Test"));
+    versions.UpdateFolder = updates;
+    var withFolder = await oldPc.InvokeAsync<EyeChat.ClientUpdate.ClientUpdateInfo>("ReportClientVersion", "0.1.34.0", "PC-ANCIEN");
+    var newestPackage = EyeChat.ClientUpdate.ClientVersions.FindLatest(updates);
+    Check(withFolder.LatestVersion == "0.1.40.0" && withFolder.LatestMachine == "" && withFolder.UpdateFolder == updates
+        && newestPackage!.Version == new Version(0, 1, 40, 0) && newestPackage.InstallerPath!.EndsWith("Client_0.1.40.0_x64.msixbundle"),
+        "Paquet plus récent déposé dans le dossier des mises à jour : trouvé, avec son .msixbundle");
+    Check(EyeChat.ClientUpdate.ClientVersions.FindLatest(Path.Combine(folder, "absent")) == null, "Dossier absent : aucune erreur");
+    Check(versions.Entries().Select(e => e.Machine).SequenceEqual(new[] { "PC-NOUVEAU", "PC-ANCIEN" }), "Liste des postes et de leurs versions");
+    try { await oldPc.InvokeAsync<EyeChat.ClientUpdate.ClientUpdateInfo>("ReportClientVersion", "pas une version", "X"); Check(false, "Version invalide refusée"); }
+    catch (HubException) { checks++; }
 
     foreach (var c in connections)
         await c.DisposeAsync();

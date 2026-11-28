@@ -17,6 +17,10 @@
     <Compile Include="../../Serveur/Families/*.cs" LinkBase="Families" />
     <Compile Include="../../Serveur/Pages/Families.cshtml.cs" Link="Pages/Families.cshtml.cs" />
     <Content Include="../../Serveur/Pages/Families.cshtml" Link="Pages/Families.cshtml" />
+    <Compile Include="../../Serveur/Pages/Clients.cshtml.cs" Link="Pages/Clients.cshtml.cs" />
+    <Content Include="../../Serveur/Pages/Clients.cshtml" Link="Pages/Clients.cshtml" />
+    <Compile Include="../../Serveur/ClientUpdate/*.cs" LinkBase="ClientUpdate" />
+    <Compile Include="../../Shared/ClientUpdate/*.cs" LinkBase="SharedClientUpdate" />
     <Content Include="../../Serveur/Pages/_ViewImports.cshtml" Link="Pages/_ViewImports.cshtml" />
     <Compile Include="../../Serveur/Fundus/*.cs" LinkBase="ServerFundus" />
     <Compile Include="../../Serveur/Registry/*.cs" LinkBase="Registry" />

@@ -143,6 +143,10 @@ try
     var pageStore = new FamilyStore(Path.Combine(folder, "page.db"));
     builder.Services.AddSingleton(pageStore);
     builder.Services.AddSingleton<FamilyRebuild>();
+    var registry = new ChatServeur.ClientUpdate.ClientVersionRegistry(folder);
+    registry.Record("PC-ACCUEIL", "Accueil", "0.1.34.0", DateTime.UtcNow);
+    registry.Record("PC-DOCTEUR", "Docteur", "0.1.38.0", DateTime.UtcNow);
+    builder.Services.AddSingleton(registry);
     var app = builder.Build();
     app.UseAuthentication(); app.UseAuthorization();
     app.MapRazorPages();
@@ -211,6 +215,12 @@ try
     var logText = await download.Content.ReadAsStringAsync();
     Check(download.Content.Headers.ContentDisposition?.FileName?.Contains("journal-anonymise") == true && logText.Contains("Réponse : Oui") && !logText.Contains("FICTIVE") && !logText.Contains("RUE DES TESTS"),
         "Page : journal anonymisé téléchargé, sans nom ni adresse");
+    var clients = System.Net.WebUtility.HtmlDecode(await http.GetStringAsync("/Clients"));
+    Check(clients.Contains("Versions des postes") && clients.Contains("PC-ACCUEIL") && clients.Contains("à mettre à jour") && clients.Contains("0.1.38.0 </strong>") == false
+        && clients.Contains("(sur PC-DOCTEUR)"), "Page Postes : versions et postes à mettre à jour");
+    var folderForm = new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = Token(clients), ["UpdateFolder"] = @"\\NAS\uptEye" });
+    var savedFolder = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/Clients", folderForm)).Content.ReadAsStringAsync());
+    Check(savedFolder.Contains("Dossier des mises à jour enregistré") && registry.UpdateFolder == @"\\NAS\uptEye", "Page Postes : dossier des mises à jour enregistré");
     var progress = await http.GetStringAsync("/Families?handler=Progress");
     Check(progress.Contains("\"running\":false"), "Suivi du calcul en JSON");
     await app.StopAsync();

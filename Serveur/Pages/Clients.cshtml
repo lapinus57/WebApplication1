@@ -1,0 +1,51 @@
+@page
+@model Serveur.Pages.ClientsModel
+@using EyeChat.ClientUpdate
+@{
+    ViewData["Title"] = "Postes";
+}
+<link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
+<section class="registry">
+    <header class="registry-heading">
+        <div><p class="registry-eyebrow">MISES À JOUR</p><h1>Versions des postes</h1>
+            <p>Chaque poste annonce sa version en se connectant. Dès qu'un poste a une version plus récente, les postes plus anciens
+               affichent un bandeau « Mettre à jour » qui ouvre le paquet du dossier des mises à jour.</p></div>
+    </header>
+    @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+
+    <section class="registry-card">
+        <h2>Dossier des mises à jour</h2>
+        <form method="post" class="registry-filters">
+            <label>Chemin réseau<input asp-for="UpdateFolder" placeholder="\\SERVEUR\Partage\uptEye" maxlength="400" /></label>
+            <button type="submit">Enregistrer</button>
+        </form>
+        <p class="registry-help">Déposez-y le dossier produit par Visual Studio (par exemple <code>Client_0.1.38.0_Test</code>, avec le
+            <code>.msixbundle</code> et <code>Install.ps1</code>). Utilisez un chemin réseau complet (<code>\\serveur\partage\uptEye</code>) plutôt
+            qu'une lettre de lecteur : les lettres ne sont pas les mêmes d'un poste à l'autre. Ce sont les postes qui lisent ce dossier.</p>
+        @if (Model.UpdateFolder.Length > 0)
+        {
+            <p>@(Model.FolderReadable ? "Le serveur voit ce dossier." : "Le serveur ne voit pas ce dossier (normal si son compte n'a pas accès au partage : les postes, eux, le liront).")
+                @if (Model.Package is { } p) { <span> Paquet le plus récent : <strong>@p.Version</strong>@(p.InstallerPath != null ? " (" + System.IO.Path.GetFileName(p.InstallerPath) + ")" : " (aucun .msixbundle trouvé dans le dossier)")</span> }</p>
+        }
+    </section>
+
+    <section class="registry-card">
+        <h2>Postes (@Model.Entries.Count)</h2>
+        <p>Version la plus récente connue : <strong>@(Model.Info.LatestVersion.Length > 0 ? Model.Info.LatestVersion : "—")</strong>
+            @(Model.Info.LatestMachine.Length > 0 ? $"(sur {Model.Info.LatestMachine})" : Model.Info.LatestVersion.Length > 0 ? "(dossier des mises à jour)" : "")</p>
+        <table class="registry-list">
+            <thead><tr><th>Poste</th><th>Utilisateur</th><th>Version</th><th>Dernière connexion</th><th>État</th></tr></thead>
+            <tbody>
+            @foreach (var e in Model.Entries)
+            {
+                var late = ClientVersions.IsNewer(Model.Info.LatestVersion, e.Version);
+                <tr>
+                    <td><strong>@e.Machine</strong></td><td>@e.User</td><td>@e.Version</td><td>@Model.Local(e.LastSeenUtc)</td>
+                    <td>@(late ? "à mettre à jour" : "à jour")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        @if (Model.Entries.Count == 0) { <p>Aucun poste ne s'est encore annoncé (les postes s'annoncent à partir de cette version).</p> }
+    </section>
+</section>

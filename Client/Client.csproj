@@ -27,6 +27,7 @@
     <Compile Include="..\Shared\Fundus\*.cs" Link="Fundus\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\SmsMail\*.cs" Link="SmsMail\Shared\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\ReadOnlyAccess.cs" Link="Services\ReadOnlyAccess.cs" />
+    <Compile Include="..\Shared\ClientUpdate\*.cs" Link="Services\ClientUpdate\%(Filename)%(Extension)" />
     <None Remove="Pages\SystemPage.xaml" />
   </ItemGroup>
   <ItemGroup>

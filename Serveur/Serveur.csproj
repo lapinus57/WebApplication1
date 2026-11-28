@@ -20,6 +20,7 @@
     <Compile Include="..\Shared\SmsMail\*.cs" Link="SmsMail\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\ReadOnlyAccess.cs" Link="Fundus\ReadOnlyAccess.cs" />
     <Compile Include="..\Shared\Families\*.cs" Link="SharedFamilies\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\ClientUpdate\*.cs" Link="SharedClientUpdate\%(Filename)%(Extension)" />
     <!-- Code SMS et mail du poste (préparation, OVH, SMTP, IMAP, lecture de l'agenda) : le serveur lit l'agenda et envoie. -->
     <Compile Include="..\Client\SmsMail\**\*.cs" Exclude="..\Client\SmsMail\Services\EyeEmailFamilyDatabase.cs" Link="ClientSmsMail\%(RecursiveDir)%(Filename)%(Extension)" />
     <PackageReference Include="MailKit" Version="4.18.1" />
