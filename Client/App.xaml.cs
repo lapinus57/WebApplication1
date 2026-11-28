@@ -122,6 +122,7 @@ namespace Client
                 // failure must not prevent EyeChat from opening on a newly configured computer.
                 m_window.Activate();
                 _ = RegisterForceCloseJumpListItemAsync();
+                StartStudioPostIt();
 
                 try
                 {
@@ -255,6 +256,44 @@ namespace Client
             finally
             {
                 Environment.Exit(0);
+            }
+        }
+
+        private Services.StudioWatcher? _studioWatcher;
+        private DayPostItWindow? _dayPostIt;
+
+        /// <summary>
+        /// Post-it de famille du jour : à chaque dossier ouvert dans StudioV (STUDIOV.INI), la fenêtre post-it s'ouvre au-dessus.
+        /// Désactivable (réglage « DayPostItEnabled » = false) ; chemin du fichier : réglage « StudioIniPath ».
+        /// </summary>
+        private void StartStudioPostIt()
+        {
+            try
+            {
+                if (!string.Equals(AppSettings.Get("DayPostItEnabled", "true"), "true", StringComparison.OrdinalIgnoreCase)) return;
+                var path = AppSettings.Get("StudioIniPath", Client.SmsMail.Services.StudioIni.DefaultPath);
+                _studioWatcher = new Services.StudioWatcher(path);
+                // Nouvelle consultation (numéro plus grand que tous ceux vus sur ce poste) : la fenêtre s'ouvre pour saisir.
+                // Simple ouverture de dossier : elle ne s'ouvre que si la famille a déjà un post-it aujourd'hui.
+                _studioWatcher.PatientOpened += (patient, consultation) => m_window?.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    long.TryParse(AppSettings.Get("StudioMaxConsult", "0"), out var maxSeen);
+                    var (isNew, max) = Client.SmsMail.Services.StudioIni.NewConsultation(consultation, maxSeen);
+                    if (max != maxSeen) AppSettings.Set("StudioMaxConsult", max.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    _dayPostIt ??= new DayPostItWindow();
+                    await _dayPostIt.ShowForAsync(patient, onlyIfExists: !isNew);
+                });
+                ChatService.DayPostItChanged += ids => { if (_dayPostIt != null) _ = _dayPostIt.RefreshIfShownAsync(ids); };
+                if (!_studioWatcher.Start()) { _studioWatcher.Dispose(); _studioWatcher = null; return; }
+                if (_studioWatcher.StartConsultation is int current)
+                {
+                    long.TryParse(AppSettings.Get("StudioMaxConsult", "0"), out var seen);
+                    if (current > seen) AppSettings.Set("StudioMaxConsult", current.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("[App] Post-it du jour (STUDIOV.INI)", ex);
             }
         }
 

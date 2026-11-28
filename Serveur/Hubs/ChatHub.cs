@@ -290,6 +290,34 @@ namespace ChatServeur
             return SmsMailGuardAsync(() => FamilyCards().SendMailAsync(patientId, email, DateTime.Today, excluded));
         }
 
+        // ---------- Post-it de famille du jour (ouvert à l'ouverture d'un dossier StudioV) ----------
+
+        private ChatServeur.SmsMail.DayPostItService DayPostIts()
+            => Context.GetHttpContext()!.RequestServices.GetRequiredService<ChatServeur.SmsMail.DayPostItService>();
+
+        /// <summary>Post-it du jour du patient ouvert sur un poste, avec sa famille et leurs heures de rendez-vous du jour.</summary>
+        public Task<EyeChat.SmsMail.DayPostIt> DayPostItGet(int patientId)
+        {
+            if (patientId <= 0) throw new HubException("Patient inconnu.");
+            return SmsMailGuardAsync(() => DayPostIts().GetAsync(patientId, DateTime.Today));
+        }
+
+        /// <summary>Enregistre le post-it du jour (texte vide : supprimé) et prévient les autres postes.</summary>
+        public async Task DayPostItSave(int patientId, string text, string color, List<int>? excluded)
+        {
+            if (!TryGetCaller(out var caller)) throw new HubException("Poste non identifié : reconnectez-vous.");
+            var patients = await SmsMailGuardAsync(() => DayPostIts().SaveAsync(patientId, DateTime.Today, text ?? "", color ?? "", caller.Username, excluded));
+            await Clients.Others.SendAsync("DayPostItChanged", patients);
+        }
+
+        /// <summary>Retire un patient du post-it du jour qu'il partage (il aura le sien) et prévient les postes.</summary>
+        public async Task DayPostItDetach(int patientId)
+        {
+            if (!TryGetCaller(out _)) throw new HubException("Poste non identifié : reconnectez-vous.");
+            var patients = await SmsMailGuardAsync(() => DayPostIts().DetachAsync(patientId, DateTime.Today));
+            if (patients.Count > 0) await Clients.All.SendAsync("DayPostItChanged", patients);
+        }
+
         // Les erreurs d'Access, d'OVH ou du serveur mail ne contiennent pas de données patient : elles sont transmises au poste.
         private T SmsMailGuard<T>(Func<T> action)
         {

@@ -16,6 +16,7 @@
     <Compile Include="../../Serveur/Hubs/*.cs" LinkBase="Hubs" />
     <Compile Include="../../Serveur/Replies/*.cs" LinkBase="Replies" />
     <Compile Include="../../Serveur/Families/FamilyStore.cs" Link="Families/FamilyStore.cs" />
+    <Compile Include="../../Serveur/Families/DayPostItStore.cs" Link="Families/DayPostItStore.cs" />
     <Compile Include="../../Serveur/ClientUpdate/*.cs" LinkBase="ClientUpdate" />
     <Compile Include="../../Serveur/EyeMail/*.cs" Exclude="../../Serveur/EyeMail/EyeMailAccessSource.cs" LinkBase="EyeMail" />
     <Compile Include="../../Shared/ClientUpdate/*.cs" LinkBase="SharedClientUpdate" />

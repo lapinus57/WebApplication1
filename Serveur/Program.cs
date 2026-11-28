@@ -142,6 +142,9 @@ builder.Services.AddSingleton(sp => new ChatServeur.SmsMail.SmsMailServerSetting
 builder.Services.AddSingleton<ChatServeur.SmsMail.SmsMailDelivery>();
 builder.Services.AddScoped<ChatServeur.SmsMail.ISmsMailAgenda, ChatServeur.SmsMail.SmsMailAccessAgenda>();
 builder.Services.AddScoped<ChatServeur.SmsMail.FamilyCardService>();
+// Post-it de famille du jour (data\day-postits.db) : affiché sur les postes à l'ouverture d'un dossier StudioV.
+builder.Services.AddSingleton(new ChatServeur.Families.DayPostItStore(Path.Combine(dbFolder, "day-postits.db")));
+builder.Services.AddScoped<ChatServeur.SmsMail.DayPostItService>();
 // Familles reconstituées (agenda, photo Vitale, exports des paiements, décisions manuelles) : data/families.db.
 builder.Services.AddSingleton(new ChatServeur.Families.FamilyStore(Path.Combine(dbFolder, "families.db")));
 builder.Services.AddSingleton<ChatServeur.Families.FamilyRebuild>();

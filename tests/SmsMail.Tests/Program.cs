@@ -188,6 +188,7 @@ checks += await RemarkAndPrintChecks.RunAsync();
 checks += GroupingChecks.Run();
 checks += ServerFamilyChecks.Run();
 checks += ConfigFileChecks.Run();
+checks += StudioIniChecks.Run();
 checks += ExportChecks.Run();
 checks += PostItChecks.Run();
 checks += PostItLinkChecks.Run();

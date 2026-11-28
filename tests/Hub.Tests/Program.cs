@@ -39,6 +39,8 @@ try
     builder.Services.AddSingleton(versions);
     builder.Services.AddDbContext<ChatServeur.EyeMail.EyeMailDbContext>(o => o.UseSqlite($"Data Source={Path.Combine(folder, "eyemail.db")}"));
     builder.Services.AddScoped<ChatServeur.SmsMail.FamilyCardService>();
+    builder.Services.AddSingleton(new ChatServeur.Families.DayPostItStore(Path.Combine(folder, "day-postits.db")));
+    builder.Services.AddScoped<ChatServeur.SmsMail.DayPostItService>();
     // Réponses des patients : service externe et envoi de mail simulés (aucun appel réseau réel).
     var relay = new FakeRelay();
     var mailer = new FakeMailer();
@@ -451,6 +453,35 @@ try
     catch (HubException) { checks++; }
     try { await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "pas-une-adresse", new List<int>()); Check(false, "Adresse invalide refusée"); }
     catch (HubException) { checks++; }
+
+    // 12. Post-it de famille du jour : une saisie, visible depuis le dossier de chaque membre, sur tous les postes.
+    var empty = await secretariat.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 601);
+    Check(empty.Text == "" && empty.Members.Select(m => m.PatientId).OrderBy(x => x).SequenceEqual(new[] { 601, 602 }), "Post-it du jour : vide, prêt pour toute la famille");
+    var changed = new TaskCompletionSource<List<int>>(TaskCreationOptions.RunContinuationsAsynchronously);
+    oldPc.On<List<int>>("DayPostItChanged", ids => changed.TrySetResult(ids));
+    await secretariat.InvokeAsync("DayPostItSave", 601, "Ana CS\n*****\nEli OR 1ok", "#FFF8B0", new List<int>());
+    var notified = await changed.Task.WaitAsync(timeout);
+    Check(notified.OrderBy(x => x).SequenceEqual(new[] { 601, 602 }), "Les autres postes sont prévenus pour toute la famille");
+    var fromChild = await oldPc.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 602);
+    Check(fromChild.Text.Contains("Eli OR 1ok") && fromChild.UpdatedBy == "Secretariat" && fromChild.Members.Count == 2, "Dossier d'un autre membre : le même post-it");
+    await oldPc.InvokeAsync("DayPostItSave", 602, "Ana CS\n*****\nEli OR 2ok", "#FFF8B0", new List<int>());
+    Check((await secretariat.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 601)).Text.EndsWith("Eli OR 2ok"), "Un seul post-it par famille : modifié depuis n'importe quel membre");
+    Check((await secretariat.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 777)).Members.Single().PatientId == 777, "Patient sans famille : post-it à lui seul");
+    await secretariat.InvokeAsync("DayPostItDetach", 602);
+    var separated = await oldPc.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 602);
+    var kept = await oldPc.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 601);
+    Check(separated.Text == "" && kept.Text.EndsWith("Eli OR 2ok") && kept.Members.Single().PatientId == 601,
+        "Membre retiré du post-it : il retrouve un post-it vide, les autres gardent le leur");
+    await oldPc.InvokeAsync("DayPostItSave", 602, "Eli seul", "#FFF8B0", new List<int>());
+    Check((await secretariat.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 602)).Members.Single().PatientId == 602
+        && (await secretariat.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 601)).Text.EndsWith("Eli OR 2ok"),
+        "Son nouveau post-it ne touche pas celui de la famille (qui l'a déjà)");
+    await secretariat.InvokeAsync("DayPostItDetach", 602);
+    await secretariat.InvokeAsync("DayPostItSave", 601, "  ", "#FFF8B0", new List<int>());
+    Check((await oldPc.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 601)).Text == "", "Texte effacé : post-it supprimé");
+    await secretariat.InvokeAsync("DayPostItSave", 602, "Sans Ana", "#FFF8B0", new List<int> { 601 });
+    Check((await secretariat.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 602)).Members.Single().PatientId == 602
+        && (await secretariat.InvokeAsync<EyeChat.SmsMail.DayPostIt>("DayPostItGet", 601)).Text == "", "Membre retiré avant la première saisie : pas dans le post-it");
 
     foreach (var c in connections)
         await c.DisposeAsync();

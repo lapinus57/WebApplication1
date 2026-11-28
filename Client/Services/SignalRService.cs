@@ -419,6 +419,9 @@ namespace Client.Services
 
         // ---------- Version du poste ----------
 
+        /// <summary>Un post-it du jour a été modifié sur un autre poste (patients concernés).</summary>
+        public event Action<List<int>>? DayPostItChanged;
+
         /// <summary>Une version plus récente existe (autre poste ou dossier des mises à jour) : la fenêtre affiche un bandeau.</summary>
         public event EventHandler<ClientUpdateNotice>? UpdateAvailable;
 
@@ -533,6 +536,7 @@ namespace Client.Services
             };
 
             connection.On<EyeChat.ClientUpdate.ClientUpdateInfo>("ClientUpdateAvailable", info => _ = CheckUpdateAsync(info));
+            connection.On<List<int>>("DayPostItChanged", ids => Dispatcher?.TryEnqueue(() => DayPostItChanged?.Invoke(ids)));
 
             connection.On<UserInfo>("UserConnected", user =>
             {

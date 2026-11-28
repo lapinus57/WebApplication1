@@ -61,3 +61,19 @@ ce fichier peut être transmis pour améliorer les questions.
 
 Si le serveur ne répond pas, l'onglet fonctionne comme avant (la ligne d'état indique « familles du serveur indisponibles »).
 Les familles de la base EyeEmail, si elle est utilisée, gardent la priorité.
+
+## Post-it de famille du jour (postes avec StudioV)
+
+Quand StudioV ouvre un dossier, il écrit le numéro du patient et de la consultation dans `C:\Studiov2000\STUDIOV.INI`
+(section `[Echange]`). EyeChat lit ce fichier (sans jamais l'écrire) :
+
+- **nouvelle consultation** (numéro plus grand que tous ceux vus sur ce poste) : une petite fenêtre jaune s'ouvre
+  au-dessus de StudioV, sans lui prendre le clavier, pour saisir les cotations du jour ;
+- **simple ouverture d'un dossier** : la fenêtre ne s'ouvre que si la famille a déjà un post-it aujourd'hui.
+
+Un seul post-it **par famille et par jour**, gardé par le serveur (`data\day-postits.db`) : saisi une fois, il apparaît
+dans le dossier de chaque membre de la famille, sur tous les postes, et se met à jour sur les autres postes pendant la
+saisie. La croix à côté d'un nom retire la personne de ce post-it (elle aura le sien) : utile si la famille est mal
+regroupée ou si elle est séparée dans la journée (la famille du post-it est figée à la première saisie). Texte effacé :
+post-it supprimé. Les post-it de plus de 30 jours sont effacés. Les post-it de StudioV ne sont jamais touchés.
+Réglages du poste : `DayPostItEnabled` (false pour désactiver), `StudioIniPath` (autre emplacement du fichier).
