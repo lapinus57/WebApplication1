@@ -88,6 +88,18 @@ namespace Client.SmsMail.Services
             return civility.Length > 0 ? civility + " " + name : name;
         }
 
+        /// <summary>Le prénom ; si deux membres ont le même prénom, le prénom et le nom.</summary>
+        private static string DisplayFirstName(FamilyCardMember m, IReadOnlyList<FamilyCardMember> all)
+        {
+            var first = m.FirstName.Length > 0 ? m.FirstName : m.Name;
+            return all.Count(o => string.Equals(o.FirstName, m.FirstName, StringComparison.OrdinalIgnoreCase)) > 1 && m.LastName.Length > 0
+                ? $"{first} {m.LastName.ToUpper(Fr)}" : first;
+        }
+
+        /// <summary>« Jacques », « Jacques et Lucie », « Jacques, Lucie et Jeanne ».</summary>
+        public static string JoinNames(IReadOnlyList<string> names)
+            => names.Count <= 1 ? names.FirstOrDefault() ?? "" : string.Join(", ", names.Take(names.Count - 1)) + " et " + names[^1];
+
         /// <summary>« 37, Rue de la République, 57 320 BOUZONVILLE » → rue, puis code postal et ville.</summary>
         public static List<string> AddressLines(string address)
         {
@@ -107,7 +119,7 @@ namespace Client.SmsMail.Services
               .Append(".cab .adr{font-style:italic;font-size:13px}")
               .Append(".cab .tel{font-style:italic;font-weight:700;font-size:13px}.to{font-weight:700;font-size:15px;text-align:right}.to div+div{margin-top:3px}")
               .Append(".intro{font-size:17px;margin:12px 0 6px 10px}.rdv{display:flex;align-items:baseline;gap:10px;margin:4px 0 4px 90px;font-size:19px}")
-              .Append(".rdv .d{font-weight:700;min-width:300px}.rdv .h b{font-weight:700}.rdv .who{font-size:14px;color:#333;margin-left:6px}")
+              .Append(".rdv .d{font-weight:700;min-width:300px}.rdv .h b{font-weight:700}.for{margin:0 0 8px 120px;font-size:15px}")
               .Append(".none{margin:10px 0 10px 90px;font-size:16px}.note{font-style:italic;font-size:13px;margin:12px 0 0 12px;padding-bottom:10px;border-bottom:1px solid #d0d0d0}")
               .Append("@media print{body{padding:0}}</style></head><body>");
 
@@ -129,13 +141,18 @@ namespace Client.SmsMail.Services
             var many = card.Members.Count > 1;
             sb.Append("<div class=\"intro\">").Append(upcoming.Count > 1 ? "Vos prochains rendez-vous sont fixés au :" : "Votre prochain rendez-vous est fixé au :").Append("</div>");
             if (upcoming.Count == 0) sb.Append("<div class=\"none\">Aucun rendez-vous à venir.</div>");
-            foreach (var a in upcoming)
+            // Même jour et même heure : une seule ligne, puis « Pour Jacques, Lucie et Jeanne ».
+            foreach (var slot in upcoming.GroupBy(a => a.Start))
             {
-                var member = card.Members.FirstOrDefault(m => m.PatientId == a.PatientId);
-                sb.Append("<div class=\"rdv\"><span class=\"d\">").Append(E(a.Start.ToString("dddd d MMMM yyyy", Fr))).Append("</span>")
-                  .Append("<span class=\"h\">à : <b>").Append(a.Start.ToString("HH:mm", Fr)).Append(" heures</b></span>");
-                if (many) sb.Append("<span class=\"who\">").Append(E(member != null ? $"{member.FirstName} {member.LastName.ToUpper(Fr)}".Trim() : a.Name)).Append("</span>");
-                sb.Append("</div>");
+                sb.Append("<div class=\"rdv\"><span class=\"d\">").Append(E(slot.Key.ToString("dddd d MMMM yyyy", Fr))).Append("</span>")
+                  .Append("<span class=\"h\">à : <b>").Append(slot.Key.ToString("HH:mm", Fr)).Append(" heures</b></span></div>");
+                if (many)
+                {
+                    var names = slot.OrderBy(a => card.Members.FindIndex(m => m.PatientId == a.PatientId) is var i && i >= 0 ? i : int.MaxValue)
+                        .Select(a => card.Members.FirstOrDefault(m => m.PatientId == a.PatientId) is { } m ? DisplayFirstName(m, card.Members) : a.Name)
+                        .Distinct().ToList();
+                    sb.Append("<div class=\"for\">Pour ").Append(E(JoinNames(names))).Append("</div>");
+                }
             }
             sb.Append("<div class=\"note\">En cas d'empêchement, merci de nous prévenir le plus rapidement possible.")
               .Append(forMail ? " Ce message est envoyé automatiquement." : "").Append("</div></body></html>");

@@ -435,6 +435,9 @@ try
     var html = Client.SmsMail.Services.FamilyCardDocument.Html(card);
     Check(html.Contains("Rendez-vous de la famille") && html.Contains("Ana BRUN") && html.Contains("Eli BRUN") && html.Contains("14:30") && !html.Contains("Remarque"),
         "Fiche imprimable : membres, dates et heures");
+    Check(Client.SmsMail.Services.FamilyCardDocument.JoinNames(new[] { "Jacques", "Lucie", "Jeanne" }) == "Jacques, Lucie et Jeanne"
+        && Client.SmsMail.Services.FamilyCardDocument.JoinNames(new[] { "Jacques" }) == "Jacques" && html.Contains("Pour Ana") && html.Contains("Pour Eli"),
+        "Fiche : « Pour Jacques, Lucie et Jeanne » sous chaque rendez-vous");
     var alone = await secretariat.InvokeAsync<Client.SmsMail.Services.FamilyCard>("FamilyCardGet", 777);
     Check(alone.Members.Single().PatientId == 777 && Client.SmsMail.Services.FamilyCardDocument.Html(alone).Contains("Aucun rendez-vous à venir"), "Personne seule sans RDV");
     var mailed = await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "ana@example.fr");
