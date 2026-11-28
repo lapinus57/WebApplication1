@@ -6,8 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../Client/SmsMail/**/*.cs" Exclude="../../Client/SmsMail/Services/AppointmentLoader.cs;../../Client/SmsMail/Services/EyeEmailFamilyDatabase.cs" LinkBase="SmsMail" />
+    <Compile Include="../../Client/SmsMail/**/*.cs" Exclude="../../Client/SmsMail/Services/EyeEmailFamilyDatabase.cs" LinkBase="SmsMail" />
     <Compile Include="../../Shared/SmsMail/*.cs" LinkBase="Shared" />
+    <Compile Include="../../Shared/ReadOnlyAccess.cs" Link="Shared/ReadOnlyAccess.cs" />
+    <PackageReference Include="System.Data.OleDb" Version="8.0.0" />
     <PackageReference Include="MailKit" Version="4.18.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.22" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />

@@ -134,7 +134,7 @@ namespace EyeChat.SmsMail
             command.Parameters.AddWithValue("$channel", message.Channel);
             command.Parameters.AddWithValue("$contact", message.Contact);
             command.Parameters.AddWithValue("$body", message.Body);
-            command.Parameters.AddWithValue("$status", "Envoi commencé — résultat à vérifier");
+            command.Parameters.AddWithValue("$status", ReservedStatus);
             command.Parameters.AddWithValue("$date", DateTimeOffset.UtcNow.ToString("O"));
             command.Parameters.AddWithValue("$service", message.ProviderService);
             if (await command.ExecuteNonQueryAsync() != 1) return false;
@@ -231,6 +231,25 @@ namespace EyeChat.SmsMail
             transaction.Commit();
             return count;
         }
+
+        /// <summary>Un message de l'historique (sans le corps), ou null.</summary>
+        public async Task<HistoryRecord?> GetAsync(string key)
+        {
+            await using var connection = await OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT MessageKey, Channel, Contact, Status, CreatedAt, ProviderId, ProviderService FROM MessageHistory WHERE MessageKey=$key";
+            command.Parameters.AddWithValue("$key", key);
+            using var reader = await command.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return new HistoryRecord
+            {
+                Key = reader.GetString(0), Channel = reader.GetString(1), Contact = reader.GetString(2), Status = reader.GetString(3),
+                CreatedAtUtc = reader.GetString(4), ProviderId = reader.IsDBNull(5) ? null : reader.GetInt64(5), ProviderService = reader.GetString(6)
+            };
+        }
+
+        /// <summary>Statut posé par <see cref="ReserveAsync"/> : le message est réservé, son envoi n'a pas encore de résultat.</summary>
+        public const string ReservedStatus = "Envoi commencé — résultat à vérifier";
 
         public async Task<List<HistoryRecord>> LoadAsync()
         {

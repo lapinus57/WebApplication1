@@ -134,6 +134,11 @@ builder.Services.AddScoped<IEyeMailSource, EyeMailAccessSource>();
 builder.Services.AddSingleton<EyeMailImport>();
 // Historique des SMS et mails, commun à tous les postes.
 builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(dbFolder, "sms-mail-history.db")));
+// Rappels SMS et mail : réglages communs (data\sms-mail-settings.dat, chiffré), agenda lu et messages envoyés par le serveur.
+builder.Services.AddSingleton(sp => new ChatServeur.SmsMail.SmsMailServerSettings(
+    sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), Path.Combine(dbFolder, "sms-mail-settings.dat")));
+builder.Services.AddSingleton<ChatServeur.SmsMail.SmsMailDelivery>();
+builder.Services.AddScoped<ChatServeur.SmsMail.ISmsMailAgenda, ChatServeur.SmsMail.SmsMailAccessAgenda>();
 // Familles reconstituées (agenda, photo Vitale, exports des paiements, décisions manuelles) : data/families.db.
 builder.Services.AddSingleton(new ChatServeur.Families.FamilyStore(Path.Combine(dbFolder, "families.db")));
 builder.Services.AddSingleton<ChatServeur.Families.FamilyRebuild>();

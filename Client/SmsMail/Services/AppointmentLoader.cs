@@ -4,17 +4,28 @@ using System.Data;
 using System.Data.OleDb;
 using System.Linq;
 using System.Threading.Tasks;
-using Client.Helpers;
-using Client.Models;
+using EyeChat.Data;
 using Client.SmsMail.Models;
 
 namespace Client.SmsMail.Services
 {
+    /// <summary>Où lire l'agenda : base Access (lecture seule) et table/colonnes des paramètres RDV. Le serveur et le poste la construisent chacun.</summary>
+    public sealed record AgendaSource(AccessReadOptions Access, string TableName, string DateColumn, string TimeColumn);
+
+    /// <summary>Historique d'un patient (venues), transportable entre le serveur et les postes.</summary>
+    public sealed class AgendaVisit
+    {
+        public int PatientId { get; set; }
+        public DateTime Date { get; set; }
+        public DateTime? RdvTime { get; set; }
+        public DateTime? ArrivalTime { get; set; }
+    }
+
     public static class AppointmentLoader
     {
-        public static Task<List<RdvInfo>> LoadAsync(AppointmentSearchConfig config, MachineConfig machine, DateTime day) => Task.Run(() =>
+        public static Task<List<RdvInfo>> LoadAsync(AgendaSource config, DateTime day) => Task.Run(() =>
         {
-            using var connection = Open(config, machine);
+            using var connection = Open(config);
             using var command = connection.CreateCommand();
             // Field names are checked against the real schema: a wrong name would otherwise surface as
             // Access' "Aucune valeur donnée pour un ou plusieurs des paramètres requis".
@@ -38,9 +49,9 @@ namespace Client.SmsMail.Services
         });
 
         // Appointments of a whole period (from and to included), read in one query.
-        public static Task<List<RdvInfo>> LoadRangeAsync(AppointmentSearchConfig config, MachineConfig machine, DateTime from, DateTime to) => Task.Run(() =>
+        public static Task<List<RdvInfo>> LoadRangeAsync(AgendaSource config, DateTime from, DateTime to) => Task.Run(() =>
         {
-            using var connection = Open(config, machine);
+            using var connection = Open(config);
             using var command = connection.CreateCommand();
             command.CommandText = AppointmentQuery.BuildDay(config.TableName, config.DateColumn, config.TimeColumn,
                 Tables(connection), table => Columns(connection, table));
@@ -62,9 +73,9 @@ namespace Client.SmsMail.Services
         });
 
         public static Task<Dictionary<int, List<(DateTime Date, DateTime? RdvTime, DateTime? ArrivalTime)>>> LoadHistoryAsync(
-            AppointmentSearchConfig config, MachineConfig machine, DateTime today) => Task.Run(() =>
+            AgendaSource config, DateTime today) => Task.Run(() =>
         {
-            using var connection = Open(config, machine);
+            using var connection = Open(config);
             using var command = connection.CreateCommand();
             command.CommandText = AppointmentQuery.BuildHistory(config.TableName, config.DateColumn,
                 Tables(connection), table => Columns(connection, table));
@@ -87,9 +98,9 @@ namespace Client.SmsMail.Services
         });
 
         public static Task<(List<PostItAnalysis.PostIt> PostIts, List<(string Nom, string Prenom)> Names)> LoadPostItsAsync(
-            AppointmentSearchConfig config, MachineConfig machine, DateTime from, DateTime to) => Task.Run(() =>
+            AgendaSource config, DateTime from, DateTime to) => Task.Run(() =>
         {
-            using var connection = Open(config, machine);
+            using var connection = Open(config);
             var tables = Tables(connection);
             var postIts = new List<PostItAnalysis.PostIt>();
             void Read(bool withPatients)
@@ -140,8 +151,12 @@ namespace Client.SmsMail.Services
         private static IReadOnlyCollection<string> Columns(OleDbConnection connection, string table) =>
             connection.GetOleDbSchemaTable(OleDbSchemaGuid.Columns, new object?[] { null, null, table, null })!
                 .Rows.Cast<DataRow>().Select(r => (string)r["COLUMN_NAME"]).ToList();
-        private static OleDbConnection Open(AppointmentSearchConfig config, MachineConfig machine) =>
-            EyeChat.Data.ReadOnlyAccess.Open(new(config.DatabasePath, machine.AccessOleDbProvider,
-                machine.AccessWorkgroupPath, machine.AccessUserName, machine.AccessPassword));
+        private static OleDbConnection Open(AgendaSource config) => ReadOnlyAccess.Open(config.Access);
+
+        public static List<AgendaVisit> Flatten(Dictionary<int, List<(DateTime Date, DateTime? RdvTime, DateTime? ArrivalTime)>> history)
+            => history.SelectMany(p => p.Value.Select(v => new AgendaVisit { PatientId = p.Key, Date = v.Date, RdvTime = v.RdvTime, ArrivalTime = v.ArrivalTime })).ToList();
+
+        public static Dictionary<int, List<(DateTime Date, DateTime? RdvTime, DateTime? ArrivalTime)>> Group(IEnumerable<AgendaVisit> visits)
+            => visits.GroupBy(v => v.PatientId).ToDictionary(g => g.Key, g => g.Select(v => (v.Date, v.RdvTime, v.ArrivalTime)).ToList());
     }
 }

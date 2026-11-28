@@ -163,11 +163,18 @@ namespace ChatServeur
         private readonly EyeChat.SmsMail.SmsMailHistoryStore _smsMailHistory;
         private readonly ChatServeur.Replies.ReplyLinkServiceFactory _replies;
         private readonly ChatServeur.Families.FamilyStore _families;
+        private readonly ChatServeur.SmsMail.SmsMailServerSettings _smsMailSettings;
+        private readonly ChatServeur.SmsMail.SmsMailDelivery _smsMailDelivery;
+        private readonly ChatServeur.SmsMail.ISmsMailAgenda _smsMailAgenda;
 
         public ChatHub(ChatDbContext db, IWebHostEnvironment env, ILogger<ChatHub> logger, StationAccess access,
             EyeChat.SmsMail.SmsMailHistoryStore smsMailHistory, ChatServeur.Replies.ReplyLinkServiceFactory replies,
-            ChatServeur.Families.FamilyStore families)
+            ChatServeur.Families.FamilyStore families, ChatServeur.SmsMail.SmsMailServerSettings smsMailSettings,
+            ChatServeur.SmsMail.SmsMailDelivery smsMailDelivery, ChatServeur.SmsMail.ISmsMailAgenda smsMailAgenda)
         {
+            _smsMailSettings = smsMailSettings;
+            _smsMailDelivery = smsMailDelivery;
+            _smsMailAgenda = smsMailAgenda;
             _families = families;
             _replies = replies;
             _db = db;
@@ -186,6 +193,85 @@ namespace ChatServeur
             => _smsMailHistory.ApplyReportAsync(messageKey, recipient, status, smtpHost);
         public Task<DateTimeOffset?> SmsMailEarliestMail(string smtpHost) => _smsMailHistory.EarliestMailAsync(smtpHost);
         public Task<List<EyeChat.SmsMail.HistoryRecord>> SmsMailLoad() => _smsMailHistory.LoadAsync();
+
+        // ---------- Rappels SMS et mail : réglages communs, agenda et envoi par le serveur ----------
+
+        /// <summary>Réglages communs, sans mots de passe ni clés secrètes (seulement s'ils sont enregistrés).</summary>
+        public ChatServeur.SmsMail.SmsMailStationSettings SmsMailSettingsGet() => SmsMailGuard(() => _smsMailSettings.ForStation());
+
+        /// <summary>Enregistre les réglages pour tous les postes ; un secret laissé vide garde la valeur du serveur.</summary>
+        public async Task SmsMailSettingsSave(Client.SmsMail.Configuration.SmsMailSettings settings)
+        {
+            if (!TryGetCaller(out var caller)) throw new HubException("Poste non identifié : reconnectez-vous.");
+            await SmsMailGuardAsync(() => _smsMailSettings.SaveAsync(settings));
+            _logger.LogInformation("Réglages SMS et mail enregistrés sur le serveur par {User}.", caller.Username);
+        }
+
+        /// <summary>Premier poste mis à jour : envoie ses réglages locaux, seulement si le serveur n'en a pas encore.</summary>
+        public Task<bool> SmsMailSettingsImport(Client.SmsMail.Configuration.SmsMailSettings local)
+            => SmsMailGuardAsync(() => _smsMailSettings.ImportIfEmptyAsync(local));
+
+        public Task<List<Client.SmsMail.Models.RdvInfo>> SmsMailAgendaDay(DateTime day) => SmsMailGuardAsync(() => _smsMailAgenda.DayAsync(day.Date));
+        public Task<List<Client.SmsMail.Models.RdvInfo>> SmsMailAgendaRange(DateTime from, DateTime to)
+        {
+            if (to < from || (to - from).TotalDays > 400) throw new HubException("Période invalide (au plus 13 mois).");
+            return SmsMailGuardAsync(() => _smsMailAgenda.RangeAsync(from.Date, to.Date));
+        }
+        public Task<List<Client.SmsMail.Services.AgendaVisit>> SmsMailAgendaHistory(DateTime today) => SmsMailGuardAsync(() => _smsMailAgenda.HistoryAsync(today.Date));
+        public Task<ChatServeur.SmsMail.SmsMailPostIts> SmsMailAgendaPostIts(DateTime from, DateTime to) => SmsMailGuardAsync(() => _smsMailAgenda.PostItsAsync(from.Date, to.Date));
+
+        /// <summary>Vérifie les réglages du serveur avant un envoi ; l'erreur dit ce qui manque.</summary>
+        public void SmsMailValidate(List<Client.SmsMail.Services.PreparedMessage> messages) => SmsMailGuard(() => { _smsMailDelivery.Validate(messages); return true; });
+
+        /// <summary>Service OVH et hôte SMTP du serveur (pour les clés de l'historique), sans secret.</summary>
+        public string[] SmsMailServices() => SmsMailGuard(() => { var (sms, smtp) = _smsMailDelivery.Services(); return new[] { sms, smtp }; });
+
+        /// <summary>Envoie un message déjà réservé dans l'historique commun (sinon : « déjà traité »).</summary>
+        public Task<ChatServeur.SmsMail.SmsMailSendResult> SmsMailSend(Client.SmsMail.Services.PreparedMessage message, bool test)
+        {
+            if (!TryGetCaller(out _)) throw new HubException("Poste non identifié : reconnectez-vous.");
+            return SmsMailGuardAsync(() => _smsMailDelivery.SendAsync(message, test));
+        }
+
+        public Task<decimal> SmsMailBalance() => SmsMailGuardAsync(() => _smsMailDelivery.BalanceAsync());
+
+        public async Task<int[]> SmsMailRefreshSmsStatuses()
+        {
+            var (updated, errors) = await SmsMailGuardAsync(() => _smsMailDelivery.RefreshSmsStatusesAsync());
+            return new[] { updated, errors };
+        }
+
+        public Task<int> SmsMailApplyMailReports() => SmsMailGuardAsync(() => _smsMailDelivery.ApplyMailReportsAsync());
+
+        // Les erreurs d'Access, d'OVH ou du serveur mail ne contiennent pas de données patient : elles sont transmises au poste.
+        private T SmsMailGuard<T>(Func<T> action)
+        {
+            try { return action(); }
+            catch (Exception ex) when (ex is not HubException) { throw SmsMailError(ex); }
+        }
+
+        private async Task<T> SmsMailGuardAsync<T>(Func<Task<T>> action)
+        {
+            try { return await action(); }
+            catch (Exception ex) when (ex is not HubException) { throw SmsMailError(ex); }
+        }
+
+        private async Task SmsMailGuardAsync(Func<Task> action)
+        {
+            try { await action(); }
+            catch (Exception ex) when (ex is not HubException) { throw SmsMailError(ex); }
+        }
+
+        private HubException SmsMailError(Exception ex)
+        {
+            _logger.LogWarning("SER32: SMS et mail ({Type}) : {Message}", ex.GetType().Name, ex.Message);
+            return new HubException(ex switch
+            {
+                System.Security.Cryptography.CryptographicException => "Réglages SMS et mail du serveur illisibles (clés du serveur changées) : enregistrez-les à nouveau depuis un poste.",
+                System.Data.Common.DbException => "Access a refusé la lecture de l'agenda : " + ex.Message.Trim(),
+                _ => ex.Message
+            });
+        }
 
         /// <summary>Familles calculées par le serveur pour les patients d'un jour de rappels (vide si aucun calcul).</summary>
         public Task<List<EyeChat.SmsMail.FamilyMembershipDto>> SmsMailFamilies(List<int> patientIds)

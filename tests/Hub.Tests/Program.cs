@@ -31,6 +31,10 @@ try
     builder.Services.AddSingleton(new EyeChat.SmsMail.SmsMailHistoryStore(Path.Combine(folder, "sms-mail-history.db")));
     var familyStore = new ChatServeur.Families.FamilyStore(Path.Combine(folder, "families.db"));
     builder.Services.AddSingleton(familyStore);
+    builder.Services.AddSingleton(sp => new ChatServeur.SmsMail.SmsMailServerSettings(
+        sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), Path.Combine(folder, "sms-mail-settings.dat")));
+    builder.Services.AddSingleton<ChatServeur.SmsMail.SmsMailDelivery>();
+    builder.Services.AddSingleton<ChatServeur.SmsMail.ISmsMailAgenda, FakeAgenda>();
     // Réponses des patients : service externe et envoi de mail simulés (aucun appel réseau réel).
     var relay = new FakeRelay();
     var mailer = new FakeMailer();
@@ -316,6 +320,64 @@ try
     relay.Answer("Inconnu1", "Annule");
     Check(await Poll() == 0 && mailer.Sent.Count == 2, "Réponse pour un lien inconnu ignorée");
 
+    // 9. Rappels : réglages communs sur le serveur, agenda lu et messages envoyés par le serveur.
+    var secretariat = await Connect();
+    await secretariat.InvokeAsync("RegisterUser", "Secretariat", "", "Accueil", "Blue", "PC-ACCUEIL");
+    var none = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailStationSettings>("SmsMailSettingsGet");
+    Check(!none.Exists, "Aucun réglage SMS/mail sur le serveur au départ");
+    var local = new Client.SmsMail.Configuration.SmsMailSettings { Cabinet = "Cabinet Test" };
+    local.Sms.ApplicationSecret = "SECRET-OVH"; local.Sms.ConsumerKey = "CONSUMER-OVH"; local.Sms.ServiceName = "sms-test";
+    local.Email.Password = "MOT-DE-PASSE-SMTP"; local.Email.SmtpHost = "127.0.0.1"; local.Email.SmtpPort = 1; local.Email.EnableSsl = false;
+    local.Email.FromAddress = "cabinet@example.fr"; local.Email.UserName = "cabinet";
+    Check(await secretariat.InvokeAsync<bool>("SmsMailSettingsImport", local) && !await posteB.InvokeAsync<bool>("SmsMailSettingsImport", local),
+        "Les réglages du premier poste mis à jour sont importés, une seule fois");
+    var common = await posteB.InvokeAsync<ChatServeur.SmsMail.SmsMailStationSettings>("SmsMailSettingsGet");
+    Check(common.Exists && common.Settings.Cabinet == "Cabinet Test" && common.Secrets is { SmsApplicationSecret: true, SmsConsumerKey: true, MailPassword: true }
+        && common.Settings.Sms.ApplicationSecret == "" && common.Settings.Sms.ConsumerKey == "" && common.Settings.Email.Password == "",
+        "Les autres postes voient les mêmes réglages, sans aucun secret");
+    common.Settings.Cabinet = "Cabinet Modifié";
+    await secretariat.InvokeAsync("SmsMailSettingsSave", common.Settings);
+    var stored = app.Services.GetRequiredService<ChatServeur.SmsMail.SmsMailServerSettings>().Load()!;
+    Check(stored.Cabinet == "Cabinet Modifié" && stored.Sms.ApplicationSecret == "SECRET-OVH" && stored.Email.Password == "MOT-DE-PASSE-SMTP",
+        "Enregistrer sans retaper les secrets garde ceux du serveur");
+    Check(!File.ReadAllText(Path.Combine(folder, "sms-mail-settings.dat")).Contains("MOT-DE-PASSE-SMTP"), "Réglages chiffrés sur le disque du serveur");
+    try { await posteB.InvokeAsync("SmsMailSettingsSave", common.Settings); Check(false, "Poste non identifié refusé"); }
+    catch (HubException) { checks++; }
+
+    var agendaDay = await secretariat.InvokeAsync<List<Client.SmsMail.Models.RdvInfo>>("SmsMailAgendaDay", new DateTime(2026, 12, 3));
+    Check(agendaDay.Single() is { Id: 4242, Nom: "AGENDA", Prenom: "Serveur" } r0 && r0.HeureRDV == new DateTime(2026, 12, 3, 9, 30, 0), "Le serveur lit l'agenda du jour");
+    var visits = await secretariat.InvokeAsync<List<Client.SmsMail.Services.AgendaVisit>>("SmsMailAgendaHistory", new DateTime(2026, 12, 3));
+    Check(visits.Single() is { PatientId: 4242, ArrivalTime: not null }, "Historique des venues transmis");
+    var postIts = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailPostIts>("SmsMailAgendaPostIts", new DateTime(2026, 1, 1), new DateTime(2026, 12, 31));
+    Check(postIts.PostIts.Single().Text == "avec sa fille" && postIts.Names.Single().Nom == "AGENDA", "Post-it transmis");
+
+    var mailMessage = new Client.SmsMail.Services.PreparedMessage
+    {
+        Key = "mail-serveur-1", Channel = "Mail", Contact = "patient@example.fr", Subject = "Rappel", Body = "<p>Bonjour</p>",
+        ProviderService = "127.0.0.1", AppointmentStart = new DateTime(2026, 12, 3, 9, 30, 0), CalendarStart = new DateTime(2026, 12, 3, 9, 30, 0),
+        CalendarEnd = new DateTime(2026, 12, 3, 10, 0, 0), IncludeCalendar = false
+    };
+    var notReserved = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false);
+    Check(!notReserved.Accepted && notReserved.Status == Client.SmsMail.Services.MessageSender.AlreadyHandledStatus, "Message non réservé : jamais envoyé");
+    Check(await secretariat.InvokeAsync<bool>("SmsMailReserve", new EyeChat.SmsMail.HistoryReservation
+        { Key = mailMessage.Key, Channel = "Mail", Contact = mailMessage.Contact, Body = mailMessage.Body, ProviderService = "127.0.0.1" }), "Réservation du mail");
+    var sent = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false);
+    Check(!sent.Accepted && sent.Status == Client.SmsMail.Services.MessageSender.UncertainStatus, "Serveur mail injoignable : résultat « à vérifier »");
+    var after = (await secretariat.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad")).Single(h => h.Key == mailMessage.Key);
+    Check(after.Status == Client.SmsMail.Services.MessageSender.UncertainStatus, "Le serveur écrit lui-même le résultat dans l'historique");
+    var again = await secretariat.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false);
+    Check(again.Status == Client.SmsMail.Services.MessageSender.AlreadyHandledStatus, "Un message déjà tenté n'est jamais renvoyé");
+    try { await posteB.InvokeAsync<ChatServeur.SmsMail.SmsMailSendResult>("SmsMailSend", mailMessage, false); Check(false, "Envoi par un poste non identifié refusé"); }
+    catch (HubException) { checks++; }
+    stored.Sms.ApplicationKey = "";
+    await app.Services.GetRequiredService<ChatServeur.SmsMail.SmsMailServerSettings>().SaveAsync(stored);
+    try
+    {
+        await secretariat.InvokeAsync("SmsMailValidate", new List<Client.SmsMail.Services.PreparedMessage> { new() { Channel = "SMS", Contact = "+33612345678", Body = "x" } });
+        Check(false, "Réglages SMS incomplets : refusé");
+    }
+    catch (HubException ex) { Check(ex.Message.Length > 0, "Réglages SMS incomplets : le message d'erreur est transmis au poste"); }
+
     foreach (var c in connections)
         await c.DisposeAsync();
     await app.StopAsync();
@@ -370,4 +432,21 @@ sealed class FakeMailer : ChatServeur.Replies.IReplyMailer
         Sent.Add((to, subject, htmlBody));
         return Task.CompletedTask;
     }
+}
+
+sealed class FakeAgenda : ChatServeur.SmsMail.ISmsMailAgenda
+{
+    private static Client.SmsMail.Models.RdvInfo Row(DateTime day) => new()
+    {
+        Id = 4242, Nom = "AGENDA", Prenom = "Serveur", DateRDV = day, HeureRDV = day.AddHours(9.5), Tel1 = "0612345678"
+    };
+    public Task<List<Client.SmsMail.Models.RdvInfo>> DayAsync(DateTime day) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo> { Row(day) });
+    public Task<List<Client.SmsMail.Models.RdvInfo>> RangeAsync(DateTime from, DateTime to) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo> { Row(from) });
+    public Task<List<Client.SmsMail.Services.AgendaVisit>> HistoryAsync(DateTime today) => Task.FromResult(new List<Client.SmsMail.Services.AgendaVisit>
+        { new() { PatientId = 4242, Date = today.AddYears(-1), RdvTime = today.AddYears(-1).AddHours(9), ArrivalTime = today.AddYears(-1).AddHours(8.9) } });
+    public Task<ChatServeur.SmsMail.SmsMailPostIts> PostItsAsync(DateTime from, DateTime to) => Task.FromResult(new ChatServeur.SmsMail.SmsMailPostIts
+    {
+        PostIts = new() { new() { PatientCode = 4242, Date = from, Text = "avec sa fille", Nom = "AGENDA", Prenom = "Serveur" } },
+        Names = new() { new() { Nom = "AGENDA", Prenom = "Serveur" } }
+    });
 }
