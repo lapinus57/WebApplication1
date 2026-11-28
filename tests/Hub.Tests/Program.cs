@@ -54,7 +54,7 @@ try
         var eyeMail = scope.ServiceProvider.GetRequiredService<ChatServeur.EyeMail.EyeMailDbContext>();
         eyeMail.Database.EnsureCreated();
         eyeMail.Patients.AddRange(
-            new ChatServeur.EyeMail.EyeMailPatient { AccessPatientId = "601", LastName = "BRUN", FirstName = "Ana", BirthDate = new DateTime(1980, 3, 5), Email = "ana@example.fr", City = "Metz", IsActive = true, SearchName = ChatServeur.EyeMail.EyeMailColumns.SearchText("BRUN", "Ana", "", "601") },
+            new ChatServeur.EyeMail.EyeMailPatient { AccessPatientId = "601", LastName = "BRUN", FirstName = "Ana", BirthDate = new DateTime(1980, 3, 5), Email = "ana@example.fr", Phone1 = "03 87 00 00 01", Phone2 = "06 12 34 56 78", Phone2Info = "portable", City = "Metz", IsActive = true, SearchName = ChatServeur.EyeMail.EyeMailColumns.SearchText("BRUN", "Ana", "", "601") },
             new ChatServeur.EyeMail.EyeMailPatient { AccessPatientId = "602", LastName = "BRUN", FirstName = "Eli", BirthDate = new DateTime(2015, 6, 1), City = "Metz", IsActive = true, SearchName = ChatServeur.EyeMail.EyeMailColumns.SearchText("BRUN", "Eli", "", "602") },
             new ChatServeur.EyeMail.EyeMailPatient { AccessPatientId = "777", LastName = "NOIR", FirstName = "Ana", BirthDate = new DateTime(1990, 1, 1), IsActive = true, SearchName = ChatServeur.EyeMail.EyeMailColumns.SearchText("NOIR", "Ana", "", "777") });
         eyeMail.SaveChanges();
@@ -424,6 +424,7 @@ try
     // 11. Fiche « RDV de la famille » : recherche, fiche des RDV à venir, envoi par mail par le serveur.
     var byName = await secretariat.InvokeAsync<List<Client.SmsMail.Services.FamilyCardCandidate>>("FamilyCardSearch", "brun ana");
     Check(byName.Single() is { PatientId: 601, FamilySize: 2 } c601 && c601.Display.Contains("05/03/1980"), "Recherche par nom et prénom : la personne, avec la taille de sa famille");
+    Check(byName.Single().Phones.SequenceEqual(new[] { "06 12 34 56 78 · portable", "03 87 00 00 01" }), "Téléphones du patient, portable d'abord (message individuel)");
     var byBirth = await secretariat.InvokeAsync<List<Client.SmsMail.Services.FamilyCardCandidate>>("FamilyCardSearch", "5/3/1980");
     Check(byBirth.Single().PatientId == 601, "Recherche par date de naissance");
     Check((await secretariat.InvokeAsync<List<Client.SmsMail.Services.FamilyCardCandidate>>("FamilyCardSearch", "ana")).Select(c => c.PatientId).OrderBy(x => x).SequenceEqual(new[] { 601, 777 }),

@@ -16,6 +16,8 @@ namespace Client.SmsMail.Services
         public string City { get; set; } = "";
         /// <summary>Nombre de personnes de sa famille (1 s'il n'est dans aucune famille).</summary>
         public int FamilySize { get; set; } = 1;
+        /// <summary>Téléphones connus (« 06 12 34 56 78 · portable »), portables d'abord : pour le message individuel.</summary>
+        public List<string> Phones { get; set; } = new();
         public string Display => Name + (BirthDate.HasValue ? $" · né(e) le {BirthDate:dd/MM/yyyy}" : "") + (City.Length > 0 ? $" · {City}" : "")
             + (FamilySize > 1 ? $" · famille de {FamilySize}" : "");
     }

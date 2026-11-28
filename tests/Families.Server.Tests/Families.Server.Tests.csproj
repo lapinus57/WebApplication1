@@ -21,6 +21,7 @@
     <Compile Include="../../Serveur/Pages/SmsMail.cshtml.cs" Link="Pages/SmsMail.cshtml.cs" />
     <Content Include="../../Serveur/Pages/SmsMail.cshtml" Link="Pages/SmsMail.cshtml" />
     <Compile Include="../../Serveur/SmsMail/SmsMailServerSettings.cs" Link="ServerSmsMail/SmsMailServerSettings.cs" />
+    <Compile Include="../../Serveur/SmsMail/SmsMailDelivery.cs" Link="ServerSmsMail/SmsMailDelivery.cs" />
     <Compile Include="../../Client/SmsMail/**/*.cs" Exclude="../../Client/SmsMail/Services/EyeEmailFamilyDatabase.cs" LinkBase="ClientSmsMail" />
     <PackageReference Include="MailKit" Version="4.18.1" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />

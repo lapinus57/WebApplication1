@@ -32,13 +32,11 @@ namespace Client.Pages
         private List<RdvInfo> _working = new();
         private List<PreparedMessage> _messages = new();
         private List<MessageHistoryEntry> _entries = new();
-        private readonly ObservableCollection<AlertConfiguration> _alerts = new();
-        private readonly ObservableCollection<AppointmentTimeRule> _timeRules = new();
         private List<RdvFamille> _families = new();
         private Dictionary<int, List<(DateTime Date, DateTime? RdvTime, DateTime? ArrivalTime)>> _appointmentHistory = new();
         private readonly Dictionary<string, bool> _familyDecisions = new();
-        private bool _editorReady;
-        private bool _syncingEditor;
+        // Horaires annoncés de la dernière préparation (affichés par « Voir les horaires ajustés »).
+        private string _timeChanges = "Préparez les messages pour vérifier les horaires ajustés.";
         private string _preparedSignature = string.Empty;
         private bool _busy;
         private bool _unloaded;
@@ -63,49 +61,7 @@ namespace Client.Pages
             {
                 _settings = await LoadServerSettingsAsync();
                 DayPicker.Date = DateTimeOffset.Now.AddDays(1);
-                CabinetText.Text = _settings.Cabinet;
-                CabinetAddressText.Text = _settings.CabinetAddress;
-                CabinetSpecialtyText.Text = _settings.CabinetSpecialty; CabinetPhoneText.Text = _settings.CabinetPhone;
-                CabinetFaxText.Text = _settings.CabinetFax; CabinetContactText.Text = _settings.CabinetContact;
-                DurationNumber.Value = _settings.AppointmentDurationMinutes;
-                SmsOnlyNoEmail.IsChecked = _settings.SmsOnlyWhenNoEmail;
-                SmsFamilySizeFilter.SelectedIndex = Math.Clamp(_settings.SmsMinimumFamilySize, 1, 3) - 1;
-                UseFamiliesCheck.IsChecked = _settings.UseEyeEmailFamilies;
-                LogFamilyQuestionsCheck.IsChecked = _settings.LogFamilyQuestions;
-                FamilyLogPathText.Text = SmsMailSettingsStore.FamilyQuestionsLogPath;
-                ShowPostItTabCheck.IsChecked = _settings.ShowPostItTab;
-                SetPostItTabVisible(_settings.ShowPostItTab);
-                PostItFromPicker.Date = DateTimeOffset.Now.Date.AddMonths(-6);
-                PostItToPicker.Date = DateTimeOffset.Now.Date;
-                FamilyDatabaseText.Text = _settings.FamilyDatabasePath;
-                CalendarInviteCheck.IsChecked = _settings.SendCalendarInvites;
-                CalendarAlarmsCheck.IsChecked = _settings.SendCalendarAlarms;
-                CalendarBusyCheck.IsChecked = _settings.CalendarIsBusy;
-                CalendarSubjectText.Text = _settings.CalendarSubject;
-                AdjustTimesCheck.IsChecked = _settings.AdjustReminderTimes;
-                foreach (var rule in _settings.ReminderTimeRules) _timeRules.Add(rule);
-                TimeRulesList.ItemsSource = _timeRules;
-                foreach (var alert in _settings.Alerts) _alerts.Add(alert);
-                AlertsList.ItemsSource = _alerts;
-                SubjectText.Text = _settings.Subject;
-                SmsTemplateText.Text = _settings.SmsTemplate;
-                EmailTemplateText.Text = _settings.EmailTemplate;
-                SmsAccountText.Text = _settings.Sms.ServiceName;
-                SmsSenderText.Text = _settings.Sms.Sender;
-                SmsAppKeyText.Text = _settings.Sms.ApplicationKey;
-                SmsSecretText.Password = _settings.Sms.ApplicationSecret;
-                SmsConsumerText.Password = _settings.Sms.ConsumerKey;
-                SmtpHostText.Text = _settings.Email.SmtpHost;
-                SmtpPortNumber.Value = _settings.Email.SmtpPort;
-                SmtpSslCheck.IsChecked = _settings.Email.EnableSsl;
-                ImapHostText.Text = _settings.Email.ImapHost;
-                ImapPortNumber.Value = _settings.Email.ImapPort;
-                BounceFilterText.Text = _settings.Email.BounceFilter;
-                MailUserText.Text = _settings.Email.UserName;
-                MailPasswordText.Password = _settings.Email.Password;
-                MailFromText.Text = _settings.Email.FromAddress;
-                MailDisplayText.Text = _settings.Email.FromDisplayName;
-                ShowSecretState();
+                ShowSendOptions();
                 StatusText.Text = _settingsNote + "Sélectionnez un jour et chargez les rendez-vous. Vérifiez vos paramètres avant le premier envoi.";
                 try
                 {
@@ -122,7 +78,6 @@ namespace Client.Pages
             });
         }
 
-        private SmsMailSecretsState _secrets = new();
         private string _settingsNote = "";
 
         private Microsoft.AspNetCore.SignalR.Client.HubConnection Server() => App.ChatService.GetSmsMailHistoryConnection();
@@ -146,7 +101,6 @@ namespace Client.Pages
                         _settingsNote = "Réglages SMS et mail de ce poste envoyés au serveur : ils sont maintenant communs à tous les postes. ";
                     station = await connection.InvokeAsync<SmsMailStationSettings>("SmsMailSettingsGet");
                 }
-                _secrets = station.Secrets;
                 return station.Exists ? station.Settings : new SmsMailSettings();
             }
             catch (Exception ex) when (ex is InvalidOperationException or Microsoft.AspNetCore.SignalR.HubException or System.Net.Http.HttpRequestException or TimeoutException)
@@ -156,52 +110,25 @@ namespace Client.Pages
             }
         }
 
-        /// <summary>Les secrets restent sur le serveur : un champ vide veut dire « garder celui du serveur ».</summary>
-        private void ShowSecretState()
+
+
+        /// <summary>Options de l'onglet Envois (seuil SMS, pas de SMS si mail) : reprises des paramètres du serveur.</summary>
+        private void ShowSendOptions()
         {
-            const string kept = "Enregistré sur le serveur — laisser vide pour garder";
-            SmsSecretText.Password = SmsConsumerText.Password = MailPasswordText.Password = string.Empty;
-            SmsSecretText.PlaceholderText = _secrets.SmsApplicationSecret ? kept : "";
-            SmsConsumerText.PlaceholderText = _secrets.SmsConsumerKey ? kept : "";
-            MailPasswordText.PlaceholderText = _secrets.MailPassword ? kept : "";
+            SmsOnlyNoEmail.IsChecked = _settings.SmsOnlyWhenNoEmail;
+            SmsFamilySizeFilter.SelectedIndex = Math.Clamp(_settings.SmsMinimumFamilySize, 1, 3) - 1;
         }
 
+        /// <summary>
+        /// Paramètres du serveur (administration → SMS et mail), avec les deux options de l'onglet Envois telles qu'elles sont
+        /// cochées pour cette préparation. Les modèles et réglages ne se modifient plus sur le poste.
+        /// </summary>
         private SmsMailSettings ReadSettings()
         {
-            if (double.IsNaN(DurationNumber.Value) || DurationNumber.Value < 1 || DurationNumber.Value > 480) throw new InvalidOperationException("La durée doit être comprise entre 1 et 480 minutes.");
-            if (double.IsNaN(SmtpPortNumber.Value)) throw new InvalidOperationException("Renseignez le port SMTP.");
-            return new SmsMailSettings
-            {
-                SmsMinimumFamilySize = SmsFamilySizeFilter.SelectedIndex + 1,
-                AdjustReminderTimes = AdjustTimesCheck.IsChecked == true,
-                ReminderTimeRules = _timeRules.Select(r => new AppointmentTimeRule { From = r.From, To = r.To }).ToList(),
-                UseEyeEmailFamilies = UseFamiliesCheck.IsChecked == true, FamilyDatabasePath = FamilyDatabaseText.Text.Trim(),
-                LogFamilyQuestions = LogFamilyQuestionsCheck.IsChecked == true,
-                ShowPostItTab = ShowPostItTabCheck.IsChecked == true,
-                SendCalendarInvites = CalendarInviteCheck.IsChecked == true,
-                SendCalendarAlarms = CalendarAlarmsCheck.IsChecked == true, CalendarIsBusy = CalendarBusyCheck.IsChecked == true,
-                CalendarSubject = CalendarSubjectText.Text,
-                Alerts = _alerts.Select(a => new AlertConfiguration { OffsetMinutes = a.OffsetMinutes, Label = a.Label }).ToList(),
-                Cabinet = CabinetText.Text.Trim(), CabinetAddress = CabinetAddressText.Text.Trim(),
-                CabinetSpecialty = CabinetSpecialtyText.Text.Trim(), CabinetPhone = CabinetPhoneText.Text.Trim(),
-                CabinetFax = CabinetFaxText.Text.Trim(), CabinetContact = CabinetContactText.Text.Trim(),
-                AppointmentDurationMinutes = (int)DurationNumber.Value, CalendarTimeZone = _settings.CalendarTimeZone, SmsOnlyWhenNoEmail = SmsOnlyNoEmail.IsChecked == true,
-                Subject = SubjectText.Text, SmsTemplate = SmsTemplateText.Text, EmailTemplate = EmailTemplateText.Text,
-                Sms = new SmsSettings
-                {
-                    ServiceName = SmsAccountText.Text.Trim(), Sender = SmsSenderText.Text.Trim(),
-                    ApplicationKey = SmsAppKeyText.Text.Trim(), ApplicationSecret = SmsSecretText.Password.Trim(),
-                    ConsumerKey = SmsConsumerText.Password.Trim()
-                },
-                Email = new EmailSettings
-                {
-                    SmtpHost = SmtpHostText.Text.Trim(), SmtpPort = (int)SmtpPortNumber.Value, EnableSsl = SmtpSslCheck.IsChecked == true,
-                    UserName = MailUserText.Text.Trim(), Password = MailPasswordText.Password,
-                    ImapHost = ImapHostText.Text.Trim(), ImapPort = double.IsNaN(ImapPortNumber.Value) ? 993 : (int)ImapPortNumber.Value,
-                    BounceFilter = BounceFilterText.Text.Trim(),
-                    FromAddress = MailFromText.Text.Trim(), SenderAddress = MailFromText.Text.Trim(), FromDisplayName = MailDisplayText.Text
-                }
-            };
+            var settings = JsonSerializer.Deserialize<SmsMailSettings>(JsonSerializer.Serialize(_settings)) ?? new SmsMailSettings();
+            settings.SmsMinimumFamilySize = SmsFamilySizeFilter.SelectedIndex + 1;
+            settings.SmsOnlyWhenNoEmail = SmsOnlyNoEmail.IsChecked == true;
+            return settings;
         }
 
         private async Task RunAsync(Func<Task> action)
@@ -305,70 +232,10 @@ namespace Client.Pages
             return pending.Task.GetAwaiter().GetResult();
         }
 
-        private async void FamilyDatabase_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
-        {
-            if (App.MainWindow == null) return;
-            var picker = new FileOpenPicker();
-            foreach (var extension in new[] { ".mdb", ".mde", ".accdb" }) picker.FileTypeFilter.Add(extension);
-            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
-            var file = await picker.PickSingleFileAsync();
-            if (file == null) return;
-            FamilyDatabaseText.Text = file.Path; UseFamiliesCheck.IsChecked = true;
-            await PrepareAsync();
-        });
 
-        private async void HistoricalFamilies_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
-        {
-            if (_appointments.Count == 0) { StatusText.Text = "Chargez les rendez-vous avant de comparer leur historique."; return; }
-            _appointmentHistory = AppointmentLoader.Group(await Server().InvokeAsync<List<AgendaVisit>>("SmsMailAgendaHistory", DateTime.Today));
-            _familyDecisions.Clear(); UseFamiliesCheck.IsChecked = true;
-            await PrepareAsync();
-        });
 
-        private void AddAlert_Click(object sender, RoutedEventArgs e) => _alerts.Add(new AlertConfiguration { Label = "Alerte " + (_alerts.Count + 1), OffsetMinutes = 60 });
-        private void DeleteAlert_Click(object sender, RoutedEventArgs e)
-        {
-            if ((sender as FrameworkElement)?.DataContext is AlertConfiguration alert) _alerts.Remove(alert);
-        }
 
-        private async void EmailEditor_Loaded(object sender, RoutedEventArgs e)
-        {
-            if (_editorReady) return;
-            try
-            {
-                await EmailEditor.EnsureCoreWebView2Async();
-                EmailEditor.CoreWebView2.WebMessageReceived -= Editor_MessageReceived;
-                EmailEditor.CoreWebView2.WebMessageReceived += Editor_MessageReceived;
-                EmailEditor.CoreWebView2.NewWindowRequested += (_, args) => args.Handled = true;
-                var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Assets", "EmailEditor", "index.html"));
-                EmailEditor.NavigateToString(html);
-            }
-            catch (Exception ex) { StatusText.Text = "Éditeur visuel indisponible ; le champ HTML reste utilisable. " + ex.Message; }
-        }
 
-        private void Editor_MessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
-        {
-            try
-            {
-                using var document = JsonDocument.Parse(args.WebMessageAsJson);
-                var root = document.RootElement;
-                if (!root.TryGetProperty("type", out var type)) return;
-                if (type.GetString() == "editorReady") { _editorReady = true; PushEditorHtml(); }
-                else if (type.GetString() == "contentChanged" && root.TryGetProperty("payload", out var html))
-                {
-                    _syncingEditor = true;
-                    try { EmailTemplateText.Text = html.GetString() ?? string.Empty; }
-                    finally { _syncingEditor = false; }
-                }
-            }
-            catch (JsonException) { }
-        }
-        private void PushEditorHtml()
-        {
-            if (_editorReady && !_syncingEditor)
-                EmailEditor.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "loadHtml", payload = EmailTemplateText.Text }));
-        }
-        private void EmailHtml_Changed(object sender, TextChangedEventArgs e) => PushEditorHtml();
 
         private async void Load_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
@@ -376,12 +243,12 @@ namespace Client.Pages
             _appointments.Clear();
             _working.Clear();
             _appointmentHistory.Clear(); _familyDecisions.Clear();
-            AppointmentsList.ItemsSource = null;
             var day = DayPicker.Date?.Date ?? throw new InvalidOperationException("Sélectionnez une date.");
             StatusText.Text = "Chargement des rendez-vous…";
+            // Paramètres et modèles relus à chaque chargement : ils se modifient sur le serveur.
+            _settings = await LoadServerSettingsAsync();
             // C'est le serveur qui lit l'agenda (sa base Access, ses paramètres RDV).
             _appointments = await Server().InvokeAsync<List<RdvInfo>>("SmsMailAgendaDay", day);
-            AppointmentsList.ItemsSource = _appointments;
             await PrepareAsync();
         });
 
@@ -406,8 +273,6 @@ namespace Client.Pages
                         _appointmentHistory.Count > 0 ? ConfirmHistoricalFamily : null);
                 }) : new();
             await SendFamilyAnswersAsync(familyAnswers);
-            FilterFamilies();
-            AppointmentsList.ItemsSource = working;
             _messages = MessagePreparation.Prepare(working, day, _settings, _families);
             var rules = _settings.AdjustReminderTimes ? ReminderTimes.Validate(_settings.ReminderTimeRules) : new();
             var changes = working.Where(r => r.DateRDV.Date == day && !r.IsCancelled)
@@ -415,7 +280,7 @@ namespace Client.Pages
                 .Where(x => x.Decision.NeedsReview || x.Decision.Time != x.Row.HeureRDV)
                 .Select(x => $"{x.Row.Prenom} {x.Row.Nom} : RDV {x.Row.HeureRDV:HH:mm} → "
                     + (x.Decision.NeedsReview ? "à vérifier" : $"venue {x.Decision.Time:HH:mm}") + $" ({x.Decision.Reason})").ToList();
-            TimeChangesText.Text = changes.Count == 0 ? "Aucun horaire ajusté." : string.Join(Environment.NewLine, changes);
+            _timeChanges = changes.Count == 0 ? "Aucun horaire ajusté." : string.Join(Environment.NewLine, changes);
             _preparedSignature = MessagePreparation.PreparationSignature(_settings);
             await ReloadHistoryAsync();
             var sent = await Task.Run(() => _history.LoadReservedKeysAsync());
@@ -430,25 +295,7 @@ namespace Client.Pages
             StatusText.Text = $"{_families.Count} famille(s) EyeEmail{(serverApplied > 0 ? $", dont {serverApplied} connue(s) du serveur" : "")}{_serverFamiliesNote} ; {_appointments.Count} RDV chargés, {_appointments.Count(r => r.IsCancelled)} annulé(s) exclus. Vérifiez les destinataires et les messages avant l'envoi.";
         }
 
-        private void ReminderTimes_Click(object sender, RoutedEventArgs e)
-        {
-            Workspace.SelectedItem = SettingsTab;
-            ReminderTimesExpander.IsExpanded = true;
-            DispatcherQueue.TryEnqueue(() => ReminderTimesExpander.StartBringIntoView());
-        }
-        private void AddTimeRule_Click(object sender, RoutedEventArgs e) => _timeRules.Add(new AppointmentTimeRule());
-        private void RemoveTimeRule_Click(object sender, RoutedEventArgs e)
-        {
-            if ((sender as FrameworkElement)?.DataContext is AppointmentTimeRule rule) _timeRules.Remove(rule);
-            ClearMessages();
-        }
-        private void PreparationOptions_Click(object sender, RoutedEventArgs e)
-        {
-            Workspace.SelectedItem = SettingsTab;
-            PreparationExpander.IsExpanded = true;
-            DispatcherQueue.TryEnqueue(() => PreparationExpander.StartBringIntoView());
-        }
-        private async void ReviewTimes_Click(object sender, RoutedEventArgs e) => await RunAsync(() => ShowTextPreviewAsync("SMS", "Horaires réels → heures d’arrivée annoncées", TimeChangesText.Text));
+        private async void ReviewTimes_Click(object sender, RoutedEventArgs e) => await RunAsync(() => ShowTextPreviewAsync("SMS", "Horaires réels → heures d’arrivée annoncées", _timeChanges));
         private void MailDetails_Opening(object sender, object e)
         {
             if (sender is Flyout flyout && flyout.Content is FrameworkElement content
@@ -486,86 +333,10 @@ namespace Client.Pages
 
         private async void Prepare_Click(object sender, RoutedEventArgs e) => await RunAsync(PrepareAsync);
 
-        private void ShowPostItTab_Changed(object sender, RoutedEventArgs e)
-        {
-            if (PostItTab == null || Workspace == null) return;
-            SetPostItTabVisible(ShowPostItTabCheck.IsChecked == true);
-            if (_loaded) StatusText.Text = "Enregistrez les paramètres pour conserver l’affichage de l’onglet Post-it.";
-        }
 
-        // A collapsed PivotItem can keep its header: remove and re-insert the tab instead.
-        private void SetPostItTabVisible(bool visible)
-        {
-            var present = Workspace.Items.Contains(PostItTab);
-            if (visible && !present) Workspace.Items.Insert(Math.Max(0, Workspace.Items.IndexOf(SettingsTab)), PostItTab);
-            else if (!visible && present)
-            {
-                if (ReferenceEquals(Workspace.SelectedItem, PostItTab)) Workspace.SelectedIndex = 0;
-                Workspace.Items.Remove(PostItTab);
-            }
-        }
 
-        private async void ExportPostItLinks_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
-        {
-            var from = PostItFromPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de début.");
-            var to = PostItToPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de fin.");
-            if (to < from) throw new InvalidOperationException("La date de fin doit être après la date de début.");
-            if (PostItPasswordBox.Password.Length < DiagnosticPackage.MinimumPasswordLength)
-                throw new InvalidOperationException($"Le mot de passe doit contenir au moins {DiagnosticPackage.MinimumPasswordLength} caractères.");
-            if (PostItPasswordBox.Password != PostItConfirmBox.Password) throw new InvalidOperationException("Les deux mots de passe sont différents.");
-            List<PostItAnalysis.PostIt> postIts; List<(string Nom, string Prenom)> names; List<RdvInfo> appointments;
-            try
-            {
-                PostItStatusText.Text = "Lecture des post-it…";
-                (postIts, names) = await LoadPostItsAsync(from, to);
-                PostItStatusText.Text = $"{postIts.Count} post-it lus. Lecture des rendez-vous de la période…";
-                appointments = await Server().InvokeAsync<List<RdvInfo>>("SmsMailAgendaRange", from, to);
-            }
-            catch (Exception ex) { PostItStatusText.Text = "Échec de la lecture : " + ex.Message; throw; }
-            var pseudonymize = PostItPseudonymizeCheck.IsChecked == true;
-            var secret = PostItPasswordBox.Password;
-            PostItStatusText.Text = $"{postIts.Count} post-it, {appointments.Count} rendez-vous. Recherche des liens…";
-            var json = await Task.Run(() => PostItAnalysis.BuildLinksReportJson(postIts, appointments, names, from, to, pseudonymize));
-            var (links, unresolved) = await Task.Run(() => PostItFamilyLinks.Build(postIts.Where(p => PostItAnalysis.IsConsultationPostIt(p.Text)).ToList(), appointments));
-            var bytes = await Task.Run(() => DiagnosticPackage.Encrypt(json, secret, PostItAnalysis.LinksFormat));
-            var summary = $"{links.Count} lien(s) trouvé(s) : {links.Count(l => l.SameSurname)} même nom, {links.Count(l => !l.SameSurname)} nom différent (moins d’1 h). "
-                + $"{unresolved.Count} cas non résolu(s). Familles : {PostItFamilyLinks.Families(links).Count}.";
-            if (await SaveFileAsync($"LiensPostIt_{from:yyyy-MM-dd}_{to:yyyy-MM-dd}", "Rapport chiffré", DiagnosticPackage.Extension, bytes))
-                PostItStatusText.Text = "Rapport enregistré. " + summary + " Envoyez le mot de passe séparément.";
-            else PostItStatusText.Text = "Enregistrement annulé. " + summary;
-            PostItPasswordBox.Password = PostItConfirmBox.Password = string.Empty;
-        });
 
-        private async void ExportPostIts_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
-        {
-            var from = PostItFromPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de début.");
-            var to = PostItToPicker.Date?.Date ?? throw new InvalidOperationException("Choisissez la date de fin.");
-            if (to < from) throw new InvalidOperationException("La date de fin doit être après la date de début.");
-            if (PostItPasswordBox.Password.Length < DiagnosticPackage.MinimumPasswordLength)
-                throw new InvalidOperationException($"Le mot de passe doit contenir au moins {DiagnosticPackage.MinimumPasswordLength} caractères.");
-            if (PostItPasswordBox.Password != PostItConfirmBox.Password) throw new InvalidOperationException("Les deux mots de passe sont différents.");
-            PostItStatusText.Text = "Lecture des post-it…";
-            List<PostItAnalysis.PostIt> postIts; List<(string Nom, string Prenom)> names;
-            try { (postIts, names) = await LoadPostItsAsync(from, to); }
-            catch (Exception ex) { PostItStatusText.Text = "Échec de la lecture : " + ex.Message; throw; }
-            var kept = postIts.Count(p => PostItAnalysis.IsConsultationPostIt(p.Text));
-            if (kept == 0) { PostItStatusText.Text = $"{postIts.Count} post-it lus, aucun ne ressemble à un post-it de consultation. Rien n’a été enregistré."; return; }
-            var pseudonymize = PostItPseudonymizeCheck.IsChecked == true;
-            var secret = PostItPasswordBox.Password;
-            PostItStatusText.Text = $"{kept} post-it de consultation sur {postIts.Count}. Chiffrement…";
-            var bytes = await Task.Run(() => DiagnosticPackage.Encrypt(PostItAnalysis.BuildJson(postIts, names, from, to, pseudonymize), secret, PostItAnalysis.Format));
-            if (await SaveFileAsync($"PostIt_{from:yyyy-MM-dd}_{to:yyyy-MM-dd}", "Export chiffré", DiagnosticPackage.Extension, bytes))
-                PostItStatusText.Text = $"Enregistré : {kept} post-it de consultation sur {postIts.Count} lus du {from:dd/MM/yyyy} au {to:dd/MM/yyyy}"
-                    + (pseudonymize ? ", pseudonymisés." : ", noms en clair.") + " Envoyez le mot de passe séparément.";
-            else PostItStatusText.Text = "Enregistrement annulé.";
-            PostItPasswordBox.Password = PostItConfirmBox.Password = string.Empty;
-        });
 
-        private async Task<(List<PostItAnalysis.PostIt> PostIts, List<(string Nom, string Prenom)> Names)> LoadPostItsAsync(DateTime from, DateTime to)
-        {
-            var result = await Server().InvokeAsync<SmsMailPostIts>("SmsMailAgendaPostIts", from, to);
-            return (result.PostIts, result.Names.Select(n => (n.Nom, n.Prenom)).ToList());
-        }
 
         /// <summary>
         /// Fichier .eyeconfig chiffré à importer sur le serveur (administration → SMS et mail). Il reprend les réglages locaux
@@ -611,22 +382,7 @@ namespace Client.Pages
                 : "Export annulé.";
         });
 
-        private async void Save_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
-        {
-            _settings = ReadSettings();
-            await Server().InvokeAsync("SmsMailSettingsSave", _settings);
-            _settings = await LoadServerSettingsAsync();
-            ShowSecretState();
-            ClearMessages();
-            StatusText.Text = "Enregistré sur le serveur, pour tous les postes. Préparez à nouveau les messages pour appliquer les modifications.";
-        });
 
-        private void ApplyEmailModel_Click(object sender, RoutedEventArgs e)
-        {
-            EmailTemplateText.Text = SmsMailSettings.DefaultEmailTemplate;
-            ClearMessages();
-            StatusText.Text = "Modèle du mail joint appliqué. Enregistrez les modèles puis préparez les messages.";
-        }
 
         private async void Balance_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
@@ -759,37 +515,54 @@ namespace Client.Pages
 
         private const string ReplyEmailSetting = "SmsMailReplyEmail";
 
-        private string IndividualChannelValue => IndividualChannel?.SelectedItem as string ?? "SMS";
+        // Le message individuel ne part plus que par SMS (les mails passent par les rappels et la fiche famille).
+        private const string IndividualChannelValue = "SMS";
+        private CancellationTokenSource? _individualSearch;
 
-        private void IndividualPatient_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        /// <summary>Recherche dans la base patients du serveur (nom, prénom ou date de naissance), pas seulement les RDV chargés.</summary>
+        private async void IndividualPatient_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
         {
             if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            _individualSearch?.Cancel();
+            var pause = _individualSearch = new CancellationTokenSource();
+            try { await Task.Delay(350, pause.Token); } catch (TaskCanceledException) { return; }
             var query = sender.Text.Trim();
-            sender.ItemsSource = query.Length < 2 ? null : _appointments
-                .Where(r => !r.IsCancelled && ($"{r.Nom} {r.Prenom} {r.Prenom} {r.Nom}").Contains(query, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(r => r.Nom).ThenBy(r => r.HeureRDV).Take(20)
-                .Select(r => new IndividualPatientChoice(r)).ToList();
+            if (query.Length < 2) { sender.ItemsSource = null; return; }
+            try
+            {
+                var found = await Server().InvokeAsync<List<FamilyCardCandidate>>("FamilyCardSearch", query);
+                if (sender.Text.Trim() == query) sender.ItemsSource = found.Select(c => new IndividualPatientChoice(c)).ToList();
+            }
+            catch (Exception ex) { IndividualStatus.Text = "Recherche impossible : " + ex.Message; }
         }
 
         private void IndividualPatient_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
         {
             if (args.SelectedItem is not IndividualPatientChoice choice) return;
-            var r = choice.Rdv;
-            IndividualNameText.Text = $"{r.Prenom} {r.Nom}".Trim();
-            IndividualPhoneText.Text = new[] { r.Tel1, r.Tel2 }.Select(MessagePreparation.NormalizePhone).FirstOrDefault(p => p.Length > 0) ?? string.Empty;
-            IndividualEmailText.Text = r.Email?.Trim() ?? string.Empty;
-            IndividualDatePicker.Date = new DateTimeOffset(r.DateRDV.Date);
-            IndividualTimePicker.SelectedTime = r.HeureRDV.TimeOfDay;
+            var p = choice.Patient;
+            IndividualNameText.Text = p.Name;
+            IndividualPhoneText.ItemsSource = p.Phones;
+            IndividualPhoneText.Text = p.Phones.FirstOrDefault() ?? string.Empty;
+            IndividualStatus.Text = p.Phones.Count == 0 ? "Aucun téléphone connu pour ce patient : saisissez le numéro." : "";
+            // RDV de ce patient parmi ceux chargés : date et heure reprises pour le texte.
+            if (_appointments.Where(r => r.Id == p.PatientId && !r.IsCancelled).OrderBy(r => r.HeureRDV).FirstOrDefault() is { } r)
+            {
+                IndividualDatePicker.Date = new DateTimeOffset(r.DateRDV.Date);
+                IndividualTimePicker.SelectedTime = r.HeureRDV.TimeOfDay;
+            }
             RefreshIndividualAutoText();
         }
 
-        private sealed class IndividualPatientChoice(RdvInfo rdv)
+        private sealed class IndividualPatientChoice(FamilyCardCandidate patient)
         {
-            public RdvInfo Rdv { get; } = rdv;
-            public override string ToString() => $"{Rdv.Nom} {Rdv.Prenom} — {Rdv.DateRDV:dd/MM} {Rdv.HeureRDV:HH:mm}";
+            public FamilyCardCandidate Patient { get; } = patient;
+            public override string ToString() => Patient.Name + (Patient.BirthDate.HasValue ? $" · {Patient.BirthDate:dd/MM/yyyy}" : "")
+                + (Patient.Phones.Count > 0 ? " · " + Patient.Phones[0] : " · sans téléphone");
         }
 
-        private void IndividualChannel_Changed(object sender, SelectionChangedEventArgs e) => UpdateIndividualFields();
+        /// <summary>Le numéro saisi ou choisi, sans l'annotation (« 06 12 34 56 78 · portable » → « 06 12 34 56 78 »).</summary>
+        private string IndividualPhone() => (IndividualPhoneText.Text ?? "").Split('·')[0].Trim();
+
         private void IndividualLink_Changed(object sender, RoutedEventArgs e)
         {
             var withLink = IndividualLinkCheck.IsChecked == true;
@@ -810,12 +583,9 @@ namespace Client.Pages
 
         private void UpdateIndividualFields()
         {
-            if (IndividualPhoneText == null || IndividualEmailText == null || IndividualMetrics == null) return;
-            var sms = IndividualChannelValue == "SMS";
+            if (IndividualPhoneText == null || IndividualMetrics == null) return;
+            var sms = true;
             var withLink = IndividualLinkCheck.IsChecked == true;
-            IndividualPhoneText.Visibility = sms ? Visibility.Visible : Visibility.Collapsed;
-            IndividualEmailText.Visibility = sms ? Visibility.Collapsed : Visibility.Visible;
-            IndividualSubjectText.Visibility = sms ? Visibility.Collapsed : Visibility.Visible;
             IndividualReplyEmailText.Visibility = withLink ? Visibility.Visible : Visibility.Collapsed;
             IndividualMetrics.Text = sms
                 ? MessagePreparation.SmsMetrics(IndividualMessage.ForMetrics(IndividualText.Text, withLink)) + (withLink ? " (lien compris)" : "")
@@ -861,8 +631,8 @@ namespace Client.Pages
             var replyEmail = IndividualReplyEmailText.Text.Trim();
             if (withLink && !System.Net.Mail.MailAddress.TryCreate(replyEmail, out _))
                 throw new InvalidOperationException("Indiquez l’adresse mail qui recevra la réponse du patient.");
-            var message = IndividualMessage.Create(settings, channel, IndividualNameText.Text, IndividualPhoneText.Text, IndividualEmailText.Text,
-                start ?? DateTime.Today, IndividualText.Text, IndividualSubjectText.Text);
+            var message = IndividualMessage.Create(settings, channel, IndividualNameText.Text, IndividualPhone(), string.Empty,
+                start ?? DateTime.Today, IndividualText.Text, string.Empty);
             var connection = App.ChatService.GetSmsMailHistoryConnection();
             await connection.InvokeAsync("SmsMailValidate", new List<PreparedMessage> { message });
             if (withLink && string.IsNullOrEmpty(await connection.InvokeAsync<string>("SmsMailReplyLinkBase")))
@@ -964,26 +734,6 @@ namespace Client.Pages
             DispatcherQueue.TryEnqueue(UpdateSelectionSummary);
         }
 
-        private void FilterFamilies()
-        {
-            if (FamiliesList == null || FamilySearch == null || FamilySizeFilter == null || FamiliesSummary == null || FamiliesEmpty == null) return;
-            var query = FamilySearch.Text.Trim();
-            var size = FamilySizeFilter.SelectedIndex;
-            var visible = _families.Where(f => (size <= 0 || (size == 1 ? f.PersonCount == 1 : f.PersonCount >= size))
-                && (f.TitleDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || f.MembersDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || f.PhonesDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || f.EmailsDisplay.Contains(query, StringComparison.OrdinalIgnoreCase)))
-                .OrderBy(f => f.FirstAppointment).ThenBy(f => f.Numero).ToList();
-            FamiliesList.ItemsSource = visible;
-            FamiliesEmpty.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            FamiliesEmpty.Text = _families.Count == 0 ? "Aucune famille préparée." : "Aucune famille ne correspond aux filtres.";
-            FamiliesSummary.Text = _families.Count == 0
-                ? "Chargez les rendez-vous et activez le regroupement des familles dans les options de préparation."
-                : $"{visible.Count} famille(s) affichée(s) sur {_families.Count} · {visible.Sum(f => f.PersonCount)} personne(s) · Tri par premier rendez-vous. Ces filtres ne modifient pas les envois.";
-        }
-        private void FamilySearch_Changed(object sender, TextChangedEventArgs e) => FilterFamilies();
-        private void FamilySize_Changed(object sender, SelectionChangedEventArgs e) => FilterFamilies();
 
         private void FilterHistory()
         {
@@ -1141,7 +891,7 @@ namespace Client.Pages
             _preparedSignature = string.Empty;
             if (MessagesList != null) MessagesList.ItemsSource = null;
 
-            if (TimeChangesText != null) TimeChangesText.Text = "Préparez les messages pour vérifier les horaires ajustés.";
+            _timeChanges = "Préparez les messages pour vérifier les horaires ajustés.";
             if (SummaryText != null) SummaryText.Text = "Préparez les messages avant l'envoi.";
         }
 
@@ -1151,43 +901,11 @@ namespace Client.Pages
             _appointments.Clear();
             _working.Clear();
             _families.Clear(); _appointmentHistory.Clear(); _familyDecisions.Clear();
-            FilterFamilies();
-            if (AppointmentsList != null) AppointmentsList.ItemsSource = null;
         }
 
         private void Options_Changed(object sender, RoutedEventArgs e) => ClearMessages();
         private void SmsFamilySize_Changed(object sender, SelectionChangedEventArgs e) => ClearMessages();
 
-        private async void Import_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
-        {
-            if (App.MainWindow == null) return;
-            var picker = new FileOpenPicker();
-            picker.FileTypeFilter.Add(".json");
-            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
-            var file = await picker.PickSingleFileAsync();
-            if (file == null) return;
-            var appointments = JsonSerializer.Deserialize<List<RdvInfo>>(await FileIO.ReadTextAsync(file), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                ?? throw new InvalidDataException("Le fichier doit contenir un tableau de rendez-vous.");
-            foreach (var rdv in appointments)
-            {
-                if (rdv == null || rdv.DateRDV == DateTime.MinValue || rdv.HeureRDV == DateTime.MinValue)
-                    throw new InvalidDataException("Chaque rendez-vous doit préciser DateRDV et HeureRDV.");
-                rdv.AdditionalEmails ??= new();
-                rdv.Tel1 ??= string.Empty;
-                rdv.Tel2 ??= string.Empty;
-                rdv.IsCancelled |= (rdv.Remarque ?? string.Empty).Contains("annul", StringComparison.OrdinalIgnoreCase);
-            }
-            ClearMessages();
-            foreach (var row in appointments)
-            {
-                EyeEmailRecordMapper.NormalizeContactDetails(row);
-                EyeEmailRecordMapper.ApplyRemarkBasedAdjustments(row);
-            }
-            _appointmentHistory.Clear(); _familyDecisions.Clear();
-            _appointments = EyeEmailRecordMapper.ConsolidateDuplicateAppointments(appointments);
-            AppointmentsList.ItemsSource = _appointments;
-            await PrepareAsync();
-        });
 
         private async void Export_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {

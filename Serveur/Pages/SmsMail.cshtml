@@ -3,40 +3,115 @@
 @{
     ViewData["Title"] = "SMS et mail";
     var s = Model.Current;
+    const string kept = "Enregistré — laisser vide pour garder";
 }
 <link rel="stylesheet" href="~/css/patient-registry.css" asp-append-version="true" />
 <section class="registry">
     <header class="registry-heading">
-        <div><p class="registry-eyebrow">RAPPELS · SMS ET MAIL</p><h1>Configuration SMS et mail</h1>
-            <p>Réglages communs à tous les postes, gardés par le serveur (chiffrés). C'est le serveur qui lit l'agenda et envoie les SMS et les mails.</p></div>
+        <div><p class="registry-eyebrow">RAPPELS · SMS ET MAIL</p><h1>SMS et mail</h1>
+            <p>Paramètres, modèles et post-it, communs à tous les postes. Le serveur lit l'agenda et envoie les SMS et les mails ;
+               les postes préparent, vérifient et lancent les envois.</p></div>
     </header>
     @if (Model.Error.Length > 0) { <div class="registry-error" role="alert">@Model.Error</div> }
     @if (Model.Notice.Length > 0) { <div class="registry-notice" role="status">@Model.Notice</div> }
+    @if (s == null) { <div class="registry-notice" role="status">Aucune configuration encore : remplissez ce formulaire, ou importez le fichier exporté depuis un poste (en bas de page).</div> }
+
+    <form method="post" asp-page-handler="Save" id="sms-settings">
+        <section class="registry-card">
+            <h2>Cabinet</h2>
+            <div class="form-grid">
+                <label>Nom du cabinet<input asp-for="Form.Cabinet" required maxlength="120" /></label>
+                <label>Spécialité (fiche de rendez-vous)<input asp-for="Form.CabinetSpecialty" maxlength="120" /></label>
+                <label class="wide">Adresse<input asp-for="Form.CabinetAddress" maxlength="200" /></label>
+                <label>Téléphone<input asp-for="Form.CabinetPhone" maxlength="40" /></label>
+                <label>Fax<input asp-for="Form.CabinetFax" maxlength="40" /></label>
+                <label>Contact RDV (mail)<input asp-for="Form.CabinetContact" type="email" maxlength="120" /></label>
+                <label>Durée d'un rendez-vous (minutes)<input asp-for="Form.AppointmentDurationMinutes" type="number" min="1" max="480" /></label>
+            </div>
+        </section>
+
+        <section class="registry-card">
+            <h2>Modèles</h2>
+            <p class="registry-help">Variables : <code>@Model.Variables</code></p>
+            <div class="form-grid">
+                <label class="wide">Objet du mail<input asp-for="Form.Subject" maxlength="200" /></label>
+                <label class="wide">Modèle SMS<textarea asp-for="Form.SmsTemplate" rows="3" maxlength="1000"></textarea></label>
+            </div>
+            <div class="template-columns">
+                <label>Modèle du mail (HTML)<textarea asp-for="Form.EmailTemplate" rows="18" class="code" id="email-template"></textarea></label>
+                <div><span class="preview-label">Aperçu (variables non remplacées)</span>
+                    <iframe id="email-preview" title="Aperçu du mail" sandbox="" srcdoc="@Model.Form.EmailTemplate"></iframe></div>
+            </div>
+            <button class="secondary" type="submit" formaction="?handler=DefaultTemplate" formnovalidate>Appliquer le modèle de rappel du cabinet</button>
+        </section>
+
+        <section class="registry-card">
+            <h2>Préparation des rappels</h2>
+            <div class="form-grid">
+                <label class="registry-check"><input asp-for="Form.UseEyeEmailFamilies" />Regrouper les rendez-vous par famille</label>
+                <label class="registry-check"><input asp-for="Form.SmsOnlyWhenNoEmail" />Pas de SMS si la famille a un mail valide</label>
+                <label>SMS seulement à partir de<select asp-for="Form.SmsMinimumFamilySize"><option value="1">1 personne (toutes)</option><option value="2">2 personnes</option><option value="3">3 personnes</option></select></label>
+                <label class="registry-check"><input asp-for="Form.LogFamilyQuestions" />Journal anonymisé des questions « Famille à vérifier » sur les postes</label>
+                <label class="wide">Base familles EyeEmail (facultative, chemin vu des postes)<input asp-for="Form.FamilyDatabasePath" maxlength="400" /></label>
+                <label class="registry-check"><input asp-for="Form.AdjustReminderTimes" />Annoncer une heure d'arrivée différente de l'heure du RDV</label>
+                <label>Heures annoncées (une par ligne : <code>11:30 → 11:20</code>)<textarea asp-for="Form.ReminderTimeRules" rows="3"></textarea></label>
+            </div>
+        </section>
+
+        <section class="registry-card">
+            <h2>Invitation calendrier</h2>
+            <div class="form-grid">
+                <label class="registry-check"><input asp-for="Form.SendCalendarInvites" />Joindre l'invitation (.ics) au mail</label>
+                <label class="registry-check"><input asp-for="Form.SendCalendarAlarms" />Inclure les alertes</label>
+                <label class="registry-check"><input asp-for="Form.CalendarIsBusy" />Marquer le créneau occupé</label>
+                <label>Titre du rendez-vous dans l'agenda<input asp-for="Form.CalendarSubject" maxlength="200" /></label>
+                <label>Alertes (une par ligne : <code>1440 ; Rappel la veille</code>, en minutes avant)<textarea asp-for="Form.Alerts" rows="3"></textarea></label>
+            </div>
+        </section>
+
+        <section class="registry-card">
+            <h2>Comptes d'envoi</h2>
+            <div class="form-grid">
+                <label>Compte SMS OVH<input asp-for="Form.SmsServiceName" placeholder="sms-ab12345-1" maxlength="60" /></label>
+                <label>Expéditeur SMS<input asp-for="Form.SmsSender" maxlength="11" /></label>
+                <label>Clé d'application OVH<input asp-for="Form.SmsApplicationKey" autocomplete="off" maxlength="200" /></label>
+                <label>Secret d'application OVH<input asp-for="Form.SmsApplicationSecret" type="password" value="" autocomplete="new-password" placeholder="@(Model.Secrets.SmsApplicationSecret ? kept : "")" /></label>
+                <label>Clé consommateur OVH<input asp-for="Form.SmsConsumerKey" type="password" value="" autocomplete="new-password" placeholder="@(Model.Secrets.SmsConsumerKey ? kept : "")" /></label>
+                <span></span>
+                <label>Serveur SMTP<input asp-for="Form.SmtpHost" maxlength="200" /></label>
+                <label>Port SMTP<input asp-for="Form.SmtpPort" type="number" min="1" max="65535" /></label>
+                <label class="registry-check"><input asp-for="Form.SmtpSsl" />STARTTLS (587)</label>
+                <label>Compte SMTP<input asp-for="Form.MailUser" autocomplete="off" maxlength="200" /></label>
+                <label>Mot de passe SMTP<input asp-for="Form.MailPassword" type="password" value="" autocomplete="new-password" placeholder="@(Model.Secrets.MailPassword ? kept : "")" /></label>
+                <label>Adresse d'envoi<input asp-for="Form.MailFrom" type="email" maxlength="200" /></label>
+                <label>Nom affiché<input asp-for="Form.MailDisplayName" maxlength="120" /></label>
+                <label>Serveur IMAP (retours mail)<input asp-for="Form.ImapHost" maxlength="200" /></label>
+                <label>Port IMAP<input asp-for="Form.ImapPort" type="number" min="1" max="65535" /></label>
+                <label>Filtre des retours<input asp-for="Form.BounceFilter" maxlength="200" /></label>
+            </div>
+            <p class="registry-help">Clés et mots de passe sont chiffrés sur le serveur et ne sont jamais réaffichés ni envoyés aux postes : laissez le champ vide pour garder la valeur enregistrée.</p>
+        </section>
+        <div class="sticky-save"><button type="submit">Enregistrer les paramètres</button></div>
+    </form>
 
     <section class="registry-card">
-        <h2>Configuration actuelle</h2>
-        @if (s == null)
-        {
-            <p>Aucune configuration sur le serveur. Importez le fichier exporté depuis un poste, ou enregistrez les paramètres depuis l'onglet SMS et mail d'un poste.</p>
-        }
-        else
-        {
-            <dl class="summary-list">
-                <dt>Cabinet</dt><dd>@s.Cabinet<small>@s.CabinetAddress</small></dd>
-                <dt>SMS (OVH)</dt><dd>@(s.Sms.ServiceName.Length > 0 ? s.Sms.ServiceName : "non renseigné")
-                    <small>Expéditeur @(s.Sms.Sender.Length > 0 ? s.Sms.Sender : "—") · clés @(s.Sms.ApplicationSecret.Length > 0 && s.Sms.ConsumerKey.Length > 0 ? "enregistrées" : "manquantes")</small></dd>
-                <dt>Mail (SMTP)</dt><dd>@(s.Email.SmtpHost.Length > 0 ? $"{s.Email.SmtpHost}:{s.Email.SmtpPort}" : "non renseigné")
-                    <small>@s.Email.FromAddress · mot de passe @(s.Email.Password.Length > 0 ? "enregistré" : "manquant")</small></dd>
-                <dt>Retours mail (IMAP)</dt><dd>@(s.Email.ImapHost.Length > 0 ? $"{s.Email.ImapHost}:{s.Email.ImapPort}" : "non renseigné")</dd>
-            </dl>
-            <p class="registry-help">Les modèles de texte, horaires et options se modifient depuis l'onglet SMS et mail d'un poste, pour tous les postes.</p>
-        }
+        <h2>Post-it (analyse)</h2>
+        <p class="registry-help">Exports chiffrés des post-it de l'agenda, lus par le serveur : les post-it de consultation, ou les liens familiaux
+            qu'ils révèlent. Choisissez un mot de passe (10 caractères au moins) et transmettez-le séparément.</p>
+        <form method="post" asp-page-handler="PostIts" class="registry-filters">
+            <label>Du<input type="date" name="from" value="@Model.PostItFrom.ToString("yyyy-MM-dd")" required /></label>
+            <label>Au (inclus)<input type="date" name="to" value="@Model.PostItTo.ToString("yyyy-MM-dd")" required /></label>
+            <label class="registry-check"><input type="checkbox" name="pseudonymize" value="true" checked />Pseudonymiser (recommandé)</label>
+            <label>Mot de passe<input type="password" name="password" minlength="10" autocomplete="new-password" required /></label>
+            <label>Confirmer<input type="password" name="confirm" minlength="10" autocomplete="new-password" required /></label>
+            <button type="submit" name="kind" value="postits">Exporter les post-it</button>
+            <button class="secondary" type="submit" name="kind" value="links">Rapport des liens familiaux</button>
+        </form>
     </section>
 
     <section class="registry-card">
         <h2>Importer une configuration</h2>
-        <p class="registry-help">Fichier <code>.eyeconfig</code> exporté depuis un poste (onglet SMS et mail → Paramètres → Exporter la configuration)
-            ou depuis cette page. Une clé ou un mot de passe absent du fichier garde la valeur du serveur.</p>
+        <p class="registry-help">Fichier <code>.eyeconfig</code> exporté depuis un poste ou depuis cette page. Une clé ou un mot de passe absent du fichier garde la valeur du serveur.</p>
         <form method="post" asp-page-handler="Import" enctype="multipart/form-data" class="registry-filters">
             <label>Fichier<input type="file" name="file" accept=".eyeconfig" required /></label>
             <label>Mot de passe du fichier<input type="password" name="password" autocomplete="off" required /></label>
@@ -46,8 +121,7 @@
 
     <section class="registry-card">
         <h2>Exporter (sauvegarde)</h2>
-        <p class="registry-help">Le fichier contient les clés OVH et le mot de passe SMTP, chiffrés avec ce mot de passe (10 caractères au moins).
-            Gardez-le en lieu sûr et transmettez le mot de passe séparément.</p>
+        <p class="registry-help">Le fichier contient les clés OVH et le mot de passe SMTP, chiffrés avec ce mot de passe (10 caractères au moins).</p>
         <form method="post" asp-page-handler="Export" class="registry-filters">
             <label>Mot de passe<input type="password" name="password" minlength="10" autocomplete="new-password" required /></label>
             <label>Confirmer<input type="password" name="confirm" minlength="10" autocomplete="new-password" required /></label>
@@ -55,3 +129,9 @@
         </form>
     </section>
 </section>
+<script>
+(() => {
+    const source = document.getElementById("email-template"), preview = document.getElementById("email-preview");
+    if (source && preview) source.addEventListener("input", () => { preview.srcdoc = source.value; });
+})();
+</script>

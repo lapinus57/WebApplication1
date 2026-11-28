@@ -30,19 +30,35 @@ public sealed class FamilyCardService(EyeMailDbContext patients, FamilyStore fam
         else foreach (var word in words) q = q.Where(p => p.SearchName.Contains(word));
         foreach (var p in await q.OrderBy(p => p.LastName).ThenBy(p => p.FirstName).Take(40).ToListAsync())
             if (int.TryParse(p.AccessPatientId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
-                found.Add(new FamilyCardCandidate { PatientId = id, Name = $"{p.FirstName} {p.LastName}".Trim(), BirthDate = p.BirthDate, City = p.City });
+                found.Add(new FamilyCardCandidate
+                {
+                    PatientId = id, Name = $"{p.FirstName} {p.LastName}".Trim(), BirthDate = p.BirthDate, City = p.City,
+                    Phones = PhoneList((p.Phone1, p.Phone1Info), (p.Phone2, p.Phone2Info)),
+                });
 
         // Base patients vide (import pas encore fait) : patients ayant un RDV à venir, par leur nom.
         if (found.Count == 0 && !birth.HasValue && !await patients.Patients.AnyAsync())
             foreach (var r in (await agenda.RangeAsync(today, today.AddDays(HorizonDays)))
                          .Where(r => r.Id > 0 && words.All(w => EyeMailColumns.SearchText(r.Nom, r.Prenom, r.NomJeuneFille).Contains(w)))
                          .GroupBy(r => r.Id).Select(g => g.First()).Take(40))
-                found.Add(new FamilyCardCandidate { PatientId = r.Id, Name = $"{r.Prenom} {r.Nom}".Trim(), City = r.Ville });
+                found.Add(new FamilyCardCandidate
+                {
+                    PatientId = r.Id, Name = $"{r.Prenom} {r.Nom}".Trim(), City = r.Ville, Phones = PhoneList((r.Tel1, r.Tel1Info), (r.Tel2, r.Tel2Info)),
+                });
 
         var sizes = families.Memberships(found.Select(f => f.PatientId)).ToDictionary(m => m.PatientId, m => m.Members.Count);
         foreach (var f in found) f.FamilySize = Math.Max(1, sizes.GetValueOrDefault(f.PatientId, 1));
         return found;
     }
+
+    /// <summary>Téléphones lisibles, portables (06/07) d'abord, avec leur annotation (« portable », « travail »…).</summary>
+    public static List<string> PhoneList(params (string? Number, string? Info)[] phones)
+        => phones.Where(p => !string.IsNullOrWhiteSpace(p.Number))
+            .Select(p => (Digits: new string(p.Number!.Where(char.IsDigit).ToArray()), p.Number, p.Info))
+            .Where(p => p.Digits.Length >= 9)
+            .OrderBy(p => p.Digits.StartsWith("06") || p.Digits.StartsWith("07") || p.Digits.StartsWith("336") || p.Digits.StartsWith("337") ? 0 : 1)
+            .Select(p => p.Number!.Trim() + (string.IsNullOrWhiteSpace(p.Info) ? "" : " · " + p.Info!.Trim()))
+            .Distinct().ToList();
 
     /// <summary>Date de naissance saisie : 05/03/1980, 5/3/80, 05031980 ou 1980-03-05.</summary>
     public static DateTime? ParseDate(string text)

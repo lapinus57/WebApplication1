@@ -37,11 +37,9 @@
                         <CommandBar.SecondaryCommands>
                             <AppBarButton Label="Préparer à nouveau" Icon="Refresh" Click="Prepare_Click" />
                             <AppBarButton Label="Tester mail / SMS" Click="TestSend_Click" />
-                            <AppBarButton Label="Options de préparation" Click="PreparationOptions_Click" />
-                            <AppBarButton Label="Heures d’arrivée annoncées" Click="ReminderTimes_Click" />
                             <AppBarButton Label="Voir les horaires ajustés" Click="ReviewTimes_Click" />
                             <AppBarButton Label="Exporter un diagnostic chiffré" Click="ExportDiagnostic_Click" />
-                            <AppBarButton Label="Importer des rendez-vous JSON" Click="Import_Click" />
+                            <AppBarButton Label="Exporter la configuration de ce poste" Click="ExportConfig_Click" />
                             <AppBarButton Label="Consulter le solde SMS" Click="Balance_Click" />
                         </CommandBar.SecondaryCommands>
                     </CommandBar>
@@ -131,26 +129,20 @@
                     </Border>
                 </Grid>
             </PivotItem>
-            <PivotItem Header="Message individuel">
+            <PivotItem Header="SMS individuel">
                 <ScrollViewer>
                     <StackPanel Spacing="12" Padding="0,0,16,16" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock TextWrapping="Wrap" Text="Message à une seule personne, en dehors des rappels groupés. Vous pouvez y ajouter le lien « Confirmer / Annuler » : la réponse du patient arrive par mail à l’adresse indiquée et s’affiche dans l’historique de tous les postes." />
-                        <AutoSuggestBox x:Name="IndividualPatientBox" Header="Patient (parmi les RDV chargés)" PlaceholderText="Nom ou prénom… (facultatif : vous pouvez tout saisir à la main)"
+                        <TextBlock TextWrapping="Wrap" Text="SMS à une seule personne, en dehors des rappels groupés. Le patient est cherché dans la base patients du serveur (nom, prénom ou date de naissance) : ses numéros sont proposés. Vous pouvez y ajouter le lien « Confirmer / Annuler » : la réponse du patient arrive par mail à l’adresse indiquée et s’affiche dans l’historique de tous les postes." />
+                        <AutoSuggestBox x:Name="IndividualPatientBox" Header="Patient" PlaceholderText="Nom, prénom ou date de naissance… (facultatif : vous pouvez tout saisir à la main)"
                                         TextChanged="IndividualPatient_TextChanged" SuggestionChosen="IndividualPatient_SuggestionChosen" QueryIcon="Find" />
                         <TextBox x:Name="IndividualNameText" Header="Personne (nom affiché dans l’historique et dans le mail de réponse)" />
-                        <RadioButtons x:Name="IndividualChannel" Header="Envoyer par" SelectedIndex="0" SelectionChanged="IndividualChannel_Changed" MaxColumns="2">
-                            <x:String>SMS</x:String>
-                            <x:String>Mail</x:String>
-                        </RadioButtons>
-                        <TextBox x:Name="IndividualPhoneText" Header="Téléphone mobile" PlaceholderText="06… ou +33…" InputScope="TelephoneNumber" />
-                        <TextBox x:Name="IndividualEmailText" Header="Adresse mail" Visibility="Collapsed" InputScope="EmailSmtpAddress" />
+                        <ComboBox x:Name="IndividualPhoneText" Header="Téléphone mobile" PlaceholderText="06… ou +33…" IsEditable="True" HorizontalAlignment="Stretch" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <CalendarDatePicker FirstDayOfWeek="Monday" x:Name="IndividualDatePicker" Header="Date du RDV" DateFormat="{}{dayofweek.full} {day.integer} {month.full}" DateChanged="IndividualDate_Changed" />
                             <TimePicker x:Name="IndividualTimePicker" Header="Heure du RDV" ClockIdentifier="24HourClock" MinuteIncrement="5" SelectedTimeChanged="IndividualTime_Changed" />
                         </StackPanel>
                         <CheckBox x:Name="IndividualLinkCheck" Content="Ajouter le lien « Confirmer / Annuler »" Checked="IndividualLink_Changed" Unchecked="IndividualLink_Changed" />
                         <TextBox x:Name="IndividualReplyEmailText" Header="Adresse qui reçoit la réponse du patient" Visibility="Collapsed" InputScope="EmailSmtpAddress" />
-                        <TextBox x:Name="IndividualSubjectText" Header="Objet du mail" Visibility="Collapsed" />
                         <TextBox x:Name="IndividualText" Header="Message (rédigé automatiquement d’après la date, l’heure et le lien ; modifiable — [LIEN] est remplacé par le lien à l’envoi)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" TextChanged="IndividualText_Changed" />
                         <TextBlock x:Name="IndividualMetrics" Opacity="0.75" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
@@ -160,63 +152,6 @@
                         <TextBlock x:Name="IndividualStatus" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                     </StackPanel>
                 </ScrollViewer>
-            </PivotItem>
-            <PivotItem Header="Familles">
-                <Grid RowSpacing="12">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <CommandBar Background="Transparent" DefaultLabelPosition="Right">
-                        <AppBarButton Label="Actualiser les familles" Icon="Refresh" Click="Prepare_Click" />
-                        <CommandBar.SecondaryCommands>
-                            <AppBarButton Label="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
-                            <AppBarButton Label="Comparer l’historique RDV" Click="HistoricalFamilies_Click" />
-                        </CommandBar.SecondaryCommands>
-                    </CommandBar>
-                    <Grid Grid.Row="1" RowSpacing="8" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                        <ComboBox x:Name="FamilySizeFilter" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="Afficher les familles selon leur taille" SelectionChanged="FamilySize_Changed">
-                            <ComboBoxItem Content="Toutes les familles" /><ComboBoxItem Content="1 personne" /><ComboBoxItem Content="2 personnes et +" /><ComboBoxItem Content="3 personnes et +" />
-                        </ComboBox>
-                        <TextBox x:Name="FamilySearch" Grid.Column="1" PlaceholderText="Rechercher une personne, un téléphone, un mail ou une famille…" AutomationProperties.Name="Rechercher une famille" TextChanged="FamilySearch_Changed" />
-                        <TextBlock x:Name="FamiliesSummary" Grid.Row="1" Grid.ColumnSpan="2" Text="Chargez et préparez les rendez-vous pour consulter les familles." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </Grid>
-                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
-                        <Grid>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                            <Grid Padding="12,12,28,12" Background="{ThemeResource ControlFillColorSecondaryBrush}"><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="2.5*" /><ColumnDefinition Width="1.4*" /><ColumnDefinition Width="1.8*" /><ColumnDefinition Width="1.3*" /></Grid.ColumnDefinitions>
-                                <TextBlock Text="Famille" FontWeight="SemiBold" />
-                                <Grid Grid.Column="1" Margin="0,0,16,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="56" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Personnes" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="RDV ↑" FontWeight="SemiBold" ToolTipService.ToolTip="Horaires réels des rendez-vous ; familles classées par premier RDV" />
-                                </Grid>
-                                <TextBlock Grid.Column="2" Text="Téléphones" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="3" Text="Mails" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="4" Text="Regroupement" TextWrapping="Wrap" FontWeight="SemiBold" />
-                            </Grid>
-                            <ListView x:Name="FamiliesList" Grid.Row="1" SelectionMode="None" AutomationProperties.Name="Tableau des familles" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="0" /></Style></ListView.ItemContainerStyle>
-                                <ListView.ItemTemplate><DataTemplate>
-                                    <Border Padding="12,12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="2.5*" /><ColumnDefinition Width="1.4*" /><ColumnDefinition Width="1.8*" /><ColumnDefinition Width="1.3*" /></Grid.ColumnDefinitions>
-                                            <StackPanel Spacing="4" Margin="0,0,12,0"><TextBlock Text="{Binding TitleDisplay}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="{Binding CountDisplay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" /></StackPanel>
-                                            <ItemsControl Grid.Column="1" ItemsSource="{Binding MemberRows}" Margin="0,0,16,0">
-                                                <ItemsControl.ItemTemplate><DataTemplate>
-                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="56" /></Grid.ColumnDefinitions>
-                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,8,0" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Time}" />
-                                                    </Grid>
-                                                </DataTemplate></ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                            <TextBlock Grid.Column="2" Text="{Binding PhonesDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,12,0" />
-                                            <TextBlock Grid.Column="3" Text="{Binding EmailsDisplay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,12,0" />
-                                            <TextBlock Grid.Column="4" Text="{Binding GroupingDisplay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate></ListView.ItemTemplate>
-                            </ListView>
-                            <TextBlock x:Name="FamiliesEmpty" Grid.Row="1" Text="Aucune famille à afficher." FontSize="18" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24" IsHitTestVisible="False" />
-                        </Grid>
-                    </Border>
-                </Grid>
             </PivotItem>
             <PivotItem Header="Historique">
                 <Grid RowSpacing="12">
@@ -260,157 +195,6 @@
                         </ListView.ItemTemplate>
                     </ListView>
                 </Grid>
-            </PivotItem>
-            <PivotItem Header="Modèles">
-                <ScrollViewer>
-                    <StackPanel Spacing="12" Padding="0,0,16,16">
-                        <TextBlock Text="Variables : [PRENOMS], [CABINET], [ADRESSE_CABINET], [DATE], [DATE_LONGUE], [DatejourL], [DatejourC], [HEURE], [LISTE_PERSONNES]" TextWrapping="Wrap" />
-                        <TextBox x:Name="SubjectText" Header="Objet du mail" />
-                        <TextBox x:Name="SmsTemplateText" Header="Modèle SMS" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
-                        <Expander Header="Code HTML du modèle (avancé)" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <TextBox x:Name="EmailTemplateText" TextChanged="EmailHtml_Changed" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="200" FontFamily="Consolas" AutomationProperties.Name="Code HTML du mail" />
-                        </Expander>
-                        <TextBlock Text="Personnaliser le mail" FontSize="18" />
-                        <WebView2 x:Name="EmailEditor" Height="440" Loaded="EmailEditor_Loaded" />
-                        <TextBlock Text="Les options d’invitation et d’alertes calendrier se règlent dans Paramètres." TextWrapping="Wrap" />
-                        <Button Content="Appliquer le modèle de rappel du cabinet" Click="ApplyEmailModel_Click" />
-                        <Button Style="{StaticResource AccentButtonStyle}" Content="Enregistrer les modèles" Click="Save_Click" />
-                    </StackPanel>
-                </ScrollViewer>
-            </PivotItem>
-            <PivotItem x:Name="PostItTab" Header="Post-it">
-                <ScrollViewer>
-                    <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,16,24">
-                        <TextBlock Text="Extraction des post-it de consultation" FontSize="20" FontWeight="SemiBold" />
-                        <TextBlock TextWrapping="Wrap" Text="Lit la table tPostIT de la base Access et garde seulement les post-it de fin de consultation : ceux qui contiennent une cotation (CS, OR, V3F) ou un suivi du type « 1 ok », « 4-8-12 ok ». Les autres post-it ne sont pas exportés. Cette extraction ne modifie ni la base Access ni le regroupement des familles." />
-                        <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                            <CalendarDatePicker FirstDayOfWeek="Monday" x:Name="PostItFromPicker" Header="Du" HorizontalAlignment="Stretch" />
-                            <CalendarDatePicker FirstDayOfWeek="Monday" x:Name="PostItToPicker" Grid.Column="1" Header="Au (inclus)" HorizontalAlignment="Stretch" />
-                        </Grid>
-                        <CheckBox x:Name="PostItPseudonymizeCheck" IsChecked="True" Content="Remplacer noms et prénoms par des pseudonymes (recommandé)" />
-                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Les prénoms écrits dans les post-it sont reconnus grâce à la liste des patients et remplacés. Un prénom absent de la table Patients ou mal orthographié reste visible. Les codes (CS, OR, LUN, GOU, DL, 1 ok…) restent lisibles." />
-                        <PasswordBox x:Name="PostItPasswordBox" Header="Mot de passe (au moins 10 caractères)" />
-                        <PasswordBox x:Name="PostItConfirmBox" Header="Confirmer le mot de passe" />
-                        <Button Content="Extraire et enregistrer le fichier chiffré…" Click="ExportPostIts_Click" Style="{StaticResource AccentButtonStyle}" />
-                        <TextBlock Text="Vérifier les liens familiaux trouvés dans les post-it" FontSize="16" FontWeight="SemiBold" Margin="0,12,0,0" />
-                        <TextBlock TextWrapping="Wrap" Text="Lit les post-it et les rendez-vous de la période (choisir 1 an : chaque patient n’a qu’un post-it de cotation, remplacé à chaque visite), puis cherche les personnes citées (+Prénom, Prénom CS…) parmi les rendez-vous du même jour. Même nom de famille : lien. Nom différent : lien seulement à moins d’1 h d’écart. Le rapport chiffré liste les liens et les cas non résolus. Les rappels ne sont pas modifiés." />
-                        <Button Content="Analyser les liens et enregistrer le rapport chiffré…" Click="ExportPostItLinks_Click" />
-                        <TextBlock x:Name="PostItStatusText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Cet onglet peut être masqué dans Paramètres → Préparation des rappels et familles." />
-                    </StackPanel>
-                </ScrollViewer>
-            </PivotItem>
-            <PivotItem x:Name="SettingsTab" Header="Paramètres">
-                <ScrollViewer>
-                    <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Stretch" Padding="0,0,16,16">
-                        <TextBlock Text="Les rendez-vous utilisent la base Access des paramètres RDV et les identifiants Access du poste." TextWrapping="Wrap" />
-                    <Expander Header="Votre cabinet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True"><StackPanel Spacing="12">
-                        <TextBox x:Name="CabinetText" Header="Nom du cabinet" />
-                        <TextBox x:Name="CabinetAddressText" Header="Adresse du cabinet (mail et calendrier)" />
-                        <TextBox x:Name="CabinetSpecialtyText" Header="Spécialité (fiche de rendez-vous)" />
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBox x:Name="CabinetPhoneText" Header="Téléphone" MinWidth="160" InputScope="TelephoneNumber" />
-                            <TextBox x:Name="CabinetFaxText" Header="Fax" MinWidth="160" InputScope="TelephoneNumber" />
-                            <TextBox x:Name="CabinetContactText" Header="Contact RDV (mail)" MinWidth="240" InputScope="EmailSmtpAddress" />
-                        </StackPanel>
-                        <NumberBox x:Name="DurationNumber" Header="Durée de chaque rendez-vous en minutes" Minimum="1" Maximum="480" Value="30" />
-                    </StackPanel></Expander>
-                    <Expander x:Name="ReminderTimesExpander" Header="Heures d’arrivée annoncées dans les rappels" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Annoncer une arrivée plus tôt dans les SMS, mails et invitations ICS, par exemple 11:20 pour le rendez-vous de 11:30. L’horaire réel du rendez-vous et la base Access restent inchangés." TextWrapping="Wrap" />
-                            <CheckBox x:Name="AdjustTimesCheck" Content="Activer les heures d’arrivée personnalisées" Checked="Options_Changed" Unchecked="Options_Changed" />
-                            <ListView x:Name="TimeRulesList" SelectionMode="None"><ListView.ItemTemplate><DataTemplate>
-                                <StackPanel Spacing="8" Padding="0,8">
-                                    <TimePicker Header="Horaire réel du rendez-vous" ClockIdentifier="24HourClock" Time="{Binding From, Mode=TwoWay}" />
-                                    <TimePicker Header="Heure d’arrivée annoncée" ClockIdentifier="24HourClock" Time="{Binding To, Mode=TwoWay}" />
-                                    <Button Content="Supprimer cette règle" Click="RemoveTimeRule_Click" />
-                                </StackPanel>
-                            </DataTemplate></ListView.ItemTemplate></ListView>
-                            <Button Content="Ajouter un remplacement" Click="AddTimeRule_Click" />
-                            <TextBlock Text="Enregistrez les paramètres, puis préparez à nouveau les messages. Un rappel déjà envoyé reste bloqué même si son horaire change." TextWrapping="Wrap" /><TextBlock Text="Dernière préparation : horaires annoncés" FontWeight="SemiBold" />
-                            <ScrollViewer MaxHeight="180"><TextBlock x:Name="TimeChangesText" Text="Aucun horaire ajusté." TextWrapping="Wrap" /></ScrollViewer>
-                        </StackPanel>
-                    </Expander>
-                    <Expander x:Name="PreparationExpander" Header="Préparation des rappels et familles" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
-                        <CheckBox x:Name="UseFamiliesCheck" Content="Regrouper les rendez-vous par famille" Checked="Options_Changed" Unchecked="Options_Changed" />
-                        <CheckBox x:Name="LogFamilyQuestionsCheck" Content="Journal anonymisé des questions « Famille à vérifier » (numéros patients au lieu des noms, relations et réponse)" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Ouvrir le dossier du journal" Click="OpenFamilyLog_Click" />
-                            <TextBlock x:Name="FamilyLogPathText" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </StackPanel>
-                        <CheckBox x:Name="ShowPostItTabCheck" Content="Afficher l’onglet Post-it (extraction pour analyse)" Checked="ShowPostItTab_Changed" Unchecked="ShowPostItTab_Changed" />
-                        <TextBlock Text="Le seuil de personnes et l’option SMS sans mail se règlent directement dans Envois." TextWrapping="Wrap" />
-                        <TextBlock Text="Un seul SMS par famille et par jour de rendez-vous. Le numéro retenu est visible dans le tableau." TextWrapping="Wrap" />
-                        <TextBlock Text="Familles EyeEmail" FontSize="18" FontWeight="SemiBold" />
-                        <TextBox x:Name="FamilyDatabaseText" Header="Base familles EyeEmail facultative (.mdb / .accdb)" />
-                        <Button Content="Choisir la base familles EyeEmail" Click="FamilyDatabase_Click" />
-                    </StackPanel></Expander>
-                    <Expander Header="Invitation calendrier et rappels" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
-                        <TextBlock Text="Invitation et alertes calendrier" FontSize="18" FontWeight="SemiBold" />
-                        <CheckBox x:Name="CalendarInviteCheck" Content="Joindre l'invitation ICS" />
-                        <CheckBox x:Name="CalendarAlarmsCheck" Content="Inclure les alertes calendrier" />
-                        <CheckBox x:Name="CalendarBusyCheck" Content="Marquer le créneau occupé" />
-                        <TextBox x:Name="CalendarSubjectText" Header="Objet de l'événement calendrier" />
-                        <ListView x:Name="AlertsList" SelectionMode="None">
-                            <ListView.ItemTemplate><DataTemplate>
-                                <StackPanel Spacing="4" Padding="0,4">
-                                    <TextBox Header="Libellé de l'alerte" Text="{Binding Label, Mode=TwoWay}" />
-                                    <NumberBox Header="Minutes avant le rendez-vous (1440 = 1 jour)" Value="{Binding OffsetMinutes, Mode=TwoWay}" Minimum="0" Maximum="525600" />
-                                    <TextBlock Text="{Binding OffsetDisplay}" />
-                                    <Button Content="Supprimer cette alerte" Click="DeleteAlert_Click" />
-                                </StackPanel>
-                            </DataTemplate></ListView.ItemTemplate>
-                        </ListView>
-                        <Button Content="Ajouter une alerte" Click="AddAlert_Click" />
-                    </StackPanel></Expander>
-                    <Expander Header="Envoi de SMS · OVH" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
-                        <TextBlock Text="Compte SMS OVH" FontSize="18" FontWeight="SemiBold" />
-                        <TextBox x:Name="SmsAccountText" Header="Nom du service SMS" />
-                        <TextBox x:Name="SmsSenderText" Header="Expéditeur SMS autorisé par OVH" />
-                        <TextBox x:Name="SmsAppKeyText" Header="Application key" />
-                        <PasswordBox x:Name="SmsSecretText" Header="Application secret" />
-                        <PasswordBox x:Name="SmsConsumerText" Header="Consumer key" />
-                    </StackPanel></Expander>
-                    <Expander Header="Envoi de mails · SMTP" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
-                        <TextBlock Text="Compte mail SMTP" FontSize="18" FontWeight="SemiBold" />
-                        <TextBox x:Name="SmtpHostText" Header="Serveur SMTP" />
-                        <NumberBox x:Name="SmtpPortNumber" Header="Port SMTP (STARTTLS : 587)" Minimum="1" Maximum="65535" Value="587" />
-                        <CheckBox x:Name="SmtpSslCheck" Content="Connexion sécurisée STARTTLS" IsChecked="True" />
-                        <TextBox x:Name="MailUserText" Header="Identifiant SMTP" />
-                        <PasswordBox x:Name="MailPasswordText" Header="Mot de passe SMTP" />
-                        <TextBox x:Name="MailFromText" Header="Adresse d'envoi et de retour des notifications" />
-                        <TextBox x:Name="MailDisplayText" Header="Nom de l'expéditeur" />
-                    </StackPanel></Expander>
-                    <Expander Header="Suivi des mails · IMAP" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><StackPanel Spacing="12">
-                        <TextBlock Text="Notifications mail IMAP (facultatif, mêmes identifiants que SMTP)" TextWrapping="Wrap" />
-                        <TextBox x:Name="ImapHostText" Header="Serveur IMAP" />
-                        <NumberBox x:Name="ImapPortNumber" Header="Port IMAP TLS" Value="993" Minimum="1" Maximum="65535" />
-                        <TextBox x:Name="BounceFilterText" Header="Expéditeur des retours (ex. mailer-daemon)" />
-                    </StackPanel></Expander>
-                        <Button Style="{StaticResource AccentButtonStyle}" Content="Enregistrer les paramètres" Click="Save_Click" />
-                        <Button Content="Exporter la configuration (pour le serveur)" Click="ExportConfig_Click" />
-                        <Button Content="Tester mail / SMS" Click="TestSend_Click" />
-                        <TextBlock Text="Paramètres communs à tous les postes, gardés par le serveur (identifiants chiffrés, jamais renvoyés aux postes). C’est le serveur qui lit l’agenda et envoie les SMS et mails. L’historique est commun." TextWrapping="Wrap" />
-                    </StackPanel>
-                </ScrollViewer>
-            </PivotItem>
-            <PivotItem Header="RDV importés">
-                <ListView x:Name="AppointmentsList" SelectionMode="None">
-                    <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Padding="4" Spacing="4">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <TextBlock Text="{Binding DateRDV}" /><TextBlock Text="{Binding HeureRDV}" />
-                                    <TextBlock Text="{Binding Nom}" /><TextBlock Text="{Binding Prenom}" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <TextBlock Text="{Binding Tel1}" /><TextBlock Text="{Binding Tel2}" /><TextBlock Text="{Binding Email}" />
-                                </StackPanel>
-                                <TextBlock Text="{Binding Remarque}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
             </PivotItem>
         </Pivot>
         <StackPanel Grid.Row="2" Margin="0,12,0,0" Spacing="4">

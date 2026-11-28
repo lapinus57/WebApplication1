@@ -55,3 +55,15 @@
   .summary-list { grid-template-columns: 1fr; }
   .summary-list dt { padding-bottom: 0; border-bottom: 0; }
 }
+
+/* Formulaires en grille (page SMS et mail) */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px 18px; align-items: end; }
+.form-grid .wide { grid-column: 1 / -1; }
+.registry textarea { border: 1px solid #c7d2e2; border-radius: 7px; padding: 10px 12px; font: inherit; color: #213147; resize: vertical; }
+.registry textarea.code { font-family: Consolas, "Cascadia Mono", monospace; font-size: .82rem; }
+.template-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 14px 0; }
+.template-columns iframe { width: 100%; height: 420px; border: 1px solid #dce3ed; border-radius: 10px; background: #fff; }
+.preview-label { display: block; margin-bottom: 7px; font-size: .9rem; font-weight: 600; }
+.sticky-save { position: sticky; bottom: 12px; display: flex; justify-content: flex-end; margin: 8px 0 24px; }
+.sticky-save button { box-shadow: 0 8px 22px rgba(37, 95, 157, .3); padding: 13px 22px; }
+@media (max-width: 760px) { .template-columns { grid-template-columns: 1fr; } }

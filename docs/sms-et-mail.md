@@ -18,6 +18,17 @@ mails (SMTP), lit les statuts OVH et la boîte IMAP. Le serveur doit donc pouvoi
 mail. Un message n'est envoyé que s'il est réservé dans l'historique commun et n'a encore aucun résultat ; le serveur
 écrit lui-même le résultat. Le poste prépare, montre et fait choisir les messages, comme avant.
 
+## Où se règle quoi
+
+- **Administration du serveur → SMS et mail** : cabinet, **modèles** (objet, SMS, mail HTML avec aperçu), préparation
+  (familles, seuil SMS, heures annoncées), invitation calendrier et alertes, comptes OVH / SMTP / IMAP, **post-it**
+  (exports chiffrés), import et sauvegarde de la configuration.
+- **Poste → SMS et mail** : onglets **Envois** (charger, vérifier, envoyer ; les deux options « seuil SMS » et « pas de
+  SMS si mail » peuvent être changées pour une préparation), **SMS individuel** et **Historique**. Les onglets Modèles,
+  Paramètres, Post-it, Familles et RDV importés ont été retirés du poste.
+- **SMS individuel** : le patient est cherché dans la base patients du serveur (nom, prénom ou date de naissance) ; ses
+  numéros sont proposés, portables d'abord. Le message individuel part uniquement par SMS.
+
 ## Configuration et utilisation
 
 1. Configurer Access dans les réglages Access du serveur et les paramètres RDV.

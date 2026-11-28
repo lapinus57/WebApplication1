@@ -148,6 +148,7 @@ try
     registry.Record("PC-DOCTEUR", "Docteur", "0.1.38.0", DateTime.UtcNow);
     builder.Services.AddSingleton(registry);
     Microsoft.AspNetCore.DataProtection.DataProtectionBuilderExtensions.SetApplicationName(builder.Services.AddDataProtection(), "EyeChat.Tests");
+    builder.Services.AddSingleton<ChatServeur.SmsMail.ISmsMailAgenda, PageAgenda>();
     builder.Services.AddSingleton(sp => new ChatServeur.SmsMail.SmsMailServerSettings(
         sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), Path.Combine(folder, "sms-mail-settings.dat")));
     var app = builder.Build();
@@ -226,7 +227,7 @@ try
     Check(savedFolder.Contains("Dossier des mises à jour enregistré") && registry.UpdateFolder == @"\\NAS\uptEye", "Page Postes : dossier des mises à jour enregistré");
     // Page SMS et mail : import d'un fichier exporté d'un poste, puis sauvegarde
     var smsPage = System.Net.WebUtility.HtmlDecode(await http.GetStringAsync("/SmsMail"));
-    Check(smsPage.Contains("Aucune configuration sur le serveur"), "Page SMS et mail : vide au départ");
+    Check(smsPage.Contains("Aucune configuration encore") && smsPage.Contains("Docteur René MULLER"), "Page SMS et mail : vide au départ, formulaire prérempli");
     var fromStation = new Client.SmsMail.Configuration.SmsMailSettings { Cabinet = "Cabinet du poste" };
     fromStation.Sms.ServiceName = "sms-xy1"; fromStation.Sms.ApplicationSecret = "CLE-SECRETE"; fromStation.Sms.ConsumerKey = "CONSO";
     fromStation.Email.SmtpHost = "smtp.example.fr"; fromStation.Email.Password = "MDP-SMTP";
@@ -236,7 +237,7 @@ try
     upload.Add(new ByteArrayContent(Client.SmsMail.Services.SmsMailConfigFile.Export(fromStation, "mot de passe du fichier")), "file", "config.eyeconfig");
     var imported = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/SmsMail?handler=Import", upload)).Content.ReadAsStringAsync());
     var serverSettings = app.Services.GetRequiredService<ChatServeur.SmsMail.SmsMailServerSettings>().Load();
-    Check(imported.Contains("Configuration importée") && imported.Contains("Cabinet du poste") && imported.Contains("clés enregistrées") && !imported.Contains("CLE-SECRETE")
+    Check(imported.Contains("Configuration importée") && imported.Contains("Cabinet du poste") && imported.Contains("Enregistré — laisser vide pour garder") && !imported.Contains("CLE-SECRETE")
         && serverSettings!.Sms.ApplicationSecret == "CLE-SECRETE" && serverSettings.Email.Password == "MDP-SMTP", "Page SMS et mail : import, secrets gardés sur le serveur, jamais affichés");
     var badUpload = new MultipartFormDataContent();
     badUpload.Add(new StringContent(Token(smsPage)), "__RequestVerificationToken");
@@ -257,6 +258,38 @@ try
     Check(!rebuild.NeedsRebuildAtStartup(), "Même moteur et familles présentes : pas de recalcul au démarrage");
     pageStore.SetMeta("engine_version", "ancienne-version");
     Check(rebuild.NeedsRebuildAtStartup(), "Serveur mis à jour : recalcul au démarrage");
+    // Formulaire complet : paramètres, modèles, alertes et heures annoncées ; secrets vides = gardés
+    var form = System.Net.WebUtility.HtmlDecode(await http.GetStringAsync("/SmsMail"));
+    var fields = new Dictionary<string, string>
+    {
+        ["__RequestVerificationToken"] = Token(form), ["Form.Cabinet"] = "Cabinet Formulaire", ["Form.CabinetAddress"] = "1 rue A, 57000 Metz",
+        ["Form.AppointmentDurationMinutes"] = "20", ["Form.Subject"] = "Rappel", ["Form.SmsTemplate"] = "Bonjour [PRENOMS]", ["Form.EmailTemplate"] = "<p>[PRENOMS]</p>",
+        ["Form.SmsMinimumFamilySize"] = "2", ["Form.UseEyeEmailFamilies"] = "true", ["Form.AdjustReminderTimes"] = "true",
+        ["Form.ReminderTimeRules"] = "11:30 → 11:20\n18h00 -> 17h50", ["Form.Alerts"] = "1440 ; Rappel la veille\n60 ; Une heure avant",
+        ["Form.SmsServiceName"] = "sms-xy1", ["Form.SmtpHost"] = "smtp.example.fr", ["Form.SmtpPort"] = "587", ["Form.ImapPort"] = "993",
+        ["Form.MailFrom"] = "cabinet@example.fr", ["Form.SmsApplicationSecret"] = "", ["Form.MailPassword"] = "",
+    };
+    var saved = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/SmsMail?handler=Save", new FormUrlEncodedContent(fields))).Content.ReadAsStringAsync());
+    var afterSave = app.Services.GetRequiredService<ChatServeur.SmsMail.SmsMailServerSettings>().Load()!;
+    Check(saved.Contains("Paramètres enregistrés pour tous les postes") && afterSave.Cabinet == "Cabinet Formulaire" && afterSave.AppointmentDurationMinutes == 20
+        && afterSave.SmsMinimumFamilySize == 2 && afterSave.ReminderTimeRules.Count == 2 && afterSave.ReminderTimeRules[1].From == new TimeSpan(18, 0, 0)
+        && afterSave.Alerts.Select(a => a.OffsetMinutes).SequenceEqual(new[] { 1440, 60 }) && afterSave.Alerts[0].Label == "Rappel la veille"
+        && afterSave.Sms.ApplicationSecret == "CLE-SECRETE" && afterSave.Email.Password == "MDP-SMTP" && afterSave.Email.SenderAddress == "cabinet@example.fr",
+        "Page SMS et mail : paramètres et modèles enregistrés, secrets vides gardés");
+    fields["Form.Alerts"] = "la veille";
+    var badAlert = System.Net.WebUtility.HtmlDecode(await (await http.PostAsync("/SmsMail?handler=Save", new FormUrlEncodedContent(fields))).Content.ReadAsStringAsync());
+    Check(badAlert.Contains("Alerte illisible") && app.Services.GetRequiredService<ChatServeur.SmsMail.SmsMailServerSettings>().Load()!.Alerts.Count == 2,
+        "Page SMS et mail : saisie illisible refusée, rien n'est changé");
+    var postIt = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        ["__RequestVerificationToken"] = Token(form), ["from"] = "2026-01-01", ["to"] = "2026-06-30", ["pseudonymize"] = "true",
+        ["password"] = "mot de passe post-it", ["confirm"] = "mot de passe post-it", ["kind"] = "postits"
+    });
+    var postItFile = await http.PostAsync("/SmsMail?handler=PostIts", postIt);
+    var postItBytes = await postItFile.Content.ReadAsByteArrayAsync();
+    var postItJson = Client.SmsMail.Services.DiagnosticPackage.Decrypt(postItBytes, "mot de passe post-it");
+    Check(postItFile.Content.Headers.ContentDisposition?.FileName?.StartsWith("PostIt_2026-01-01") == true && postItJson.Contains("dilatation") && !postItJson.Contains("FICTIVE"),
+        "Page SMS et mail : export des post-it chiffré et pseudonymisé");
     var progress = await http.GetStringAsync("/Families?handler=Progress");
     Check(progress.Contains("\"running\":false"), "Suivi du calcul en JSON");
     await app.StopAsync();
@@ -279,4 +312,16 @@ sealed class TestAuth(Microsoft.Extensions.Options.IOptionsMonitor<Microsoft.Asp
         return Task.FromResult(Microsoft.AspNetCore.Authentication.AuthenticateResult.Success(
             new Microsoft.AspNetCore.Authentication.AuthenticationTicket(new System.Security.Claims.ClaimsPrincipal(identity), "test")));
     }
+}
+
+sealed class PageAgenda : ChatServeur.SmsMail.ISmsMailAgenda
+{
+    public Task<List<Client.SmsMail.Models.RdvInfo>> DayAsync(DateTime day) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo>());
+    public Task<List<Client.SmsMail.Models.RdvInfo>> RangeAsync(DateTime from, DateTime to) => Task.FromResult(new List<Client.SmsMail.Models.RdvInfo>());
+    public Task<List<Client.SmsMail.Services.AgendaVisit>> HistoryAsync(DateTime today) => Task.FromResult(new List<Client.SmsMail.Services.AgendaVisit>());
+    public Task<Client.SmsMail.Models.SmsMailPostIts> PostItsAsync(DateTime from, DateTime to) => Task.FromResult(new Client.SmsMail.Models.SmsMailPostIts
+    {
+        PostIts = new() { new() { PatientCode = 5, Date = from.AddDays(3), Text = "CS FO dilatation 6 ok, Jeanne FICTIVE", Nom = "FICTIVE", Prenom = "Jeanne" } },
+        Names = new() { new() { Nom = "FICTIVE", Prenom = "Jeanne" } }
+    });
 }
