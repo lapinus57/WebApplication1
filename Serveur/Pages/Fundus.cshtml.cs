@@ -65,7 +65,12 @@ public sealed class FundusModel(ChatDbContext db, IFoAccessReader access, FoStor
         {
             SetRange();
             Fields = access.Inspect();
-            if (!ModelState.IsValid) throw new FoDataException("Vérifiez les champs et les dates saisis.");
+            // Un choix laissé vide (ex. « Annulation », facultatif quand la case « pas de champ d'annulation » est cochée)
+            // arrive comme absent : on le remet à vide. Les correspondances sont vérifiées par SaveMappingAsync, avec un
+            // message qui dit quel champ manque, et non par la validation automatique (qui refusait tout champ vide).
+            foreach (var property in typeof(FoMapping).GetProperties().Where(p => p.PropertyType == typeof(string) && p.CanWrite))
+                property.SetValue(Mapping, ((string?)property.GetValue(Mapping))?.Trim() ?? "");
+            Mapping.ObservationFields ??= Array.Empty<string>();
             await store.SaveMappingAsync(Mapping, HttpContext.RequestAborted);
             Notice = "Correspondances enregistrées. La recherche des patients va démarrer.";
             await LoadAsync();
