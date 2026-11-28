@@ -11,7 +11,7 @@ namespace Serveur.Pages;
 
 [Authorize]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class FundusModel(ChatDbContext db, IFoAccessReader access, FoStore store) : PageModel
+public sealed class FundusModel(ChatDbContext db, IFoAccessReader access, FoStore store, ILogger<FundusModel> logger) : PageModel
 {
     [BindProperty(SupportsGet = true)] public DateTime? From { get; set; }
     [BindProperty(SupportsGet = true)] public DateTime? To { get; set; }
@@ -103,7 +103,17 @@ public sealed class FundusModel(ChatDbContext db, IFoAccessReader access, FoStor
 
     private void SetRange()
     {
-        if (!ModelState.IsValid) throw new FoDataException("Vérifiez les dates et l’état sélectionné.");
+        // Seuls la période et l'état comptent ici ; le message dit lequel est refusé (le journal garde le nom, jamais la valeur).
+        var refused = ModelState.Where(e => e.Value.Errors.Count > 0).Select(e => e.Key).ToList();
+        if (refused.Count > 0) logger.LogWarning("SER33: Préparation FO, paramètre(s) refusé(s) : {Keys}", string.Join(", ", refused));
+        var bad = new[] { nameof(From), nameof(To), nameof(Status) }.FirstOrDefault(k => refused.Contains(k, StringComparer.OrdinalIgnoreCase));
+        if (bad != null)
+            throw new FoDataException(bad switch
+            {
+                nameof(From) => "Date de début illisible.",
+                nameof(To) => "Date de fin illisible.",
+                _ => "État sélectionné inconnu.",
+            } + " Choisissez à nouveau la période (ou cliquez sur « Les 7 prochains jours »).");
         bool defaultRange = !From.HasValue && !To.HasValue;
         From ??= Today;
         To ??= defaultRange ? From.Value.AddDays(6) : From;
