@@ -118,8 +118,8 @@ namespace Client.SmsMail.Services
               .Append(".cab b{display:block;font-size:17px}.cab .spe,.cab .adr{width:max-content;min-width:250px;border-bottom:1px solid #000;padding-bottom:2px;margin-bottom:5px}")
               .Append(".cab .adr{font-style:italic;font-size:13px}")
               .Append(".cab .tel{font-style:italic;font-weight:700;font-size:13px}.to{font-weight:700;font-size:15px;text-align:right}.to div+div{margin-top:3px}")
-              .Append(".intro{font-size:17px;margin:12px 0 6px 10px}.rdv{display:flex;align-items:baseline;gap:10px;margin:4px 0 4px 90px;font-size:19px}")
-              .Append(".rdv .d{font-weight:700;min-width:300px}.rdv .h b{font-weight:700}.for{margin:0 0 8px 120px;font-size:15px}")
+              .Append(".intro{font-size:17px;margin:12px 0 6px 10px}.rdv{display:flex;flex-wrap:nowrap;align-items:baseline;gap:24px;margin:8px 0 2px 60px;font-size:19px;white-space:nowrap}")
+              .Append(".rdv .d{font-weight:700;min-width:270px}.rdv .h b{font-weight:700}.for{margin:0 0 8px 90px;font-size:15px}")
               .Append(".none{margin:10px 0 10px 90px;font-size:16px}.note{font-style:italic;font-size:13px;margin:12px 0 0 12px;padding-bottom:10px;border-bottom:1px solid #d0d0d0}")
               .Append("@media print{body{padding:0}}</style></head><body>");
 
@@ -141,14 +141,15 @@ namespace Client.SmsMail.Services
             var many = card.Members.Count > 1;
             sb.Append("<div class=\"intro\">").Append(upcoming.Count > 1 ? "Vos prochains rendez-vous sont fixés au :" : "Votre prochain rendez-vous est fixé au :").Append("</div>");
             if (upcoming.Count == 0) sb.Append("<div class=\"none\">Aucun rendez-vous à venir.</div>");
-            // Même jour et même heure : une seule ligne, puis « Pour Jacques, Lucie et Jeanne ».
-            foreach (var slot in upcoming.GroupBy(a => a.Start))
+            // Même jour : une seule ligne à la première heure (la famille vient ensemble), puis « Pour Jacques, Lucie et Jeanne ».
+            foreach (var slot in upcoming.GroupBy(a => a.Start.Date))
             {
-                sb.Append("<div class=\"rdv\"><span class=\"d\">").Append(E(slot.Key.ToString("dddd d MMMM yyyy", Fr))).Append("</span>")
-                  .Append("<span class=\"h\">à : <b>").Append(slot.Key.ToString("HH:mm", Fr)).Append(" heures</b></span></div>");
+                var first = slot.Min(a => a.Start);
+                sb.Append("<div class=\"rdv\"><span class=\"d\">").Append(E(first.ToString("dddd d MMMM yyyy", Fr))).Append("</span>")
+                  .Append("<span class=\"h\">à : <b>").Append(first.ToString("HH:mm", Fr)).Append(" heures</b></span></div>");
                 if (many)
                 {
-                    var names = slot.OrderBy(a => card.Members.FindIndex(m => m.PatientId == a.PatientId) is var i && i >= 0 ? i : int.MaxValue)
+                    var names = slot.OrderBy(a => a.Start).ThenBy(a => card.Members.FindIndex(m => m.PatientId == a.PatientId) is var i && i >= 0 ? i : int.MaxValue)
                         .Select(a => card.Members.FirstOrDefault(m => m.PatientId == a.PatientId) is { } m ? DisplayFirstName(m, card.Members) : a.Name)
                         .Distinct().ToList();
                     sb.Append("<div class=\"for\">Pour ").Append(E(JoinNames(names))).Append("</div>");
