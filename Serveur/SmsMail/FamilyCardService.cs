@@ -75,11 +75,18 @@ public sealed class FamilyCardService(EyeMailDbContext patients, FamilyStore fam
 
         var card = new FamilyCard
         {
-            Cabinet = s?.Cabinet ?? "", CabinetAddress = s?.CabinetAddress ?? "", PatientId = patientId, GeneratedAt = DateTime.Now,
-            Members = ids.Select(id => new FamilyCardMember
+            Cabinet = s?.Cabinet ?? "", CabinetAddress = s?.CabinetAddress ?? "", Specialty = s?.CabinetSpecialty ?? "",
+            Phone = s?.CabinetPhone ?? "", Fax = s?.CabinetFax ?? "", Contact = s?.CabinetContact ?? "", PatientId = patientId, GeneratedAt = DateTime.Now,
+            Members = ids.Select(id =>
             {
-                PatientId = id, Name = NameOf(id),
-                BirthDate = known.FirstOrDefault(k => k.AccessPatientId == id.ToString(CultureInfo.InvariantCulture))?.BirthDate
+                var p = known.FirstOrDefault(k => k.AccessPatientId == id.ToString(CultureInfo.InvariantCulture));
+                var r = rdvs.FirstOrDefault(x => x.Id == id);
+                return new FamilyCardMember
+                {
+                    PatientId = id, Name = NameOf(id), BirthDate = p?.BirthDate,
+                    Title = p?.Civility is { Length: > 0 } c ? c : r?.Titre ?? "",
+                    LastName = p?.LastName ?? r?.Nom ?? "", FirstName = p?.FirstName ?? r?.Prenom ?? "",
+                };
             }).OrderBy(m => m.PatientId == patientId ? 0 : 1).ThenBy(m => m.Name).ToList(),
             Appointments = rdvs.GroupBy(r => (r.Id, r.HeureRDV)).Select(g => g.First())
                 .Select(r => new FamilyCardAppointment { PatientId = r.Id, Name = NameOf(r.Id), Start = r.HeureRDV }).OrderBy(a => a.Start).ToList(),

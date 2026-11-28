@@ -65,6 +65,8 @@ namespace Client.Pages
                 DayPicker.Date = DateTimeOffset.Now.AddDays(1);
                 CabinetText.Text = _settings.Cabinet;
                 CabinetAddressText.Text = _settings.CabinetAddress;
+                CabinetSpecialtyText.Text = _settings.CabinetSpecialty; CabinetPhoneText.Text = _settings.CabinetPhone;
+                CabinetFaxText.Text = _settings.CabinetFax; CabinetContactText.Text = _settings.CabinetContact;
                 DurationNumber.Value = _settings.AppointmentDurationMinutes;
                 SmsOnlyNoEmail.IsChecked = _settings.SmsOnlyWhenNoEmail;
                 SmsFamilySizeFilter.SelectedIndex = Math.Clamp(_settings.SmsMinimumFamilySize, 1, 3) - 1;
@@ -181,6 +183,8 @@ namespace Client.Pages
                 CalendarSubject = CalendarSubjectText.Text,
                 Alerts = _alerts.Select(a => new AlertConfiguration { OffsetMinutes = a.OffsetMinutes, Label = a.Label }).ToList(),
                 Cabinet = CabinetText.Text.Trim(), CabinetAddress = CabinetAddressText.Text.Trim(),
+                CabinetSpecialty = CabinetSpecialtyText.Text.Trim(), CabinetPhone = CabinetPhoneText.Text.Trim(),
+                CabinetFax = CabinetFaxText.Text.Trim(), CabinetContact = CabinetContactText.Text.Trim(),
                 AppointmentDurationMinutes = (int)DurationNumber.Value, CalendarTimeZone = _settings.CalendarTimeZone, SmsOnlyWhenNoEmail = SmsOnlyNoEmail.IsChecked == true,
                 Subject = SubjectText.Text, SmsTemplate = SmsTemplateText.Text, EmailTemplate = EmailTemplateText.Text,
                 Sms = new SmsSettings

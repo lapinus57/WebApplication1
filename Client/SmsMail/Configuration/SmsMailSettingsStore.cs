@@ -15,6 +15,11 @@ namespace Client.SmsMail.Configuration
         public EmailSettings Email { get; set; } = new();
         public string Cabinet { get; set; } = "Docteur René MULLER";
         public string CabinetAddress { get; set; } = "37 rue de la République, 57320 BOUZONVILLE";
+        /// <summary>En-tête des fiches de rendez-vous : spécialité, téléphone, fax et adresse de contact pour les RDV.</summary>
+        public string CabinetSpecialty { get; set; } = "MALADIES DES YEUX";
+        public string CabinetPhone { get; set; } = "03 87 78 22 10";
+        public string CabinetFax { get; set; } = "03 87 78 22 11";
+        public string CabinetContact { get; set; } = "rdv.muller@gmail.com";
         public int AppointmentDurationMinutes { get; set; } = 30;
         public string CalendarTimeZone { get; set; } = "Europe/Paris";
         public bool AdjustReminderTimes { get; set; }

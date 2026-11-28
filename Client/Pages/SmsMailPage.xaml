@@ -332,6 +332,12 @@
                     <Expander Header="Votre cabinet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True"><StackPanel Spacing="12">
                         <TextBox x:Name="CabinetText" Header="Nom du cabinet" />
                         <TextBox x:Name="CabinetAddressText" Header="Adresse du cabinet (mail et calendrier)" />
+                        <TextBox x:Name="CabinetSpecialtyText" Header="Spécialité (fiche de rendez-vous)" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBox x:Name="CabinetPhoneText" Header="Téléphone" MinWidth="160" InputScope="TelephoneNumber" />
+                            <TextBox x:Name="CabinetFaxText" Header="Fax" MinWidth="160" InputScope="TelephoneNumber" />
+                            <TextBox x:Name="CabinetContactText" Header="Contact RDV (mail)" MinWidth="240" InputScope="EmailSmtpAddress" />
+                        </StackPanel>
                         <NumberBox x:Name="DurationNumber" Header="Durée de chaque rendez-vous en minutes" Minimum="1" Maximum="480" Value="30" />
                     </StackPanel></Expander>
                     <Expander x:Name="ReminderTimesExpander" Header="Heures d’arrivée annoncées dans les rappels" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">

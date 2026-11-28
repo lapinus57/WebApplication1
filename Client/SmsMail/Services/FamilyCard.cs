@@ -23,6 +23,10 @@ namespace Client.SmsMail.Services
     public sealed class FamilyCardMember
     {
         public int PatientId { get; set; }
+        /// <summary>Civilité (Madame, Monsieur…), nom et prénom séparés : la fiche écrit « Madame WINCKEL Sandra ».</summary>
+        public string Title { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string FirstName { get; set; } = "";
         public string Name { get; set; } = "";
         public DateTime? BirthDate { get; set; }
     }
@@ -39,6 +43,10 @@ namespace Client.SmsMail.Services
     {
         public string Cabinet { get; set; } = "";
         public string CabinetAddress { get; set; } = "";
+        public string Specialty { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string Fax { get; set; } = "";
+        public string Contact { get; set; } = "";
         public int PatientId { get; set; }
         public DateTime GeneratedAt { get; set; }
         public List<FamilyCardMember> Members { get; set; } = new();
@@ -47,46 +55,90 @@ namespace Client.SmsMail.Services
         public List<string> Emails { get; set; } = new();
     }
 
-    /// <summary>Mise en page de la fiche (impression A4 et mail) : la même sur le poste et sur le serveur.</summary>
+    /// <summary>
+    /// Mise en page de la fiche (impression A4 et mail), la même sur le poste et sur le serveur, dans le style de la fiche de
+    /// rendez-vous du cabinet : en-tête du cabinet à gauche, patient(s) à droite, puis les rendez-vous en gras.
+    /// </summary>
     public static class FamilyCardDocument
     {
         private static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
         private static string E(string? text) => WebUtility.HtmlEncode(text ?? "");
 
-        public static string Title(FamilyCard card) => card.Members.Count > 1 ? "Rendez-vous de la famille" : "Vos rendez-vous";
+        public static string Title(FamilyCard card) => card.Members.Count > 1 ? "Rendez-vous de la famille" : "Votre prochain rendez-vous";
+
+        /// <summary>« Mme » → « Madame », « M. » → « Monsieur »… ; une civilité inconnue est gardée telle quelle.</summary>
+        public static string Civility(string? title)
+        {
+            var t = (title ?? "").Trim().TrimEnd('.').ToUpperInvariant();
+            return t switch
+            {
+                "MME" or "MADAME" or "MRS" => "Madame",
+                "M" or "MR" or "MONSIEUR" => "Monsieur",
+                "MLLE" or "MADEMOISELLE" => "Mademoiselle",
+                "" => "",
+                _ => (title ?? "").Trim(),
+            };
+        }
+
+        /// <summary>« Madame WINCKEL Sandra » (ou le nom tel qu'il est connu).</summary>
+        public static string Addressee(FamilyCardMember m)
+        {
+            var name = m.LastName.Length > 0 || m.FirstName.Length > 0 ? $"{m.LastName.ToUpper(Fr)} {m.FirstName}".Trim() : m.Name;
+            var civility = Civility(m.Title);
+            return civility.Length > 0 ? civility + " " + name : name;
+        }
+
+        /// <summary>« 37, Rue de la République, 57 320 BOUZONVILLE » → rue, puis code postal et ville.</summary>
+        public static List<string> AddressLines(string address)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(address ?? "", @"^(?<street>.*?)[,\s]+(?<city>\d{2}\s?\d{3}\s+.+)$");
+            return (m.Success ? new[] { m.Groups["street"].Value, m.Groups["city"].Value } : new[] { address ?? "" })
+                .Select(x => x.Trim().TrimEnd(',')).Where(x => x.Length > 0).ToList();
+        }
 
         public static string Html(FamilyCard card, bool forMail = false)
         {
             var sb = new StringBuilder();
             sb.Append("<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\"><title>").Append(E(Title(card))).Append("</title><style>")
-              .Append("@page{size:A4;margin:18mm 16mm}body{font-family:'Segoe UI',Arial,sans-serif;color:#1d2b3f;margin:0;padding:24px;font-size:14px;line-height:1.45}")
-              .Append(".head{display:flex;justify-content:space-between;gap:16px;border-bottom:3px solid #1f5fbf;padding-bottom:12px;margin-bottom:18px}")
-              .Append(".cab{font-size:18px;font-weight:700}.addr{color:#5b6b80}.title{font-size:22px;font-weight:700;margin:6px 0 2px}")
-              .Append(".who{color:#5b6b80;margin-bottom:16px}table{width:100%;border-collapse:collapse;margin-top:8px}")
-              .Append("th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5b6b80;border-bottom:2px solid #d9e1ec;padding:8px 6px}")
-              .Append("td{padding:10px 6px;border-bottom:1px solid #e6ebf2;vertical-align:top}td.d{white-space:nowrap;font-weight:600}td.h{white-space:nowrap;font-weight:700;color:#1f5fbf;font-size:16px}")
-              .Append(".none{padding:16px;background:#f4f7fb;border-radius:8px}.foot{margin-top:22px;color:#5b6b80;font-size:12px}")
+              .Append("@page{size:A4;margin:14mm 16mm}")
+              .Append("body{font-family:Arial,Helvetica,sans-serif;color:#000;margin:0;padding:24px 28px;font-size:14px;line-height:1.3;max-width:760px}")
+              .Append(".head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:8px;border-bottom:1px solid #d0d0d0}")
+              .Append(".cab b{display:block;font-size:17px}.cab .spe,.cab .adr{width:max-content;min-width:250px;border-bottom:1px solid #000;padding-bottom:2px;margin-bottom:5px}")
+              .Append(".cab .adr{font-style:italic;font-size:13px}")
+              .Append(".cab .tel{font-style:italic;font-weight:700;font-size:13px}.to{font-weight:700;font-size:15px;text-align:right}.to div+div{margin-top:3px}")
+              .Append(".intro{font-size:17px;margin:12px 0 6px 10px}.rdv{display:flex;align-items:baseline;gap:10px;margin:4px 0 4px 90px;font-size:19px}")
+              .Append(".rdv .d{font-weight:700;min-width:300px}.rdv .h b{font-weight:700}.rdv .who{font-size:14px;color:#333;margin-left:6px}")
+              .Append(".none{margin:10px 0 10px 90px;font-size:16px}.note{font-style:italic;font-size:13px;margin:12px 0 0 12px;padding-bottom:10px;border-bottom:1px solid #d0d0d0}")
               .Append("@media print{body{padding:0}}</style></head><body>");
-            sb.Append("<div class=\"head\"><div><div class=\"cab\">").Append(E(card.Cabinet)).Append("</div><div class=\"addr\">").Append(E(card.CabinetAddress))
-              .Append("</div></div><div class=\"addr\">Édité le ").Append(card.GeneratedAt.ToString("dd/MM/yyyy", Fr)).Append("</div></div>");
-            sb.Append("<div class=\"title\">").Append(E(Title(card))).Append("</div><div class=\"who\">")
-              .Append(E(string.Join(", ", card.Members.Select(m => m.Name)))).Append("</div>");
+
+            // En-tête : cabinet à gauche, patient(s) à droite.
+            var address = AddressLines(card.CabinetAddress);
+            sb.Append("<div class=\"head\"><div class=\"cab\"><b>").Append(E(card.Cabinet)).Append("</b>");
+            if (card.Specialty.Length > 0) sb.Append("<div class=\"spe\">").Append(E(card.Specialty)).Append("</div>");
+            if (address.Count > 0) sb.Append("<div class=\"adr\">").Append(string.Join("<br>", address.Select(E))).Append("</div>");
+            var lines = new List<string>();
+            if (card.Phone.Length > 0) lines.Add("TEL : " + E(card.Phone));
+            if (card.Fax.Length > 0) lines.Add("FAX : " + E(card.Fax));
+            if (card.Contact.Length > 0) lines.Add("CONTACT RDV : " + E(card.Contact));
+            if (lines.Count > 0) sb.Append("<div class=\"tel\">").Append(string.Join("<br>", lines)).Append("</div>");
+            sb.Append("</div><div class=\"to\">");
+            foreach (var m in card.Members) sb.Append("<div>").Append(E(Addressee(m))).Append("</div>");
+            sb.Append("</div></div>");
+
             var upcoming = card.Appointments.OrderBy(a => a.Start).ThenBy(a => a.Name).ToList();
+            var many = card.Members.Count > 1;
+            sb.Append("<div class=\"intro\">").Append(upcoming.Count > 1 ? "Vos prochains rendez-vous sont fixés au :" : "Votre prochain rendez-vous est fixé au :").Append("</div>");
             if (upcoming.Count == 0) sb.Append("<div class=\"none\">Aucun rendez-vous à venir.</div>");
-            else
+            foreach (var a in upcoming)
             {
-                var many = card.Members.Count > 1;
-                sb.Append("<table><thead><tr><th>Date</th><th>Heure</th>").Append(many ? "<th>Pour</th>" : "").Append("</tr></thead><tbody>");
-                foreach (var a in upcoming)
-                {
-                    var day = a.Start.ToString("dddd d MMMM yyyy", Fr);
-                    sb.Append("<tr><td class=\"d\">").Append(E(char.ToUpper(day[0], Fr) + day[1..])).Append("</td><td class=\"h\">")
-                      .Append(a.Start.ToString("HH:mm", Fr)).Append("</td>").Append(many ? "<td>" + E(a.Name) + "</td>" : "").Append("</tr>");
-                }
-                sb.Append("</tbody></table>");
+                var member = card.Members.FirstOrDefault(m => m.PatientId == a.PatientId);
+                sb.Append("<div class=\"rdv\"><span class=\"d\">").Append(E(a.Start.ToString("dddd d MMMM yyyy", Fr))).Append("</span>")
+                  .Append("<span class=\"h\">à : <b>").Append(a.Start.ToString("HH:mm", Fr)).Append(" heures</b></span>");
+                if (many) sb.Append("<span class=\"who\">").Append(E(member != null ? $"{member.FirstName} {member.LastName.ToUpper(Fr)}".Trim() : a.Name)).Append("</span>");
+                sb.Append("</div>");
             }
-            sb.Append("<div class=\"foot\">En cas d'empêchement, merci de prévenir le cabinet au plus tôt.")
-              .Append(forMail ? " Ce message est envoyé automatiquement, merci de ne pas y répondre." : "").Append("</div></body></html>");
+            sb.Append("<div class=\"note\">En cas d'empêchement, merci de nous prévenir le plus rapidement possible.")
+              .Append(forMail ? " Ce message est envoyé automatiquement." : "").Append("</div></body></html>");
             return sb.ToString();
         }
     }
