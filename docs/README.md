@@ -1,6 +1,7 @@
 # Documentation
 
 Ce dossier contient des pages d'aide pour l'application **EyeChat**.
+- [Guide du client EyeChat pour Windows](guide-client-eyechat.md) — tâches du cabinet et captures annotées.
 
 - [Fonctionnement](Fonctionnement.md) : architecture générale et échanges entre le client et le serveur.
 - [Personnalisation](Personnalisation.md) : réglages disponibles côté client et côté serveur.
