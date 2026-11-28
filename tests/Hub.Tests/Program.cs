@@ -440,10 +440,15 @@ try
         "Fiche : « Pour Jacques, Lucie et Jeanne » sous chaque rendez-vous");
     var alone = await secretariat.InvokeAsync<Client.SmsMail.Services.FamilyCard>("FamilyCardGet", 777);
     Check(alone.Members.Single().PatientId == 777 && Client.SmsMail.Services.FamilyCardDocument.Html(alone).Contains("Aucun rendez-vous à venir"), "Personne seule sans RDV");
-    var mailed = await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "ana@example.fr");
+    var mailed = await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "ana@example.fr", new List<int> { 602 });
     Check(mailed.StartsWith("Fiche famille — non confirmée") && (await secretariat.InvokeAsync<List<EyeChat.SmsMail.HistoryRecord>>("SmsMailLoad"))
         .Any(h => h.Key.StartsWith("fiche-famille-601-") && h.Contact == "ana@example.fr" && h.Status.StartsWith("Fiche famille")), "Envoi par mail : résultat écrit dans l'historique");
-    try { await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "pas-une-adresse"); Check(false, "Adresse invalide refusée"); }
+    var withoutEli = Client.SmsMail.Services.FamilyCardDocument.Without(card, new[] { 602 });
+    Check(withoutEli.Members.Single().PatientId == 601 && withoutEli.Appointments.All(a => a.PatientId == 601)
+        && !Client.SmsMail.Services.FamilyCardDocument.Html(withoutEli).Contains("Eli"), "Personne retirée : ni dans l'en-tête, ni dans les rendez-vous");
+    try { await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "ana@example.fr", new List<int> { 601, 602 }); Check(false, "Fiche vide refusée"); }
+    catch (HubException) { checks++; }
+    try { await secretariat.InvokeAsync<string>("FamilyCardSendMail", 601, "pas-une-adresse", new List<int>()); Check(false, "Adresse invalide refusée"); }
     catch (HubException) { checks++; }
 
     foreach (var c in connections)

@@ -64,6 +64,20 @@ namespace Client.SmsMail.Services
         private static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
         private static string E(string? text) => WebUtility.HtmlEncode(text ?? "");
 
+        /// <summary>La fiche sans certaines personnes (retirées à la main) : ni dans l'en-tête, ni dans les rendez-vous.</summary>
+        public static FamilyCard Without(FamilyCard card, IEnumerable<int>? excluded)
+        {
+            var removed = (excluded ?? Array.Empty<int>()).ToHashSet();
+            if (removed.Count == 0) return card;
+            return new FamilyCard
+            {
+                Cabinet = card.Cabinet, CabinetAddress = card.CabinetAddress, Specialty = card.Specialty, Phone = card.Phone, Fax = card.Fax,
+                Contact = card.Contact, PatientId = card.PatientId, GeneratedAt = card.GeneratedAt, Emails = card.Emails,
+                Members = card.Members.Where(m => !removed.Contains(m.PatientId)).ToList(),
+                Appointments = card.Appointments.Where(a => !removed.Contains(a.PatientId)).ToList(),
+            };
+        }
+
         public static string Title(FamilyCard card) => card.Members.Count > 1 ? "Rendez-vous de la famille" : "Votre prochain rendez-vous";
 
         /// <summary>« Mme » → « Madame », « M. » → « Monsieur »… ; une civilité inconnue est gardée telle quelle.</summary>

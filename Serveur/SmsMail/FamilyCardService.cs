@@ -98,11 +98,12 @@ public sealed class FamilyCardService(EyeMailDbContext patients, FamilyStore fam
     }
 
     /// <summary>Envoie la fiche par mail (réglages SMTP du serveur), avec une trace dans l'historique commun.</summary>
-    public async Task<string> SendMailAsync(int patientId, string email, DateTime today)
+    public async Task<string> SendMailAsync(int patientId, string email, DateTime today, IReadOnlyList<int>? excluded = null)
     {
         if (!System.Net.Mail.MailAddress.TryCreate((email ?? "").Trim(), out var address)) throw new InvalidOperationException("Adresse mail invalide.");
         var s = settings.Load() ?? throw new InvalidOperationException(SmsMailDelivery.NotConfigured);
-        var card = await BuildAsync(patientId, today);
+        var card = FamilyCardDocument.Without(await BuildAsync(patientId, today), excluded);
+        if (card.Members.Count == 0) throw new InvalidOperationException("Toutes les personnes ont été retirées de la fiche.");
         var message = new PreparedMessage
         {
             Key = $"fiche-famille-{patientId}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}", Channel = "Mail", Contact = address.Address,

@@ -759,6 +759,48 @@ namespace Client.Pages
 
         private CancellationTokenSource? _familyCardSearch;
         private FamilyCard? _familyCard;
+        private readonly HashSet<int> _familyCardExcluded = new();
+
+        /// <summary>La fiche telle qu'elle sera imprimée ou envoyée : sans les personnes décochées.</summary>
+        private FamilyCard? VisibleFamilyCard => _familyCard == null ? null : FamilyCardDocument.Without(_familyCard, _familyCardExcluded);
+
+        private void ShowFamilyCardMembers()
+        {
+            FamilyCardMembersPanel.Children.Clear();
+            var members = _familyCard?.Members ?? new List<FamilyCardMember>();
+            FamilyCardMembersHeader.Visibility = members.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+            if (members.Count < 2) return;
+            foreach (var member in members)
+            {
+                var count = _familyCard!.Appointments.Count(a => a.PatientId == member.PatientId);
+                var box = new CheckBox
+                {
+                    Content = $"{FamilyCardDocument.Addressee(member)} ({(count == 0 ? "aucun RDV à venir" : count == 1 ? "1 RDV" : count + " RDV")})",
+                    IsChecked = !_familyCardExcluded.Contains(member.PatientId), Tag = member.PatientId
+                };
+                box.Checked += FamilyCardMember_Toggled;
+                box.Unchecked += FamilyCardMember_Toggled;
+                FamilyCardMembersPanel.Children.Add(box);
+            }
+        }
+
+        private void FamilyCardMember_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (sender is not CheckBox { Tag: int id } box) return;
+            if (box.IsChecked == true) _familyCardExcluded.Remove(id); else _familyCardExcluded.Add(id);
+            RefreshFamilyCardPreview();
+        }
+
+        private void RefreshFamilyCardPreview()
+        {
+            var card = VisibleFamilyCard;
+            if (card == null) return;
+            FamilyCardPreview.NavigateToString(FamilyCardDocument.Html(card));
+            var any = card.Members.Count > 0;
+            FamilyCardPrintButton.IsEnabled = FamilyCardMailButton.IsEnabled = any;
+            FamilyCardStatus.Text = any ? $"{card.Members.Count} personne(s), {card.Appointments.Count} rendez-vous à venir."
+                : "Toutes les personnes sont décochées : cochez au moins une personne.";
+        }
 
         private async void FamilyCardSearch_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
         {
@@ -800,12 +842,12 @@ namespace Client.Pages
             try
             {
                 _familyCard = await Server().InvokeAsync<FamilyCard>("FamilyCardGet", chosen.PatientId);
+                _familyCardExcluded.Clear();
                 await FamilyCardPreview.EnsureCoreWebView2Async();
-                FamilyCardPreview.NavigateToString(FamilyCardDocument.Html(_familyCard));
                 FamilyCardEmailBox.ItemsSource = _familyCard.Emails;
                 FamilyCardEmailBox.Text = _familyCard.Emails.FirstOrDefault() ?? "";
-                FamilyCardStatus.Text = $"{_familyCard.Members.Count} personne(s), {_familyCard.Appointments.Count} rendez-vous à venir.";
-                FamilyCardPrintButton.IsEnabled = FamilyCardMailButton.IsEnabled = true;
+                ShowFamilyCardMembers();
+                RefreshFamilyCardPreview();
             }
             catch (Exception ex) { FamilyCardStatus.Text = "Fiche impossible : " + ex.Message; }
         }
@@ -819,17 +861,18 @@ namespace Client.Pages
 
         private async void FamilyCardMail_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
         {
-            if (_familyCard == null) return;
+            var card = VisibleFamilyCard;
+            if (_familyCard == null || card == null || card.Members.Count == 0) return;
             var email = (FamilyCardEmailBox.Text ?? "").Trim();
             if (!System.Net.Mail.MailAddress.TryCreate(email, out _)) throw new InvalidOperationException("Indiquez une adresse mail valide.");
             var dialog = new ContentDialog
             {
                 Title = "Envoyer la fiche par mail ?", XamlRoot = XamlRoot, PrimaryButtonText = "Envoyer", CloseButtonText = "Annuler", DefaultButton = ContentDialogButton.Close,
-                Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = $"Fiche de {string.Join(", ", _familyCard.Members.Select(m => m.Name))} ({_familyCard.Appointments.Count} rendez-vous) à {email}." }
+                Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = $"Fiche de {string.Join(", ", card.Members.Select(m => m.Name))} ({card.Appointments.Count} rendez-vous) à {email}." }
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             FamilyCardStatus.Text = "Envoi par le serveur…";
-            var result = await Server().InvokeAsync<string>("FamilyCardSendMail", _familyCard.PatientId, email);
+            var result = await Server().InvokeAsync<string>("FamilyCardSendMail", _familyCard.PatientId, email, _familyCardExcluded.ToList());
             FamilyCardStatus.Text = result + " (visible dans l'historique).";
             await ReloadHistoryAsync();
         });

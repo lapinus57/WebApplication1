@@ -283,11 +283,11 @@ namespace ChatServeur
             => SmsMailGuardAsync(() => FamilyCards().BuildAsync(patientId, DateTime.Today));
 
         /// <summary>Envoie la fiche par mail depuis le serveur ; renvoie le résultat (aussi écrit dans l'historique).</summary>
-        public Task<string> FamilyCardSendMail(int patientId, string email)
+        public Task<string> FamilyCardSendMail(int patientId, string email, List<int>? excluded)
         {
             if (!TryGetCaller(out var caller)) throw new HubException("Poste non identifié : reconnectez-vous.");
             _logger.LogInformation("Fiche RDV de famille envoyée par mail par {User}.", caller.Username);
-            return SmsMailGuardAsync(() => FamilyCards().SendMailAsync(patientId, email, DateTime.Today));
+            return SmsMailGuardAsync(() => FamilyCards().SendMailAsync(patientId, email, DateTime.Today, excluded));
         }
 
         // Les erreurs d'Access, d'OVH ou du serveur mail ne contiennent pas de données patient : elles sont transmises au poste.
