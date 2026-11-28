@@ -112,7 +112,7 @@ namespace Client.SmsMail.Services
         {
             var sb = new StringBuilder();
             sb.Append("<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\"><title>").Append(E(Title(card))).Append("</title><style>")
-              .Append("@page{size:A4;margin:14mm 16mm}")
+              .Append("@page{size:A4;margin:0}")
               .Append("body{font-family:Arial,Helvetica,sans-serif;color:#000;margin:0;padding:24px 28px;font-size:14px;line-height:1.3;max-width:760px}")
               .Append(".head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:8px;border-bottom:1px solid #d0d0d0}")
               .Append(".cab b{display:block;font-size:17px}.cab .spe,.cab .adr{width:max-content;min-width:250px;border-bottom:1px solid #000;padding-bottom:2px;margin-bottom:5px}")
@@ -121,7 +121,7 @@ namespace Client.SmsMail.Services
               .Append(".intro{font-size:17px;margin:12px 0 6px 10px}.rdv{display:flex;flex-wrap:nowrap;align-items:baseline;gap:24px;margin:8px 0 2px 60px;font-size:19px;white-space:nowrap}")
               .Append(".rdv .d{font-weight:700;min-width:270px}.rdv .h b{font-weight:700}.for{margin:0 0 8px 90px;font-size:15px}")
               .Append(".none{margin:10px 0 10px 90px;font-size:16px}.note{font-style:italic;font-size:13px;margin:12px 0 0 12px;padding-bottom:10px;border-bottom:1px solid #d0d0d0}")
-              .Append("@media print{body{padding:0}}</style></head><body>");
+              .Append("@media print{body{padding:14mm 16mm;max-width:none}}</style></head><body>");
 
             // En-tête : cabinet à gauche, patient(s) à droite.
             var address = AddressLines(card.CabinetAddress);
