@@ -13,6 +13,8 @@
 <body>
     @if (!(ViewData["HideChrome"] as bool? ?? false))
     {
+        var currentPage = ViewContext.RouteData.Values["page"] as string ?? "";
+        string Active(string page) => string.Equals(currentPage, page, StringComparison.OrdinalIgnoreCase) ? "is-active" : "";
     <header class="topbar">
         <div class="shell topbar-content">
             <a class="brand" asp-page="/Index" aria-label="EyeChat - État du serveur">
@@ -20,23 +22,34 @@
                 <span><strong>EyeChat</strong><small>Administration serveur</small></span>
             </a>
             <div class="topbar-actions">
-                <div class="topbar-state"><span></span> Service démarré</div>
+                <div class="topbar-state"><span></span><em>Service démarré</em></div>
                 @if (User.Identity?.IsAuthenticated == true)
                 {
-                    <a asp-page="/Fundus">Préparation FO</a>
-                    <a asp-page="/PatientRegistry">Patients · Diabète / HTO</a>
-                    <a asp-page="/EyeMail">Base patients EyeMail</a>
-                    <a asp-page="/SmsMail">SMS et mail</a>
-                    <a asp-page="/Families">Familles</a>
-                    <a asp-page="/Clients">Postes</a>
-                    <a asp-page="/AccessSettings">Réglages Access</a>
-                    <a asp-page="/Replies">Réponses des patients</a>
                     <span class="admin-name">@User.Identity.Name</span>
                     <form method="post" asp-page="/Logout"><button class="logout-button" type="submit">Déconnexion</button></form>
                 }
             </div>
         </div>
     </header>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+    <nav class="admin-nav" aria-label="Administration">
+        <div class="shell admin-nav-links">
+            <a class="@Active("/Index")" asp-page="/Index">Accueil</a>
+            <span class="admin-nav-group">Patients</span>
+            <a class="@Active("/Fundus")" asp-page="/Fundus">Préparation FO</a>
+            <a class="@Active("/PatientRegistry")" asp-page="/PatientRegistry">Diabète / HTO</a>
+            <a class="@Active("/EyeMail")" asp-page="/EyeMail">Base patients</a>
+            <a class="@Active("/Families")" asp-page="/Families">Familles</a>
+            <span class="admin-nav-group">Rappels</span>
+            <a class="@Active("/SmsMail")" asp-page="/SmsMail">SMS et mail</a>
+            <a class="@Active("/Replies")" asp-page="/Replies">Réponses</a>
+            <span class="admin-nav-group">Système</span>
+            <a class="@Active("/Clients")" asp-page="/Clients">Postes</a>
+            <a class="@Active("/AccessSettings")" asp-page="/AccessSettings">Réglages Access</a>
+        </div>
+    </nav>
+    }
     }
 
     <main class="@((ViewData["HideChrome"] as bool? ?? false) ? "" : "shell")" role="main">

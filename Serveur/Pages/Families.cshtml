@@ -28,8 +28,8 @@
         <h2>Sources</h2>
         <p><strong>Photo de la carte Vitale</strong> (ancienne base, importée une fois) :
             @(Model.VitaleCount > 0 ? $"{Model.VitaleCount.ToString("N0", fr)} fiches, fichier « {Model.VitaleFile} », importé le {Model.VitaleImported}" : "aucune")</p>
-        <form method="post" asp-page-handler="Vitale" enctype="multipart/form-data">
-            <label>Remplacer par <input type="file" name="file" accept=".csv" required /></label>
+        <form method="post" asp-page-handler="Vitale" enctype="multipart/form-data" class="registry-filters">
+            <label>Remplacer par<input type="file" name="file" accept=".csv" required /></label>
             <button type="submit">Importer export-vitale.csv</button>
         </form>
         <p><strong>Exports « suivi des paiements »</strong> (CGM e-Vitale) : le NIR sert seulement à savoir qui est facturé sous la même carte ; il n'est jamais conservé.</p>
@@ -44,8 +44,8 @@
             }
             </ul>
         }
-        <form method="post" asp-page-handler="Payments" enctype="multipart/form-data">
-            <label>Ajouter un export <input type="file" name="file" accept=".csv" required /></label>
+        <form method="post" asp-page-handler="Payments" enctype="multipart/form-data" class="registry-filters">
+            <label>Ajouter un export<input type="file" name="file" accept=".csv" required /></label>
             <button type="submit">Ajouter</button>
         </form>
     </section>
